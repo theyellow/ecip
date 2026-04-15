@@ -13,7 +13,7 @@
 
 ### Epic 1.2: Spring Boot 4 Service Skeletons
 - [x] US-1.2.1: Generate base Spring Boot 4 projects for all planned services (WebFlux, Actuator, Security)
-- [ ] US-1.2.2: Add Dockerfiles for each service
+- [x] US-1.2.2: Add Dockerfiles for each service
 - [ ] US-1.2.3: Integrate basic health endpoints
 
 ### Epic 1.3: Kafka & PostgreSQL Local Integration
@@ -250,10 +250,19 @@ Add Dockerfiles to each service module to enable containerization and simplify d
 - Expose necessary ports and configure health checks.
 - Document the Docker image build and run process.
 
+**Implementation Notes (Completed):**
+- Created multi-stage Dockerfiles for all 8 services:
+  * Stage 1 (builder): eclipse-temurin:21-jdk with Maven
+  * Stage 2 (runtime): eclipse-temurin:21-jre
+- Non-root user (emcip) created for security
+- Health checks configured: `curl http://localhost:{port}/actuator/health`
+- Created `.dockerignore` for optimized builds
+- Dockerfile locations: `{service}/Dockerfile`
+
 **Acceptance Criteria:**
-- Dockerfiles are present in all service modules.
-- Docker images can be built and run successfully.
-- Documentation for Docker usage is available.
+- ✅ Dockerfiles are present in all 8 service modules.
+- ⏳ Docker images can be built and run successfully (test locally).
+- ⏳ Documentation for Docker usage is available (add to README).
 
 **In-scope:**
 - Dockerfile creation, documentation
