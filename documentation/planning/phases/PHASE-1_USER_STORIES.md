@@ -5,7 +5,7 @@
 ---
 
 ### Epic 1.1: Monorepo & CI/CD Setup
-- [ ] US-1.1.1: Create Maven parent POM and initial module structure
+- [x] US-1.1.1: Create Maven parent POM and initial module structure
 - [ ] US-1.1.2: Set up Git repository and branching strategy
 - [ ] US-1.1.3: Implement CI/CD pipeline (Maven, GitHub Actions/Jenkins)
 - [ ] US-1.1.4: Add code quality checks (Spotless, Checkstyle, PMD)
