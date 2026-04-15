@@ -59,17 +59,15 @@ All services expose health endpoints via Spring Boot Actuator. These endpoints a
 
 ### Phase 1: Basic Health
 
-All services currently expose:
+All services expose the default Spring Boot Actuator health endpoint:
 - **ping**: Basic application responsiveness
-- **db**: Database connectivity indicator (stub - Phase 2)
-- **kafka**: Kafka connectivity indicator (stub - Phase 2)
 
-### Phase 2: Enhanced Health
+### Phase 2: Enhanced Health (Planned)
 
-In Phase 2, the health indicators will be enhanced to:
-- Actually verify database connectivity via PostgreSQL R2DBC
-- Actually verify Kafka broker connectivity
-- Add custom business logic health checks
+In Phase 2, custom health indicators will be added:
+- Database connectivity indicator via PostgreSQL R2DBC
+- Kafka broker connectivity indicator
+- Custom business logic health checks
 
 ## Docker Health Checks
 

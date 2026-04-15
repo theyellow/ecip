@@ -315,13 +315,11 @@ Integrate basic health endpoints into each service to enable monitoring and ensu
 - Document the health check endpoints and their expected responses.
 
 **Implementation Notes (Completed):**
-- Spring Boot Actuator health endpoints already configured in application.yml
-- All 8 services expose `/actuator/health` endpoint
+- Spring Boot Actuator health endpoints configured in all application.yml files
+- All 8 services expose `/actuator/health` endpoint (default Actuator ping health)
 - Docker health checks configured in all Dockerfiles:
   `HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3`
-- Created custom health indicators (Phase 1 stubs, Phase 2 implementation):
-  * DatabaseHealthIndicator for services with PostgreSQL (conversation-context, intent-classifier, policy-engine, audit-service, admin-api)
-  * KafkaHealthIndicator for services with Kafka (tdlib-adapter, conversation-context, intent-classifier, policy-engine)
+- Custom health indicators removed due to compilation issues - will be re-implemented in Phase 2
 - Created HEALTH_ENDPOINTS.md documentation
 - Service ports documented: 9080-9087
 
