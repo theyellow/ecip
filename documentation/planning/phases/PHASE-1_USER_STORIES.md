@@ -7,7 +7,7 @@
 ### Epic 1.1: Monorepo & CI/CD Setup
 - [x] US-1.1.1: Create Maven parent POM and initial module structure
 - [x] US-1.1.2: Set up Git repository and branching strategy
-- [ ] US-1.1.3: Implement CI/CD pipeline (Maven, GitHub Actions/Jenkins)
+- [x] US-1.1.3: Implement CI/CD pipeline (Maven, GitHub Actions/Jenkins)
 - [ ] US-1.1.4: Add code quality checks (Spotless, Checkstyle, PMD)
 - [ ] US-1.1.5: Write initial README and contribution guidelines
 
@@ -109,11 +109,21 @@ Implement a CI/CD pipeline for automated builds and tests on every push. This en
 - Fail build on code style or test errors.
 - Integrate code quality checks (spotless, checkstyle, pmd, jacoco).
 
+**Implementation Notes (Completed):**
+- Created `.github/workflows/maven.yml` with two parallel jobs:
+  1. **build job**: compile, test, JaCoCo coverage report, artifact upload
+  2. **code-quality job**: compile, Spotless check, Checkstyle, PMD
+- Triggers: push to main/feature branches, pull requests to main
+- JDK 21 with Temurin distribution
+- Maven dependency caching for faster builds
+- Status badge added to README.md
+- Workflow file location: `.github/workflows/maven.yml`
+
 **Acceptance Criteria:**
-- Pipeline runs on every push/PR.
-- Status badge visible in README.
-- Fails on test or style errors.
-- Test coverage is reported.
+- ✅ Pipeline runs on every push/PR.
+- ✅ Status badge visible in README.
+- ✅ Fails on test or style errors.
+- ✅ Test coverage is reported (JaCoCo artifact uploaded).
 
 **In-scope:**
 - Build, test, style check
