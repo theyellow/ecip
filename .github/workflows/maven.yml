@@ -72,8 +72,8 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
 
-    - name: Compile
-      run: mvn -B clean compile -DskipTests --file pom.xml
+    - name: Build and install
+      run: mvn -B clean install -DskipTests --file pom.xml
 
     - name: Spotless check
       run: mvn -B spotless:check --file pom.xml
