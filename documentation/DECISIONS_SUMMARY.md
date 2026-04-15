@@ -153,30 +153,23 @@ All open questions have been answered and the documentation has been updated to 
 
 ### ✅ Completed
 - **US-1.1.1:** Maven parent POM and 9 module structure
+- **US-1.1.2:** Git repository setup (GitHub, private, GitHub Flow)
 
 ### ⏳ Ready to Implement
-1. **US-1.1.2:** Git repository setup (GitHub, private, GitHub Flow)
-   - Initialize git repo
-   - Create main branch
-   - Set up branch protection rules (if applicable)
-
-2. **US-1.1.3:** GitHub Actions CI/CD pipeline
+1. **US-1.1.3:** GitHub Actions CI/CD pipeline
    - Maven build workflow
    - Code quality checks (Spotless, Checkstyle, PMD)
    - JaCoCo coverage reporting
 
-3. **US-1.1.4:** Add code quality checks
-   - Verify plugins work correctly
+2. **US-1.1.4:** Add code quality checks (verify plugins work)
 
-4. **US-1.1.5:** Write initial README and contribution guidelines
-   - CONTRIBUTING.md with GitHub Flow instructions
+3. **US-1.1.5:** Finalize README and contribution guidelines
 
-5. **US-1.2.1:** Generate base Spring Boot 4 projects
-   - Add src/main/java structure to all modules
-   - Application main classes
+4. **US-1.2.1:** Generate base Spring Boot 4 projects
+   - Application main classes (enable spring-boot:repackage)
    - application.yml with port configurations
 
-6. Continue through Phase 1...
+5. Continue through Phase 1...
 
 ---
 
