@@ -202,7 +202,13 @@ lsof -i :5432
 ### Maven Build Failures
 
 ```bash
-# Clear local Maven cache (if corrupted)
+# FIRST: Always run spotless to fix formatting issues (common cause of failures)
+mvn spotless:apply
+
+# Then rebuild
+mvn clean install -DskipTests
+
+# If still failing, clear local Maven cache (if corrupted)
 rm -rf ~/.m2/repository/io/emcip
 
 # Rebuild from scratch
