@@ -17,9 +17,9 @@
 - [x] US-1.2.3: Integrate basic health endpoints
 
 ### Epic 1.3: Kafka & PostgreSQL Local Integration
-- [ ] US-1.3.1: Set up local Kafka broker (Docker Compose)
+- [x] US-1.3.1: Set up local Kafka broker (Docker Compose)
 - [ ] US-1.3.2: Define initial topics and event schemas (Avro/JSON)
-- [ ] US-1.3.3: Set up local PostgreSQL instance (Docker Compose)
+- [x] US-1.3.3: Set up local PostgreSQL instance (Docker Compose)
 - [ ] US-1.3.4: Integrate Flyway/Liquibase for DB migrations
 - [ ] US-1.3.5: Implement health checks for Kafka and PostgreSQL
 
@@ -350,10 +350,20 @@ Set up a local Kafka broker using Docker Compose to enable event-driven developm
 - Document how to start, stop, and monitor Kafka locally.
 - Ensure compatibility with the planned event schemas and services.
 
+**Implementation Notes (Completed):**
+- Created `docker-compose.yml` with Kafka 7.5.0 (Confluent) and Zookeeper
+- Kafka available at:
+  * Internal: `kafka:9092` (for services on docker network)
+  * External: `localhost:29092` (for host machine access)
+- Zookeeper on port 2181
+- Default 3 partitions, auto-create topics enabled
+- Added Kafka UI on port 8080 for monitoring
+- Created INFRASTRUCTURE.md with setup instructions and troubleshooting
+
 **Acceptance Criteria:**
-- Kafka broker runs locally via Docker Compose.
-- Services can connect to Kafka and exchange test messages.
-- Documentation for local Kafka setup is available.
+- ✅ Kafka broker runs locally via Docker Compose.
+- ⏳ Services can connect to Kafka and exchange test messages (test after US-1.3.2).
+- ✅ Documentation for local Kafka setup is available (INFRASTRUCTURE.md).
 
 **In-scope:**
 - Docker Compose, Kafka, documentation
@@ -404,10 +414,24 @@ Set up a local PostgreSQL instance using Docker Compose to provide persistent st
 - Document connection details and usage instructions.
 - Ensure services can connect and perform basic CRUD operations.
 
+**Implementation Notes (Completed):**
+- Added PostgreSQL 16 (Alpine) to `docker-compose.yml`
+- Database configuration:
+  * Host: `localhost` (or `postgres` from containers)
+  * Port: `5432`
+  * Database: `emcip`
+  * Username: `emcip`
+  * Password: `emcip`
+- Added pgAdmin on port 5050 for database management
+- Persistent volume `postgres-data` for data retention
+- Health check configured: `pg_isready -U emcip`
+- R2DBC URL for services: `r2dbc:postgresql://localhost:5432/emcip`
+- Documentation in INFRASTRUCTURE.md
+
 **Acceptance Criteria:**
-- PostgreSQL runs locally via Docker Compose.
-- Services can connect and perform test queries.
-- Documentation for local PostgreSQL setup is available.
+- ✅ PostgreSQL runs locally via Docker Compose.
+- ⏳ Services can connect and perform test queries (test after US-1.3.4 Liquibase setup).
+- ✅ Documentation for local PostgreSQL setup is available (INFRASTRUCTURE.md).
 
 **In-scope:**
 - Docker Compose, PostgreSQL, documentation

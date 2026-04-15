@@ -168,11 +168,11 @@ All open questions have been answered and the documentation has been updated to 
 ### ⏳ Ready to Implement
 
 **Epic 1.3: Kafka & PostgreSQL Local Integration**
-1. **US-1.3.1:** Docker Compose for Kafka & PostgreSQL
-2. **US-1.3.2:** Initial event topics and schemas (JSON)
-3. **US-1.3.3:** PostgreSQL persistence setup
-4. **US-1.3.4:** Liquibase migrations
-5. **US-1.3.5:** Health checks for infrastructure
+1. ✅ **US-1.3.1:** Docker Compose for Kafka - COMPLETE
+2. ⏳ **US-1.3.2:** Initial event topics and schemas (JSON)
+3. ✅ **US-1.3.3:** Docker Compose for PostgreSQL - COMPLETE
+4. ⏳ **US-1.3.4:** Liquibase migrations setup
+5. ⏳ **US-1.3.5:** Infrastructure health checks
 
 **Epic 1.4: Initial ADRs & Architecture Docs**
 - US-1.4.1 through US-1.4.3...
