@@ -1,5 +1,7 @@
 # EMCIP - Enterprise Messenger Community Intelligence Platform
 
+[![Java CI with Maven](https://github.com/theyellow/ecip/actions/workflows/maven.yml/badge.svg)](https://github.com/theyellow/ecip/actions/workflows/maven.yml)
+
 An enterprise-grade, microservice-based platform built on Java 25 and Spring Boot 4 that analyzes Telegram groups, channels, and discussion threads in real time, detects communication contexts, and reacts based on rules.
 
 ## Overview
