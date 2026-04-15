@@ -155,17 +155,18 @@ All open questions have been answered and the documentation has been updated to 
 - **US-1.1.1:** Maven parent POM and 9 module structure
 - **US-1.1.2:** Git repository setup (GitHub, private, GitHub Flow)
 - **US-1.1.3:** GitHub Actions CI/CD pipeline with Maven
+- **US-1.2.1:** Spring Boot 4 skeletons for all 8 services with Application classes and configs
 
 ### ⏳ Ready to Implement
 1. **US-1.1.4:** Verify code quality checks work correctly (Spotless, Checkstyle, PMD)
 
 2. **US-1.1.5:** Mark as complete (README and CONTRIBUTING.md already created)
 
-3. **US-1.2.1:** Generate base Spring Boot 4 projects
-   - Application main classes (enable spring-boot:repackage)
-   - application.yml with port configurations
+3. **US-1.2.2:** Add Dockerfiles for each service (multi-stage builds)
 
-4. Continue through Phase 1...
+4. **US-1.2.3:** Security configuration for services
+
+5. Continue through Phase 1...
 
 ---
 

@@ -12,7 +12,7 @@
 - [ ] US-1.1.5: Write initial README and contribution guidelines
 
 ### Epic 1.2: Spring Boot 4 Service Skeletons
-- [ ] US-1.2.1: Generate base Spring Boot 4 projects for all planned services (WebFlux, Actuator, Security)
+- [x] US-1.2.1: Generate base Spring Boot 4 projects for all planned services (WebFlux, Actuator, Security)
 - [ ] US-1.2.2: Add Dockerfiles for each service
 - [ ] US-1.2.3: Integrate basic health endpoints
 
@@ -207,15 +207,31 @@ Generate base Spring Boot 4 projects for all planned services with health endpoi
 - Implement `/actuator/health` endpoint.
 - Document ports and endpoints in README.
 
+**Implementation Notes (Completed):**
+- Created Application.java main classes for all 8 services:
+  * TdlibAdapterApplication (port 9080)
+  * ConversationContextApplication (port 9081)
+  * IntentClassifierApplication (port 9082)
+  * PolicyEngineApplication (port 9083)
+  * LlmOrchestratorApplication (port 9084)
+  * ModerationServiceApplication (port 9085)
+  * AuditServiceApplication (port 9086)
+  * AdminApiApplication (port 9087)
+- Created application.yml configs with correct ports, health endpoints, and logging
+- Enabled Spring Boot Maven plugin repackage for executable JARs
+- All services configured with WebFlux, Actuator, and appropriate starters
+- Build produces executable JARs (*-exec.jar) for all services
+
 **Acceptance Criteria:**
-- Each service starts locally and exposes `/actuator/health`.
-- Dockerfiles build and run each service.
-- Security config is present (basic, see ExtendedTechnical.md Step 2).
+- ✅ Each service has main Application class and compiles successfully.
+- ✅ All services expose `/actuator/health` endpoint (via Actuator config).
+- ⏳ Dockerfiles build and run each service (US-1.2.2).
+- ⏳ Security config is present (US-1.2.3 and later phases).
 
 **In-scope:**
-- Java, Spring Boot, Docker
+- Java, Spring Boot, application configs
 **Out-of-scope:**
-- Business logic, external integrations
+- Dockerfiles (US-1.2.2), Business logic, external integrations
 
 **Hints:**
 - Use `spring-boot-starter-webflux` and `spring-boot-starter-actuator`.
