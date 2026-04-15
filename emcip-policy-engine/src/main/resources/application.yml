@@ -8,6 +8,9 @@ spring:
     url: r2dbc:postgresql://localhost:5432/emcip
     username: emcip
     password: emcip
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
 
 management:
   endpoints:

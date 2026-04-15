@@ -20,7 +20,7 @@
 - [x] US-1.3.1: Set up local Kafka broker (Docker Compose)
 - [x] US-1.3.2: Define initial topics and event schemas (Avro/JSON)
 - [x] US-1.3.3: Set up local PostgreSQL instance (Docker Compose)
-- [ ] US-1.3.4: Integrate Flyway/Liquibase for DB migrations
+- [x] US-1.3.4: Integrate Flyway/Liquibase for DB migrations
 - [ ] US-1.3.5: Implement health checks for Kafka and PostgreSQL
 
 ### Epic 1.4: Initial ADRs & Architecture Docs
@@ -472,10 +472,29 @@ Integrate Flyway or Liquibase for managing database schema migrations, ensuring 
 - Document migration process and how to apply migrations locally.
 - Ensure migrations run automatically on service startup.
 
+**Implementation Notes (Completed):**
+- **Liquibase** chosen as migration tool (per OPEN_QUESTIONS.md decision)
+- Created Liquibase changelogs for 5 services:
+  * `emcip-conversation-context`: chats, users, messages tables
+  * `emcip-intent-classifier`: intent_classifications table
+  * `emcip-policy-engine`: policies, policy_decisions tables
+  * `emcip-audit-service`: audit_events, metrics_snapshots tables
+  * `emcip-admin-api`: admin_users, group_profiles tables
+- Location: `src/main/resources/db/changelog/db.changelog-master.xml`
+- Updated `application.yml` with Liquibase configuration:
+  ```yaml
+  spring:
+    liquibase:
+      change-log: classpath:db/changelog/db.changelog-master.xml
+      enabled: true
+  ```
+- Migrations run automatically on service startup
+- All changelogs use version 1.0.0 for Phase 1
+
 **Acceptance Criteria:**
-- Migration tool is integrated and runs on startup.
-- Initial schema is created via migration scripts.
-- Documentation for migration process is available.
+- ✅ Migration tool (Liquibase) is integrated and runs on startup.
+- ✅ Initial schema is created via migration scripts for all 5 services.
+- ✅ Documentation available in INFRASTRUCTURE.md.
 
 **In-scope:**
 - Flyway/Liquibase, migration scripts, documentation

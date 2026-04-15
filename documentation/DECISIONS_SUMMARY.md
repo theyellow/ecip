@@ -171,7 +171,7 @@ All open questions have been answered and the documentation has been updated to 
 1. ✅ **US-1.3.1:** Docker Compose for Kafka - COMPLETE
 2. ✅ **US-1.3.2:** Event topics and schemas (JSON) - COMPLETE
 3. ✅ **US-1.3.3:** Docker Compose for PostgreSQL - COMPLETE
-4. ⏳ **US-1.3.4:** Liquibase migrations setup
+4. ✅ **US-1.3.4:** Liquibase migrations setup - COMPLETE
 5. ⏳ **US-1.3.5:** Infrastructure health checks
 
 **Epic 1.4: Initial ADRs & Architecture Docs**
