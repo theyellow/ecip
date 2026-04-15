@@ -6,7 +6,7 @@
 
 ### Epic 1.1: Monorepo & CI/CD Setup
 - [x] US-1.1.1: Create Maven parent POM and initial module structure
-- [ ] US-1.1.2: Set up Git repository and branching strategy
+- [x] US-1.1.2: Set up Git repository and branching strategy
 - [ ] US-1.1.3: Implement CI/CD pipeline (Maven, GitHub Actions/Jenkins)
 - [ ] US-1.1.4: Add code quality checks (Spotless, Checkstyle, PMD)
 - [ ] US-1.1.5: Write initial README and contribution guidelines
@@ -72,10 +72,18 @@ Establish a Git repository with a clear branching strategy to manage development
 - Set up main branches (e.g., `main`, `develop`) and protection rules.
 - Document the Git workflow and branching strategy in the repository.
 
+**Implementation Notes (Completed):**
+- Repository already exists at `git@github.com:theyellow/ecip.git`
+- Git configured: user.name="Benjamin Marstaller", user.email="theyellow@gmx.de"
+- Branching strategy: GitHub Flow (main + feature branches, PR-based)
+- Created `CONTRIBUTING.md` with complete GitHub Flow documentation
+- Current branch: `ecip-initial-setup-phase` (pushed to origin)
+- All US-1.1.1 code committed with conventional commit messages
+
 **Acceptance Criteria:**
-- Git repository is created and accessible.
-- Branching strategy is defined and documented.
-- Main branches are set up with protection rules.
+- ✅ Git repository is created and accessible.
+- ✅ Branching strategy is defined and documented.
+- ⏳ Main branches are set up with protection rules (requires GitHub UI setup).
 
 **In-scope:**
 - Git repository, branching strategy
@@ -86,6 +94,8 @@ Establish a Git repository with a clear branching strategy to manage development
 - Use GitHub or GitLab for repository hosting.
 - Clearly define branch protection rules to enforce code reviews and CI checks.
 - Document the Git workflow in the repository's README.
+
+**Next Step:** Set up branch protection rules in GitHub UI (see checklist below).
 
 ---
 
@@ -471,3 +481,49 @@ Document all steps required for local setup and onboarding to ensure new develop
 - Link to relevant ADRs and architecture docs.
 
 ---
+
+# Phase 1 Manual Setup Checklist
+
+The following items require manual configuration via GitHub UI:
+
+## GitHub Repository Settings (after US-1.1.2)
+
+1. **Branch Protection Rules for `main`:**
+   - [ ] Go to Settings → Branches → Add rule
+   - [ ] Branch name pattern: `main`
+   - [ ] ✅ Require a pull request before merging
+   - [ ] ✅ Require approvals (1 minimum)
+   - [ ] ✅ Dismiss stale PR approvals when new commits are pushed
+   - [ ] ✅ Require status checks to pass (add later after CI setup)
+   - [ ] ✅ Include administrators (optional)
+
+2. **Repository Settings:**
+   - [ ] Private repository (confirmed)
+   - [ ] SSH key access configured for your local machine
+
+## Pull Request Template (after US-1.1.1)
+
+Create `.github/pull_request_template.md`:
+```markdown
+## Description
+Brief description of changes
+
+## Type of Change
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Documentation
+- [ ] Refactoring
+
+## Checklist
+- [ ] Build passes (`mvn clean install`)
+- [ ] Tests pass
+- [ ] Code coverage ≥ 80%
+- [ ] Spotless check passes
+```
+
+## After US-1.1.3 (CI/CD)
+
+Add required status checks to branch protection:
+- [ ] `build` check (Maven build)
+- [ ] `test` check (Maven test)
+- [ ] `spotless` check (code formatting)
