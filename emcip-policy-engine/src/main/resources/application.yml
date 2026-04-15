@@ -1,0 +1,23 @@
+server:
+  port: 9083
+
+spring:
+  application:
+    name: emcip-policy-engine
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/emcip
+    username: emcip
+    password: emcip
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    io.emcip: INFO

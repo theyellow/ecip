@@ -1,0 +1,19 @@
+server:
+  port: 9084
+
+spring:
+  application:
+    name: emcip-llm-orchestrator
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    io.emcip: INFO

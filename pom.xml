@@ -126,7 +126,7 @@
                                 <goal>repackage</goal>
                             </goals>
                             <configuration>
-                                <skip>true</skip>
+                                <classifier>exec</classifier>
                             </configuration>
                         </execution>
                     </executions>

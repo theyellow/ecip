@@ -1,0 +1,19 @@
+server:
+  port: 9080
+
+spring:
+  application:
+    name: emcip-tdlib-adapter
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    io.emcip: INFO

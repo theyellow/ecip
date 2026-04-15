@@ -1,0 +1,23 @@
+server:
+  port: 9082
+
+spring:
+  application:
+    name: emcip-intent-classifier
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/emcip
+    username: emcip
+    password: emcip
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    io.emcip: INFO
