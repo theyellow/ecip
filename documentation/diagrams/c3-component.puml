@@ -1,0 +1,44 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Container_Boundary(tdlib, "TDLib Adapter") {
+  Component(tdlib_core, "TDLib Core", "C++/JNI", "Telegram protocol integration")
+  Component(tdlib_api, "TDLib API", "Java", "Java bindings for TDLib")
+  Component(tdlib_events, "Event Publisher", "Java", "Publishes normalized events to Kafka")
+}
+
+Container_Boundary(context, "Conversation Context Service") {
+  Component(context_tracker, "Thread Tracker", "Java", "Tracks threads and speaker roles")
+  Component(context_api, "Context API", "Java", "Provides context data to other services")
+}
+
+Container_Boundary(intent, "Intent Classifier") {
+  Component(intent_rules, "Rule Engine", "Java", "Rule-based intent classification")
+  Component(intent_api, "Intent API", "Java", "Provides intent classification results")
+}
+
+Container_Boundary(policy, "Policy Engine") {
+  Component(policy_logic, "Policy Logic", "Java", "Deterministic decision logic")
+  Component(policy_api, "Policy API", "Java", "Policy configuration and versioning")
+}
+
+Container_Boundary(llm, "LLM Orchestrator") {
+  Component(llm_router, "Model Router", "Java", "Routes requests to models")
+  Component(llm_templates, "Prompt Templates", "Java", "Manages prompt templates")
+}
+
+Container_Boundary(moderation, "Moderation Service") {
+  Component(moderation_filter, "Toxicity Filter", "Java", "Detects rule violations")
+  Component(moderation_api, "Moderation API", "Java", "Provides moderation results")
+}
+
+Container_Boundary(audit, "Audit/Observability Service") {
+  Component(audit_logger, "Logger", "Java", "Structured logging, cost tracking")
+  Component(audit_metrics, "Metrics Exporter", "Java", "Prometheus/OpenTelemetry integration")
+}
+
+Container_Boundary(admin, "Admin API") {
+  Component(admin_endpoints, "Admin Endpoints", "Java", "Admin operations, JWT security")
+}
+@enduml
+

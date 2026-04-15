@@ -1,0 +1,38 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+System_Boundary(ecip, "ECIP Platform") {
+  Container(tdlib, "TDLib Adapter", "Java/Spring Boot", "Telegram client integration, event normalization")
+  Container(context, "Conversation Context Service", "Java/Spring Boot", "Tracks threads, speaker roles")
+  Container(intent, "Intent Classifier", "Java/Spring Boot", "Rule-based intent classification")
+  Container(policy, "Policy Engine", "Java/Spring Boot", "Deterministic policy logic, escalation")
+  Container(llm, "LLM Orchestrator", "Java/Spring Boot", "Model routing, prompt templates")
+  Container(moderation, "Moderation Service", "Java/Spring Boot", "Toxicity filter, rule violations")
+  Container(audit, "Audit/Observability Service", "Java/Spring Boot", "Logging, tracing, cost tracking")
+  Container(admin, "Admin API", "Java/Spring Boot", "Admin endpoints, JWT security")
+  Container(db, "PostgreSQL", "Database", "Persistence for all services")
+  Container(kafka, "Kafka", "Event Backbone", "Event-driven communication")
+}
+System_Ext(telegram, "Telegram")
+Rel(telegram, tdlib, "TDLib API")
+Rel(tdlib, kafka, "Publishes events")
+Rel(kafka, context, "Event stream")
+Rel(kafka, intent, "Event stream")
+Rel(kafka, policy, "Event stream")
+Rel(kafka, llm, "Event stream")
+Rel(kafka, moderation, "Event stream")
+Rel(kafka, audit, "Event stream")
+Rel(admin, admin, "Configures, Monitors")
+Rel(admin, policy, "Policy configuration")
+Rel(admin, moderation, "Moderation rules")
+Rel(admin, audit, "Audit access")
+Rel(context, db, "Reads/Writes")
+Rel(intent, db, "Reads/Writes")
+Rel(policy, db, "Reads/Writes")
+Rel(llm, db, "Reads/Writes")
+Rel(moderation, db, "Reads/Writes")
+Rel(audit, db, "Reads/Writes")
+Rel(admin, db, "Reads/Writes")
+SHOW_LEGEND()
+@enduml
+

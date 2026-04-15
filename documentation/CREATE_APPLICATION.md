@@ -1,0 +1,49 @@
+Plan for creating ECIP application:
+
+Input:
+- ECIP vision (see SOUL.md)
+- Architectural principles and guidelines (see architecture.adoc and its plantuml-diagrams)
+- Functional and non-functional requirements (see concept/DOMAIN_CONCEPT.md)
+- Technical details and implementation hints (see developer-idea/ExtendedTechnical.md, developer-idea/MinimalIdeaTechnical.md)
+- Milestones and phases (see planning/MILESTONES.md)
+- Deep-dive milestones how get to our goal (see planning/DEEP-DIVE_MILESTONES.md)
+- Epics and user stories (see planning/phases/PHASE-1_USER_STORIES.md, PHASE-2_USER_STORIES.md, etc.)
+- Open questions and technical decisions (see OPEN_QUESTIONS.md)
+- Documentation requirements (see documentation sections in milestones and user stories)
+
+Attention:
+- If decisions are needed, refer to ADRs (Architecture Decision Records) and document new decisions in ADR format. For real decisions, use the ADR template and commit to the repository.
+- Functional and non-functional requirements must be met according to the user stories and architecture.adoc and its plantuml-diagrams (for functional requirements see [DOMAIN_CONCEPT.md](concept/DOMAIN_CONCEPT.md))
+- You will have to implement the application in multiple phases, each with its own milestones and user stories. 
+- The implementation should follow the defined order of phases and milestones, ensuring that all acceptance criteria are met for each user story before moving on to the next one. 
+- Regular documentation and updates to the architecture and technical details are essential throughout the implementation process.
+- keep output small and efficient, ask when needed for more details or clarification, and ensure that all implementation steps are well-documented and aligned with the overall vision and architecture of ECIP.
+- We're in a complex domain with many interdependencies, so it's crucial to maintain a clear and organized approach to implementation, ensuring that all components work together seamlessly and that the application meets the defined requirements and quality standards.
+- we're trying to keep no history, but documentation always on up-to-date state. No "legacy-support" for old documentation, but always the current state of documentation. If something is not clear, ask for clarification or more details before proceeding with the implementation.
+
+Tasks for each phase and its milestones:
+1. Each phase needs to be implemented, but step-by-step we start with the first phase and its milestones and user stories. After completing the first phase, we move on to the next one, following the defined order in MILESTONES.md. For each user story, we ensure that all acceptance criteria are met before moving on to the next one.
+2. Keep technical constraints and requirements in mind (see ExtendedTechnical.md, MinimalIdeaTechnical.md, Architecture documentation, ADRs, puml-diagrams)
+3. For each user story, implement the required functionality, ensuring that all acceptance criteria are met
+4. For each milestone, ensure that all sub-milestones and deliverables are completed
+5. Document all relevant information, decisions, and implementation details according to the documentation requirements in the user stories and milestones
+6. Regularly review and update the architecture documentation, ADRs, and technical details as the implementation progresses and new decisions are made
+7. Ensure that all implemented features are tested and meet the defined acceptance criteria before moving on to the next user story or milestone
+8. Continuously integrate and deploy the application using the defined CI/CD pipeline, ensuring that all modules build and start successfully, and that Kafka and PostgreSQL are properly integrated and functioning (when relevant to the current phase and milestones)
+9. Regularly review the implementation progress against the defined milestones and phases, adjusting the plan as necessary based on any new insights
+10. If user stories are completed this must be documented in the MILESTONES.md, the DEEP-DIVE_MILESTONES.md, and the respective PHASE-X_USER_STORIES.md documents, including the acceptance criteria and any relevant implementation details or decisions made during the implementation process
+11. After completing a phase and its milestones, conduct a review to ensure that all requirements have been met and that the implementation aligns with the overall vision and architecture of ECIP. Document the review findings and any lessons learned for future phases.
+12. After completing all phases, conduct a final review of the entire application to ensure that it meets the defined vision, requirements, and quality standards. Document the final review findings and prepare for production deployment, including any necessary operational documentation and runbooks.
+13. After the final review, prepare for production deployment by ensuring that all necessary operational documentation, runbooks, and monitoring setups are in place. This includes setting up monitoring dashboards for Kafka and PostgreSQL, configuring alerts for critical events, and ensuring that the application is ready for production traffic. Document the deployment process and any post-deployment checks or procedures to ensure a smooth transition to production.
+14. After deployment, continuously monitor the application for performance, reliability, and any issues that may arise. Regularly review the monitoring data and logs to identify any potential problems or areas for improvement. Document any incidents or issues that occur in production, along with their resolution and any lessons learned for future improvements.
+15. Regularly review and update the application based on user feedback, monitoring data, and any new requirements or changes in the Telegram ecosystem. This may involve implementing new features, improving existing functionality, or making adjustments to the architecture as needed. Document any changes made to the application and ensure that all relevant documentation is updated accordingly.
+16. Continuously engage with the Telegram community and stay informed about any updates or changes to the Telegram API, TDLib, or related technologies. This will help ensure that the ECIP application remains compatible and can take advantage of any new features or improvements in the Telegram ecosystem. Document any relevant updates or changes that may impact the application and adjust the implementation plan as necessary to accommodate these changes.
+17. Regularly review the application's performance and scalability, especially as it grows and handles more data and users. This may involve optimizing the application's architecture, improving database performance, or scaling the infrastructure to handle increased load. Document any performance optimizations or scaling strategies implemented, along with their impact on the application's performance and user experience.
+18. Continuously evaluate the application's security posture and implement any necessary security measures to protect user data and ensure compliance with relevant regulations. This may involve implementing encryption, access controls, or regular security audits. Document any security measures implemented and ensure that all relevant documentation is updated to reflect the application's security posture and any compliance requirements.
+19. Regularly review the application's architecture and design to ensure that it remains aligned with the overall vision and goals of ECIP. This may involve refactoring code, improving modularity, or making adjustments to the architecture to better meet the application's needs. Document any architectural changes made and ensure that all relevant documentation, including ADRs and architecture diagrams, is updated accordingly to reflect the current state of the application.
+
+What to do next:
+- Start with the first phase and its milestones as defined in MILESTONES.md and DEEP-DIVE_MILESTONES.md, and begin implementing the user stories in PHASE-1_USER_STORIES.md, ensuring that all acceptance criteria are met and that all relevant documentation is updated throughout the implementation process. Regularly review the progress and adjust the plan as necessary based on any new insights or changes in requirements. After completing the first phase, move on to the next phase and repeat the process until all phases and milestones are completed, ensuring that the final application meets the defined vision, requirements, and quality standards. If things are not clear, ask for clarification or more details before proceeding with the implementation.
+
+Out-of-scope:
+- git PR management, code reviews, and merge processes are out of scope for this plan, but it is assumed that all code changes will go through a proper review and approval process before being merged into the main branch. Additionally, any specific implementation details or code snippets are not included in this plan, as the focus is on the overall process and steps needed to create the ECIP application based on the provided documentation and requirements. The git management will be done by the development team following standard practices for version control and collaboration, ensuring that all changes are properly documented and reviewed before being integrated into the main codebase. The plan focuses on the high-level steps and considerations for implementing the application, rather than the specific technical details or code-level implementation, which will be determined during the development process based on the requirements and architecture defined in the documentation.

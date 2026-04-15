@@ -1,0 +1,47 @@
+@startuml C4_Code
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Container_Boundary(tdlib_adapter, "telegram-tdlib-adapter") {
+    Component(TdlibClient, "TdlibClient", "Handles Telegram connection and events")
+    Component(EventPublisher, "EventPublisher", "Publishes events to Kafka")
+}
+
+Container_Boundary(conversation_context, "conversation-context") {
+    Component(ThreadTracker, "ThreadTracker", "Tracks threads and speaker roles")
+}
+
+Container_Boundary(intent_classifier, "intent-classifier") {
+    Component(RuleEngine, "RuleEngine", "Rule-based intent classification")
+}
+
+Container_Boundary(policy_engine, "policy-engine") {
+    Component(PolicyLogic, "PolicyLogic", "Deterministic policy logic")
+}
+
+Container_Boundary(llm_orchestrator, "llm-orchestrator") {
+    Component(ModelRouter, "ModelRouter", "Routes requests to models")
+}
+
+Container_Boundary(moderation_service, "moderation-service") {
+    Component(ToxicityFilter, "ToxicityFilter", "Detects rule violations")
+}
+
+Container_Boundary(audit_service, "audit-service") {
+    Component(Logger, "Logger", "Structured logging")
+}
+
+Container_Boundary(admin_api, "admin-api") {
+    Component(AdminEndpoints, "AdminEndpoints", "Admin operations, JWT security")
+}
+
+Rel(tdlib_adapter, conversation_context, "Provides events for context tracking")
+Rel(tdlib_adapter, intent_classifier, "Provides events for intent classification")
+Rel(tdlib_adapter, policy_engine, "Provides events for policy decisions")
+Rel(tdlib_adapter, llm_orchestrator, "Provides events for LLM orchestration")
+Rel(tdlib_adapter, moderation_service, "Provides events for moderation")
+Rel(tdlib_adapter, audit_service, "Provides events for auditing")
+Rel(admin_api, policy_engine, "Configures policies")
+Rel(admin_api, moderation_service, "Configures moderation rules")
+Rel(admin_api, audit_service, "Configures audit access")
+
+@enduml
