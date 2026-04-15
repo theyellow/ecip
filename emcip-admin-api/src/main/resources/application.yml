@@ -1,0 +1,26 @@
+server:
+  port: 9087
+
+spring:
+  application:
+    name: emcip-admin-api
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/emcip
+    username: emcip
+    password: emcip
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    io.emcip: INFO

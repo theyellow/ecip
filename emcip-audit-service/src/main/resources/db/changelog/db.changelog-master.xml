@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="1.0.0-audit-service-init" author="emcip-team">
+        <comment>Initial schema for audit service</comment>
+
+        <createTable tableName="audit_events">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_id" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="event_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="correlation_id" type="VARCHAR(100)"/>
+            <column name="source_service" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_id" type="VARCHAR(100)"/>
+            <column name="resource_type" type="VARCHAR(50)"/>
+            <column name="resource_id" type="VARCHAR(100)"/>
+            <column name="outcome" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="details" type="JSONB"/>
+            <column name="processing_time_ms" type="INTEGER"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_audit_events_type" tableName="audit_events">
+            <column name="event_type"/>
+        </createIndex>
+
+        <createIndex indexName="idx_audit_events_correlation" tableName="audit_events">
+            <column name="correlation_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_audit_events_created" tableName="audit_events">
+            <column name="created_at"/>
+        </createIndex>
+
+        <createTable tableName="metrics_snapshots">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="service_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metric_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metric_value" type="DECIMAL(20,6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tags" type="JSONB"/>
+            <column name="recorded_at" type="TIMESTAMP" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_metrics_service" tableName="metrics_snapshots">
+            <column name="service_name"/>
+            <column name="recorded_at"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

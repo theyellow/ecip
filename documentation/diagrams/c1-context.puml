@@ -1,0 +1,18 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+Person(admin, "Admin", "Manages and configures ECIP")
+Person(user, "Telegram User (Human)", "End user in Telegram groups/channels")
+System(ecip, "ECIP Platform (Telegram User)", "Connects as a real Telegram user, listens in groups/channels/discussion chats, collects information, interacts later")
+System_Ext(telegram, "Telegram", "Telegram Messenger Platform")
+System_Ext(groups, "Telegram Groups/Channels/Discussions", "Various group, channel, and discussion chat contexts on Telegram")
+
+Rel(admin, ecip, "Configures, Monitors")
+Rel(ecip, telegram, "Connects as Telegram User via TDLib")
+Rel(ecip, groups, "Listens, collects messages/events, interacts")
+Rel(user, groups, "Participates, posts messages")
+Rel(groups, telegram, "Exist and are managed on Telegram")
+
+SHOW_LEGEND()
+@enduml
+

@@ -1,0 +1,264 @@
+= ECIP Technical Architecture Documentation (Messenger Community Intelligence Platform - ECIP)
+:toc:
+// This document is generated as a technical deep-dive for ECIP, complementing DOMAIN_CONCEPT.md. It is based on MinimalIdeaTechnical.md, ExtendedTechnical.md, MILESTONES.md, DEEP-DIVE_MILESTONES.md, and PHASE-1 to PHASE-5 User Stories.
+// The ECIP platform connects to Telegram as a real user (not a bot), listens in various groups, channels, and discussion chats, collects information passively, and can later interact with other users. This is reflected in all diagrams and descriptions.
+
+
+== 1. Architecture Overview
+
+The ECIP platform connects to Telegram as a real user (not a bot), listens in various groups, channels, and discussion chats, collects information passively, and can later interact with other users. This approach enables deep integration and context awareness, going beyond the limitations of the Telegram Bot API.
+
+// C1 Context Diagram
+[plantuml,ecip-context,png]
+----
+include::diagrams/c1-context.puml[]
+----
+
+// C2 Container Diagram
+[plantuml,ecip-container,svg]
+----
+include::diagrams/c2-container.puml[]
+----
+
+// C3 Component Diagram
+[plantuml,ecip-component,svg]
+----
+include::diagrams/c3-component.puml[]
+----
+
+// C4 Code Diagram
+[plantuml,ecip-code,svg]
+----
+include::diagrams/c4-code.puml[]
+----
+
+== 2. Component & Service Breakdown
+
+=== 2.1 Component Responsibilities
+
+- TDLib Adapter: Connects to Telegram as a real user via TDLib, listens in groups/channels/discussion chats, normalizes updates, publishes events to Kafka. Enables both passive information collection and later active interaction with other users.
+- Conversation Context Service: Tracks threads, speaker roles, enriches context for all observed conversations in Telegram groups/channels/discussions.
+- Intent Classifier: Rule-based classification of message intent for all collected Telegram messages.
+- Policy Engine: Deterministic policy logic, escalation, versioning for all actions and responses.
+- LLM Orchestrator: Model routing, prompt templates, cost control for AI-based responses and analysis.
+- Moderation Service: Toxicity filter, rule violation detection for all collected and generated content.
+- Audit/Observability Service: Logging, tracing, metrics, cost tracking for all events and actions.
+- Admin API: Admin endpoints, JWT security, service-to-service authentication, configuration of Telegram user credentials and group/channel selection.
+- Kafka: Event backbone for all services, transports all Telegram events and internal actions.
+- PostgreSQL: Persistent storage for all services, including collected Telegram data and context.
+
+== 3. Data & Event Flow
+
+[mermaid]
+....
+sequenceDiagram
+    participant TG as Telegram
+    participant ECIP as ECIP Platform (Telegram User)
+    participant GR as Groups/Channels/Discussions
+    participant TD as TDLib Adapter
+    participant K as Kafka
+    participant CS as Context Service
+    participant IC as Intent Classifier
+    participant PE as Policy Engine
+    participant LLM as LLM Orchestrator
+    participant MOD as Moderation Service
+    participant AUD as Audit Service
+    participant ADMIN as Admin API
+    participant DB as PostgreSQL
+
+    ECIP->>TG: Connects as Telegram User via TDLib
+    ECIP->>GR: Listens, collects messages/events
+    GR->>ECIP: Receives messages/events
+    ECIP->>TD: Forwards updates
+    TD->>K: Publishes MessageReceivedEvent
+    K->>CS: Event
+    CS->>K: ContextEnrichedEvent
+    K->>IC: Event
+    IC->>K: IntentClassifiedEvent
+    K->>PE: Event
+    PE->>K: PolicyDecisionEvent
+    K->>LLM: Event (if AI needed)
+    LLM->>K: AIResponseEvent
+    K->>MOD: Event
+    MOD->>K: ModerationResultEvent
+    K->>AUD: All events for logging
+    Note over DB: All services persist state/data
+    Note over ADMIN: Configures, Monitors
+....
+
+== 4. Technology Stack & Guardrails
+
+=== 4.1 Stack Overview
+
+- Java 25, Spring Boot 4: Modern, robust, reactive microservices
+- Kafka: Event-driven backbone, decoupling, scalability
+- PostgreSQL: Reliable, transactional persistence
+- TDLib: Full Telegram client integration as a real user (not just Bot API)
+- OpenTelemetry, Prometheus: Observability, metrics, tracing
+- Vault: Secret management
+- JWT: API and service-to-service security
+- Maven: Build, dependency management
+
+=== 4.2 Guardrails
+
+- All event-driven, no direct service-to-service calls (except Admin API)
+- All external communication with Telegram via TDLib as a real user (not Bot API)
+- All responses must pass through policy and moderation logic
+- No business logic in integration/adapter layers
+- All configuration and secrets via Vault
+- All code and infrastructure changes require ADR (see /docs/adr/)
+- All technical decisions must be documented (ADR or architecture.adoc)
+- No direct DB access from outside services (only via service APIs)
+- Observability (logging, tracing, metrics) is mandatory for all services
+
+== 5. Module & Repository Structure
+
+[source]
+----
+community-intelligence/
+├─ pom.xml (io.emcip:community-intelligence-parent:0.1.0-SNAPSHOT)
+├─ README.md
+├─ docs/
+│  ├─ architecture.adoc
+│  ├─ adr/
+│  ├─ sequence-diagrams/
+│  └─ threat-model.md
+├─ emcip-core/                    (shared library)
+├─ emcip-tdlib-adapter/             (port 9080)
+├─ emcip-conversation-context/      (port 9081)
+├─ emcip-intent-classifier/         (port 9082)
+├─ emcip-policy-engine/             (port 9083)
+├─ emcip-llm-orchestrator/          (port 9084)
+├─ emcip-moderation-service/        (port 9085)
+├─ emcip-audit-service/             (port 9086)
+└─ emcip-admin-api/                 (port 9087)
+----
+
+== 6. Security, Observability & Deployment
+
+=== 6.1 Security
+- JWT for admin and service-to-service authentication
+- Vault for secret management
+- All responses pass through policy and moderation logic
+- Full auditability and traceability
+- All secrets/configs only in Vault, never in code
+
+=== 6.2 Observability
+- OpenTelemetry for distributed tracing
+- Prometheus for metrics
+- Structured logging (JSON)
+- Audit logs for all decisions and events
+- All services must expose health and metrics endpoints
+
+=== 6.3 Deployment
+- Docker for all services
+- CI/CD via Maven, GitHub Actions/Jenkins
+- Local development via Docker Compose
+- Kubernetes-ready (future)
+- All deployments must be reproducible and documented
+
+== 7. Traceability & References
+
+- All milestones and user stories are mapped to components and phases (see MILESTONES.md, DEEP-DIVE_MILESTONES.md, PHASE-1 to PHASE-5_USER_STORIES.md)
+- ADRs (Architecture Decision Records) are referenced but need to be completed for all major decisions (see /docs/adr/)
+- Telegram dependency and the ECIP platform's role as a real Telegram user are explicitly modeled in all diagrams
+- All referenced documents (MinimalIdeaTechnical.md, ExtendedTechnical.md, etc.) are included or linked here
+
+== 8. Guardrails & Open Points
+
+=== 8.1 Guardrails
+- Only event-driven communication (except Admin API)
+- All technical decisions must be documented (ADR or architecture.adoc)
+- No direct DB access from outside services
+- All secrets/configs only in Vault
+- Observability is mandatory
+
+=== 8.2 Open Points
+- Complete missing ADRs for all major architecture and technology decisions
+- Regularly update diagrams and documentation as the system evolves
+- Review and extend security and observability concepts as needed
+- Define and document all external dependencies (besides Telegram)
+- Add further C4/Cx diagrams as the system grows
+
+== 9. Consolidated Technical Decisions (from OPEN_QUESTIONS.md)
+
+=== 9.1 Maven & Project Structure
+- **GroupId:** `io.emcip`
+- **ArtifactId:** `community-intelligence-parent`
+- **Version:** `0.1.0-SNAPSHOT`
+- **Java Package Prefix:** `io.emcip`
+- **Module Naming:** `emcip-*` (e.g., `emcip-tdlib-adapter`, `emcip-policy-engine`)
+
+=== 9.2 CI/CD & Repository
+- **Git Hosting:** GitHub (private repository)
+- **CI/CD Tool:** GitHub Actions (standard runners)
+- **Branching Strategy:** GitHub Flow (main/PR-based)
+- **Container Registry:** GitHub Container Registry
+
+=== 9.3 Docker & Base Images
+- **Base Image:** `eclipse-temurin:25-jre`
+- **Build Strategy:** Multi-stage builds
+- **Docker Compose:** For local development (Kafka, PostgreSQL, all services)
+
+=== 9.4 Service Ports (Local Development)
+[cols="2,1"]
+|===
+| Service | Port
+
+| emcip-tdlib-adapter | 9080
+| emcip-conversation-context | 9081
+| emcip-intent-classifier | 9082
+| emcip-policy-engine | 9083
+| emcip-llm-orchestrator | 9084
+| emcip-moderation-service | 9085
+| emcip-audit-service | 9086
+| emcip-admin-api | 9087
+|===
+
+=== 9.5 Database & Persistence
+- **Migration Tool:** Liquibase (familiarity from previous projects)
+- **Schema Management:** Versioned changesets
+
+=== 9.6 Event Backbone
+- **Serialization Format:** JSON (simpler, no Schema Registry initially)
+- **Schema Evolution:** To be defined during development
+- **Kafka Version:** Latest stable (3.6+)
+- **Partitions:** 3 per topic (default)
+- **Replication Factor:** 1 (local dev)
+
+=== 9.7 Code Quality Thresholds
+- **Minimum Test Coverage (JaCoCo):** 80%
+- **Spotless:** Check only (no auto-format on build)
+- **Checkstyle:** Warning only (not blocking)
+- **PMD:** Medium priority threshold
+
+=== 9.8 LLM Strategy (Phase 3)
+- **Primary Providers:** Multiple (fallback strategy)
+- **Small Model:** MiniMax 2.7
+- **Large Model:** Claude
+- **Cost Control:** Daily budget + per-tenant limits (later)
+- **API Key Management:** Environment variables (Vault for production later)
+
+=== 9.9 Security & Authentication (Phase 4)
+- **JWT Signing:** Open (HS256 or RS256 to be decided)
+- **Service-to-Service Auth:** Both mTLS and JWT trust possible
+- **Vault:** None for development (environment variables)
+- **Admin User Store:** In-DB initially, later OAuth2 with Keycloak
+
+=== 9.10 Multi-Tenancy (Phase 5)
+- **Isolation Strategy:** Row-level security
+- **Initial Tenants:** 1
+- **Tenant Identification:** To be determined (subdomain, header, or JWT claim)
+
+=== 9.11 Observability (Phase 4)
+- **Tracing:** None for now, later Jaeger
+- **Metrics Storage:** Prometheus
+- **Log Aggregation:** None for now, later ELK stack
+- **Dashboard:** Built-in Spring Boot Actuator for now, later Grafana
+
+=== 9.12 Infrastructure
+- **Deployment:** On-premises first, cloud/hybrid later
+- **Cloud Provider:** Cost-optimized choice
+- **Container Orchestration:** Docker Compose for now, Kubernetes later
+- **Compliance Requirements:** None currently
+

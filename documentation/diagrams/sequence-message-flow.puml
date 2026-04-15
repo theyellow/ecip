@@ -1,0 +1,54 @@
+@startuml
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title Message Processing Flow - Sequence Diagram
+
+actor "Telegram User" as User
+participant "Telegram" as Telegram
+participant "TDLib\nAdapter" as TDL
+queue "telegram.raw.\nmessages" as Topic1
+participant "Intent\nClassifier" as Intent
+queue "messages.\nclassified" as Topic2
+participant "Policy\nEngine" as Policy
+queue "policies.\ndecisions" as Topic3
+participant "LLM\nOrchestrator" as LLM
+queue "responses.\ngenerated" as Topic4
+participant "Audit\nService" as Audit
+
+database "PostgreSQL" as DB
+
+== Message Ingestion ==
+User -> Telegram: Send message
+Telegram -> TDL: TDLib update
+TDL -> DB: Store raw message
+TDL -> Topic1: TelegramRawMessageEvent
+TDL -> Audit: AuditEvent (async)
+
+== Intent Classification ==
+Topic1 -> Intent: Consume event
+Intent -> Intent: Classify intent (rule-based)
+Intent -> DB: Store classification
+Intent -> Topic2: IntentClassifiedEvent
+Intent -> Audit: AuditEvent (async)
+
+== Policy Evaluation ==
+Topic2 -> Policy: Consume event
+Policy -> DB: Fetch policies
+Policy -> Policy: Evaluate rules
+Policy -> DB: Store decision
+Policy -> Topic3: PolicyDecisionEvent
+Policy -> Audit: AuditEvent (async)
+
+== LLM Response (if needed) ==
+alt Decision requires response
+  Topic3 -> LLM: Consume event
+  LLM -> LLM: Route to MiniMax/Claude
+  LLM -> DB: Store response metadata
+  LLM -> Topic4: ResponseGeneratedEvent
+  LLM -> Audit: AuditEvent (async)
+  Topic4 -> Telegram: Send response
+end
+
+@enduml

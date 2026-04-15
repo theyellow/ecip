@@ -1,0 +1,21 @@
+{
+  "eventId": "550e8400-e29b-41d4-a716-446655440000",
+  "eventType": "TelegramRawMessageEvent",
+  "version": "1.0.0",
+  "timestamp": "2026-04-15T14:30:00Z",
+  "source": "emcip-tdlib-adapter",
+  "tenantId": "tenant-001",
+  "payload": {
+    "messageId": 12345,
+    "chatId": -1001234567890,
+    "chatType": "supergroup",
+    "senderId": 987654321,
+    "senderUsername": "john_doe",
+    "content": {
+      "text": "Hello everyone!",
+      "type": "text"
+    },
+    "timestamp": "2026-04-15T14:29:58Z",
+    "isReply": false
+  }
+}
