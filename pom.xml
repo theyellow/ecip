@@ -8,9 +8,9 @@
   <version>0.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <!-- Project Information -->
-  <name>EMCIP - Enterprise Messenger Community Intelligence Platform</name>
-  <description>An enterprise-grade, microservice-based platform for analyzing Telegram communities</description>
+  <!-- Project Information Enterprise Messenger Community Intelligence Platform -->
+  <name>EMCIP - Messenger Community Intelligence Platform</name>
+  <description>An enterprise-grade, microservice-based platform for analyzing Messenger communities</description>
   <url>https://github.com/emcip/community-intelligence</url>
 
   <!-- Licenses -->
@@ -25,9 +25,9 @@
   <developers>
     <developer>
       <name>EMCIP Team</name>
-      <email>dev@emcip.io</email>
+      <email>dev@emcip</email>
       <organization>EMCIP</organization>
-      <organizationUrl>https://emcip.io</organizationUrl>
+      <organizationUrl>https://emcip</organizationUrl>
     </developer>
   </developers>
 
@@ -74,6 +74,9 @@
 
     <!-- Code Quality Thresholds -->
     <jacoco.minimum-coverage>0.80</jacoco.minimum-coverage>
+    <jjwt.version>0.12.5</jjwt.version>
+    <mockwebserver.version>4.12.0</mockwebserver.version>
+    <postgresql-test.version>1.19.7</postgresql-test.version>
   </properties>
 
   <!-- Dependency Management -->
@@ -99,7 +102,7 @@
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>postgresql</artifactId>
-        <version>1.19.7</version>
+        <version>${postgresql-test.version}</version>
         <scope>test</scope>
       </dependency>
 
@@ -107,7 +110,7 @@
       <dependency>
         <groupId>com.squareup.okhttp3</groupId>
         <artifactId>mockwebserver</artifactId>
-        <version>4.12.0</version>
+        <version>${mockwebserver.version}</version>
         <scope>test</scope>
       </dependency>
 
@@ -115,18 +118,18 @@
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
         <artifactId>jjwt-api</artifactId>
-        <version>0.12.5</version>
+        <version>${jjwt.version}</version>
       </dependency>
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
         <artifactId>jjwt-impl</artifactId>
-        <version>0.12.5</version>
+        <version>${jjwt.version}</version>
         <scope>runtime</scope>
       </dependency>
       <dependency>
         <groupId>io.jsonwebtoken</groupId>
         <artifactId>jjwt-jackson</artifactId>
-        <version>0.12.5</version>
+        <version>${jjwt.version}</version>
         <scope>runtime</scope>
       </dependency>
     </dependencies>
