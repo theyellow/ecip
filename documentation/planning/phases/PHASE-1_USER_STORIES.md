@@ -8,8 +8,8 @@
 - [x] US-1.1.1: Create Maven parent POM and initial module structure
 - [x] US-1.1.2: Set up Git repository and branching strategy
 - [x] US-1.1.3: Implement CI/CD pipeline (Maven, GitHub Actions/Jenkins)
-- [ ] US-1.1.4: Add code quality checks (Spotless, Checkstyle, PMD)
-- [ ] US-1.1.5: Write initial README and contribution guidelines
+- [x] US-1.1.4: Add code quality checks (Spotless, Checkstyle, PMD)
+- [x] US-1.1.5: Write initial README and contribution guidelines
 
 ### Epic 1.2: Spring Boot 4 Service Skeletons
 - [x] US-1.2.1: Generate base Spring Boot 4 projects for all planned services (WebFlux, Actuator, Security)
@@ -148,10 +148,21 @@ Integrate code quality checks into the build process to enforce coding standards
 - Integrate code quality checks into the CI/CD pipeline.
 - Document code quality standards and how to run checks locally.
 
+**Implementation Notes (Completed):**
+All code quality tools configured in parent POM and verified in CI/CD:
+- **Spotless**: Google Java Format (AOSP), check-only enforcement
+- **SortPOM**: POM file ordering consistency
+- **Maven Enforcer**: Requires Maven 3.8.0+, Java 21+
+- **JaCoCo**: 80% minimum test coverage (blocking)
+- **Checkstyle**: Google checks, warning only (not blocking)
+- **PMD**: Medium priority, warning only (not blocking)
+- **CI/CD Integration**: All checks run in GitHub Actions
+- **Documentation**: Created CODE_QUALITY.md with usage instructions
+
 **Acceptance Criteria:**
-- Code quality checks are integrated into the build process.
-- Documentation for code quality standards is available.
-- Developers receive feedback on code quality in pull requests.
+- ✅ Code quality checks are integrated into the build process (parent POM + CI/CD).
+- ✅ Documentation for code quality standards is available (CODE_QUALITY.md).
+- ✅ Developers receive feedback on code quality in pull requests (GitHub Actions).
 
 **In-scope:**
 - Code quality tools (Spotless, Checkstyle, PMD)
@@ -179,10 +190,28 @@ Create an initial README file and contribution guidelines to assist new develope
 - Create a CONTRIBUTING.md file with contribution guidelines.
 - Document the process for reporting issues and submitting pull requests.
 
+**Implementation Notes (Completed):**
+- **README.md**: Complete project documentation including:
+  - Project overview and TDLib-first approach
+  - Maven coordinates and module structure
+  - Service ports table (9080-9087)
+  - Prerequisites (Java 21+, Maven 3.8+)
+  - Build instructions (mvn clean install)
+  - Code quality standards and thresholds
+  - Architecture and technology references
+  - CI/CD status badge
+- **CONTRIBUTING.md**: Complete contribution guide including:
+  - GitHub Flow branching strategy
+  - Conventional commit message format
+  - Code quality requirements checklist
+  - Local development setup
+  - Branch protection recommendations
+- **PR Template**: `.github/pull_request_template.md` with checklist
+
 **Acceptance Criteria:**
-- README and CONTRIBUTING.md files are present and well-structured.
-- Documentation covers project setup, development process, and contribution guidelines.
-- New developers can successfully set up and contribute to the project using the documentation.
+- ✅ README and CONTRIBUTING.md files are present and well-structured.
+- ✅ Documentation covers project setup, development process, and contribution guidelines.
+- ✅ New developers can successfully set up and contribute to the project using the documentation.
 
 **In-scope:**
 - Project documentation (README, CONTRIBUTING.md)
