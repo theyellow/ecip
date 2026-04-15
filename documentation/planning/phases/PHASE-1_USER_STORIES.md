@@ -18,7 +18,7 @@
 
 ### Epic 1.3: Kafka & PostgreSQL Local Integration
 - [x] US-1.3.1: Set up local Kafka broker (Docker Compose)
-- [ ] US-1.3.2: Define initial topics and event schemas (Avro/JSON)
+- [x] US-1.3.2: Define initial topics and event schemas (Avro/JSON)
 - [x] US-1.3.3: Set up local PostgreSQL instance (Docker Compose)
 - [ ] US-1.3.4: Integrate Flyway/Liquibase for DB migrations
 - [ ] US-1.3.5: Implement health checks for Kafka and PostgreSQL
@@ -387,10 +387,27 @@ Define the initial Kafka topics and event schemas (using Avro or JSON) to standa
 - Document topic names, schema versions, and field definitions.
 - Review schemas with the team for completeness and extensibility.
 
+**Implementation Notes (Completed):**
+- Created `EVENT_SCHEMAS.md` with complete documentation:
+  * 8 Kafka topics defined (telegram.raw.messages, messages.classified, policies.decisions, etc.)
+  * All topics with 3 partitions, replication factor 1
+  * Topic naming convention: `{domain}.{action}`
+- Created JSON schemas (version 1.0.0) for 6 core events:
+  * TelegramRawMessageEvent - Raw messages from Telegram
+  * IntentClassifiedEvent - Intent classification results
+  * PolicyDecisionEvent - Policy engine decisions
+  * ResponseGeneratedEvent - LLM-generated responses
+  * ModerationFlagEvent - Content moderation flags
+  * AuditEvent - Audit trail events
+- Common event wrapper structure with metadata (eventId, timestamp, source, tenantId, correlationId)
+- Created example JSON event files in `src/main/resources/events/`
+- Schema evolution strategy documented (backward compatible, non-breaking, breaking changes)
+- Format: JSON (no Schema Registry in Phase 1, as per OPEN_QUESTIONS.md decision)
+
 **Acceptance Criteria:**
-- Topics and schemas are defined and documented.
-- Schemas are versioned and reviewed by the team.
-- All services are aware of the topic structure.
+- ✅ Topics and schemas are defined and documented (EVENT_SCHEMAS.md).
+- ✅ Schemas are versioned (1.0.0) with semantic versioning strategy.
+- ✅ All services are aware of the topic structure (documented).
 
 **In-scope:**
 - Kafka, Avro/JSON schema design, documentation

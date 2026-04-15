@@ -1,0 +1,25 @@
+{
+  "eventId": "770e8400-e29b-41d4-a716-446655440002",
+  "eventType": "PolicyDecisionEvent",
+  "version": "1.0.0",
+  "timestamp": "2026-04-15T14:30:02Z",
+  "source": "emcip-policy-engine",
+  "tenantId": "tenant-001",
+  "correlationId": "550e8400-e29b-41d4-a716-446655440000",
+  "payload": {
+    "decisionId": "880e8400-e29b-41d4-a716-446655440003",
+    "messageId": 12345,
+    "chatId": -1001234567890,
+    "decision": "ALLOW",
+    "rulesTriggered": [
+      {
+        "ruleId": "rule-001",
+        "ruleName": "Greeting Policy",
+        "severity": "INFO"
+      }
+    ],
+    "requiresHumanReview": false,
+    "suggestedAction": "NONE",
+    "responseTemplate": null
+  }
+}

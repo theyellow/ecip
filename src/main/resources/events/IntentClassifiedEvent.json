@@ -1,0 +1,30 @@
+{
+  "eventId": "660e8400-e29b-41d4-a716-446655440001",
+  "eventType": "IntentClassifiedEvent",
+  "version": "1.0.0",
+  "timestamp": "2026-04-15T14:30:01Z",
+  "source": "emcip-intent-classifier",
+  "tenantId": "tenant-001",
+  "correlationId": "550e8400-e29b-41d4-a716-446655440000",
+  "payload": {
+    "messageId": 12345,
+    "chatId": -1001234567890,
+    "classifiedIntents": [
+      {
+        "intent": "GREETING",
+        "confidence": 0.95,
+        "parameters": {}
+      },
+      {
+        "intent": "MENTION",
+        "confidence": 0.30,
+        "parameters": {
+          "mentionedUsers": []
+        }
+      }
+    ],
+    "primaryIntent": "GREETING",
+    "confidence": 0.95,
+    "requiresPolicyCheck": false
+  }
+}

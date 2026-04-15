@@ -1,0 +1,20 @@
+{
+  "eventId": "990e8400-e29b-41d4-a716-446655440004",
+  "eventType": "ResponseGeneratedEvent",
+  "version": "1.0.0",
+  "timestamp": "2026-04-15T14:30:03Z",
+  "source": "emcip-llm-orchestrator",
+  "tenantId": "tenant-001",
+  "correlationId": "550e8400-e29b-41d4-a716-446655440000",
+  "payload": {
+    "responseId": "aa0e8400-e29b-41d4-a716-446655440005",
+    "messageId": 12345,
+    "chatId": -1001234567890,
+    "responseText": "Hello! Welcome to the group!",
+    "modelUsed": "MiniMax-2.7",
+    "tokenCount": 7,
+    "costEstimate": 0.001,
+    "responseType": "GREETING",
+    "requiresModeration": false
+  }
+}
