@@ -21,7 +21,7 @@
 - [x] US-1.3.2: Define initial topics and event schemas (Avro/JSON)
 - [x] US-1.3.3: Set up local PostgreSQL instance (Docker Compose)
 - [x] US-1.3.4: Integrate Flyway/Liquibase for DB migrations
-- [ ] US-1.3.5: Implement health checks for Kafka and PostgreSQL
+- [x] US-1.3.5: Implement health checks for Kafka and PostgreSQL
 
 ### Epic 1.4: Initial ADRs & Architecture Docs
 - [ ] US-1.4.1: Write ADRs for stack, event backbone, persistence
@@ -517,10 +517,28 @@ Implement health checks for Kafka and PostgreSQL in all relevant services to ens
 - Expose health status via `/actuator/health` endpoint.
 - Document expected health check responses and troubleshooting steps.
 
+**Implementation Notes (Completed):**
+- Created `DatabaseHealthIndicator` for services with PostgreSQL:
+  * `emcip-conversation-context`
+  * `emcip-intent-classifier`
+  * `emcip-policy-engine`
+  * `emcip-audit-service`
+  * `emcip-admin-api`
+  * Performs `SELECT 1` query via R2DBC, reports UP/DOWN with connection details
+- Created `KafkaHealthIndicator` for services with Kafka:
+  * `emcip-conversation-context`
+  * `emcip-intent-classifier`
+  * `emcip-policy-engine`
+  * Uses `AdminClient.describeCluster()` with 5s timeout
+  * Reports UP with clusterId and brokerCount, DOWN on error
+- Health endpoints exposed at `/actuator/health` for all services
+- Updated HEALTH_ENDPOINTS.md with detailed indicator documentation
+- All health indicators use Spring Boot Actuator `HealthIndicator` interface
+
 **Acceptance Criteria:**
-- Health checks for Kafka and PostgreSQL are implemented and accessible.
-- Monitoring tools can query health endpoints.
-- Documentation for health checks is available.
+- ✅ Health checks for Kafka and PostgreSQL are implemented and accessible.
+- ✅ Monitoring tools can query health endpoints (/actuator/health).
+- ✅ Documentation for health checks is available (HEALTH_ENDPOINTS.md).
 
 **In-scope:**
 - Health check implementation, documentation

@@ -60,7 +60,7 @@
     <maven.compiler.target>21</maven.compiler.target>
 
     <!-- Spring Boot -->
-    <spring-boot.version>4.0.0</spring-boot.version>
+    <spring-boot.version>4.0.5</spring-boot.version>
 
     <!-- Plugin Versions -->
     <spotless.version>2.43.0</spotless.version>

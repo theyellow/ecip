@@ -57,17 +57,34 @@ All services expose health endpoints via Spring Boot Actuator. These endpoints a
 
 ## Health Indicators
 
-### Phase 1: Basic Health
+### Phase 1: Infrastructure Health
 
-All services expose the default Spring Boot Actuator health endpoint:
-- **ping**: Basic application responsiveness
+All services expose infrastructure health checks:
 
-### Phase 2: Enhanced Health (Planned)
+**Database Health (`db`)**
+- Services: conversation-context, intent-classifier, policy-engine, audit-service, admin-api
+- Implementation: `DatabaseHealthIndicator.java`
+- Check: Performs `SELECT 1` via R2DBC
+- Response: UP with PostgreSQL status, or DOWN with error details
 
-In Phase 2, custom health indicators will be added:
-- Database connectivity indicator via PostgreSQL R2DBC
-- Kafka broker connectivity indicator
-- Custom business logic health checks
+**Kafka Health (`kafka`)**
+- Services: conversation-context, intent-classifier, policy-engine
+- Implementation: `KafkaHealthIndicator.java`
+- Check: `AdminClient.describeCluster()` with 5s timeout
+- Response: UP with clusterId and brokerCount, or DOWN with error
+
+**Ping Health (`ping`)**
+- All 8 services
+- Default Spring Boot Actuator check
+- Basic application responsiveness
+
+### Phase 2: Business Logic Health (Planned)
+
+In Phase 2, additional health indicators will be added:
+- TDLib adapter connectivity
+- LLM service availability
+- Moderation service status
+- Custom business rule validation
 
 ## Docker Health Checks
 
