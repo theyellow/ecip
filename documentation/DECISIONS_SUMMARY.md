@@ -157,15 +157,14 @@ All open questions have been answered and the documentation has been updated to 
 - **US-1.1.3:** GitHub Actions CI/CD pipeline with Maven
 - **US-1.2.1:** Spring Boot 4 skeletons for all 8 services
 - **US-1.2.2:** Dockerfiles with multi-stage builds for all services
+- **US-1.2.3:** Health endpoints with custom indicators and documentation
 
 ### ⏳ Ready to Implement
 1. **US-1.1.4:** Verify code quality checks (Spotless, Checkstyle, PMD)
 
 2. **US-1.1.5:** Finalize README and CONTRIBUTING.md
 
-3. **US-1.2.3:** Security configuration for services
-
-4. **US-1.3.1:** Docker Compose for Kafka & PostgreSQL
+3. **US-1.3.1:** Docker Compose for Kafka & PostgreSQL
 
 5. Continue through Phase 1...
 
