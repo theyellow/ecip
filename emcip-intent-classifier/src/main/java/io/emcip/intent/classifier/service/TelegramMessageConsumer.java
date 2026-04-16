@@ -12,8 +12,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Kafka consumer for Telegram messages.
- * Consumes from telegram.raw.messages topic and performs intent classification.
+ * Kafka consumer for Telegram messages. Consumes from telegram.raw.messages topic and performs
+ * intent classification.
  */
 @Service
 public class TelegramMessageConsumer {
@@ -34,30 +34,47 @@ public class TelegramMessageConsumer {
         this.classificationService = classificationService;
     }
 
-    @KafkaListener(topics = TOPIC, groupId = "intent-classifier", containerFactory = "kafkaListenerContainerFactory")
+    @KafkaListener(
+            topics = TOPIC,
+            groupId = "intent-classifier",
+            containerFactory = "kafkaListenerContainerFactory")
     public void consume(ConsumerRecord<String, String> record) {
-        log.debug("Received message from partition {} offset {}", record.partition(), record.offset());
+        log.debug(
+                "Received message from partition {} offset {}",
+                record.partition(),
+                record.offset());
 
-        Mono.fromCallable(() -> {
-            // Validate JSON structure
-            var validationResult = eventValidator.validateJson(record.value(), "TelegramMessage");
-            if (!validationResult.valid()) {
-                log.error("Invalid message received: {}", validationResult.getErrorMessage());
-                return null;
-            }
+        Mono.<EventSchemas.IntentClassifiedEvent>fromCallable(
+                        () -> {
+                            // Validate JSON structure
+                            EventValidator.ValidationResult validationResult =
+                                    eventValidator.validateJson(record.value(), "TelegramMessage");
+                            if (!validationResult.valid()) {
+                                log.error(
+                                        "Invalid message received: {}",
+                                        validationResult.getErrorMessage());
+                                return null;
+                            }
 
-            // Parse and classify
-            var event = objectMapper.readValue(record.value(), EventSchemas.TelegramMessageEvent.class);
-            return classificationService.classify(event).block();
-        })
-        .subscribeOn(Schedulers.boundedElastic())
-        .doOnSuccess(result -> {
-            if (result != null) {
-                log.info("Classified message {} as intent {}", result.sourceEventId(), result.intent());
-            }
-        })
-        .doOnError(e -> log.error("Error processing message: {}", e.getMessage(), e))
-        .onErrorResume(e -> Mono.empty())
-        .subscribe();
+                            // Parse and classify
+                            EventSchemas.TelegramMessageEvent event =
+                                    objectMapper.readValue(
+                                            record.value(),
+                                            EventSchemas.TelegramMessageEvent.class);
+                            return classificationService.classify(event).block();
+                        })
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnSuccess(
+                        (EventSchemas.IntentClassifiedEvent result) -> {
+                            if (result != null) {
+                                log.info(
+                                        "Classified message {} as intent {}",
+                                        result.sourceEventId(),
+                                        result.intent());
+                            }
+                        })
+                .doOnError(e -> log.error("Error processing message: {}", e.getMessage(), e))
+                .onErrorResume(e -> Mono.empty())
+                .subscribe();
     }
 }

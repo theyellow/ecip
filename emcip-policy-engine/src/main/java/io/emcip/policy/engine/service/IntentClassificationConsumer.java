@@ -12,8 +12,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Kafka consumer for intent classification events.
- * Consumes from messages.classified topic and evaluates policies.
+ * Kafka consumer for intent classification events. Consumes from messages.classified topic and
+ * evaluates policies.
  */
 @Service
 public class IntentClassificationConsumer {
@@ -34,30 +34,47 @@ public class IntentClassificationConsumer {
         this.policyService = policyService;
     }
 
-    @KafkaListener(topics = TOPIC, groupId = "policy-engine", containerFactory = "kafkaListenerContainerFactory")
+    @KafkaListener(
+            topics = TOPIC,
+            groupId = "policy-engine",
+            containerFactory = "kafkaListenerContainerFactory")
     public void consume(ConsumerRecord<String, String> record) {
-        log.debug("Received classification from partition {} offset {}", record.partition(), record.offset());
+        log.debug(
+                "Received classification from partition {} offset {}",
+                record.partition(),
+                record.offset());
 
-        Mono.fromCallable(() -> {
-            // Validate
-            var validationResult = eventValidator.validateJson(record.value(), "IntentClassified");
-            if (!validationResult.valid()) {
-                log.error("Invalid classification received: {}", validationResult.getErrorMessage());
-                return null;
-            }
+        Mono.fromCallable(
+                        () -> {
+                            // Validate
+                            var validationResult =
+                                    eventValidator.validateJson(record.value(), "IntentClassified");
+                            if (!validationResult.valid()) {
+                                log.error(
+                                        "Invalid classification received: {}",
+                                        validationResult.getErrorMessage());
+                                return null;
+                            }
 
-            // Parse and evaluate
-            var event = objectMapper.readValue(record.value(), EventSchemas.IntentClassifiedEvent.class);
-            return policyService.evaluate(event).block();
-        })
-        .subscribeOn(Schedulers.boundedElastic())
-        .doOnSuccess(result -> {
-            if (result != null) {
-                log.info("Evaluated policy for event {}: decision={}", result.sourceEventId(), result.decision());
-            }
-        })
-        .doOnError(e -> log.error("Error processing classification: {}", e.getMessage(), e))
-        .onErrorResume(e -> Mono.empty())
-        .subscribe();
+                            // Parse and evaluate
+                            var event =
+                                    objectMapper.readValue(
+                                            record.value(),
+                                            EventSchemas.IntentClassifiedEvent.class);
+                            return policyService.evaluate(event).block();
+                        })
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnSuccess(
+                        result -> {
+                            if (result != null) {
+                                log.info(
+                                        "Evaluated policy for event {}: decision={}",
+                                        result.sourceEventId(),
+                                        result.decision());
+                            }
+                        })
+                .doOnError(e -> log.error("Error processing classification: {}", e.getMessage(), e))
+                .onErrorResume(e -> Mono.empty())
+                .subscribe();
     }
 }
