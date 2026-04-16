@@ -5,14 +5,14 @@ spring:
   application:
     name: emcip-intent-classifier
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/emcip
+    url: r2dbc:postgresql://localhost:14005/emcip
     username: emcip
     password: emcip
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
     consumer:
       group-id: intent-classifier
       auto-offset-reset: earliest

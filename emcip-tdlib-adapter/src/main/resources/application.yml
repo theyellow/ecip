@@ -5,7 +5,7 @@ spring:
   application:
     name: emcip-tdlib-adapter
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
 
 tdlib:
   api-id: ${TELEGRAM_API_ID:0}
