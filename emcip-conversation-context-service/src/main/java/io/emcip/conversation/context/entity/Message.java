@@ -13,6 +13,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
@@ -20,6 +23,9 @@ import org.hibernate.annotations.CreationTimestamp;
  * Stores the full message content and metadata for context.
  */
 @Entity
+@Getter
+@Setter
+@NoArgsConstructor
 @Table(
     name = "messages",
     indexes = {
@@ -90,135 +96,4 @@ public class Message {
     @Column(name = "metadata", length = 2000)
     private String metadata;
 
-    public Message() {}
-
-    public Message(String eventId, Long telegramMessageId, MessageThread thread, 
-                   User sender, String textContent, Instant telegramTimestamp) {
-        this.eventId = eventId;
-        this.telegramMessageId = telegramMessageId;
-        this.thread = thread;
-        this.sender = sender;
-        this.textContent = textContent;
-        this.telegramTimestamp = telegramTimestamp;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public void setEventId(String eventId) {
-        this.eventId = eventId;
-    }
-
-    public Long getTelegramMessageId() {
-        return telegramMessageId;
-    }
-
-    public void setTelegramMessageId(Long telegramMessageId) {
-        this.telegramMessageId = telegramMessageId;
-    }
-
-    public MessageThread getThread() {
-        return thread;
-    }
-
-    public void setThread(MessageThread thread) {
-        this.thread = thread;
-    }
-
-    public User getSender() {
-        return sender;
-    }
-
-    public void setSender(User sender) {
-        this.sender = sender;
-    }
-
-    public MessageRole getSenderRole() {
-        return senderRole;
-    }
-
-    public void setSenderRole(MessageRole senderRole) {
-        this.senderRole = senderRole;
-    }
-
-    public String getTextContent() {
-        return textContent;
-    }
-
-    public void setTextContent(String textContent) {
-        this.textContent = textContent;
-    }
-
-    public Boolean getIsEdited() {
-        return isEdited;
-    }
-
-    public void setIsEdited(Boolean isEdited) {
-        this.isEdited = isEdited;
-    }
-
-    public Boolean getIsDeleted() {
-        return isDeleted;
-    }
-
-    public void setIsDeleted(Boolean isDeleted) {
-        this.isDeleted = isDeleted;
-    }
-
-    public Instant getTelegramTimestamp() {
-        return telegramTimestamp;
-    }
-
-    public void setTelegramTimestamp(Instant telegramTimestamp) {
-        this.telegramTimestamp = telegramTimestamp;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getEditTimestamp() {
-        return editTimestamp;
-    }
-
-    public void setEditTimestamp(Instant editTimestamp) {
-        this.editTimestamp = editTimestamp;
-    }
-
-    public Long getReplyToMessageId() {
-        return replyToMessageId;
-    }
-
-    public void setReplyToMessageId(Long replyToMessageId) {
-        this.replyToMessageId = replyToMessageId;
-    }
-
-    public String getIntentClassification() {
-        return intentClassification;
-    }
-
-    public void setIntentClassification(String intentClassification) {
-        this.intentClassification = intentClassification;
-    }
-
-    public Double getConfidenceScore() {
-        return confidenceScore;
-    }
-
-    public void setConfidenceScore(Double confidenceScore) {
-        this.confidenceScore = confidenceScore;
-    }
-
-    public String getMetadata() {
-        return metadata;
-    }
-
-    public void setMetadata(String metadata) {
-        this.metadata = metadata;
-    }
 }

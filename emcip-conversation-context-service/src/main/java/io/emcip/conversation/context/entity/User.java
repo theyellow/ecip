@@ -5,6 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -14,6 +17,9 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
 public class User {
 
     @Id
@@ -46,79 +52,9 @@ public class User {
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
-    public User() {}
-
-    public User(Long telegramId, String username, String firstName, String lastName) {
-        this.telegramId = telegramId;
-        this.username = username;
-        this.firstName = firstName;
-        this.lastName = lastName;
-    }
-
-    public Long getTelegramId() {
-        return telegramId;
-    }
-
-    public void setTelegramId(Long telegramId) {
-        this.telegramId = telegramId;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public void setPhoneNumber(String phoneNumber) {
-        this.phoneNumber = phoneNumber;
-    }
-
-    public Boolean getIsBot() {
-        return isBot;
-    }
-
-    public void setIsBot(Boolean isBot) {
-        this.isBot = isBot;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public Instant getLastSeenAt() {
-        return lastSeenAt;
-    }
-
-    public void setLastSeenAt(Instant lastSeenAt) {
-        this.lastSeenAt = lastSeenAt;
-    }
-
+    /**
+     * Custom method to generate display name.
+     */
     public String getDisplayName() {
         if (firstName != null && lastName != null) {
             return firstName + " " + lastName;
