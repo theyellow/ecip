@@ -75,7 +75,33 @@ mvn spotless:check checkstyle:check pmd:check
     <groupId>io.emcip</groupId>
     <artifactId>emcip-core</artifactId>
 </dependency>
+
+<!-- Lombok for code generation -->
+<dependency>
+    <groupId>org.projectlombok</groupId>
+    <artifactId>lombok</artifactId>
+    <scope>provided</scope>
+</dependency>
 ```
+
+### 6. Lombok Usage (REQUIRED)
+- **MUST** use `@Slf4j` for logging (never use `LoggerFactory` directly)
+- **MUST** use `@Getter`, `@Setter` for entity classes
+- **MUST** use `@RequiredArgsConstructor` for constructor injection
+- **MUST** use `@Builder` for complex object creation
+- **NEVER** write manual getters/setters/equals/hashCode in entities
+
+### 7. Logging Standards (REQUIRED)
+- Always use `log.info()`, `log.debug()`, `log.error()`, `log.warn()`
+- Log every important business event:
+  * Event received/sent to Kafka
+  * Database operations (create, update, delete)
+  * Authentication actions (login, logout, failures)
+  * Policy decisions (allow, block, escalate)
+  * Classification results (intent, confidence)
+  * Errors with full context (stack traces in debug)
+- Use parameterized logging: `log.info("User {} logged in", userId)`
+- Include correlation IDs in all logs
 
 ## Phase 2 User Stories Status
 
