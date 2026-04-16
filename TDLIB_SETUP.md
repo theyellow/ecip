@@ -13,6 +13,166 @@ This guide explains how to set up and run the TDLib Adapter for connecting EMCIP
 2. **System Dependencies**
    - TDLib native library (`libtdjni.so` on Linux, `libtdjni.dylib` on macOS, `tdjni.dll` on Windows)
 
+## Getting TDLib Java Bindings
+
+**Current State:** The project includes stub classes in `org.drinkless.tdlib` for compilation. You must replace these with the real TDLib library.
+
+### Option 1: Download Pre-built JAR (Recommended)
+
+Check the TDLib GitHub releases or community builds:
+
+```bash
+# Create lib directory
+mkdir -p emcip-tdlib-adapter/lib
+
+# Download from official source (check latest release)
+# URL varies by version - see: https://github.com/tdlib/td/releases
+curl -L -o emcip-tdlib-adapter/lib/tdlib.jar \
+  https://github.com/tdlib/td/releases/download/v1.8.29/tdlib-1.8.29.jar
+```
+
+### Option 2: Build from Source (Full Control)
+
+**Prerequisites:**
+- C++ compiler (GCC 7+ or Clang 5+)
+- CMake 3.8+
+- OpenSSL development libraries
+- zlib development libraries
+
+**Build Steps:**
+
+```bash
+# 1. Clone TDLib repository
+git clone https://github.com/tdlib/td.git
+cd td
+
+# 2. Checkout stable version (match our stubs: 1.8.x)
+git checkout v1.8.29
+
+# 3. Build with Java bindings
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release \
+  -DTD_ENABLE_JNI=ON \
+  -DJAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+  ..
+
+# 4. Compile (this takes 10-30 minutes)
+cmake --build . --target install -j$(nproc)
+
+# 5. Find the built artifacts
+# Java JAR: build/tdlib/bin/tdlib.jar
+# Native lib: build/tdlib/bin/libtdjni.so (Linux)
+```
+
+### Option 3: Use Package Manager (Limited Availability)
+
+```bash
+# Ubuntu/Debian (may be older version)
+sudo apt-get install libtdlib-dev
+
+# macOS with Homebrew
+brew install tdlib
+
+# Note: Package managers often have older versions. Check version matches stubs.
+```
+
+## Integrating Real TDLib
+
+### Step 1: Replace Stubs
+
+Delete stub files and use real library:
+
+```bash
+# Remove stubs
+rm -rf emcip-tdlib-adapter/src/main/java/org/drinkless/
+
+# Copy real JAR
+cp /path/to/built/or/downloaded/tdlib.jar emcip-tdlib-adapter/lib/
+```
+
+### Step 2: Update pom.xml
+
+Uncomment and modify the TDLib dependency:
+
+```xml
+<!-- In emcip-tdlib-adapter/pom.xml -->
+<dependency>
+  <groupId>org.drinkless</groupId>
+  <artifactId>tdlib</artifactId>
+  <version>1.8.29</version>
+  <scope>system</scope>
+  <systemPath>${project.basedir}/lib/tdlib.jar</systemPath>
+</dependency>
+```
+
+### Step 3: Configure Native Library Path
+
+Set JVM argument to find native library:
+
+```bash
+# Linux
+export LD_LIBRARY_PATH=/path/to/tdlib/lib:$LD_LIBRARY_PATH
+
+# macOS
+export DYLD_LIBRARY_PATH=/path/to/tdlib/lib:$DYLD_LIBRARY_PATH
+
+# Windows (in command prompt)
+set PATH=C:\path\to\tdlib\lib;%PATH%
+```
+
+Or via JVM argument:
+
+```bash
+java -Djava.library.path=/path/to/tdlib/lib -jar app.jar
+```
+
+### Step 4: Install to Local Maven (Optional but Recommended)
+
+```bash
+# Install to local Maven repo for cleaner dependency management
+mvn install:install-file \
+  -Dfile=emcip-tdlib-adapter/lib/tdlib.jar \
+  -DgroupId=org.drinkless \
+  -DartifactId=tdlib \
+  -Dversion=1.8.29 \
+  -Dpackaging=jar
+```
+
+Then update pom.xml to regular dependency:
+
+```xml
+<dependency>
+  <groupId>org.drinkless</groupId>
+  <artifactId>tdlib</artifactId>
+  <version>1.8.29</version>
+</dependency>
+```
+
+## Verification
+
+Test that real TDLib loads correctly:
+
+```bash
+cd emcip-tdlib-adapter
+mvn clean compile
+LD_LIBRARY_PATH=lib java -cp target/classes:lib/tdlib.jar \
+  -Djava.library.path=lib \
+  org.drinkless.tdlib.Client
+```
+
+Should show no "ClassNotFound" or "UnsatisfiedLinkError".
+
+## Important URLs
+
+| Resource | URL |
+|----------|-----|
+| TDLib GitHub | https://github.com/tdlib/td |
+| TDLib Java Example | https://github.com/tdlib/td/tree/master/example/java |
+| TDLib Docs | https://core.telegram.org/tdlib/docs/ |
+| Telegram API | https://core.telegram.org/api |
+| Building TDLib | https://tdlib.github.io/td/build.html |
+| Releases | https://github.com/tdlib/td/releases |
+
 ## Configuration
 
 ### Environment Variables
