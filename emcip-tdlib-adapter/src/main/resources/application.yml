@@ -4,6 +4,20 @@ server:
 spring:
   application:
     name: emcip-tdlib-adapter
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+tdlib:
+  api-id: ${TELEGRAM_API_ID:0}
+  api-hash: ${TELEGRAM_API_HASH:}
+  phone-number: ${TELEGRAM_PHONE_NUMBER:}
+  database-directory: ${TDLIB_DB_DIR:tdlib-db}
+  files-directory: ${TDLIB_FILES_DIR:tdlib-files}
+  use-file-database: true
+  use-chat-info-database: true
+  use-message-database: true
+  use-secret-chats: false
+  log-verbosity-level: 1
 
 management:
   endpoints:
@@ -13,7 +27,10 @@ management:
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
 
 logging:
   level:
     io.emcip: INFO
+    io.emcip.tdlib.adapter: DEBUG

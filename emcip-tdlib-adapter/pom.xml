@@ -44,6 +44,23 @@
       <artifactId>spring-kafka</artifactId>
     </dependency>
 
+    <!-- TDLib - Must be installed locally (see TDLIB_SETUP.md) -->
+    <!--
+    <dependency>
+      <groupId>org.drinkless</groupId>
+      <artifactId>tdlib</artifactId>
+      <version>1.8.29</version>
+      <scope>system</scope>
+      <systemPath>${project.basedir}/lib/tdlib.jar</systemPath>
+    </dependency>
+    -->
+
+    <!-- JSON -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+
     <!-- Testing -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
