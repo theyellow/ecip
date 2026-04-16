@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emcip.io/schemas/telegram-message-v1.json",
+  "title": "Telegram Message Event",
+  "description": "Schema for Telegram messages received from TDLib",
+  "type": "object",
+  "required": [
+    "eventId",
+    "timestamp",
+    "schemaVersion",
+    "eventType",
+    "telegramMessageId",
+    "chatId",
+    "senderId",
+    "text",
+    "date"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp in ISO-8601 format"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semantic versioning)",
+      "default": "1.0.0"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["TelegramMessage"],
+      "description": "Event type identifier"
+    },
+    "telegramMessageId": {
+      "type": "integer",
+      "description": "Original Telegram message ID"
+    },
+    "chatId": {
+      "type": "integer",
+      "description": "Telegram chat ID"
+    },
+    "senderId": {
+      "type": "string",
+      "description": "Sender identifier (user ID or chat ID)"
+    },
+    "senderType": {
+      "type": "string",
+      "enum": ["USER", "CHAT", "UNKNOWN"],
+      "description": "Type of sender"
+    },
+    "text": {
+      "type": "string",
+      "description": "Message text content"
+    },
+    "date": {
+      "type": "integer",
+      "description": "Message send date (Unix timestamp)"
+    },
+    "editDate": {
+      "type": "integer",
+      "description": "Message last edit date (Unix timestamp, 0 if not edited)"
+    },
+    "isOutgoing": {
+      "type": "boolean",
+      "description": "True if message is outgoing (sent by the bot)"
+    },
+    "replyToMessageId": {
+      "type": "integer",
+      "description": "ID of the message this is replying to"
+    },
+    "replyInChatId": {
+      "type": "integer",
+      "description": "Chat ID where the replied message is"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata about the message",
+      "properties": {
+        "textLength": {
+          "type": "integer"
+        },
+        "entityCount": {
+          "type": "integer"
+        },
+        "messageThreadId": {
+          "type": "integer"
+        },
+        "isChannelPost": {
+          "type": "boolean"
+        },
+        "isTopicMessage": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
