@@ -183,7 +183,7 @@ Set these environment variables before running:
 export TELEGRAM_API_ID=your_api_id_here        # e.g., 12345678
 export TELEGRAM_API_HASH=your_api_hash_here    # e.g., abcdef1234567890abcdef1234567890
 export TELEGRAM_PHONE_NUMBER=+1234567890      # Your phone number with country code
-export KAFKA_BOOTSTRAP_SERVERS=localhost:9092  # Kafka broker address
+export KAFKA_BOOTSTRAP_SERVERS=localhost:14003  # Kafka broker address (external)
 ```
 
 ### Optional Configuration
@@ -281,7 +281,7 @@ Watch for messages in Kafka:
 docker exec -it ecip-kafka kafka-console-consumer \
   --topic telegram.raw.messages \
   --from-beginning \
-  --bootstrap-server localhost:9092
+  --bootstrap-server localhost:14003
 ```
 
 ## Troubleshooting

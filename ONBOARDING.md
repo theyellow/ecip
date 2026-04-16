@@ -55,10 +55,12 @@ docker-compose ps
 ```
 
 **Services will be available at:**
-- Kafka: `localhost:9092` (internal), `localhost:29092` (external)
-- PostgreSQL: `localhost:5432`
-- Kafka UI: http://localhost:8080
-- pgAdmin: http://localhost:5050 (admin/admin)
+- Kafka: `localhost:14002` (internal), `localhost:14003` (external)
+- PostgreSQL: `localhost:14005`
+- Kafka UI: http://localhost:14004
+- pgAdmin: http://localhost:14006 (admin/admin)
+
+See [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md) for complete port reference.
 
 ### Step 2: Build the Project
 
