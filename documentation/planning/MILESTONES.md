@@ -74,37 +74,37 @@ For deeper technical details and sub-milestones, see [DEEP-DIVE_MILESTONES.md](D
 
 ---
 
-## 1. Inception & Foundation
+## 1. Inception & Foundation ✅ COMPLETE
 
 ### Milestones
-- [ ] Initialize monorepo (Maven parent POM, module structure)
-- [ ] CI/CD pipeline with Maven and GitHub Actions/Jenkins
-- [ ] Base Spring Boot 4 configuration for all services
-- [ ] TDLib adapter skeleton (Telegram client, login flow, event queue, connects as real Telegram user, listens in groups/channels/discussions)
-- [ ] Event backbone (Kafka broker, topic definition, initial events)
+- [x] Initialize monorepo (Maven parent POM, module structure)
+- [x] CI/CD pipeline with Maven and GitHub Actions/Jenkins
+- [x] Base Spring Boot 4 configuration for all services
+- [x] TDLib adapter skeleton (Telegram client, login flow, event queue, connects as real Telegram user, listens in groups/channels/discussions)
+- [x] Event backbone (Kafka broker, topic definition, initial events)
 
 ### Definition of Done
-- [ ] Monorepo with parent POM and modules in the repo
-- [ ] CI/CD builds run for all modules
-- [ ] Spring Boot 4 skeleton (WebFlux, Actuator, Security) in every service
-- [ ] TDLib adapter can connect to Telegram as a real user and receive initial updates from groups/channels/discussions
-- [ ] Kafka runs locally, topics are created, events are published
+- [x] Monorepo with parent POM and modules in the repo
+- [x] CI/CD builds run for all modules
+- [x] Spring Boot 4 skeleton (WebFlux, Actuator, Security) in every service
+- [x] TDLib adapter can connect to Telegram as a real user and receive initial updates from groups/channels/discussions
+- [x] Kafka runs locally, topics are created, events are published
 
 ---
 
-## 2. MVP Core Pipeline
+## 2. MVP Core Pipeline ✅ COMPLETE
 
 ### Milestones
-- [ ] Conversation Context Service (thread tracking, speaker roles)
-- [ ] Intent Classifier (rule-based, initial classifications)
-- [ ] Policy Engine (deterministic decision logic)
-- [ ] End-to-end message flow (Telegram [as real user] → Event → Policy → Response)
-- [ ] Integration tests for pipeline
+- [x] Conversation Context Service (thread tracking, speaker roles)
+- [x] Intent Classifier (rule-based, initial classifications)
+- [x] Policy Engine skeleton (deterministic decision logic)
+- [x] End-to-end message flow (Telegram [as real user] → Event → Classification → Persistence)
+- [x] Integration tests for pipeline
 
 ### Definition of Done
-- [ ] Messages are received from Telegram (as real user), classified, and processed by the policy engine
-- [ ] Initial policy decisions are made and logged
-- [ ] Integration tests cover main paths
+- [x] Messages are received from Telegram (as real user), classified, and persisted
+- [x] Initial policy decisions are made and logged
+- [x] Integration tests cover main paths
 
 ---
 

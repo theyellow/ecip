@@ -1,41 +1,38 @@
 package io.emcip.conversation.context.health;
 
+import javax.sql.DataSource;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
-import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.stereotype.Component;
-import reactor.core.publisher.Mono;
 
+/**
+ * Health indicator for database connectivity using JDBC.
+ */
 @Component
 public class DatabaseHealthIndicator implements HealthIndicator {
 
-    private final R2dbcEntityTemplate template;
+    private final DataSource dataSource;
 
-    public DatabaseHealthIndicator(R2dbcEntityTemplate template) {
-        this.template = template;
+    public DatabaseHealthIndicator(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
 
     @Override
     public Health health() {
-        try {
-            return template.getDatabaseClient()
-                    .sql("SELECT 1")
-                    .fetch()
-                    .rowsUpdated()
-                    .map(
-                            count ->
-                                    Health.up()
-                                            .withDetail("database", "PostgreSQL")
-                                            .withDetail("status", "Connected")
-                                            .build())
-                    .onErrorResume(
-                            e ->
-                                    Mono.just(
-                                            Health.down()
-                                                    .withDetail("database", "PostgreSQL")
-                                                    .withDetail("error", e.getMessage())
-                                                    .build()))
-                    .block();
+        try (var connection = dataSource.getConnection();
+             var statement = connection.createStatement()) {
+            
+            var resultSet = statement.executeQuery("SELECT 1");
+            if (resultSet.next()) {
+                return Health.up()
+                        .withDetail("database", "PostgreSQL")
+                        .withDetail("status", "Connected")
+                        .build();
+            }
+            return Health.down()
+                    .withDetail("database", "PostgreSQL")
+                    .withDetail("error", "Could not verify connection")
+                    .build();
         } catch (Exception e) {
             return Health.down()
                     .withDetail("database", "PostgreSQL")

@@ -6,9 +6,6 @@
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
 
     <changeSet id="1" author="cascade">
-        <comment>Create users table for Telegram user storage</comment>
-        <tagDatabase tag="users-table"/>
-
         <createTable tableName="users" remarks="Telegram users participating in conversations">
             <column name="telegram_id" type="BIGINT" remarks="Telegram user ID (primary key)">
                 <constraints primaryKey="true" nullable="false"/>

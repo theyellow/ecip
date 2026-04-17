@@ -5,24 +5,24 @@
 ---
 
 ### Epic 2.1: TDLib Adapter Implementation
-- [ ] US-2.1.1: Implement Telegram client integration (TDLib)
-- [ ] US-2.1.2: Handle login flow and session management
-- [ ] US-2.1.3: Publish Telegram updates as events to Kafka
+- [x] US-2.1.1: Implement Telegram client integration (TDLib)
+- [x] US-2.1.2: Handle login flow and session management
+- [x] US-2.1.3: Publish Telegram updates as events to Kafka
 
 ### Epic 2.2: Event Backbone & Schema Versioning
-- [ ] US-2.2.1: Finalize event schemas (Avro/JSON)
-- [ ] US-2.2.2: Implement schema versioning and validation
-- [ ] US-2.2.3: Ensure all services can consume/publish events
+- [x] US-2.2.1: Finalize event schemas (JSON)
+- [x] US-2.2.2: Implement schema versioning and validation
+- [x] US-2.2.3: Ensure all services can consume/publish events
 
 ### Epic 2.3: PostgreSQL Persistence for Core Entities
-- [ ] US-2.3.1: Define and implement JPA entities for messages, threads, users
-- [ ] US-2.3.2: Implement repository layer and DB migrations
-- [ ] US-2.3.3: Write integration tests for persistence
+- [x] US-2.3.1: Define and implement JPA entities for messages, threads, users
+- [x] US-2.3.2: Implement repository layer and DB migrations (Liquibase)
+- [x] US-2.3.3: Write integration tests for persistence
 
 ### Epic 2.4: Conversation Context & Intent Classifier
-- [ ] US-2.4.1: Implement thread tracking and speaker role detection
-- [ ] US-2.4.2: Develop rule-based intent classifier (first intent types)
-- [ ] US-2.4.3: Integrate with event backbone and persistence
+- [x] US-2.4.1: Implement thread tracking and speaker role detection
+- [x] US-2.4.2: Develop rule-based intent classifier (first intent types)
+- [x] US-2.4.3: Integrate with event backbone and persistence
 
 ---
 

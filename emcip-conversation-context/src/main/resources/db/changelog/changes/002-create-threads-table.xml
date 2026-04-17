@@ -6,9 +6,6 @@
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
 
     <changeSet id="2" author="cascade">
-        <comment>Create message_threads table for conversation tracking</comment>
-        <tagDatabase tag="threads-table"/>
-
         <createTable tableName="message_threads" remarks="Conversation threads (private chats, groups, channels)">
             <column name="telegram_chat_id" type="BIGINT" remarks="Telegram chat ID (primary key)">
                 <constraints primaryKey="true" nullable="false"/>

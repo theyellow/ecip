@@ -47,7 +47,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /**
      * Update last seen timestamp.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE User u SET u.lastSeenAt = :timestamp WHERE u.telegramId = :telegramId")
     int updateLastSeenAt(@Param("telegramId") Long telegramId, @Param("timestamp") Instant timestamp);

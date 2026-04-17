@@ -1,9 +1,10 @@
 spring:
   main:
     banner-mode: off
-  liquibase:
-    enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.xml
+  kafka:
+    listener:
+      auto-startup: false
+    bootstrap-servers: localhost:9092
 
 logging:
   level:

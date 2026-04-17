@@ -6,9 +6,6 @@
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
 
     <changeSet id="3" author="cascade">
-        <comment>Create messages table for storing all conversation messages</comment>
-        <tagDatabase tag="messages-table"/>
-
         <createTable tableName="messages" remarks="Individual messages with classification and context">
             <column name="id" type="BIGSERIAL" autoIncrement="true" remarks="Internal auto-increment ID">
                 <constraints primaryKey="true" nullable="false"/>

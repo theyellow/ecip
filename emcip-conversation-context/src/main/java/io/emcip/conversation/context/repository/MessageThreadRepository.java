@@ -47,7 +47,7 @@ public interface MessageThreadRepository extends JpaRepository<MessageThread, Lo
     /**
      * Update last message timestamp.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE MessageThread t SET t.lastMessageAt = :timestamp WHERE t.telegramChatId = :chatId")
     int updateLastMessageAt(@Param("chatId") Long chatId, @Param("timestamp") Instant timestamp);
@@ -55,7 +55,7 @@ public interface MessageThreadRepository extends JpaRepository<MessageThread, Lo
     /**
      * Deactivate a thread.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE MessageThread t SET t.isActive = false WHERE t.telegramChatId = :chatId")
     int deactivate(@Param("chatId") Long chatId);
