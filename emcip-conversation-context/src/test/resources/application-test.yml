@@ -1,0 +1,14 @@
+spring:
+  main:
+    banner-mode: off
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+logging:
+  level:
+    root: WARN
+    io.emcip: DEBUG
+    org.testcontainers: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -38,6 +39,7 @@ public class User {
     @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
+    @Getter(AccessLevel.NONE)
     @Column(name = "is_bot", nullable = false)
     private Boolean isBot = false;
 
@@ -60,5 +62,19 @@ public class User {
             return firstName + " " + lastName;
         }
         return firstName != null ? firstName : username != null ? username : String.valueOf(telegramId);
+    }
+
+    /**
+     * Custom getter for isBot field (Lombok generates getBot() by default).
+     */
+    public Boolean getIsBot() {
+        return isBot;
+    }
+
+    /**
+     * Setter for isBot field.
+     */
+    public void setIsBot(Boolean isBot) {
+        this.isBot = isBot;
     }
 }
