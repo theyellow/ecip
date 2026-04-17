@@ -7,14 +7,12 @@ import java.lang.annotation.Target;
 import org.junit.jupiter.api.condition.EnabledIf;
 
 /**
- * Conditionally enables tests only if Docker is available.
- * Use this to skip Testcontainers tests when Docker is not running.
+ * Conditionally enables tests only if Docker is available. Use this to skip Testcontainers tests
+ * when Docker is not running.
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @EnabledIf(
-    value = "io.emcip.conversation.context.DockerAvailabilityChecker#isDockerAvailable",
-    disabledReason = "Docker not available - skipping Testcontainers test"
-)
-public @interface EnableIfDockerAvailable {
-}
+        value = "io.emcip.conversation.context.DockerAvailabilityChecker#isDockerAvailable",
+        disabledReason = "Docker not available - skipping Testcontainers test")
+public @interface EnableIfDockerAvailable {}

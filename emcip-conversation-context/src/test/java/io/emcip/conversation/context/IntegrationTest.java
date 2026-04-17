@@ -10,8 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 
 /**
- * Meta-annotation for integration tests.
- * Automatically configures Testcontainers for PostgreSQL.
+ * Meta-annotation for integration tests. Automatically configures Testcontainers for PostgreSQL.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -19,5 +18,4 @@ import org.springframework.test.context.ContextConfiguration;
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = TestcontainersInitializer.class)
 @Import(TestDatabaseConfig.class)
-public @interface IntegrationTest {
-}
+public @interface IntegrationTest {}

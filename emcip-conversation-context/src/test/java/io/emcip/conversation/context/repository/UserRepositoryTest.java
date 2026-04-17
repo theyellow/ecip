@@ -15,8 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Integration tests for UserRepository.
- * Uses Testcontainers PostgreSQL for database operations.
+ * Integration tests for UserRepository. Uses Testcontainers PostgreSQL for database operations.
  * Skipped if Docker is not available.
  */
 @Slf4j
@@ -25,8 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @EnableIfDockerAvailable
 class UserRepositoryTest {
 
-    @Autowired
-    private UserRepository userRepository;
+    @Autowired private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {

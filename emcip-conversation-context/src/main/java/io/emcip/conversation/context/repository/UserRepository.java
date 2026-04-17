@@ -12,54 +12,38 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Repository for User entities.
- * Provides CRUD operations and custom queries for user management.
+ * Repository for User entities. Provides CRUD operations and custom queries for user management.
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    /**
-     * Find user by Telegram ID.
-     */
+    /** Find user by Telegram ID. */
     Optional<User> findByTelegramId(Long telegramId);
 
-    /**
-     * Find user by username.
-     */
+    /** Find user by username. */
     Optional<User> findByUsername(String username);
 
-    /**
-     * Find users by partial username match (case-insensitive).
-     */
+    /** Find users by partial username match (case-insensitive). */
     @Query("SELECT u FROM User u WHERE LOWER(u.username) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<User> searchByUsername(@Param("query") String query);
 
-    /**
-     * Find users active since a given time.
-     */
+    /** Find users active since a given time. */
     List<User> findByLastSeenAtAfter(Instant since);
 
-    /**
-     * Check if user exists by Telegram ID.
-     */
+    /** Check if user exists by Telegram ID. */
     boolean existsByTelegramId(Long telegramId);
 
-    /**
-     * Update last seen timestamp.
-     */
+    /** Update last seen timestamp. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional
     @Query("UPDATE User u SET u.lastSeenAt = :timestamp WHERE u.telegramId = :telegramId")
-    int updateLastSeenAt(@Param("telegramId") Long telegramId, @Param("timestamp") Instant timestamp);
+    int updateLastSeenAt(
+            @Param("telegramId") Long telegramId, @Param("timestamp") Instant timestamp);
 
-    /**
-     * Count total users.
-     */
+    /** Count total users. */
     long count();
 
-    /**
-     * Count active users (seen in last 24 hours).
-     */
+    /** Count active users (seen in last 24 hours). */
     @Query("SELECT COUNT(u) FROM User u WHERE u.lastSeenAt > :since")
     long countActiveSince(@Param("since") Instant since);
 }

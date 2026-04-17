@@ -5,9 +5,7 @@ import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 
-/**
- * Test configuration to ensure Liquibase runs before JPA initialization.
- */
+/** Test configuration to ensure Liquibase runs before JPA initialization. */
 @TestConfiguration
 public class TestDatabaseConfig {
 

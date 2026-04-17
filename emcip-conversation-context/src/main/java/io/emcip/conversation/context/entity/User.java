@@ -12,10 +12,7 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-/**
- * JPA entity representing a Telegram user.
- * Tracks user information across all conversations.
- */
+/** JPA entity representing a Telegram user. Tracks user information across all conversations. */
 @Entity
 @Table(name = "users")
 @Getter
@@ -54,26 +51,22 @@ public class User {
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
-    /**
-     * Custom method to generate display name.
-     */
+    /** Custom method to generate display name. */
     public String getDisplayName() {
         if (firstName != null && lastName != null) {
             return firstName + " " + lastName;
         }
-        return firstName != null ? firstName : username != null ? username : String.valueOf(telegramId);
+        return firstName != null
+                ? firstName
+                : username != null ? username : String.valueOf(telegramId);
     }
 
-    /**
-     * Custom getter for isBot field (Lombok generates getBot() by default).
-     */
+    /** Custom getter for isBot field (Lombok generates getBot() by default). */
     public Boolean getIsBot() {
         return isBot;
     }
 
-    /**
-     * Setter for isBot field.
-     */
+    /** Setter for isBot field. */
     public void setIsBot(Boolean isBot) {
         this.isBot = isBot;
     }

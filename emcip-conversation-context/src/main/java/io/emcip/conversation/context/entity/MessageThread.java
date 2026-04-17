@@ -14,8 +14,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
- * JPA entity representing a conversation thread.
- * A thread can be a private chat, group, or channel.
+ * JPA entity representing a conversation thread. A thread can be a private chat, group, or channel.
  */
 @Entity
 @Table(name = "message_threads")
@@ -25,9 +24,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class MessageThread {
 
     public enum ThreadType {
-        PRIVATE,      // One-on-one conversation
-        GROUP,        // Group chat
-        CHANNEL,      // Broadcast channel
+        PRIVATE, // One-on-one conversation
+        GROUP, // Group chat
+        CHANNEL, // Broadcast channel
         UNKNOWN
     }
 
@@ -61,5 +60,4 @@ public class MessageThread {
 
     @Column(name = "metadata", length = 4000)
     private String metadata;
-
 }

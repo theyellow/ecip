@@ -12,8 +12,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * Kafka consumer for Telegram messages.
- * Consumes from telegram.raw.messages topic and persists to database.
+ * Kafka consumer for Telegram messages. Consumes from telegram.raw.messages topic and persists to
+ * database.
  */
 @Service
 public class TelegramMessageConsumer {
@@ -39,29 +39,40 @@ public class TelegramMessageConsumer {
             groupId = "conversation-context",
             containerFactory = "kafkaListenerContainerFactory")
     public void consume(ConsumerRecord<String, String> record) {
-        log.debug("Received message from partition {} offset {}",
-                record.partition(), record.offset());
+        log.debug(
+                "Received message from partition {} offset {}",
+                record.partition(),
+                record.offset());
 
-        Mono.fromCallable(() -> {
-                    // Validate event structure
-                    var validation = eventValidator.validateJson(record.value(), "TelegramMessage");
-                    if (!validation.valid()) {
-                        log.error("Invalid message received: {}", validation.getErrorMessage());
-                        return null;
-                    }
+        Mono.fromCallable(
+                        () -> {
+                            // Validate event structure
+                            var validation =
+                                    eventValidator.validateJson(record.value(), "TelegramMessage");
+                            if (!validation.valid()) {
+                                log.error(
+                                        "Invalid message received: {}",
+                                        validation.getErrorMessage());
+                                return null;
+                            }
 
-                    // Parse and process
-                    EventSchemas.TelegramMessageEvent event =
-                            objectMapper.readValue(record.value(), EventSchemas.TelegramMessageEvent.class);
-                    
-                    return contextService.processTelegramMessage(event);
-                })
+                            // Parse and process
+                            EventSchemas.TelegramMessageEvent event =
+                                    objectMapper.readValue(
+                                            record.value(),
+                                            EventSchemas.TelegramMessageEvent.class);
+
+                            return contextService.processTelegramMessage(event);
+                        })
                 .subscribeOn(Schedulers.boundedElastic())
-                .doOnSuccess(result -> {
-                    if (result != null) {
-                        log.info("Persisted message {} to conversation context", result.getEventId());
-                    }
-                })
+                .doOnSuccess(
+                        result -> {
+                            if (result != null) {
+                                log.info(
+                                        "Persisted message {} to conversation context",
+                                        result.getEventId());
+                            }
+                        })
                 .doOnError(e -> log.error("Error processing message: {}", e.getMessage(), e))
                 .onErrorResume(e -> Mono.empty())
                 .subscribe();

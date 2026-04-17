@@ -3,9 +3,7 @@ package io.emcip.conversation.context;
 import lombok.extern.slf4j.Slf4j;
 import org.testcontainers.DockerClientFactory;
 
-/**
- * Checks if Docker is available for Testcontainers.
- */
+/** Checks if Docker is available for Testcontainers. */
 @Slf4j
 public class DockerAvailabilityChecker {
 

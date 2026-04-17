@@ -5,9 +5,7 @@ import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
 
-/**
- * Health indicator for database connectivity using JDBC.
- */
+/** Health indicator for database connectivity using JDBC. */
 @Component
 public class DatabaseHealthIndicator implements HealthIndicator {
 
@@ -20,8 +18,8 @@ public class DatabaseHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         try (var connection = dataSource.getConnection();
-             var statement = connection.createStatement()) {
-            
+                var statement = connection.createStatement()) {
+
             var resultSet = statement.executeQuery("SELECT 1");
             if (resultSet.next()) {
                 return Health.up()

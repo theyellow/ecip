@@ -21,8 +21,8 @@ import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 
 /**
- * Kafka configuration for conversation-context service.
- * Consumes Telegram messages and intent classifications.
+ * Kafka configuration for conversation-context service. Consumes Telegram messages and intent
+ * classifications.
  */
 @EnableKafka
 @Configuration

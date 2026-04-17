@@ -19,28 +19,29 @@ import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
- * JPA entity representing a message in a conversation.
- * Stores the full message content and metadata for context.
+ * JPA entity representing a message in a conversation. Stores the full message content and metadata
+ * for context.
  */
 @Entity
 @Getter
 @Setter
 @NoArgsConstructor
 @Table(
-    name = "messages",
-    indexes = {
-        @Index(name = "idx_messages_thread_time", columnList = "thread_telegram_chat_id,created_at"),
-        @Index(name = "idx_messages_sender", columnList = "sender_telegram_id"),
-        @Index(name = "idx_messages_event_id", columnList = "event_id", unique = true)
-    }
-)
+        name = "messages",
+        indexes = {
+            @Index(
+                    name = "idx_messages_thread_time",
+                    columnList = "thread_telegram_chat_id,created_at"),
+            @Index(name = "idx_messages_sender", columnList = "sender_telegram_id"),
+            @Index(name = "idx_messages_event_id", columnList = "event_id", unique = true)
+        })
 public class Message {
 
     public enum MessageRole {
-        USER,           // Regular user message
-        ADMIN,          // Admin/moderator message
-        BOT,            // Bot response
-        SYSTEM          // System message
+        USER, // Regular user message
+        ADMIN, // Admin/moderator message
+        BOT, // Bot response
+        SYSTEM // System message
     }
 
     @Id
@@ -95,5 +96,4 @@ public class Message {
 
     @Column(name = "metadata", length = 2000)
     private String metadata;
-
 }

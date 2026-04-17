@@ -17,9 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Integration tests for MessageThreadRepository.
- * Uses Testcontainers PostgreSQL for database operations.
- * Skipped if Docker is not available.
+ * Integration tests for MessageThreadRepository. Uses Testcontainers PostgreSQL for database
+ * operations. Skipped if Docker is not available.
  */
 @Slf4j
 @IntegrationTest
@@ -27,8 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @EnableIfDockerAvailable
 class MessageThreadRepositoryTest {
 
-    @Autowired
-    private MessageThreadRepository threadRepository;
+    @Autowired private MessageThreadRepository threadRepository;
 
     @BeforeEach
     void setUp() {

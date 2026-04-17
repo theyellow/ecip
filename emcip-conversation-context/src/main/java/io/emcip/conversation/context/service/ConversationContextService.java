@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Service for managing conversation context.
- * Persists Telegram messages, threads, and users from Kafka events.
+ * Service for managing conversation context. Persists Telegram messages, threads, and users from
+ * Kafka events.
  */
 @Slf4j
 @Service
@@ -37,8 +37,8 @@ public class ConversationContextService {
     }
 
     /**
-     * Process a Telegram message event and persist to database.
-     * Creates or updates thread, sender user, and message record.
+     * Process a Telegram message event and persist to database. Creates or updates thread, sender
+     * user, and message record.
      */
     @Transactional
     public Message processTelegramMessage(EventSchemas.TelegramMessageEvent event) {
@@ -67,8 +67,11 @@ public class ConversationContextService {
         message.setReplyToMessageId(event.replyToMessageId());
 
         Message saved = messageRepository.save(message);
-        log.info("Saved message {} from chat {} with role {}", 
-                saved.getEventId(), thread.getTelegramChatId(), role);
+        log.info(
+                "Saved message {} from chat {} with role {}",
+                saved.getEventId(),
+                thread.getTelegramChatId(),
+                role);
 
         // Update thread's last message timestamp
         thread.setLastMessageAt(Instant.now());
@@ -77,9 +80,7 @@ public class ConversationContextService {
         return saved;
     }
 
-    /**
-     * Update message with intent classification.
-     */
+    /** Update message with intent classification. */
     @Transactional
     public void updateIntentClassification(EventSchemas.IntentClassifiedEvent event) {
         log.debug("Updating intent for source event: {}", event.sourceEventId());
@@ -90,68 +91,79 @@ public class ConversationContextService {
             message.setIntentClassification(event.intent());
             message.setConfidenceScore(event.confidence());
             messageRepository.save(message);
-            log.info("Updated intent for message {}: {} (confidence: {})",
-                    event.sourceEventId(), event.intent(), event.confidence());
+            log.info(
+                    "Updated intent for message {}: {} (confidence: {})",
+                    event.sourceEventId(),
+                    event.intent(),
+                    event.confidence());
         } else {
             log.warn("Message not found for intent update: {}", event.sourceEventId());
         }
     }
 
     private MessageThread getOrCreateThread(EventSchemas.TelegramMessageEvent event) {
-        return threadRepository.findById(event.chatId())
-                .orElseGet(() -> {
-                    MessageThread newThread = new MessageThread();
-                    newThread.setTelegramChatId(event.chatId());
-                    newThread.setThreadType(determineThreadType(event));
-                    newThread.setIsActive(true);
-                    newThread.setTitle(extractThreadTitle(event));
-                    
-                    if (event.metadata() != null && event.metadata().get("memberCount") instanceof Number count) {
-                        newThread.setMemberCount(count.intValue());
-                    }
-                    
-                    log.info("Creating new thread: {}", event.chatId());
-                    return threadRepository.save(newThread);
-                });
+        return threadRepository
+                .findById(event.chatId())
+                .orElseGet(
+                        () -> {
+                            MessageThread newThread = new MessageThread();
+                            newThread.setTelegramChatId(event.chatId());
+                            newThread.setThreadType(determineThreadType(event));
+                            newThread.setIsActive(true);
+                            newThread.setTitle(extractThreadTitle(event));
+
+                            if (event.metadata() != null
+                                    && event.metadata().get("memberCount")
+                                            instanceof Number count) {
+                                newThread.setMemberCount(count.intValue());
+                            }
+
+                            log.info("Creating new thread: {}", event.chatId());
+                            return threadRepository.save(newThread);
+                        });
     }
 
     private User getOrCreateSender(EventSchemas.TelegramMessageEvent event) {
         if (event.senderId() == null) {
             // Create anonymous user for system messages
-            return userRepository.findById(0L)
-                    .orElseGet(() -> {
-                        User system = new User();
-                        system.setTelegramId(0L);
-                        system.setUsername("system");
-                        system.setFirstName("System");
-                        system.setIsBot(false);
-                        return userRepository.save(system);
-                    });
+            return userRepository
+                    .findById(0L)
+                    .orElseGet(
+                            () -> {
+                                User system = new User();
+                                system.setTelegramId(0L);
+                                system.setUsername("system");
+                                system.setFirstName("System");
+                                system.setIsBot(false);
+                                return userRepository.save(system);
+                            });
         }
 
         Long senderId = Long.parseLong(event.senderId());
-        return userRepository.findById(senderId)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setTelegramId(senderId);
-                    newUser.setIsBot("BOT".equals(event.senderType()));
-                    
-                    // Extract user info from metadata if available
-                    if (event.metadata() != null) {
-                        if (event.metadata().get("username") instanceof String username) {
-                            newUser.setUsername(username);
-                        }
-                        if (event.metadata().get("firstName") instanceof String firstName) {
-                            newUser.setFirstName(firstName);
-                        }
-                        if (event.metadata().get("lastName") instanceof String lastName) {
-                            newUser.setLastName(lastName);
-                        }
-                    }
-                    
-                    log.info("Creating new user: {}", senderId);
-                    return userRepository.save(newUser);
-                });
+        return userRepository
+                .findById(senderId)
+                .orElseGet(
+                        () -> {
+                            User newUser = new User();
+                            newUser.setTelegramId(senderId);
+                            newUser.setIsBot("BOT".equals(event.senderType()));
+
+                            // Extract user info from metadata if available
+                            if (event.metadata() != null) {
+                                if (event.metadata().get("username") instanceof String username) {
+                                    newUser.setUsername(username);
+                                }
+                                if (event.metadata().get("firstName") instanceof String firstName) {
+                                    newUser.setFirstName(firstName);
+                                }
+                                if (event.metadata().get("lastName") instanceof String lastName) {
+                                    newUser.setLastName(lastName);
+                                }
+                            }
+
+                            log.info("Creating new user: {}", senderId);
+                            return userRepository.save(newUser);
+                        });
     }
 
     private MessageRole determineSenderRole(EventSchemas.TelegramMessageEvent event, User sender) {

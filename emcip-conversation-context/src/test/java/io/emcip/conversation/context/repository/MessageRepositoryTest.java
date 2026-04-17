@@ -23,8 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Integration tests for MessageRepository.
- * Uses Testcontainers PostgreSQL for database operations.
+ * Integration tests for MessageRepository. Uses Testcontainers PostgreSQL for database operations.
  * Skipped if Docker is not available.
  */
 @Slf4j
@@ -33,14 +32,11 @@ import org.springframework.transaction.annotation.Transactional;
 @EnableIfDockerAvailable
 class MessageRepositoryTest {
 
-    @Autowired
-    private MessageRepository messageRepository;
+    @Autowired private MessageRepository messageRepository;
 
-    @Autowired
-    private UserRepository userRepository;
+    @Autowired private UserRepository userRepository;
 
-    @Autowired
-    private MessageThreadRepository threadRepository;
+    @Autowired private MessageThreadRepository threadRepository;
 
     private User testUser;
     private MessageThread testThread;
@@ -125,7 +121,9 @@ class MessageRepositoryTest {
         messageRepository.saveAll(List.of(msg1, msg2));
 
         // When
-        List<Message> messages = messageRepository.findTop50ByThread_TelegramChatIdOrderByTelegramTimestampDesc(testThread.getTelegramChatId());
+        List<Message> messages =
+                messageRepository.findTop50ByThread_TelegramChatIdOrderByTelegramTimestampDesc(
+                        testThread.getTelegramChatId());
 
         // Then
         assertThat(messages).hasSize(2);
@@ -150,7 +148,9 @@ class MessageRepositoryTest {
         messageRepository.save(message);
 
         // When
-        List<Message> messages = messageRepository.findBySender_TelegramIdOrderByTelegramTimestampDesc(testUser.getTelegramId());
+        List<Message> messages =
+                messageRepository.findBySender_TelegramIdOrderByTelegramTimestampDesc(
+                        testUser.getTelegramId());
 
         // Then
         assertThat(messages).hasSize(1);
@@ -179,14 +179,19 @@ class MessageRepositoryTest {
 
         // When - get page 1 (10 items)
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Message> page1 = messageRepository.findByThread_TelegramChatId(testThread.getTelegramChatId(), pageable);
+        Page<Message> page1 =
+                messageRepository.findByThread_TelegramChatId(
+                        testThread.getTelegramChatId(), pageable);
 
         // Then
         assertThat(page1.getContent()).hasSize(10);
         assertThat(page1.getTotalElements()).isEqualTo(25);
         assertThat(page1.getTotalPages()).isEqualTo(3);
         assertThat(page1.hasNext()).isTrue();
-        log.info("Pagination test passed: {} total messages, {} pages", page1.getTotalElements(), page1.getTotalPages());
+        log.info(
+                "Pagination test passed: {} total messages, {} pages",
+                page1.getTotalElements(),
+                page1.getTotalPages());
     }
 
     @Test
@@ -240,8 +245,9 @@ class MessageRepositoryTest {
 
         // When - find messages from last 10 minutes
         Instant tenMinutesAgo = now.minusSeconds(600);
-        List<Message> recent = messageRepository.findByThread_TelegramChatIdAndTelegramTimestampAfter(
-                testThread.getTelegramChatId(), tenMinutesAgo);
+        List<Message> recent =
+                messageRepository.findByThread_TelegramChatIdAndTelegramTimestampAfter(
+                        testThread.getTelegramChatId(), tenMinutesAgo);
 
         // Then
         assertThat(recent).hasSize(1);
