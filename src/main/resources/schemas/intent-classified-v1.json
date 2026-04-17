@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emcip.io/schemas/intent-classified-v1.json",
+  "title": "Intent Classified Event",
+  "description": "Schema for intent classification results",
+  "type": "object",
+  "required": [
+    "eventId",
+    "timestamp",
+    "schemaVersion",
+    "eventType",
+    "sourceEventId",
+    "intent",
+    "confidence"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event timestamp in ISO-8601 format"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version",
+      "default": "1.0.0"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": ["IntentClassified"],
+      "description": "Event type identifier"
+    },
+    "sourceEventId": {
+      "type": "string",
+      "format": "uuid",
+      "description": "ID of the source event that was classified"
+    },
+    "intent": {
+      "type": "string",
+      "description": "Classified intent type",
+      "examples": ["GREETING", "QUESTION", "COMMAND", "SPAM"]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Classification confidence score (0-1)"
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Extracted parameters from the message",
+      "additionalProperties": true
+    },
+    "matchedRules": {
+      "type": "array",
+      "description": "List of rules that matched",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

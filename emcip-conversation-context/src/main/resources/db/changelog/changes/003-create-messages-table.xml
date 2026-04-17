@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="3" author="cascade">
+        <createTable tableName="messages" remarks="Individual messages with classification and context">
+            <column name="id" type="BIGSERIAL" autoIncrement="true" remarks="Internal auto-increment ID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_id" type="VARCHAR(36)" remarks="Kafka event ID (UUID, unique)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="telegram_message_id" type="BIGINT" remarks="Original Telegram message ID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="thread_telegram_chat_id" type="BIGINT" remarks="Reference to message_threads">
+                <constraints nullable="false" foreignKeyName="fk_messages_thread" references="message_threads(telegram_chat_id)"/>
+            </column>
+            <column name="sender_telegram_id" type="BIGINT" remarks="Reference to users">
+                <constraints nullable="false" foreignKeyName="fk_messages_sender" references="users(telegram_id)"/>
+            </column>
+            <column name="sender_role" type="VARCHAR(16)" defaultValue="USER" remarks="Role: USER, ADMIN, BOT, SYSTEM">
+                <constraints nullable="false"/>
+            </column>
+            <column name="text_content" type="VARCHAR(4000)" remarks="Message text content">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_edited" type="BOOLEAN" defaultValue="false" remarks="Whether message was edited">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_deleted" type="BOOLEAN" defaultValue="false" remarks="Whether message was deleted">
+                <constraints nullable="false"/>
+            </column>
+            <column name="telegram_timestamp" type="TIMESTAMP" remarks="Original message timestamp from Telegram">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP" remarks="Record creation time">
+                <constraints nullable="false"/>
+            </column>
+            <column name="edit_timestamp" type="TIMESTAMP" remarks="When message was last edited">
+                <constraints nullable="true"/>
+            </column>
+            <column name="reply_to_message_id" type="BIGINT" remarks="ID of message this replies to">
+                <constraints nullable="true"/>
+            </column>
+            <column name="intent_classification" type="VARCHAR(32)" remarks="Classified intent (GREETING, QUESTION, etc.)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="confidence_score" type="DOUBLE" remarks="Classification confidence (0-1)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="metadata" type="TEXT" remarks="Additional JSON metadata">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_messages_thread_time" tableName="messages">
+            <column name="thread_telegram_chat_id"/>
+            <column name="telegram_timestamp"/>
+        </createIndex>
+
+        <createIndex indexName="idx_messages_sender" tableName="messages">
+            <column name="sender_telegram_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_messages_event_id" tableName="messages">
+            <column name="event_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_messages_intent" tableName="messages">
+            <column name="intent_classification"/>
+        </createIndex>
+
+        <createIndex indexName="idx_messages_deleted" tableName="messages">
+            <column name="is_deleted"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="messages"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -5,7 +5,7 @@ spring:
   application:
     name: emcip-audit-service
   r2dbc:
-    url: r2dbc:postgresql://localhost:5432/emcip
+    url: r2dbc:postgresql://localhost:14005/emcip
     username: emcip
     password: emcip
   liquibase:

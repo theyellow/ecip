@@ -353,11 +353,11 @@ Set up a local Kafka broker using Docker Compose to enable event-driven developm
 **Implementation Notes (Completed):**
 - Created `docker-compose.yml` with Kafka 7.5.0 (Confluent) and Zookeeper
 - Kafka available at:
-  * Internal: `kafka:9092` (for services on docker network)
-  * External: `localhost:29092` (for host machine access)
-- Zookeeper on port 2181
+  * Internal: `kafka:14002` (for services on docker network)
+  * External: `localhost:14003` (for host machine access)
+- Zookeeper on port 14001
 - Default 3 partitions, auto-create topics enabled
-- Added Kafka UI on port 8080 for monitoring
+- Added Kafka UI on port 14004 for monitoring
 - Created INFRASTRUCTURE.md with setup instructions and troubleshooting
 
 **Acceptance Criteria:**
@@ -435,14 +435,14 @@ Set up a local PostgreSQL instance using Docker Compose to provide persistent st
 - Added PostgreSQL 16 (Alpine) to `docker-compose.yml`
 - Database configuration:
   * Host: `localhost` (or `postgres` from containers)
-  * Port: `5432`
+  * Port: `14005`
   * Database: `emcip`
   * Username: `emcip`
   * Password: `emcip`
-- Added pgAdmin on port 5050 for database management
+- Added pgAdmin on port 14006 for database management
 - Persistent volume `postgres-data` for data retention
 - Health check configured: `pg_isready -U emcip`
-- R2DBC URL for services: `r2dbc:postgresql://localhost:5432/emcip`
+- R2DBC URL for services: `r2dbc:postgresql://localhost:14005/emcip`
 - Documentation in INFRASTRUCTURE.md
 
 **Acceptance Criteria:**

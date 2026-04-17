@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="1" author="cascade">
+        <createTable tableName="users" remarks="Telegram users participating in conversations">
+            <column name="telegram_id" type="BIGINT" remarks="Telegram user ID (primary key)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(32)" remarks="Telegram username (optional)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="first_name" type="VARCHAR(64)" remarks="User first name">
+                <constraints nullable="true"/>
+            </column>
+            <column name="last_name" type="VARCHAR(64)" remarks="User last name">
+                <constraints nullable="true"/>
+            </column>
+            <column name="phone_number" type="VARCHAR(20)" remarks="User phone number">
+                <constraints nullable="true"/>
+            </column>
+            <column name="is_bot" type="BOOLEAN" defaultValue="false" remarks="Whether this is a bot user">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP" remarks="Record creation time">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP" remarks="Record last update time">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_seen_at" type="TIMESTAMP" remarks="Last time user was seen">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_users_username" tableName="users">
+            <column name="username"/>
+        </createIndex>
+
+        <createIndex indexName="idx_users_last_seen" tableName="users">
+            <column name="last_seen_at"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="users"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

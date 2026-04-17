@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="2" author="cascade">
+        <createTable tableName="message_threads" remarks="Conversation threads (private chats, groups, channels)">
+            <column name="telegram_chat_id" type="BIGINT" remarks="Telegram chat ID (primary key)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(128)" remarks="Thread/chat title">
+                <constraints nullable="true"/>
+            </column>
+            <column name="thread_type" type="VARCHAR(16)" defaultValue="UNKNOWN" remarks="Type: PRIVATE, GROUP, CHANNEL, UNKNOWN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="member_count" type="INTEGER" remarks="Number of members (for groups)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValue="true" remarks="Whether thread is still active">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP" remarks="Record creation time">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP" remarks="Record last update time">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_message_at" type="TIMESTAMP" remarks="Last message timestamp">
+                <constraints nullable="true"/>
+            </column>
+            <column name="metadata" type="TEXT" remarks="Additional JSON metadata">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_threads_type" tableName="message_threads">
+            <column name="thread_type"/>
+        </createIndex>
+
+        <createIndex indexName="idx_threads_active" tableName="message_threads">
+            <column name="is_active"/>
+        </createIndex>
+
+        <createIndex indexName="idx_threads_last_message" tableName="message_threads">
+            <column name="last_message_at"/>
+        </createIndex>
+
+        <rollback>
+            <dropTable tableName="message_threads"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

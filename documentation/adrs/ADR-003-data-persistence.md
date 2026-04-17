@@ -2,9 +2,11 @@
 
 ## Status
 
-**Accepted**
+**Accepted** (Amended 2026-04-17)
 
 Date: 2026-04-15
+
+**Amendment:** Migrated from R2DBC to JPA/Hibernate (JDBC) during Phase 2 implementation
 
 ## Context
 
@@ -23,12 +25,12 @@ Requirements:
 
 ## Decision
 
-We will use **PostgreSQL 16** as the primary database with **R2DBC** for reactive connectivity.
+We will use **PostgreSQL 16** as the primary database with **JPA/Hibernate (JDBC)** for data access.
 
 ### Key Design Choices
 
 1. **PostgreSQL 16**: Latest stable with JSONB, improved performance
-2. **R2DBC**: Reactive database connectivity (not JDBC)
+2. **JPA/Hibernate**: JPA 3.1 with Hibernate 6.x for reliable, feature-rich persistence
 3. **Liquibase**: Schema migrations and versioning
 4. **Separate Schemas per Service**: Logical separation within single database
 
@@ -54,14 +56,16 @@ We will use **PostgreSQL 16** as the primary database with **R2DBC** for reactiv
 ### Positive
 - ACID compliance for critical operations
 - JSONB for flexible, schema-evolving data
-- R2DBC enables non-blocking I/O
+- JPA/Hibernate mature, well-documented, feature-rich
+- Better integration with Spring Data (repositories, auditing)
+- Easier testing and transaction management
 - Mature ecosystem (monitoring, backup tools)
 - Cost-effective compared to managed NoSQL
 
 ### Negative
 - Vertical scaling limits (vs. Cassandra/DynamoDB)
 - Operational complexity (vs. managed databases)
-- R2DBC less mature than JDBC ecosystem
+- Blocking I/O (vs R2DBC), but mitigated by connection pooling
 - No built-in sharding (required for massive scale)
 
 ## Alternatives Considered
@@ -81,4 +85,12 @@ We will use **PostgreSQL 16** as the primary database with **R2DBC** for reactiv
 
 ## Notes
 
-R2DBC choice aligns with our reactive architecture decision. If JDBC ecosystem features become critical, we can bridge with `BlockHound` or use JDBC in non-critical paths.
+**Migration Rationale (2026-04-17):**
+During Phase 2 implementation, we migrated from R2DBC to JPA/Hibernate because:
+1. R2DBC ecosystem is less mature (missing features, driver limitations)
+2. JPA provides better integration with Spring Data (complex queries, auditing)
+3. Testing is significantly easier with JPA/Hibernate
+4. Transaction management is more straightforward
+5. The reactive benefits of R2DBC were outweighed by development complexity
+
+WebFlux with JPA (blocking) is an acceptable trade-off for our use case. Connection pooling (HikariCP) mitigates blocking concerns.
