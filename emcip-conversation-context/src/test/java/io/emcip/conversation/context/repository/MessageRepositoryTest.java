@@ -2,6 +2,7 @@ package io.emcip.conversation.context.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.emcip.conversation.context.EnableIfDockerAvailable;
 import io.emcip.conversation.context.IntegrationTest;
 import io.emcip.conversation.context.entity.Message;
 import io.emcip.conversation.context.entity.Message.MessageRole;
@@ -24,10 +25,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Integration tests for MessageRepository.
  * Uses Testcontainers PostgreSQL for database operations.
+ * Skipped if Docker is not available.
  */
 @Slf4j
 @IntegrationTest
 @Transactional
+@EnableIfDockerAvailable
 class MessageRepositoryTest {
 
     @Autowired
