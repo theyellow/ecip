@@ -1,9 +1,10 @@
-# ECIP Phase 2 Test Matrix
+# ECIP Test Matrix
 
-**Document Purpose:** Comprehensive overview of all tests implemented during Phase 2 (Core Messaging Pipeline), including their purpose, scope, and additional notes.
+**Document Purpose:** Comprehensive overview of all tests implemented during Phase 2 (Core Messaging Pipeline) and Phase 3 (Policy Engine), including their purpose, scope, and additional notes.
 
-**Last Updated:** April 17, 2026
-**Phase Status:** ✅ COMPLETE
+**Last Updated:** April 18, 2026
+**Phase 2 Status:** ✅ COMPLETE
+**Phase 3 Status:** ✅ Policy Engine COMPLETE
 
 ---
 
@@ -15,12 +16,12 @@
 | emcip-conversation-context | 3 | 19 | JUnit 5 + Testcontainers |
 | emcip-tdlib-adapter | 0 | 0 | Integration tests pending |
 | emcip-intent-classifier | 0 | 0 | Unit tests pending |
-| emcip-policy-engine | 0 | 0 | Tests pending |
-| **Total** | **3** | **19** | |
+| emcip-policy-engine | 4 | 23 | JUnit 5 + Testcontainers + Mockito |
+| **Total** | **7** | **42** | |
 
 ---
 
-## Test Categories
+## Phase 2 Test Categories
 
 ### 1. Persistence Layer Tests (19 tests)
 **Purpose:** Verify JPA/Hibernate entity mappings, repository queries, and database constraints using Testcontainers PostgreSQL.
@@ -128,7 +129,7 @@
 | IntentClassificationConsumer | ⚠️ Manual testing | Needs live Telegram + Kafka |
 | Event Validation | ⚠️ Unit tests pending | EventValidator has no unit tests |
 
-### Test Gaps Identified
+### Test Gaps Identified (Phase 2)
 
 | Gap | Priority | Recommended Action |
 |-----|----------|-------------------|
@@ -136,6 +137,110 @@
 | Unit tests for ConversationContextService | Medium | Mock repositories, test business logic |
 | Kafka integration tests | Low | Requires embedded Kafka or Testcontainers Kafka |
 | End-to-end message flow | Low | Requires full Docker Compose environment |
+
+---
+
+## Phase 3 Policy Engine Test Categories
+
+### 2. Policy Engine Tests (23 tests)
+**Purpose:** Verify policy evaluation logic, database persistence, and configurable rules.
+
+#### 2.1 PolicyDecisionRepositoryTest (6 tests)
+**File:** `emcip-policy-engine/src/test/java/io/emcip/policy/engine/repository/PolicyDecisionRepositoryTest.java`
+
+| Test Method | Purpose | Notes |
+|-------------|---------|-------|
+| `shouldSaveAndFindById` | Verifies basic CRUD for PolicyDecision | UUID primary key |
+| `shouldFindBySourceEventId` | Tests lookup by source event | Links to classification events |
+| `shouldFindByDecision` | Query by decision type (BLOCK, ALLOW, etc.) | Used for audit reporting |
+| `shouldFindTopBySourceEventIdOrderByTimestampDesc` | Most recent decision for event | Supports decision history |
+| `shouldFindByOriginalIntent` | Query by intent classification | Analysis by intent type |
+| `shouldFindByConfidenceGreaterThan` | Threshold-based confidence queries | Quality control queries |
+
+**Infrastructure:**
+- PostgreSQL 16 via Testcontainers
+- JSONB column storage for `matchedRules` and `metadata`
+- `@Transactional` rollback after each test
+
+#### 2.2 PolicyRuleConfigRepositoryTest (5 tests)
+**File:** `emcip-policy-engine/src/test/java/io/emcip/policy/engine/repository/PolicyRuleConfigRepositoryTest.java`
+
+| Test Method | Purpose | Notes |
+|-------------|---------|-------|
+| `shouldSaveAndFindById` | Verifies rule persistence | UUID primary key |
+| `shouldFindByActiveTrueOrderByPriorityAsc` | Priority-ordered active rules | Critical for rule evaluation order |
+| `shouldFindByTargetIntentAndActiveTrueOrderByPriorityAsc` | Rules for specific intent | Supports intent-specific lookups |
+| `shouldFindByName` | Lookup by unique rule name | Admin/management use |
+| `shouldActivateAndDeactivate` | Tests rule activation toggle | `@Modifying` query with `clearAutomatically=true` |
+
+**Key Implementation Notes:**
+- Priority ordering: lower number = higher priority
+- `@Modifying` queries require `clearAutomatically=true` for consistency
+- Active flag enables soft-disable of rules
+
+#### 2.3 PolicyEvaluationServiceTest (12 tests)
+**File:** `emcip-policy-engine/src/test/java/io/emcip/policy/engine/service/PolicyEvaluationServiceTest.java`
+
+| Test Method | Purpose | Notes |
+|-------------|---------|-------|
+| `shouldUseDefaultRulesWhenNoDbRules` | Fallback to hardcoded rules | Ensures system works without DB rules |
+| `shouldUseDatabaseRulesWhenAvailable` | Load and apply DB rules | Priority-based rule ordering |
+| `shouldMatchSpamWithHighConfidence` | SPAM > 0.8 → BLOCK | First-match-wins evaluation |
+| `shouldNotMatchSpamWithLowConfidence` | SPAM < 0.8 → ALLOW (no match) | Confidence threshold test |
+| `shouldMatchGreeting` | GREETING > 0.7 → RESPOND | Intent-based rule matching |
+| `shouldMatchQuestion` | QUESTION > 0.75 → ESCALATE | Intent-based rule matching |
+| `shouldMatchCommand` | COMMAND > 0.8 → EXECUTE | Intent-based rule matching |
+| `shouldTriggerModerationForLowConfidence` | confidence < 0.3 → REVIEW | Catch-all moderation rule |
+| `shouldPersistDecisionWithCorrectMetadata` | Verify saved decision fields | Event linkage, timestamps |
+| `shouldPublishEventToKafka` | Kafka publishing verification | `policies.decisions` topic |
+| `shouldHandleWildcardIntentMatching` | "*" matches any intent | Wildcard support in rules |
+| `shouldGetActiveRules` | Service method for rule retrieval | Admin/management API support |
+
+**Infrastructure:**
+- Mockito for repository and KafkaTemplate mocking
+- Pure unit tests (no Spring context)
+- Tests evaluation logic in isolation
+
+### Policy Engine Test Infrastructure
+
+**Testcontainers Configuration**
+**File:** `emcip-policy-engine/src/test/java/io/emcip/policy/engine/TestcontainersInitializer.java`
+
+| Component | Configuration |
+|-----------|---------------|
+| Database | PostgreSQL 16 (postgres:16-alpine) |
+| Startup | Static initializer |
+| Liquibase | Enabled with drop-first=true |
+| Kafka | Mocked via Mockito in unit tests |
+
+**Unit Test Configuration**
+**File:** `emcip-policy-engine/src/test/java/io/emcip/policy/engine/config/TestDatabaseConfig.java`
+
+| Feature | Description |
+|---------|-------------|
+| Liquibase Bean | Ensures schema before JPA initialization |
+| KafkaAdmin Mock | Provides mock bean for health checks |
+| `@TestConfiguration` | Test-only beans |
+
+### Phase 3 Feature Coverage
+
+| Feature | Test Coverage | Notes |
+|---------|---------------|-------|
+| PolicyDecision persistence | ✅ Full (6 tests) | JSONB metadata, query methods |
+| PolicyRuleConfig persistence | ✅ Full (5 tests) | Priority ordering, activation |
+| Rule evaluation logic | ✅ Full (12 tests) | Intent matching, confidence thresholds |
+| Default rule fallback | ✅ Verified | Hardcoded rules when DB empty |
+| Kafka publishing | ✅ Verified | Event publishing tested |
+| Database health indicator | ✅ Verified | JDBC-based health checks |
+
+### Phase 3 Test Gaps
+
+| Gap | Priority | Recommended Action |
+|-----|----------|-------------------|
+| Kafka consumer integration test | Medium | Requires embedded Kafka |
+| End-to-end policy flow | Low | Full Docker Compose |
+| Rule management REST API | Low | Controller tests pending |
+| Policy metrics/observability | Low | Micrometer tests pending |
 
 ---
 
@@ -168,27 +273,40 @@ mvn clean verify -DskipITs
 
 ## Test Results (Latest Run)
 
+### Phase 2 (emcip-conversation-context)
 ```
 Tests run: 19, Failures: 0, Errors: 0, Skipped: 0
 BUILD SUCCESS
-Total time: ~37s (emcip-conversation-context)
+Total time: ~37s
+```
+
+### Phase 3 (emcip-policy-engine)
+```
+Tests run: 23, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+Total time: ~60s
+```
+
+### Combined
+```
+Tests run: 42, Failures: 0, Errors: 0, Skipped: 0
 ```
 
 ---
 
-## Notes for Phase 3
+## Notes for Phase 4
 
-### Lessons Learned
-1. **JPA over R2DBC**: Migrated during Phase 2 due to better ecosystem support and testing ease
-2. **@Modifying queries**: Require `clearAutomatically=true` for test consistency
-3. **Liquibase XML**: Strict schema ordering (tagDatabase before comment caused issues)
-4. **Testcontainers**: Static container = faster tests, but requires careful resource cleanup
+### Lessons Learned (Phase 3)
+1. **Mockito for service tests**: Pure unit tests without Spring context are fast and focused
+2. **Database + fallback**: Dual-mode rule loading (DB + hardcoded) improves resilience
+3. **Wildcard matching**: "*" intent support enables catch-all rules
+4. **JSONB columns**: Flexible metadata storage without schema changes
 
-### Recommended for Phase 3 Testing
-1. Add `@DataJpaTest` slice tests for faster repository testing
-2. Consider `@TestConfiguration` for service layer unit tests
-3. Add embedded Kafka for consumer testing (if feasible)
-4. Implement contract tests for Kafka message formats
+### Recommended for Phase 4 Testing
+1. Add `@WebMvcTest` for REST controller tests
+2. Add embedded Kafka for consumer testing
+3. Implement contract tests for LLM orchestrator APIs
+4. Add integration tests for moderation service flow
 
 ---
 
@@ -201,4 +319,4 @@ Total time: ~37s (emcip-conversation-context)
 
 ---
 
-*Generated for Phase 2 Merge Request - April 17, 2026*
+*Updated for Phase 3 Policy Engine - April 18, 2026*
