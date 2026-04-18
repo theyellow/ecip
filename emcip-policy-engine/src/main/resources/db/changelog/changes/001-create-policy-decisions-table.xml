@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="1" author="cascade">
+        <createTable tableName="policy_decisions" remarks="Policy evaluation decisions">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_event_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="policy_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="decision" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason" type="VARCHAR(500)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="original_intent" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="confidence" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="matched_rules" type="JSONB">
+                <constraints nullable="true"/>
+            </column>
+            <column name="metadata" type="JSONB">
+                <constraints nullable="true"/>
+            </column>
+            <column name="timestamp" type="TIMESTAMPTZ">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_policy_decisions_source_event_id" tableName="policy_decisions">
+            <column name="source_event_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_policy_decisions_timestamp" tableName="policy_decisions">
+            <column name="timestamp"/>
+        </createIndex>
+
+        <createIndex indexName="idx_policy_decisions_decision" tableName="policy_decisions">
+            <column name="decision"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

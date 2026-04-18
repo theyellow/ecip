@@ -35,7 +35,11 @@
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
     </dependency>
 
     <!-- Kafka -->
@@ -44,10 +48,16 @@
       <artifactId>spring-kafka</artifactId>
     </dependency>
 
-    <!-- PostgreSQL R2DBC -->
+    <!-- PostgreSQL -->
     <dependency>
       <groupId>org.postgresql</groupId>
-      <artifactId>r2dbc-postgresql</artifactId>
+      <artifactId>postgresql</artifactId>
+    </dependency>
+
+    <!-- Liquibase -->
+    <dependency>
+      <groupId>org.liquibase</groupId>
+      <artifactId>liquibase-core</artifactId>
     </dependency>
 
     <!-- Lombok -->
@@ -64,8 +74,8 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>io.projectreactor</groupId>
-      <artifactId>reactor-test</artifactId>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
