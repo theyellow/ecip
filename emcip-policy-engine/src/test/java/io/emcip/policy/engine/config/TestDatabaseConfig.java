@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.core.KafkaAdmin;
 
 /**
- * Test configuration to ensure Liquibase runs before JPA initialization.
- * Also provides mock KafkaAdmin for health checks.
+ * Test configuration to ensure Liquibase runs before JPA initialization. Also provides mock
+ * KafkaAdmin for health checks.
  */
 @TestConfiguration
 public class TestDatabaseConfig {

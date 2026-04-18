@@ -37,23 +37,30 @@ public class IntentClassificationConsumer {
             groupId = "policy-engine",
             containerFactory = "kafkaListenerContainerFactory")
     public void consume(ConsumerRecord<String, String> record) {
-        log.debug("Received classification from partition {} offset {}",
-                record.partition(), record.offset());
+        log.debug(
+                "Received classification from partition {} offset {}",
+                record.partition(),
+                record.offset());
 
         try {
             // Validate
             var validationResult = eventValidator.validateJson(record.value(), "IntentClassified");
             if (!validationResult.valid()) {
-                log.error("Invalid classification received: {}", validationResult.getErrorMessage());
+                log.error(
+                        "Invalid classification received: {}", validationResult.getErrorMessage());
                 return;
             }
 
             // Parse and evaluate
-            var event = objectMapper.readValue(record.value(), EventSchemas.IntentClassifiedEvent.class);
+            var event =
+                    objectMapper.readValue(
+                            record.value(), EventSchemas.IntentClassifiedEvent.class);
             var result = policyService.evaluate(event);
 
-            log.info("Evaluated policy for event {}: decision={}",
-                    result.getSourceEventId(), result.getDecision());
+            log.info(
+                    "Evaluated policy for event {}: decision={}",
+                    result.getSourceEventId(),
+                    result.getDecision());
 
         } catch (Exception e) {
             log.error("Error processing classification: {}", e.getMessage(), e);

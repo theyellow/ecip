@@ -15,17 +15,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Integration tests for PolicyRuleConfigRepository.
- */
+/** Integration tests for PolicyRuleConfigRepository. */
 @IntegrationTest
 @Transactional
 class PolicyRuleConfigRepositoryTest {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyRuleConfigRepositoryTest.class);
 
-    @Autowired
-    private PolicyRuleConfigRepository ruleConfigRepository;
+    @Autowired private PolicyRuleConfigRepository ruleConfigRepository;
 
     @Test
     @DisplayName("Should save and find policy rule by ID")
@@ -88,8 +85,8 @@ class PolicyRuleConfigRepositoryTest {
         ruleConfigRepository.save(rule2);
 
         // When
-        List<PolicyRuleConfig> spamRules = ruleConfigRepository
-                .findByTargetIntentAndActiveTrueOrderByPriorityAsc("SPAM");
+        List<PolicyRuleConfig> spamRules =
+                ruleConfigRepository.findByTargetIntentAndActiveTrueOrderByPriorityAsc("SPAM");
 
         // Then
         assertThat(spamRules).hasSize(2);

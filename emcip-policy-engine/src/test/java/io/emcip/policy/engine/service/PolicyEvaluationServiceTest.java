@@ -23,20 +23,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
-/**
- * Unit tests for PolicyEvaluationService with mocked dependencies.
- */
+/** Unit tests for PolicyEvaluationService with mocked dependencies. */
 @ExtendWith(MockitoExtension.class)
 class PolicyEvaluationServiceTest {
 
-    @Mock
-    private KafkaTemplate<String, String> kafkaTemplate;
+    @Mock private KafkaTemplate<String, String> kafkaTemplate;
 
-    @Mock
-    private PolicyDecisionRepository decisionRepository;
+    @Mock private PolicyDecisionRepository decisionRepository;
 
-    @Mock
-    private PolicyRuleConfigRepository ruleConfigRepository;
+    @Mock private PolicyRuleConfigRepository ruleConfigRepository;
+
+    @Mock private PolicyActionService actionService;
 
     private ObjectMapper objectMapper;
     private PolicyEvaluationService policyService;
@@ -44,20 +41,28 @@ class PolicyEvaluationServiceTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        policyService = new PolicyEvaluationService(
-                kafkaTemplate, objectMapper, decisionRepository, ruleConfigRepository);
+        policyService =
+                new PolicyEvaluationService(
+                        kafkaTemplate,
+                        objectMapper,
+                        decisionRepository,
+                        ruleConfigRepository,
+                        actionService);
     }
 
     @Test
     @DisplayName("Should use default rules when no database rules exist")
     void shouldUseDefaultRulesWhenNoDbRules() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
-        when(decisionRepository.save(any())).thenAnswer(inv -> {
-            PolicyDecision d = inv.getArgument(0);
-            d.setId("test-id");
-            return d;
-        });
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
+        when(decisionRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            PolicyDecision d = inv.getArgument(0);
+                            d.setId("test-id");
+                            return d;
+                        });
 
         var classification = createClassification("SPAM", 0.9);
 
@@ -69,6 +74,7 @@ class PolicyEvaluationServiceTest {
         assertThat(result.getReason()).contains("Spam detected");
         verify(decisionRepository).save(any());
         verify(kafkaTemplate).send(anyString(), anyString(), anyString());
+        verify(actionService).executeAction(any(PolicyDecision.class), anyMap());
     }
 
     @Test
@@ -85,12 +91,15 @@ class PolicyEvaluationServiceTest {
         customRule.setPriority(10);
         customRule.setActive(true);
 
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(List.of(customRule));
-        when(decisionRepository.save(any())).thenAnswer(inv -> {
-            PolicyDecision d = inv.getArgument(0);
-            d.setId("test-id");
-            return d;
-        });
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(List.of(customRule));
+        when(decisionRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            PolicyDecision d = inv.getArgument(0);
+                            d.setId("test-id");
+                            return d;
+                        });
 
         var classification = createClassification("SPAM", 0.6);
 
@@ -107,7 +116,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match SPAM intent with high confidence")
     void shouldMatchSpamWithHighConfidence() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("SPAM", 0.85);
@@ -124,7 +134,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should not match SPAM with low confidence")
     void shouldNotMatchSpamWithLowConfidence() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("SPAM", 0.5);
@@ -141,7 +152,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match GREETING intent with sufficient confidence")
     void shouldMatchGreeting() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("GREETING", 0.75);
@@ -157,7 +169,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match QUESTION intent")
     void shouldMatchQuestion() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("QUESTION", 0.8);
@@ -173,7 +186,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match COMMAND intent")
     void shouldMatchCommand() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("COMMAND", 0.85);
@@ -189,7 +203,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should trigger moderation check for low confidence")
     void shouldTriggerModerationForLowConfidence() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("UNKNOWN", 0.2);
@@ -206,7 +221,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should persist decision with correct metadata")
     void shouldPersistDecisionWithCorrectMetadata() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("SPAM", 0.9);
@@ -230,7 +246,8 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should publish event to Kafka")
     void shouldPublishEventToKafka() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(Collections.emptyList());
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("GREETING", 0.8);
@@ -239,11 +256,7 @@ class PolicyEvaluationServiceTest {
         policyService.evaluate(classification);
 
         // Then
-        verify(kafkaTemplate).send(
-                eq("policies.decisions"),
-                eq("evt-classify-001"),
-                anyString()
-        );
+        verify(kafkaTemplate).send(eq("policies.decisions"), eq("evt-classify-001"), anyString());
     }
 
     @Test
@@ -261,7 +274,8 @@ class PolicyEvaluationServiceTest {
         wildcardRule.setPriority(5);
         wildcardRule.setActive(true);
 
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc()).thenReturn(List.of(wildcardRule));
+        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+                .thenReturn(List.of(wildcardRule));
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var classification = createClassification("ANYTHING", 0.05);
@@ -291,7 +305,8 @@ class PolicyEvaluationServiceTest {
         verify(ruleConfigRepository).findByActiveTrueOrderByPriorityAsc();
     }
 
-    private EventSchemas.IntentClassifiedEvent createClassification(String intent, double confidence) {
+    private EventSchemas.IntentClassifiedEvent createClassification(
+            String intent, double confidence) {
         return new EventSchemas.IntentClassifiedEvent(
                 "evt-classify-001",
                 Instant.now().toString(),
@@ -301,7 +316,6 @@ class PolicyEvaluationServiceTest {
                 intent,
                 confidence,
                 Map.of("param1", "value1"),
-                List.of("rule1", "rule2")
-        );
+                List.of("rule1", "rule2"));
     }
 }

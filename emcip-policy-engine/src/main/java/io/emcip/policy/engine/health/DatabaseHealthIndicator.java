@@ -1,15 +1,13 @@
 package io.emcip.policy.engine.health;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import javax.sql.DataSource;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
 
-/**
- * Health indicator for database connectivity using JDBC.
- */
+/** Health indicator for database connectivity using JDBC. */
 @Component
 public class DatabaseHealthIndicator implements HealthIndicator {
 

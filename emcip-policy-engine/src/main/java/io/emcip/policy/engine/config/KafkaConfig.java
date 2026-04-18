@@ -19,9 +19,7 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
-/**
- * Kafka configuration for the policy engine service.
- */
+/** Kafka configuration for the policy engine service. */
 @Configuration
 @EnableKafka
 public class KafkaConfig {

@@ -16,17 +16,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Integration tests for PolicyDecisionRepository.
- */
+/** Integration tests for PolicyDecisionRepository. */
 @IntegrationTest
 @Transactional
 class PolicyDecisionRepositoryTest {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyDecisionRepositoryTest.class);
 
-    @Autowired
-    private PolicyDecisionRepository decisionRepository;
+    @Autowired private PolicyDecisionRepository decisionRepository;
 
     @Test
     @DisplayName("Should save and find policy decision by ID")
@@ -96,7 +93,8 @@ class PolicyDecisionRepositoryTest {
         decisionRepository.save(recent);
 
         // When
-        Optional<PolicyDecision> found = decisionRepository.findTopBySourceEventIdOrderByTimestampDesc("evt-recent");
+        Optional<PolicyDecision> found =
+                decisionRepository.findTopBySourceEventIdOrderByTimestampDesc("evt-recent");
 
         // Then
         assertThat(found).isPresent();

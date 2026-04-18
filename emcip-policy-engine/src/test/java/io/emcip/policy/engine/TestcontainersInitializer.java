@@ -8,9 +8,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
-/**
- * Testcontainers initializer for PostgreSQL in integration tests.
- */
+/** Testcontainers initializer for PostgreSQL in integration tests. */
 public class TestcontainersInitializer
         implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
@@ -24,7 +22,10 @@ public class TestcontainersInitializer
 
     static {
         postgres.start();
-        log.info("PostgreSQL container started: {}:{}", postgres.getHost(), postgres.getFirstMappedPort());
+        log.info(
+                "PostgreSQL container started: {}:{}",
+                postgres.getHost(),
+                postgres.getFirstMappedPort());
     }
 
     @Override
@@ -32,19 +33,19 @@ public class TestcontainersInitializer
         log.info("Configuring test properties for PostgreSQL container");
 
         TestPropertyValues.of(
-                "spring.datasource.url=" + postgres.getJdbcUrl(),
-                "spring.datasource.username=" + postgres.getUsername(),
-                "spring.datasource.password=" + postgres.getPassword(),
-                "spring.datasource.driver-class-name=org.postgresql.Driver",
-                "spring.jpa.hibernate.ddl-auto=none",
-                "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
-                "spring.jpa.defer-datasource-initialization=false",
-                "spring.sql.init.mode=never",
-                "spring.liquibase.enabled=true",
-                "spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.xml",
-                "spring.liquibase.drop-first=true",
-                "spring.liquibase.default-schema=public",
-                "spring.liquibase.liquibase-schema=public"
-        ).applyTo(applicationContext.getEnvironment());
+                        "spring.datasource.url=" + postgres.getJdbcUrl(),
+                        "spring.datasource.username=" + postgres.getUsername(),
+                        "spring.datasource.password=" + postgres.getPassword(),
+                        "spring.datasource.driver-class-name=org.postgresql.Driver",
+                        "spring.jpa.hibernate.ddl-auto=none",
+                        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
+                        "spring.jpa.defer-datasource-initialization=false",
+                        "spring.sql.init.mode=never",
+                        "spring.liquibase.enabled=true",
+                        "spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.xml",
+                        "spring.liquibase.drop-first=true",
+                        "spring.liquibase.default-schema=public",
+                        "spring.liquibase.liquibase-schema=public")
+                .applyTo(applicationContext.getEnvironment());
     }
 }

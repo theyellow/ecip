@@ -10,14 +10,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 
-/**
- * Meta-annotation for integration tests with Testcontainers.
- */
+/** Meta-annotation for integration tests with Testcontainers. */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @ContextConfiguration(initializers = TestcontainersInitializer.class)
 @Import(TestDatabaseConfig.class)
-public @interface IntegrationTest {
-}
+public @interface IntegrationTest {}

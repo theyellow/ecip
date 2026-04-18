@@ -8,15 +8,17 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * Entity for storing policy evaluation decisions.
- * Each decision represents the outcome of evaluating a policy against an intent classification.
+ * Entity for storing policy evaluation decisions. Each decision represents the outcome of
+ * evaluating a policy against an intent classification.
  */
 @Entity
-@Table(name = "policy_decisions", indexes = {
-    @Index(name = "idx_policy_decisions_source_event_id", columnList = "sourceEventId"),
-    @Index(name = "idx_policy_decisions_timestamp", columnList = "timestamp"),
-    @Index(name = "idx_policy_decisions_decision", columnList = "decision")
-})
+@Table(
+        name = "policy_decisions",
+        indexes = {
+            @Index(name = "idx_policy_decisions_source_event_id", columnList = "sourceEventId"),
+            @Index(name = "idx_policy_decisions_timestamp", columnList = "timestamp"),
+            @Index(name = "idx_policy_decisions_decision", columnList = "decision")
+        })
 @Data
 public class PolicyDecision {
 
@@ -56,8 +58,7 @@ public class PolicyDecision {
     @Column(nullable = false)
     private Instant timestamp;
 
-    @Version
-    private Long version;
+    @Version private Long version;
 
     @PrePersist
     protected void onCreate() {
