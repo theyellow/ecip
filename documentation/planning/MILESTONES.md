@@ -108,16 +108,20 @@ For deeper technical details and sub-milestones, see [DEEP-DIVE_MILESTONES.md](D
 
 ---
 
-## 3. AI & Integration
+## 3. Intelligence & Policy 🔄 IN PROGRESS
 
 ### Milestones
+- [x] Policy Engine with deterministic rule evaluation (US-3.1.1)
+- [x] Escalation paths and policy outcomes (US-3.1.2)
+- [x] Policy engine event backbone integration (US-3.1.3)
 - [ ] LLM orchestrator (routing, prompt templates, model selection, supports Telegram context)
 - [ ] Integration of small models (intent, summaries)
-- [ ] Policy layer as gatekeeper before AI responses and Telegram interactions
 - [ ] Cost control for LLM calls
 - [ ] Extension of event backbone for AI events
 
 ### Definition of Done
+- [x] Policy decisions are deterministic, persisted, and auditable
+- [x] Policy actions are executed (BLOCK, RESPOND, ESCALATE, EXECUTE, REVIEW, ALLOW)
 - [ ] LLM orchestrator can address different models and Telegram contexts
 - [ ] AI responses are only generated after policy decision
 - [ ] Prompt templates are versioned and tested
