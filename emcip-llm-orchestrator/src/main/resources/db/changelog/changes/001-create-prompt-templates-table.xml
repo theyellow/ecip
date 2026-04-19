@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="001-create-prompt-templates-table" author="ecip">
+        <comment>Create prompt_templates table for versioned prompt management</comment>
+
+        <createTable tableName="prompt_templates">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="model_provider" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="model_name" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="system_prompt" type="VARCHAR(5000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_prompt_template" type="VARCHAR(5000)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="temperature" type="DOUBLE PRECISION" defaultValueNumeric="0.7">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_tokens" type="INTEGER" defaultValueNumeric="2048">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="priority" type="INTEGER" defaultValueNumeric="100">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version_lock" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+                tableName="prompt_templates"
+                columnNames="name"
+                constraintName="uk_prompt_templates_name"/>
+
+        <createIndex indexName="idx_prompt_templates_active" tableName="prompt_templates">
+            <column name="active"/>
+        </createIndex>
+
+        <createIndex indexName="idx_prompt_templates_priority" tableName="prompt_templates">
+            <column name="priority"/>
+        </createIndex>
+
+        <createIndex indexName="idx_prompt_templates_provider" tableName="prompt_templates">
+            <column name="model_provider"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>
