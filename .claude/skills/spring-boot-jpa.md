@@ -1,5 +1,16 @@
 ---
+name: spring-boot-jpa
 description: JPA entities, repositories, and services with Spring Boot
+triggers:
+  - "jpa"
+  - "entity"
+  - "repository"
+  - "@Entity"
+  - "@Table"
+  - "JpaRepository"
+  - "@Id"
+  - "@GeneratedValue"
+  - "liquibase"
 ---
 
 # Spring Boot JPA Development

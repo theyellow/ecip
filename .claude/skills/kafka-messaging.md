@@ -1,5 +1,14 @@
 ---
+name: kafka-messaging
 description: Kafka producers, consumers, and DLQ handling with Spring Kafka
+triggers:
+  - "kafka"
+  - "producer"
+  - "consumer"
+  - "DLQ"
+  - "topic"
+  - "bootstrap-servers"
+  - "@KafkaListener"
 ---
 
 # Kafka Messaging
