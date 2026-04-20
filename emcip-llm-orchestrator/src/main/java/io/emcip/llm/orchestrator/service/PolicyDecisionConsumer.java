@@ -1,33 +1,36 @@
 package io.emcip.llm.orchestrator.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.events.EventSchemas;
+import io.emcip.llm.orchestrator.client.LlmCallResult;
+import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 /**
  * Kafka consumer for policy decisions that trigger LLM orchestration. Implements US-3.2.4: Policy
- * layer as gatekeeper for AI responses. Only processes events where the policy decision allows AI
- * interaction.
+ * layer as gatekeeper for AI responses. Implements US-3.2.2: Routes decisions through real LLM
+ * calls.
  */
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class PolicyDecisionConsumer {
 
-    private static final Logger log = LoggerFactory.getLogger(PolicyDecisionConsumer.class);
     private static final String TOPIC = "policies.decisions";
+    private static final String RESPONSES_TOPIC = "responses.generated";
 
     private final ObjectMapper objectMapper;
-    private final LlmOrchestratorService orchestratorService;
-
-    public PolicyDecisionConsumer(
-            ObjectMapper objectMapper, LlmOrchestratorService orchestratorService) {
-        this.objectMapper = objectMapper;
-        this.orchestratorService = orchestratorService;
-    }
+    private final LlmCallService llmCallService;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     @KafkaListener(
             topics = TOPIC,
@@ -51,29 +54,22 @@ public class PolicyDecisionConsumer {
                     sourceEventId,
                     decision);
 
-            // Only proceed with AI interaction for specific decisions
             switch (decision) {
-                case "RESPOND":
-                    handleRespondDecision(decisionEvent);
-                    break;
-                case "ESCALATE":
-                    handleEscalateDecision(decisionEvent);
-                    break;
-                case "EXECUTE":
-                    handleExecuteDecision(decisionEvent);
-                    break;
-                case "BLOCK":
-                case "REVIEW":
-                    log.info(
-                            "Policy decision {} for event {} - skipping AI interaction",
-                            decision,
-                            sourceEventId);
-                    break;
-                case "ALLOW":
-                    log.debug("Policy ALLOW for event {} - no AI action needed", sourceEventId);
-                    break;
-                default:
-                    log.warn("Unknown policy decision: {} for event {}", decision, sourceEventId);
+                case "RESPOND" -> handleRespondDecision(decisionEvent);
+                case "ESCALATE" -> handleEscalateDecision(decisionEvent);
+                case "EXECUTE" -> handleExecuteDecision(decisionEvent);
+                case "BLOCK", "REVIEW" ->
+                        log.info(
+                                "Policy decision {} for event {} - skipping AI interaction",
+                                decision,
+                                sourceEventId);
+                case "ALLOW" ->
+                        log.debug("Policy ALLOW for event {} - no AI action needed", sourceEventId);
+                default ->
+                        log.warn(
+                                "Unknown policy decision: {} for event {}",
+                                decision,
+                                sourceEventId);
             }
 
         } catch (Exception e) {
@@ -81,56 +77,122 @@ public class PolicyDecisionConsumer {
         }
     }
 
-    /** Handle RESPOND decision - generate auto-response using LLM. */
     private void handleRespondDecision(EventSchemas.PolicyDecisionEvent event) {
-        log.info("Triggering auto-response generation for event {}", event.sourceEventId());
+        String userContent = extractUserContent(event.context());
+        String conversationId = extractConversationId(event.context());
 
-        // Get context from the decision event
-        Map<String, Object> context = event.context();
-        String originalIntent =
-                context.containsKey("originalIntent")
-                        ? context.get("originalIntent").toString()
-                        : "UNKNOWN";
+        Optional<LlmCallResult> result =
+                llmCallService.callForTask(
+                        "response",
+                        "auto_response",
+                        userContent,
+                        Map.of(),
+                        event.sourceEventId(),
+                        conversationId);
 
-        // Select appropriate model and template for response generation
-        var modelOpt = orchestratorService.selectModelForTask("response");
-        var templateOpt = orchestratorService.getPromptTemplate("auto_response");
-
-        if (modelOpt.isPresent() && templateOpt.isPresent()) {
-            log.info(
-                    "Prepared LLM request for auto-response: model={}, template={}",
-                    modelOpt.get().getModelKey(),
-                    templateOpt.get().getName());
-            // Actual LLM call would be made here in a full implementation
-        } else {
-            log.warn("Cannot generate auto-response - missing model or template configuration");
-        }
+        result.ifPresent(r -> publishResponse(event, r, "auto_response"));
     }
 
-    /** Handle ESCALATE decision - prepare for human/AI escalation. */
     private void handleEscalateDecision(EventSchemas.PolicyDecisionEvent event) {
-        log.info("Preparing escalation for event {}", event.sourceEventId());
+        String userContent = extractUserContent(event.context());
+        String conversationId = extractConversationId(event.context());
 
-        // For escalations, we might want to generate a summary using a smaller model
-        var modelOpt = orchestratorService.selectModelForTask("summary");
+        Optional<LlmCallResult> result =
+                llmCallService.callForTask(
+                        "summary",
+                        "escalation_summary",
+                        userContent,
+                        Map.of(),
+                        event.sourceEventId(),
+                        conversationId);
 
-        if (modelOpt.isPresent()) {
-            log.info("Selected summary model for escalation: {}", modelOpt.get().getModelKey());
-            // Generate context summary for human review
+        result.ifPresent(r -> publishResponse(event, r, "escalation_summary"));
+    }
+
+    private void handleExecuteDecision(EventSchemas.PolicyDecisionEvent event) {
+        String userContent = extractUserContent(event.context());
+        String conversationId = extractConversationId(event.context());
+
+        Optional<LlmCallResult> result =
+                llmCallService.callForTask(
+                        "command_validation",
+                        "command_validation",
+                        userContent,
+                        Map.of(),
+                        event.sourceEventId(),
+                        conversationId);
+
+        result.ifPresent(r -> publishResponse(event, r, "command_validation"));
+    }
+
+    private void publishResponse(
+            EventSchemas.PolicyDecisionEvent event, LlmCallResult result, String templateName) {
+        if (!result.success() || result.content() == null) {
+            log.warn(
+                    "LLM call did not produce content for event {} (request={})",
+                    event.sourceEventId(),
+                    result.requestId());
+            return;
+        }
+
+        EventSchemas.ResponseGeneratedEvent responseEvent =
+                new EventSchemas.ResponseGeneratedEvent(
+                        UUID.randomUUID().toString(),
+                        Instant.now().toString(),
+                        EventSchemas.RESPONSE_GENERATED_V1,
+                        "ResponseGenerated",
+                        event.sourceEventId(),
+                        result.content(),
+                        result.modelUsed(),
+                        null,
+                        Map.of(
+                                "requestId", result.requestId(),
+                                "templateName", templateName,
+                                "decision", event.decision()));
+
+        try {
+            String payload = objectMapper.writeValueAsString(responseEvent);
+            kafkaTemplate
+                    .send(RESPONSES_TOPIC, event.sourceEventId(), payload)
+                    .whenComplete(
+                            (r, ex) -> {
+                                if (ex != null) {
+                                    log.error(
+                                            "Failed to publish response for event {}: {}",
+                                            event.sourceEventId(),
+                                            ex.getMessage());
+                                } else {
+                                    log.info(
+                                            "Published response for event {} to partition {}",
+                                            event.sourceEventId(),
+                                            r.getRecordMetadata().partition());
+                                }
+                            });
+        } catch (JsonProcessingException e) {
+            log.error(
+                    "Failed to serialize ResponseGeneratedEvent for {}: {}",
+                    event.sourceEventId(),
+                    e.getMessage());
         }
     }
 
-    /** Handle EXECUTE decision - execute command with LLM assistance if needed. */
-    private void handleExecuteDecision(EventSchemas.PolicyDecisionEvent event) {
-        log.info("Processing command execution for event {}", event.sourceEventId());
-
-        Map<String, Object> context = event.context();
-
-        // For commands, we might validate or enhance with LLM
-        var modelOpt = orchestratorService.selectModelForTask("command_validation");
-
-        if (modelOpt.isPresent()) {
-            log.info("Selected validation model for command: {}", modelOpt.get().getModelKey());
+    private String extractUserContent(Map<String, Object> context) {
+        if (context == null) {
+            return "Process this request";
         }
+        Object text = context.get("text");
+        if (text != null) {
+            return text.toString();
+        }
+        Object message = context.get("originalMessage");
+        return message != null ? message.toString() : "Process this request";
+    }
+
+    private String extractConversationId(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object chatId = context.get("chatId");
+        return chatId != null ? chatId.toString() : null;
     }
 }

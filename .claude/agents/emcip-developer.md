@@ -1,7 +1,7 @@
 ---
 name: emcip-developer
 description: Expert Spring Boot developer for EMCIP microservices
-model: claude-sonnet-4-20250514
+model: claude-sonnet-4-6
 ---
 
 You are an expert Spring Boot developer specializing in JPA/Hibernate and event-driven architectures with Kafka.

@@ -6,14 +6,14 @@ spring:
     name: emcip-llm-orchestrator
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/emcip_llm
+    url: jdbc:postgresql://localhost:14005/emcip
     username: emcip
     password: emcip
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
@@ -24,6 +24,16 @@ spring:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.xml
     default-schema: public
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
+    consumer:
+      group-id: llm-orchestrator
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+anthropic:
+  api-key: ${ANTHROPIC_API_KEY:}
 
 management:
   endpoints:

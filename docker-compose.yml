@@ -84,8 +84,36 @@ services:
     networks:
       - ecip-network
 
+  # TDLib Telegram adapter
+  # Requires TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE_NUMBER in .env
+  # First startup builds TDLib from source (~15-30 min). Result is cached.
+  tdlib-adapter:
+    build: ./emcip-tdlib-adapter
+    container_name: ecip-tdlib-adapter
+    depends_on:
+      kafka:
+        condition: service_started
+    ports:
+      - "9080:9080"
+    environment:
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - TELEGRAM_PHONE_NUMBER=${TELEGRAM_PHONE_NUMBER:-}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
+      - TDLIB_DB_DIR=/app/tdlib-db
+      - TDLIB_FILES_DIR=/app/tdlib-files
+    volumes:
+      - tdlib-data:/app/tdlib-db
+      - tdlib-files:/app/tdlib-files
+    networks:
+      - ecip-network
+    profiles:
+      - telegram
+
 volumes:
   postgres-data:
+  tdlib-data:
+  tdlib-files:
 
 networks:
   ecip-network:

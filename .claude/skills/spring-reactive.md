@@ -1,7 +1,6 @@
 ---
 name: spring-reactive
 description: Optional async programming with Mono/Flux for high-concurrency scenarios
-model: claude-sonnet-4-20250514
 triggers:
   - "reactive"
   - "mono"

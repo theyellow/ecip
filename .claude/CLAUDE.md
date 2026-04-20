@@ -89,9 +89,12 @@ If X > 0 files changed: `git add -A && git commit --amend`
 All skills in `.claude/skills/` - loaded automatically by trigger keywords:
 
 - `spring-boot-jpa` - Entities, repositories, services
-- `kafka-messaging` - Producers, consumers, DLQ
+- `kafka-messaging` - Producers, consumers, DLQ config
+- `kafka-events` - Event schema patterns, producer/consumer boilerplate
 - `liquibase-migrations` - Database schema changes
 - `project-topology` - Ports, modules, services
+- `health-indicators` - Custom Actuator health indicators
+- `spring-reactive` - Async Mono/Flux for high-concurrency (use sparingly — project is JPA/blocking)
 
 ## Documentation
 

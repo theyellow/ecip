@@ -1,7 +1,7 @@
 ---
 name: emcip-tester
 description: Test writing, Testcontainers setup, test data generation, assertions
-model: claude-haiku-4-5
+model: claude-haiku-4-5-20251001
 triggers:
   - "test"
   - "@DataJpaTest"

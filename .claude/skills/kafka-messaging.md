@@ -180,5 +180,5 @@ public class TestKafkaConfig {
 
 ## Related Topics
 - `spring-boot-jpa` - Service layer integration
-- `.windsurf/cascade-config.md` - Current phase status (Epic 3.3 complete)
+- `.claude/CLAUDE.md` - Current phase status (Epic 3.3 complete)
 - `emcip-core DeadLetterTopicHandler` - DLQ operations

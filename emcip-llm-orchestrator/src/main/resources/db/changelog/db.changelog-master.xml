@@ -20,4 +20,9 @@
     </changeSet>
     <include file="classpath:db/changelog/changes/003-create-model-configs-table.xml"/>
 
+    <changeSet id="004-seed-initial-model-configs" author="ecip">
+        <tagDatabase tag="v1.0.0-seed-model-configs"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/004-seed-initial-model-configs.xml"/>
+
 </databaseChangeLog>

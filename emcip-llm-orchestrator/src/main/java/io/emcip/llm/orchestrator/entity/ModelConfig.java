@@ -9,6 +9,11 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -18,6 +23,11 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(name = "model_configs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ModelConfig {
 
     @Id
@@ -55,12 +65,15 @@ public class ModelConfig {
     private Double avgLatencyMs;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean supportsStreaming = false;
 
     @Column(nullable = false)
+    @Builder.Default
     private Boolean active = true;
 
     @Column(nullable = false)
+    @Builder.Default
     private Integer priority = 100;
 
     @CreationTimestamp
@@ -72,140 +85,4 @@ public class ModelConfig {
     private Instant updatedAt;
 
     @Version private Long versionLock;
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getModelKey() {
-        return modelKey;
-    }
-
-    public void setModelKey(String modelKey) {
-        this.modelKey = modelKey;
-    }
-
-    public String getProvider() {
-        return provider;
-    }
-
-    public void setProvider(String provider) {
-        this.provider = provider;
-    }
-
-    public String getModelName() {
-        return modelName;
-    }
-
-    public void setModelName(String modelName) {
-        this.modelName = modelName;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getTaskType() {
-        return taskType;
-    }
-
-    public void setTaskType(String taskType) {
-        this.taskType = taskType;
-    }
-
-    public Double getInputCostPer1kTokens() {
-        return inputCostPer1kTokens;
-    }
-
-    public void setInputCostPer1kTokens(Double inputCostPer1kTokens) {
-        this.inputCostPer1kTokens = inputCostPer1kTokens;
-    }
-
-    public Double getOutputCostPer1kTokens() {
-        return outputCostPer1kTokens;
-    }
-
-    public void setOutputCostPer1kTokens(Double outputCostPer1kTokens) {
-        this.outputCostPer1kTokens = outputCostPer1kTokens;
-    }
-
-    public Integer getContextWindow() {
-        return contextWindow;
-    }
-
-    public void setContextWindow(Integer contextWindow) {
-        this.contextWindow = contextWindow;
-    }
-
-    public Integer getMaxOutputTokens() {
-        return maxOutputTokens;
-    }
-
-    public void setMaxOutputTokens(Integer maxOutputTokens) {
-        this.maxOutputTokens = maxOutputTokens;
-    }
-
-    public Double getAvgLatencyMs() {
-        return avgLatencyMs;
-    }
-
-    public void setAvgLatencyMs(Double avgLatencyMs) {
-        this.avgLatencyMs = avgLatencyMs;
-    }
-
-    public Boolean getSupportsStreaming() {
-        return supportsStreaming;
-    }
-
-    public void setSupportsStreaming(Boolean supportsStreaming) {
-        this.supportsStreaming = supportsStreaming;
-    }
-
-    public Boolean getActive() {
-        return active;
-    }
-
-    public void setActive(Boolean active) {
-        this.active = active;
-    }
-
-    public Integer getPriority() {
-        return priority;
-    }
-
-    public void setPriority(Integer priority) {
-        this.priority = priority;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public Long getVersionLock() {
-        return versionLock;
-    }
-
-    public void setVersionLock(Long versionLock) {
-        this.versionLock = versionLock;
-    }
 }

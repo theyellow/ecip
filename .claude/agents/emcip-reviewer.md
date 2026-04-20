@@ -1,7 +1,7 @@
 ---
 name: emcip-reviewer
 description: Code review, Spotless checks, naming conventions, test coverage
-model: claude-haiku-4-5
+model: claude-haiku-4-5-20251001
 triggers:
   - "review"
   - "spotless"

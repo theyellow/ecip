@@ -9,6 +9,11 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
 /**
@@ -17,6 +22,11 @@ import org.hibernate.annotations.CreationTimestamp;
  */
 @Entity
 @Table(name = "model_cost_logs")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ModelCostLog {
 
     @Id
@@ -44,13 +54,13 @@ public class ModelCostLog {
     @Column(nullable = false)
     private Integer totalTokens;
 
-    @Column(nullable = false, precision = 10, scale = 6)
+    @Column(nullable = false)
     private Double inputCostUsd;
 
-    @Column(nullable = false, precision = 10, scale = 6)
+    @Column(nullable = false)
     private Double outputCostUsd;
 
-    @Column(nullable = false, precision = 10, scale = 6)
+    @Column(nullable = false)
     private Double totalCostUsd;
 
     @Column(nullable = false)
@@ -73,148 +83,4 @@ public class ModelCostLog {
     private Instant createdAt;
 
     @Version private Long versionLock;
-
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getRequestId() {
-        return requestId;
-    }
-
-    public void setRequestId(String requestId) {
-        this.requestId = requestId;
-    }
-
-    public String getModelProvider() {
-        return modelProvider;
-    }
-
-    public void setModelProvider(String modelProvider) {
-        this.modelProvider = modelProvider;
-    }
-
-    public String getModelName() {
-        return modelName;
-    }
-
-    public void setModelName(String modelName) {
-        this.modelName = modelName;
-    }
-
-    public String getPromptTemplateName() {
-        return promptTemplateName;
-    }
-
-    public void setPromptTemplateName(String promptTemplateName) {
-        this.promptTemplateName = promptTemplateName;
-    }
-
-    public Integer getInputTokens() {
-        return inputTokens;
-    }
-
-    public void setInputTokens(Integer inputTokens) {
-        this.inputTokens = inputTokens;
-    }
-
-    public Integer getOutputTokens() {
-        return outputTokens;
-    }
-
-    public void setOutputTokens(Integer outputTokens) {
-        this.outputTokens = outputTokens;
-    }
-
-    public Integer getTotalTokens() {
-        return totalTokens;
-    }
-
-    public void setTotalTokens(Integer totalTokens) {
-        this.totalTokens = totalTokens;
-    }
-
-    public Double getInputCostUsd() {
-        return inputCostUsd;
-    }
-
-    public void setInputCostUsd(Double inputCostUsd) {
-        this.inputCostUsd = inputCostUsd;
-    }
-
-    public Double getOutputCostUsd() {
-        return outputCostUsd;
-    }
-
-    public void setOutputCostUsd(Double outputCostUsd) {
-        this.outputCostUsd = outputCostUsd;
-    }
-
-    public Double getTotalCostUsd() {
-        return totalCostUsd;
-    }
-
-    public void setTotalCostUsd(Double totalCostUsd) {
-        this.totalCostUsd = totalCostUsd;
-    }
-
-    public Long getLatencyMs() {
-        return latencyMs;
-    }
-
-    public void setLatencyMs(Long latencyMs) {
-        this.latencyMs = latencyMs;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
-    }
-
-    public String getSourceEventId() {
-        return sourceEventId;
-    }
-
-    public void setSourceEventId(String sourceEventId) {
-        this.sourceEventId = sourceEventId;
-    }
-
-    public String getConversationId() {
-        return conversationId;
-    }
-
-    public void setConversationId(String conversationId) {
-        this.conversationId = conversationId;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Long getVersionLock() {
-        return versionLock;
-    }
-
-    public void setVersionLock(Long versionLock) {
-        this.versionLock = versionLock;
-    }
 }

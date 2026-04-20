@@ -1,7 +1,7 @@
 ---
 name: emcip-architect
 description: Architecture decisions, ADRs, API design, module structure, event schemas
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 triggers:
   - "architecture"
   - "ADR"
