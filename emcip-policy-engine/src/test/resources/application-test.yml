@@ -4,4 +4,4 @@ spring:
   kafka:
     listener:
       auto-startup: false
-    bootstrap-servers: localhost:29092
+    bootstrap-servers: localhost:14003

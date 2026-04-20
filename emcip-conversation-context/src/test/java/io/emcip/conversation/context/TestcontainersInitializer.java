@@ -39,7 +39,7 @@ public class TestcontainersInitializer
                         "spring.liquibase.drop-first=true",
                         "spring.liquibase.default-schema=public",
                         "spring.liquibase.liquibase-schema=public",
-                        "spring.kafka.bootstrap-servers=localhost:29092")
+                        "spring.kafka.bootstrap-servers=localhost:14003")
                 .applyTo(applicationContext.getEnvironment());
     }
 }

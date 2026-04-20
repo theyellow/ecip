@@ -28,7 +28,7 @@ import org.springframework.kafka.listener.ContainerProperties;
 @Configuration
 public class KafkaConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:localhost:29092}")
+    @Value("${spring.kafka.bootstrap-servers:localhost:14003}")
     private String bootstrapServers;
 
     @Bean

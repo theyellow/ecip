@@ -116,7 +116,7 @@ mvn test -pl <modified-module>
 - **Testing**: Testcontainers PostgreSQL 16
 
 ### Messaging
-- **Message Broker**: Apache Kafka (port 29092 - NOT default 9092, avoids microk8s conflict)
+- **Message Broker**: Apache Kafka (port 14003 - NOT default 9092, avoids microk8s conflict)
 - **Schema**: JSON with validation (EventSchemas.java)
 - **Topics**:
   - `telegram.raw.messages` - Raw Telegram messages
@@ -128,7 +128,7 @@ mvn test -pl <modified-module>
 
 ### Infrastructure
 - **Container**: Docker + Docker Compose
-- **Services**: PostgreSQL (14005), Kafka (29092), Zookeeper, Kafka UI, pgAdmin
+- **Services**: PostgreSQL (14005), Kafka (14003), Zookeeper, Kafka UI, pgAdmin
 
 ---
 
@@ -219,8 +219,8 @@ mvn spotless:check checkstyle:check pmd:check
 - Include correlation IDs in all logs
 
 ### 8. Kafka Configuration
-- **Port**: 29092 (NOT 9092 - avoids microk8s conflict)
-- Use `@Value("${spring.kafka.bootstrap-servers:localhost:29092}")`
+- **Port**: 14003 (NOT 9092 - avoids microk8s conflict)
+- Use `@Value("${spring.kafka.bootstrap-servers:localhost:14003}")`
 - Use `CommonKafkaConfig` from emcip-core for consistency
 - Implement `RetryableKafkaListener` for consumers with retry logic
 - DLQ topic pattern: `{original-topic}.dlq`
