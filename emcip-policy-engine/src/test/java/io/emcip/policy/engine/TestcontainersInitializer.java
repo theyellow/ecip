@@ -45,7 +45,8 @@ public class TestcontainersInitializer
                         "spring.liquibase.change-log=classpath:db/changelog/db.changelog-master.xml",
                         "spring.liquibase.drop-first=true",
                         "spring.liquibase.default-schema=public",
-                        "spring.liquibase.liquibase-schema=public")
+                        "spring.liquibase.liquibase-schema=public",
+                        "spring.kafka.bootstrap-servers=localhost:29092")
                 .applyTo(applicationContext.getEnvironment());
     }
 }
