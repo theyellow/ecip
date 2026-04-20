@@ -48,24 +48,33 @@ RUN mkdir -p /td-java && \
 
 # --- Stage 2: Build Spring Boot application ---
 FROM eclipse-temurin:21-jdk AS app-builder
+
+# Mirror the multi-module project layout that Maven expects:
+#   /build/pom.xml                    ← root parent POM (relativePath default: ../pom.xml)
+#   /build/emcip-tdlib-adapter/pom.xml ← module POM
+#   /build/emcip-tdlib-adapter/src/    ← module sources
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y maven --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pom.xml .
+# Build context is the project root (set in docker-compose).
+# Mirror the multi-module layout Maven expects:
+#   /build/pom.xml                     ← root parent POM
+#   /build/emcip-tdlib-adapter/pom.xml ← module POM
+COPY pom.xml ./pom.xml
+COPY emcip-tdlib-adapter/pom.xml ./emcip-tdlib-adapter/pom.xml
 
-# Pre-fetch dependencies (layer is cached until pom.xml changes)
-RUN mvn dependency:go-offline -q
+# Pre-fetch dependencies (layer cached until pom.xml changes)
+RUN mvn dependency:go-offline -q -pl emcip-tdlib-adapter -am
 
-# Copy source
-COPY src ./src
+# Copy module source
+COPY emcip-tdlib-adapter/src ./emcip-tdlib-adapter/src
 
-# Replace compile-time stubs with the real TDLib Java bindings.
-# Client.java and TdApi.java from Stage 1 are copied over the stubs.
-COPY --from=tdlib-builder /td-java/ ./src/main/java/org/drinkless/tdlib/
+# Replace compile-time stubs with the real TDLib Java bindings
+COPY --from=tdlib-builder /td-java/ ./emcip-tdlib-adapter/src/main/java/org/drinkless/tdlib/
 
-RUN mvn clean package -DskipTests -q
+RUN mvn clean package -DskipTests -q -pl emcip-tdlib-adapter -am
 
 # --- Stage 3: Runtime ---
 FROM eclipse-temurin:21-jre
@@ -86,7 +95,7 @@ WORKDIR /app
 
 RUN groupadd -r emcip && useradd -r -g emcip emcip
 
-COPY --from=app-builder /build/target/*-exec.jar app.jar
+COPY --from=app-builder /build/emcip-tdlib-adapter/target/*-exec.jar app.jar
 
 RUN mkdir -p /app/tdlib-db /app/tdlib-files && chown -R emcip:emcip /app
 

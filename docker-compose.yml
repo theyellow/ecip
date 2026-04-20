@@ -88,7 +88,9 @@ services:
   # Requires TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE_NUMBER in .env
   # First startup builds TDLib from source (~15-30 min). Result is cached.
   tdlib-adapter:
-    build: ./emcip-tdlib-adapter
+    build:
+      context: .
+      dockerfile: emcip-tdlib-adapter/Dockerfile
     container_name: ecip-tdlib-adapter
     depends_on:
       kafka:
