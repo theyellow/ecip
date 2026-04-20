@@ -118,6 +118,8 @@ For deeper technical details and sub-milestones, see [DEEP-DIVE_MILESTONES.md](D
 - [ ] Integration of small models (intent, summaries) (US-3.2.2)
 - [x] Cost control for LLM calls (US-3.2.3)
 - [x] Policy layer as gatekeeper for AI responses (US-3.2.4)
+- [x] Kafka monitoring with Micrometer metrics (US-3.3.1)
+- [x] Dead-letter topic handling with retry logic (US-3.3.2)
 - [ ] Extension of event backbone for AI events
 
 ### Definition of Done

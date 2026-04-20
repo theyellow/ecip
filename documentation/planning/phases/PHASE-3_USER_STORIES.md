@@ -11,13 +11,13 @@
 
 ### Epic 3.2: LLM Orchestrator & AI Integration 🔄 IN PROGRESS
 - [x] US-3.2.1: Implement LLM orchestrator (model routing, prompt templates)
-- [ ] US-3.2.2: Integrate at least one small model (intent, summaries)
 - [x] US-3.2.3: Track and log AI call costs
 - [x] US-3.2.4: Ensure policy layer is gatekeeper for AI responses
+- [ ] US-3.2.2: Integrate at least one small model (intent, summaries) ⏳ POSTPONED (after Epic 3.3)
 
-### Epic 3.3: Kafka Monitoring & Dead-Letter Topics
-- [ ] US-3.3.1: Set up Kafka monitoring dashboards (e.g., Prometheus, Grafana)
-- [ ] US-3.3.2: Implement dead-letter topic handling for failed events
+### Epic 3.3: Kafka Monitoring & Dead-Letter Topics ✅ COMPLETE
+- [x] US-3.3.1: Set up Kafka monitoring dashboards (Prometheus/Micrometer metrics)
+- [x] US-3.3.2: Implement dead-letter topic handling with retry logic
 
 ---
 

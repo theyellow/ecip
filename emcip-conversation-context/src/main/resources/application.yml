@@ -20,7 +20,7 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:29092
     consumer:
       group-id: conversation-context
       auto-offset-reset: earliest

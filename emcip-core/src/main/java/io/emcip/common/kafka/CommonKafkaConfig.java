@@ -34,7 +34,7 @@ import org.springframework.util.backoff.ExponentialBackOff;
 @EnableKafka
 public class CommonKafkaConfig {
 
-    @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
+    @Value("${spring.kafka.bootstrap-servers:localhost:29092}")
     private String bootstrapServers;
 
     @Value("${kafka.consumer.max-retries:3}")

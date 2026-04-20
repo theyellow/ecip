@@ -28,7 +28,7 @@ public class TestDatabaseConfig {
     @Bean
     public KafkaAdmin kafkaAdmin() {
         Map<String, Object> configs = new HashMap<>();
-        configs.put("bootstrap.servers", "localhost:9092");
+        configs.put("bootstrap.servers", "localhost:29092");
         return new KafkaAdmin(configs);
     }
 }
