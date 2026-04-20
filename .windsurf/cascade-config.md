@@ -65,19 +65,23 @@ mvn spotless:check
 mvn test -pl <modified-module>
 ```
 
-### Spotless Output Examples
+### Spotless Output - What to Look For
 
-**When changes are made:**
+**Key indicator: `0 were changed to be clean`** = Files are properly formatted
+
+**After `mvn spotless:apply` (changes made):**
 ```
-[INFO] Spotless.Java is keeping 7 files clean - 5 were changed to be clean, 2 were already clean
-[INFO] Spotless.Pom is keeping 1 files clean - 0 were changed to be clean, 1 were already clean
+[INFO] Spotless.Java is keeping N files clean - X were changed to be clean, Y were already clean
+# ^-- X > 0 means files were reformatted
 ```
 
-**When already clean:**
+**After `mvn spotless:check` (already clean):**
 ```
-[INFO] Spotless.Java is keeping 15 files clean - 0 were changed to be clean, 15 were already clean
-[INFO] Spotless.Pom is keeping 1 files clean - 0 were changed to be clean, 1 were already clean
+[INFO] Spotless.Java is keeping N files clean - 0 were changed to be clean, N were already clean
+# ^-- 0 changed = SUCCESS, all files already formatted correctly
 ```
+
+**Important:** The total number of files (N) varies by module. What matters is **0 were changed** means clean, **any number > 0 changed** means formatting was applied.
 
 ### Commit Standards
 - **One commit per user story minimum**

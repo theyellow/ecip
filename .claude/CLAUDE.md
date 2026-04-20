@@ -148,11 +148,16 @@ mvn spotless:check
 mvn test -pl <modified-module>
 ```
 
-**Expected Output:**
+**Expected Output:** Look for `0 were changed to be clean`
 ```
-[INFO] Spotless.Java is keeping 15 files clean - 0 were changed to be clean, 15 were already clean
-[INFO] Spotless.Pom is keeping 1 files clean - 0 were changed to be clean, 1 were already clean
+[INFO] Spotless.Java is keeping N files clean - 0 were changed to be clean, N were already clean
+# ^-- The 0 is what matters - means all files are properly formatted
+# ^-- N varies by module (number of files), not important
 ```
+
+**If you see `X were changed to be clean` where X > 0:**
+- Files needed reformatting
+- Run `git add -A && git commit --amend` to include formatting fixes
 
 ### 3. Lombok Usage (REQUIRED)
 ```java
