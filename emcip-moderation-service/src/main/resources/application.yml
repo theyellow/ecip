@@ -4,15 +4,40 @@ server:
 spring:
   application:
     name: emcip-moderation-service
+  r2dbc:
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:14005/emcip}
+    username: ${SPRING_R2DBC_USERNAME:emcip}
+    password: ${SPRING_R2DBC_PASSWORD:emcip}
+  liquibase:
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
+    user: ${SPRING_DATASOURCE_USERNAME:emcip}
+    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
+    change-log: classpath:db/changelog/db.changelog-master.xml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
+    consumer:
+      group-id: emcip-moderation-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 management:
+  tracing:
+    sampling:
+      probability: 1.0
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+
+kafka:
+  consumer:
+    max-retries: 3
+    retry-delay-ms: 1000
 
 logging:
   level:

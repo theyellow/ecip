@@ -1,34 +1,55 @@
 # Multi-stage build for emcip-audit-service
-# Stage 1: Build
-FROM eclipse-temurin:21-jdk AS builder
-WORKDIR /build
-COPY pom.xml .
-COPY src ./src
-RUN apt-get update && apt-get install -y maven
-RUN mvn clean package -DskipTests
+#
+# Build context must be the project root so Maven can resolve the parent POM.
+# Usage (from project root):
+#   docker compose build audit-service
 
-# Stage 2: Runtime
+# Stage 1: Build the Spring Boot JAR
+FROM eclipse-temurin:21-jdk AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y maven --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pom.xml ./pom.xml
+COPY emcip-core/pom.xml ./emcip-core/pom.xml
+COPY emcip-core/src ./emcip-core/src
+COPY emcip-tdlib-adapter/pom.xml ./emcip-tdlib-adapter/pom.xml
+COPY emcip-conversation-context/pom.xml ./emcip-conversation-context/pom.xml
+COPY emcip-intent-classifier/pom.xml ./emcip-intent-classifier/pom.xml
+COPY emcip-policy-engine/pom.xml ./emcip-policy-engine/pom.xml
+COPY emcip-llm-orchestrator/pom.xml ./emcip-llm-orchestrator/pom.xml
+COPY emcip-moderation-service/pom.xml ./emcip-moderation-service/pom.xml
+COPY emcip-audit-service/pom.xml ./emcip-audit-service/pom.xml
+COPY emcip-admin-api/pom.xml ./emcip-admin-api/pom.xml
+
+RUN mvn install -N -q && \
+    mvn install -pl emcip-core -DskipTests -q
+
+COPY emcip-audit-service/src ./emcip-audit-service/src
+
+RUN mvn clean package -DskipTests -q -pl emcip-audit-service -am
+
+# Stage 2: Minimal JRE runtime
 FROM eclipse-temurin:21-jre
+
+RUN apt-get update && apt-get install -y curl --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
-# Create non-root user
 RUN groupadd -r emcip && useradd -r -g emcip emcip
 
-# Copy executable JAR from builder
-COPY --from=builder /build/target/*-exec.jar app.jar
+COPY --from=builder /build/emcip-audit-service/target/*-exec.jar app.jar
 
-# Set ownership
 RUN chown -R emcip:emcip /app
 
-# Switch to non-root user
 USER emcip
 
-# Expose service port
 EXPOSE 9086
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:9086/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -sf http://localhost:9086/actuator/health || exit 1
 
-# Run application
 ENTRYPOINT ["java", "-jar", "app.jar"]

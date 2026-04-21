@@ -26,7 +26,7 @@ public class TelegramUpdateHandler {
     public void initializeHandlers() {
         tdLibClient.registerUpdateHandler("UpdateNewMessage", this::handleNewMessage);
         tdLibClient.registerUpdateHandler("UpdateMessageEdited", this::handleMessageEdited);
-        tdLibClient.registerUpdateHandler("UpdateMessageDeleted", this::handleMessageDeleted);
+        tdLibClient.registerUpdateHandler("UpdateDeleteMessages", this::handleMessageDeleted);
         tdLibClient.registerUpdateHandler("UpdateChatTitle", this::handleChatTitle);
         tdLibClient.registerUpdateHandler("UpdateUser", this::handleUserUpdate);
 

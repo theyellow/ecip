@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="001-create-moderation-rules" author="ecip">
+        <createTable tableName="moderation_rules">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="rule_type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pattern" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="severity" type="VARCHAR(20)" defaultValue="MEDIUM">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="VARCHAR(20)" defaultValue="FLAG">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="moderation_rules" indexName="idx_moderation_rules_enabled">
+            <column name="enabled"/>
+        </createIndex>
+        <sql>
+            ALTER TABLE moderation_rules
+            ADD CONSTRAINT chk_rule_type CHECK (rule_type IN ('KEYWORD', 'REGEX', 'LENGTH'));
+        </sql>
+    </changeSet>
+
+    <changeSet id="001-seed-default-rules" author="ecip">
+        <insert tableName="moderation_rules">
+            <column name="name" value="profanity-block"/>
+            <column name="rule_type" value="KEYWORD"/>
+            <column name="pattern" value="spam"/>
+            <column name="severity" value="HIGH"/>
+            <column name="action" value="FLAG"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+        <insert tableName="moderation_rules">
+            <column name="name" value="excessive-length"/>
+            <column name="rule_type" value="LENGTH"/>
+            <column name="pattern" value="2000"/>
+            <column name="severity" value="LOW"/>
+            <column name="action" value="FLAG"/>
+            <column name="enabled" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

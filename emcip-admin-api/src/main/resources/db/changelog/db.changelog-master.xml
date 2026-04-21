@@ -65,4 +65,6 @@
         </createIndex>
     </changeSet>
 
+    <include file="db/changelog/changes/002-seed-admin-user.xml"/>
+
 </databaseChangeLog>

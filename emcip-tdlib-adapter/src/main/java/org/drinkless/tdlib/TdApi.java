@@ -11,7 +11,7 @@ public class TdApi {
         }
     }
 
-    public abstract static class Function extends Object {}
+    public abstract static class Function<T extends Object> extends Object {}
 
     public abstract static class Update extends Object {}
 
@@ -62,7 +62,7 @@ public class TdApi {
     }
 
     // Authorization functions
-    public static class SetLogVerbosityLevel extends Function {
+    public static class SetLogVerbosityLevel extends Function<Ok> {
         public static final int CONSTRUCTOR = -563916580;
         public int newLogVerbosityLevel;
 
@@ -71,7 +71,7 @@ public class TdApi {
         }
     }
 
-    public static class SetTdlibParameters extends Function {
+    public static class SetTdlibParameters extends Function<Ok> {
         public static final int CONSTRUCTOR = -325358204;
         public boolean useTestDc;
         public String databaseDirectory;
@@ -88,7 +88,7 @@ public class TdApi {
         public String applicationVersion;
     }
 
-    public static class SetAuthenticationPhoneNumber extends Function {
+    public static class SetAuthenticationPhoneNumber extends Function<Ok> {
         public static final int CONSTRUCTOR = -28558289;
         public String phoneNumber;
         public PhoneNumberAuthenticationSettings settings;
@@ -100,7 +100,7 @@ public class TdApi {
         }
     }
 
-    public static class CheckAuthenticationCode extends Function {
+    public static class CheckAuthenticationCode extends Function<Ok> {
         public static final int CONSTRUCTOR = -1504062605;
         public String code;
 
@@ -109,7 +109,7 @@ public class TdApi {
         }
     }
 
-    public static class CheckAuthenticationPassword extends Function {
+    public static class CheckAuthenticationPassword extends Function<Ok> {
         public static final int CONSTRUCTOR = -333891141;
         public String password;
 
@@ -118,8 +118,12 @@ public class TdApi {
         }
     }
 
-    public static class LogOut extends Function {
+    public static class LogOut extends Function<Ok> {
         public static final int CONSTRUCTOR = -1581923301;
+    }
+
+    public static class Close extends Function<Ok> {
+        public static final int CONSTRUCTOR = -1886400114;
     }
 
     // Helper classes
@@ -128,6 +132,15 @@ public class TdApi {
         public boolean allowFlashCall;
         public boolean isCurrentPhoneNumber;
         public boolean allowSmsRetrieverApi;
+    }
+
+    // MessageReplyTo hierarchy (real TDLib API)
+    public abstract static class MessageReplyTo extends Object {}
+
+    public static class MessageReplyToMessage extends MessageReplyTo {
+        public static final int CONSTRUCTOR = -1803845097;
+        public long chatId;
+        public long messageId;
     }
 
     // Message and Update classes
@@ -140,11 +153,8 @@ public class TdApi {
         public int date;
         public int editDate;
         public boolean isOutgoing;
-        public long replyToMessageId;
-        public long replyInChatId;
-        public long messageThreadId;
+        public MessageReplyTo replyTo;
         public boolean isChannelPost;
-        public boolean isTopicMessage;
     }
 
     public abstract static class MessageContent extends Object {}
@@ -200,8 +210,8 @@ public class TdApi {
         public int editDate;
     }
 
-    public static class UpdateMessageDeleted extends Update {
-        public static final int CONSTRUCTOR = 1663654771;
+    public static class UpdateDeleteMessages extends Update {
+        public static final int CONSTRUCTOR = 1579132440;
         public long chatId;
         public long[] messageIds;
         public boolean isPermanent;
