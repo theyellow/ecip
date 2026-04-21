@@ -28,7 +28,7 @@
 ### Epic 4.4: Audit/Event Log Tables & Retention Policies
 - [ ] US-4.4.1: Design DB schema for audit/event logs
 - [ ] US-4.4.2: Implement retention policies (e.g., time-based deletion, archiving)
-- [ ] US-4.4.3: Add Flyway/Liquibase migrations for schema changes
+- [ ] US-4.4.3: Add Liquibase migrations for schema changes
 - [ ] US-4.4.4: Document schema and retention strategy
 - [ ] US-4.4.5: Add integration tests for log persistence and retention
 
@@ -285,9 +285,9 @@ Implement retention policies for audit/event logs, including time-based deletion
 **Hints:**
 - Use PostgreSQL partitioning for efficient data management.
 
-## US-4.4.3: Add Flyway/Liquibase migrations for schema changes
+## US-4.4.3: Add Liquibase migrations for schema changes
 **Overview:**
-Add database migrations using Flyway or Liquibase to manage schema changes for audit/event logs.
+Add database migrations using Liquibase to manage schema changes for audit/event logs.
 **Details:**
 - Create migration scripts for initial schema and changes.
 - Ensure migrations are idempotent and reversible.
@@ -295,10 +295,10 @@ Add database migrations using Flyway or Liquibase to manage schema changes for a
 **Acceptance Criteria:**
 - Migrations are tested and applied successfully.
 - Documentation provides clear guidance on managing migrations.
-**In-scope:** Flyway/Liquibase, DB schema, documentation
+**In-scope:** Liquibase, DB schema, documentation
 **Out-of-scope:** Manual schema updates
 **Hints:**
-- Use versioned migrations for easy tracking and rollback.
+- Use versioned XML changelogs in `src/main/resources/db/changelog/changes/`.
 
 ## US-4.4.4: Document schema and retention strategy
 **Overview:**

@@ -105,10 +105,24 @@ public class TelegramEventPublisher {
                 message.date,
                 message.editDate,
                 message.isOutgoing,
-                message.replyToMessageId,
-                message.replyInChatId,
+                extractReplyToMessageId(message),
+                extractReplyInChatId(message),
                 extractMetadata(message),
                 Instant.now());
+    }
+
+    private long extractReplyToMessageId(TdApi.Message message) {
+        if (message.replyTo instanceof TdApi.MessageReplyToMessage reply) {
+            return reply.messageId;
+        }
+        return 0L;
+    }
+
+    private long extractReplyInChatId(TdApi.Message message) {
+        if (message.replyTo instanceof TdApi.MessageReplyToMessage reply) {
+            return reply.chatId;
+        }
+        return 0L;
     }
 
     private String getSenderId(TdApi.MessageSender sender) {
@@ -139,9 +153,7 @@ public class TelegramEventPublisher {
             }
         }
 
-        metadata.put("messageThreadId", message.messageThreadId);
         metadata.put("isChannelPost", message.isChannelPost);
-        metadata.put("isTopicMessage", message.isTopicMessage);
 
         return metadata;
     }

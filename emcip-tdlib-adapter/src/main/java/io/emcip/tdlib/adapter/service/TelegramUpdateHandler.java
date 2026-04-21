@@ -78,7 +78,7 @@ public class TelegramUpdateHandler {
     }
 
     private void handleMessageDeleted(TdApi.Update update) {
-        if (update instanceof TdApi.UpdateMessageDeleted deleted) {
+        if (update instanceof TdApi.UpdateDeleteMessages deleted) {
             log.debug("Messages deleted in chat {}", deleted.chatId);
 
             eventPublisher

@@ -9,11 +9,11 @@
 - [x] US-3.1.2: Define escalation paths and policy outcomes
 - [x] US-3.1.3: Integrate with event backbone and persistence
 
-### Epic 3.2: LLM Orchestrator & AI Integration 🔄 IN PROGRESS
+### Epic 3.2: LLM Orchestrator & AI Integration ✅ COMPLETE
 - [x] US-3.2.1: Implement LLM orchestrator (model routing, prompt templates)
+- [x] US-3.2.2: Integrate at least one small model — Anthropic claude-haiku-4-5-20251001 via RestClient
 - [x] US-3.2.3: Track and log AI call costs
 - [x] US-3.2.4: Ensure policy layer is gatekeeper for AI responses
-- [ ] US-3.2.2: Integrate at least one small model (intent, summaries) ⏳ POSTPONED (after Epic 3.3)
 
 ### Epic 3.3: Kafka Monitoring & Dead-Letter Topics ✅ COMPLETE
 - [x] US-3.3.1: Set up Kafka monitoring dashboards (Prometheus/Micrometer metrics)
