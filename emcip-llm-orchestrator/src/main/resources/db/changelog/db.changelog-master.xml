@@ -25,4 +25,9 @@
     </changeSet>
     <include file="classpath:db/changelog/changes/004-seed-initial-model-configs.xml"/>
 
+    <changeSet id="005-seed-sonnet-model-configs" author="ecip">
+        <tagDatabase tag="v1.0.0-seed-sonnet-configs"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/005-seed-sonnet-model-configs.xml"/>
+
 </databaseChangeLog>
