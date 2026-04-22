@@ -103,11 +103,13 @@ Telegram / TDLib → tdlib-adapter/gateway → conversation-context-service → 
 community-intelligence/
   - pom.xml (parent POM: io.emcip:community-intelligence-parent:0.1.0-SNAPSHOT)
   - README.md
-  - docs/
+  - documentation/
     - architecture.adoc
-    - adr/
-    - sequence-diagrams/
-    - threat-model.md
+    - adrs/
+    - concept/
+    - developer/
+    - schema/
+    - planning/
   - emcip-core/                    (shared library, no port)
   - emcip-tdlib-adapter/             (port 9080)
   - emcip-conversation-context/      (port 9081)
