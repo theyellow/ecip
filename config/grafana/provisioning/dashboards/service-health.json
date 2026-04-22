@@ -1,0 +1,42 @@
+{
+  "annotations": { "list": [] },
+  "description": "EMCIP service health — error logs and per-service log streams",
+  "editable": true,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending" },
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "{container=~\"ecip-.*\"} |= \"ERROR\"", "refId": "A" }],
+      "title": "Error Logs (all services)",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 2,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending" },
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "{service=\"policy-engine\"}", "refId": "A" }],
+      "title": "Policy Engine Logs",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 3,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending" },
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "{service=\"audit-service\"}", "refId": "A" }],
+      "title": "Audit Service Logs",
+      "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "tags": ["emcip", "health"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "EMCIP Service Health",
+  "uid": "emcip-service-health",
+  "version": 1
+}
