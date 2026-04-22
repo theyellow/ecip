@@ -2,6 +2,9 @@
 *.class
 **/target/**
 
+# Generated documentation PDFs
+documentation/generated/
+
 # Log file
 *.log
 
