@@ -324,6 +324,19 @@ services:
     networks:
       - ecip-network
 
+  # Admin UI — React SPA served by Spring Boot (http://localhost:14009)
+  admin-ui:
+    build:
+      context: .
+      dockerfile: emcip-admin-ui/Dockerfile
+    container_name: ecip-admin-ui
+    depends_on:
+      - admin-api
+    ports:
+      - "14009:14009"
+    networks:
+      - ecip-network
+
 volumes:
   postgres-data:
   tdlib-data:

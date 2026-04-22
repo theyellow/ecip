@@ -1,0 +1,15 @@
+server:
+  port: 14009
+
+spring:
+  application:
+    name: emcip-admin-ui
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
