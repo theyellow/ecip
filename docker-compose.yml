@@ -272,10 +272,64 @@ services:
     profiles:
       - telegram
 
+  # Loki — log aggregation backend
+  loki:
+    image: grafana/loki:3.0.0
+    container_name: ecip-loki
+    ports:
+      - "14008:3100"
+    volumes:
+      - ./config/loki-config.yml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - ecip-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Promtail — log shipper (Docker container logs → Loki)
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: ecip-promtail
+    depends_on:
+      loki:
+        condition: service_healthy
+    volumes:
+      - ./config/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - ecip-network
+
+  # Grafana — dashboards (http://localhost:14007, admin/admin)
+  grafana:
+    image: grafana/grafana-oss:11.0.0
+    container_name: ecip-grafana
+    depends_on:
+      loki:
+        condition: service_healthy
+    ports:
+      - "14007:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    networks:
+      - ecip-network
+
 volumes:
   postgres-data:
   tdlib-data:
   tdlib-files:
+  loki-data:
+  grafana-data:
 
 networks:
   ecip-network:
