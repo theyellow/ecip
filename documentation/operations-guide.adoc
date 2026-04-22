@@ -1,0 +1,535 @@
+= EMCIP Operations Guide
+:toc:
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+NOTE: For the architectural context of these services, see the _Architecture Guide_.
+
+== Infrastructure Overview
+
+[plantuml,deploy-local,png]
+----
+include::diagrams/deployment-local-docker.puml[]
+----
+
+The local Docker Compose environment runs 8 application services and 9 infrastructure services:
+
+[cols="2,3"]
+|===
+|Category |Services
+
+|Application (8)
+|tdlib-adapter, conversation-context, intent-classifier, policy-engine, llm-orchestrator, moderation-service, audit-service, admin-api
+
+|Infrastructure (9)
+|Zookeeper, Kafka broker, Kafka UI, PostgreSQL, pgAdmin, Grafana, Loki, Promtail, Admin UI
+|===
+
+== Docker Compose Quickstart
+
+=== Default Startup (infrastructure only)
+
+[source,bash]
+----
+docker compose up -d
+----
+
+Starts: Zookeeper, Kafka, Kafka UI, PostgreSQL, pgAdmin. Application services are not started by default — they are managed per-profile.
+
+=== Profiles
+
+[source,bash]
+----
+# All application services
+docker compose --profile full up -d
+
+# LLM Orchestrator (requires ANTHROPIC_API_KEY)
+docker compose --profile llm up -d
+
+# TDLib Adapter (requires Telegram credentials)
+docker compose --profile telegram up -d
+
+# Observability stack (Grafana, Loki, Promtail)
+docker compose --profile observability up -d
+----
+
+=== `.env` File Setup
+
+Create a `.env` file in the project root (never commit it):
+
+[source,bash]
+----
+# Telegram (profile: telegram)
+TELEGRAM_API_ID=12345678
+TELEGRAM_API_HASH=abcdef1234567890abcdef1234567890
+TELEGRAM_PHONE_NUMBER=+491234567890
+
+# LLM (profile: llm)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# Admin API JWT secret
+ADMIN_JWT_SECRET=change-me-in-production-minimum-32-chars
+
+# PostgreSQL (defaults work for local dev)
+POSTGRES_USER=emcip
+POSTGRES_PASSWORD=emcip
+POSTGRES_DB=emcip
+----
+
+== Port Reference
+
+[cols="2,1,3"]
+|===
+|Service |Port |Purpose
+
+|emcip-tdlib-adapter
+|9080
+|Telegram TDLib integration
+
+|emcip-conversation-context
+|9081
+|Thread and message tracking
+
+|emcip-intent-classifier
+|9082
+|NLP intent classification
+
+|emcip-policy-engine
+|9083
+|Policy rule evaluation
+
+|emcip-llm-orchestrator
+|9084
+|LLM provider routing
+
+|emcip-moderation-service
+|9085
+|Content moderation rules
+
+|emcip-audit-service
+|9086
+|Audit log and metrics
+
+|emcip-admin-api
+|9087
+|Admin REST API
+
+|Zookeeper
+|14001
+|Kafka coordination
+
+|Kafka (internal)
+|14002
+|Broker — service-to-service
+
+|Kafka (external)
+|14003
+|Broker — host access, `KAFKA_BOOTSTRAP_SERVERS`
+
+|Kafka UI
+|14004
+|Kafka management UI
+
+|PostgreSQL
+|14005
+|Primary database
+
+|pgAdmin
+|14006
+|PostgreSQL admin UI (admin@emcip.io / admin)
+
+|Grafana
+|14007
+|Observability dashboards (admin / admin)
+
+|Loki
+|14008
+|Log aggregation backend
+
+|Admin UI
+|14009
+|React SPA for platform administration
+|===
+
+=== Port Conflict Check
+
+[source,bash]
+----
+for port in 9080 9081 9082 9083 9084 9085 9086 9087 \
+            14001 14002 14003 14004 14005 14006 14007 14008 14009; do
+  if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "CONFLICT: port $port in use"
+  fi
+done
+----
+
+== Observability
+
+=== Grafana Dashboards
+
+Open http://localhost:14007 (credentials: `admin` / `admin`).
+
+Three pre-built dashboards are provisioned automatically on startup:
+
+[cols="1,3"]
+|===
+|Dashboard |Shows
+
+|*Service Health*
+|Actuator UP/DOWN status per service, JVM heap used, GC pause time.
+
+|*Kafka Consumer Lag*
+|Consumer group lag per topic. Alert threshold: > 1000 messages.
+
+|*Audit Throughput*
+|Audit events/minute and moderation flags/minute over time.
+|===
+
+=== Loki Log Queries
+
+Open http://localhost:14008 or use the Grafana → Explore → Loki datasource.
+
+[source]
+----
+# All ERROR logs across services
+{job="emcip"} |= "ERROR"
+
+# Errors from policy-engine only
+{job="emcip", service="emcip-policy-engine"} | json | level="ERROR"
+
+# Messages by trace ID
+{job="emcip"} | json | traceId="<trace-id>"
+
+# Kafka consumer errors
+{job="emcip"} |= "KafkaListenerErrorHandler"
+----
+
+=== Prometheus Metrics
+
+Key metrics to watch:
+
+[cols="2,1,2"]
+|===
+|Metric |Service |Meaning
+
+|`kafka_consumer_fetch_manager_records_lag_max`
+|all consumers
+|Maximum consumer lag — spike indicates backpressure
+
+|`hikaricp_connections_active`
+|JPA services
+|Active DB connections — saturation if near `maximum-pool-size` (20)
+
+|`jvm_memory_used_bytes`
+|all services
+|Heap usage — watch for growth trend
+
+|`http_server_requests_seconds_max`
+|admin-api
+|Worst-case request latency
+
+|`spring_kafka_listener_seconds_max`
+|all consumers
+|Worst-case consumer processing time
+|===
+
+=== Structured Log Fields
+
+All services emit JSON logs via Spring Boot 4 native structured logging (`logging.structured.format.console: logstash`). Key fields:
+
+[cols="1,2"]
+|===
+|Field |Example value
+
+|`@timestamp`
+|`2026-04-22T10:15:30.123Z`
+
+|`level`
+|`INFO`, `WARN`, `ERROR`
+
+|`logger_name`
+|`io.emcip.policyengine.PolicyEvaluationService`
+
+|`message`
+|`Policy decision: BLOCK for intent SPAM`
+
+|`traceId`
+|`4bf92f3577b34da6` (populated by Micrometer Tracing)
+
+|`spanId`
+|`00f067aa0ba902b7`
+|===
+
+== Backup & Restore
+
+=== Creating a Backup
+
+[source,bash]
+----
+# Uses defaults: localhost:14005, database emcip, user emcip
+./scripts/db/backup.sh
+
+# Custom connection
+DB_HOST=myhost DB_PORT=14005 DB_NAME=emcip DB_USER=emcip \
+  PGPASSWORD=secret ./scripts/db/backup.sh
+----
+
+Output: `backup_YYYYMMDD_HHMMSS.dump` in the current directory.
+
+=== Restore Procedure
+
+[source,bash]
+----
+# Step 1: Stop all application services
+docker compose stop tdlib-adapter conversation-context intent-classifier \
+  policy-engine llm-orchestrator moderation-service audit-service admin-api
+
+# Step 2: Restore from dump file
+./scripts/db/restore.sh backup_20260422_120000.dump
+
+# Step 3: Verify row counts
+docker exec -it $(docker compose ps -q postgres) \
+  psql -U emcip -d emcip -c "
+    SELECT schemaname, tablename, n_live_tup
+    FROM pg_stat_user_tables
+    ORDER BY n_live_tup DESC
+    LIMIT 10;
+  "
+
+# Step 4: Restart services
+docker compose --profile full up -d
+----
+
+=== Environment Variables for Scripts
+
+[cols="1,1,2"]
+|===
+|Variable |Default |Description
+
+|`DB_HOST`
+|`localhost`
+|PostgreSQL host
+
+|`DB_PORT`
+|`14005`
+|PostgreSQL port (EMCIP custom range)
+
+|`DB_NAME`
+|`emcip`
+|Database name
+
+|`DB_USER`
+|`emcip`
+|PostgreSQL username
+
+|`PGPASSWORD`
+|`emcip`
+|PostgreSQL password (read by pg_dump/pg_restore)
+|===
+
+== Performance Tuning
+
+=== SLOs
+
+[cols="2,1"]
+|===
+|Metric |Target
+
+|p95 intent classification latency
+|< 200ms
+
+|p95 policy evaluation latency
+|< 100ms
+
+|p99 end-to-end pipeline (ingest → audit)
+|< 2s
+
+|Kafka throughput (sustained)
+|500 msg/s
+|===
+
+=== HikariCP Connection Pool
+
+`emcip-policy-engine` is the most DB-intensive service. Current tuning in `application.yml`:
+
+[source,yaml]
+----
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000    # 30s
+      idle-timeout: 600000         # 10min
+----
+
+Monitor `hikaricp_connections_active`. If it saturates at 20 under load, increase `maximum-pool-size` and verify PostgreSQL `max_connections` (default 100).
+
+=== Kafka Consumer Tuning
+
+`emcip-intent-classifier` handles the highest message volume:
+
+[source,yaml]
+----
+spring:
+  kafka:
+    consumer:
+      max-poll-records: 500
+----
+
+Higher values increase throughput but require more heap. Monitor `jvm_memory_used_bytes` when increasing.
+
+=== Java Flight Recorder Profiling
+
+[source,bash]
+----
+# Start recording on a running service (replace PID)
+jcmd <pid> JFR.start duration=60s filename=/tmp/profile.jfr
+
+# Or at JVM startup (add to JAVA_OPTS in docker-compose.yml)
+# -XX:StartFlightRecording=duration=120s,filename=/tmp/profile.jfr,settings=profile
+----
+
+Open the `.jfr` file in IntelliJ or JDK Mission Control.
+
+=== Running Load Tests
+
+[source,bash]
+----
+cd gatling-tests
+mvn gatling:test
+# Review: gatling-tests/target/gatling/*/index.html
+----
+
+Simulations cover: Admin API auth + CRUD, Kafka publish throughput, policy evaluation endpoint.
+
+== Error Handling & DLQ
+
+[plantuml,seq-errors,png]
+----
+include::diagrams/sequence-error-handling.puml[]
+----
+
+=== Retry Configuration
+
+Configured in `CommonKafkaConfig` (emcip-core):
+
+* *Retries:* 3 attempts with exponential backoff (500ms, 1s, 2s).
+* *Retryable exceptions:* `RetryableException`, `TransientDataAccessException`, network errors.
+* *Non-retryable exceptions:* `DataIntegrityViolationException`, `IllegalArgumentException`, parse errors — sent directly to DLQ without retry.
+
+=== DLQ Naming Convention
+
+Each topic has a corresponding DLQ:
+
+[source]
+----
+telegram.raw.messages  ->  telegram.raw.messages.dlq
+messages.classified    ->  messages.classified.dlq
+policies.decisions     ->  policies.decisions.dlq
+----
+
+=== Monitoring DLQ
+
+[source,bash]
+----
+# View DLQ messages via Kafka UI (port 14004)
+open http://localhost:14004
+
+# Or via CLI
+docker exec -it $(docker compose ps -q kafka) \
+  kafka-console-consumer.sh \
+    --bootstrap-server localhost:14002 \
+    --topic telegram.raw.messages.dlq \
+    --from-beginning
+----
+
+The `DeadLetterQueueConsumer` in `emcip-audit-service` writes a DLQ event to the audit log with the original payload and failure reason.
+
+== Moderation Rules
+
+Rules are evaluated by `emcip-moderation-service` against every `policies.decisions` event.
+
+=== Rule Types
+
+[cols="1,3,2"]
+|===
+|Type |Behaviour |Example pattern
+
+|`KEYWORD`
+|Exact case-insensitive word match in message text
+|`spam`
+
+|`REGEX`
+|Full Java `Pattern.compile()` regex applied to message text
+|`\b(buy\|sell\|crypto)\b`
+
+|`LENGTH`
+|Fires when message character count exceeds the numeric pattern value
+|`500`
+|===
+
+=== Configuring Rules via Admin API
+
+[source,bash]
+----
+# Create a keyword rule
+curl -X POST http://localhost:9087/api/admin/moderation-rules \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ruleType": "KEYWORD",
+    "pattern": "scam",
+    "action": "FLAG",
+    "enabled": true
+  }'
+
+# List all rules
+curl http://localhost:9087/api/admin/moderation-rules \
+  -H "Authorization: Bearer <token>"
+
+# Delete a rule
+curl -X DELETE http://localhost:9087/api/admin/moderation-rules/<id> \
+  -H "Authorization: Bearer <token>"
+----
+
+=== Cache Refresh
+
+The moderation-service caches active rules with a 5-minute TTL. Changes made via the Admin API take effect within 5 minutes without a service restart.
+
+== Troubleshooting
+
+[cols="2,2,3"]
+|===
+|Symptom |Diagnosis command |Fix
+
+|Port already in use
+|`lsof -i :<port>`
+|Stop the process using that port, or remap in `docker-compose.yml`.
+
+|Kafka `Connection refused`
+|`docker compose ps kafka`
+|Ensure `KAFKA_BOOTSTRAP_SERVERS=localhost:14003` in `.env`. Internal services use `kafka:14002`.
+
+|PostgreSQL `Connection refused`
+|`docker compose ps postgres`
+|Wait for Liquibase migration to complete. Check `docker compose logs postgres`.
+
+|Liquibase migration fails on startup
+|`docker compose logs <service> \| grep Liquibase`
+|A changeset is locked or malformed. Run `mvn liquibase:releaseLocks -pl <module>` against the dev DB.
+
+|TDLib auth fails
+|`docker compose logs tdlib-adapter`
+|Add `TELEGRAM_PHONE_NUMBER=+<number>` to `.env` and restart.
+
+|Logback startup errors
+|`docker compose logs <service> \| grep logback`
+|Ensure `logstash-logback-encoder` is NOT on the classpath. Use `logging.structured.format.console: logstash` in `application.yml` instead.
+
+|Grafana shows no data
+|`curl http://localhost:14008/ready`
+|Loki not ready. Wait 30s and retry. Check `docker compose logs loki`.
+|===
