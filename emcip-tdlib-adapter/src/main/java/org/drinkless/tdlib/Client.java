@@ -13,7 +13,7 @@ public final class Client {
         return new Client();
     }
 
-    public void send(TdApi.Function query, ResultHandler handler) {
+    public void send(TdApi.Function<?> query, ResultHandler handler) {
         // Stub - implement with real TDLib
     }
 
@@ -21,7 +21,7 @@ public final class Client {
         // Stub - implement with real TDLib
     }
 
-    public static TdApi.Object execute(TdApi.Function query) {
+    public static TdApi.Object execute(TdApi.Function<?> query) throws ExecutionException {
         return new TdApi.Ok();
     }
 
@@ -31,5 +31,14 @@ public final class Client {
 
     public interface ExceptionHandler {
         void onException(Throwable e);
+    }
+
+    public static class ExecutionException extends Exception {
+        public final TdApi.Error error;
+
+        public ExecutionException(TdApi.Error error) {
+            super(error != null ? error.message : "TDLib execution error");
+            this.error = error;
+        }
     }
 }

@@ -9,17 +9,34 @@ spring:
     username: emcip
     password: emcip
   liquibase:
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
+    user: ${SPRING_DATASOURCE_USERNAME:emcip}
+    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
 
 management:
+  tracing:
+    sampling:
+      probability: 1.0
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: always
+
+admin:
+  jwt:
+    secret: ${ADMIN_JWT_SECRET:changeme-in-production-must-be-32-chars}
+  service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
 
 logging:
   level:

@@ -4,13 +4,32 @@ server:
 spring:
   application:
     name: emcip-policy-engine
-  r2dbc:
-    url: r2dbc:postgresql://localhost:14005/emcip
+  datasource:
+    url: jdbc:postgresql://localhost:14005/emcip
     username: emcip
     password: emcip
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
+  kafka:
+    bootstrap-servers: localhost:14003
+    consumer:
+      group-id: policy-engine
+      auto-offset-reset: earliest
+      enable-auto-commit: false
 
 management:
   endpoints:

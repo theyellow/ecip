@@ -41,7 +41,11 @@ public class TdLibClient {
             log.warn("TDLib native library not found in java.library.path: {}", e.getMessage());
         }
 
-        Client.execute(new TdApi.SetLogVerbosityLevel(properties.logVerbosityLevel()));
+        try {
+            Client.execute(new TdApi.SetLogVerbosityLevel(properties.logVerbosityLevel()));
+        } catch (Client.ExecutionException e) {
+            log.warn("Failed to set TDLib log verbosity: {}", e.getMessage());
+        }
 
         client = Client.create(defaultHandler, exceptionHandler, null);
         isInitialized = true;
@@ -198,7 +202,7 @@ public class TdLibClient {
         log.info("Unregistered handler for update type: {}", updateType);
     }
 
-    public void sendRequest(TdApi.Function query, Client.ResultHandler handler) {
+    public void sendRequest(TdApi.Function<?> query, Client.ResultHandler handler) {
         if (!isInitialized || client == null) {
             throw new IllegalStateException("TDLib client not initialized");
         }
@@ -220,7 +224,7 @@ public class TdLibClient {
             logout();
         }
         if (client != null) {
-            client.close();
+            client.send(new TdApi.Close(), null);
         }
     }
 

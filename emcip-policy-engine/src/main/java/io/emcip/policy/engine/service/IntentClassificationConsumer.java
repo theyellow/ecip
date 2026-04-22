@@ -8,12 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 /**
  * Kafka consumer for intent classification events. Consumes from messages.classified topic and
- * evaluates policies.
+ * evaluates policies synchronously.
  */
 @Service
 public class IntentClassificationConsumer {
@@ -44,37 +42,28 @@ public class IntentClassificationConsumer {
                 record.partition(),
                 record.offset());
 
-        Mono.fromCallable(
-                        () -> {
-                            // Validate
-                            var validationResult =
-                                    eventValidator.validateJson(record.value(), "IntentClassified");
-                            if (!validationResult.valid()) {
-                                log.error(
-                                        "Invalid classification received: {}",
-                                        validationResult.getErrorMessage());
-                                return null;
-                            }
+        try {
+            // Validate
+            var validationResult = eventValidator.validateJson(record.value(), "IntentClassified");
+            if (!validationResult.valid()) {
+                log.error(
+                        "Invalid classification received: {}", validationResult.getErrorMessage());
+                return;
+            }
 
-                            // Parse and evaluate
-                            var event =
-                                    objectMapper.readValue(
-                                            record.value(),
-                                            EventSchemas.IntentClassifiedEvent.class);
-                            return policyService.evaluate(event).block();
-                        })
-                .subscribeOn(Schedulers.boundedElastic())
-                .doOnSuccess(
-                        result -> {
-                            if (result != null) {
-                                log.info(
-                                        "Evaluated policy for event {}: decision={}",
-                                        result.sourceEventId(),
-                                        result.decision());
-                            }
-                        })
-                .doOnError(e -> log.error("Error processing classification: {}", e.getMessage(), e))
-                .onErrorResume(e -> Mono.empty())
-                .subscribe();
+            // Parse and evaluate
+            var event =
+                    objectMapper.readValue(
+                            record.value(), EventSchemas.IntentClassifiedEvent.class);
+            var result = policyService.evaluate(event);
+
+            log.info(
+                    "Evaluated policy for event {}: decision={}",
+                    result.getSourceEventId(),
+                    result.getDecision());
+
+        } catch (Exception e) {
+            log.error("Error processing classification: {}", e.getMessage(), e);
+        }
     }
 }

@@ -108,24 +108,33 @@ For deeper technical details and sub-milestones, see [DEEP-DIVE_MILESTONES.md](D
 
 ---
 
-## 3. AI & Integration
+## 3. Intelligence & Policy ✅ COMPLETE
 
 ### Milestones
-- [ ] LLM orchestrator (routing, prompt templates, model selection, supports Telegram context)
-- [ ] Integration of small models (intent, summaries)
-- [ ] Policy layer as gatekeeper before AI responses and Telegram interactions
-- [ ] Cost control for LLM calls
-- [ ] Extension of event backbone for AI events
+- [x] Policy Engine with deterministic rule evaluation (US-3.1.1)
+- [x] Escalation paths and policy outcomes (US-3.1.2)
+- [x] Policy engine event backbone integration (US-3.1.3)
+- [x] LLM orchestrator (routing, prompt templates, model selection) (US-3.2.1)
+- [x] Integration of Anthropic claude-haiku-4-5 via RestClient (US-3.2.2)
+- [x] Cost control for LLM calls (US-3.2.3)
+- [x] Policy layer as gatekeeper for AI responses (US-3.2.4)
+- [x] Kafka monitoring with Micrometer metrics (US-3.3.1)
+- [x] Dead-letter topic handling with retry logic (US-3.3.2)
+- [x] ResponseGeneratedEvent published to responses.generated topic
 
 ### Definition of Done
-- [ ] LLM orchestrator can address different models and Telegram contexts
-- [ ] AI responses are only generated after policy decision
-- [ ] Prompt templates are versioned and tested
-- [ ] Costs for AI calls are logged
+- [x] Policy decisions are deterministic, persisted, and auditable
+- [x] Policy actions are executed (BLOCK, RESPOND, ESCALATE, EXECUTE, REVIEW, ALLOW)
+- [x] LLM orchestrator routes to correct model and template by task type
+- [x] AI responses are only generated after policy decision (RESPOND, ESCALATE, EXECUTE)
+- [x] Prompt templates are versioned with priority-based selection
+- [x] Costs for AI calls are logged with token usage and latency
+- [x] Anthropic API integrated (claude-haiku-4-5-20251001) via synchronous RestClient
+- [x] TDLib Docker build fixed: multi-stage, native library + JNI bindings built from source
 
 ---
 
-## 4. Observability, Moderation & Audit
+## 4. Observability, Moderation & Audit 🔄 IN PROGRESS
 
 ### Milestones
 - [ ] Moderation service (toxicity filter, rule violations)

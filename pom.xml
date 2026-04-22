@@ -42,6 +42,8 @@
     <module>emcip-moderation-service</module>
     <module>emcip-audit-service</module>
     <module>emcip-admin-api</module>
+    <module>emcip-admin-ui</module>
+    <module>gatling-tests</module>
   </modules>
 
   <!-- SCM -->

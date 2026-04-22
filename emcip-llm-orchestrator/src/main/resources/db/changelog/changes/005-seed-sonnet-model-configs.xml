@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+        Seed claude-sonnet-4-6 model configs as inactive alternatives.
+        To switch from haiku to sonnet for a task type:
+          UPDATE model_configs SET active = false WHERE model_key = 'claude-haiku-<task>';
+          UPDATE model_configs SET active = true  WHERE model_key = 'claude-sonnet-<task>';
+        Priority 2 ensures haiku (priority 1) remains the default while both are active.
+    -->
+
+    <changeSet id="005-seed-sonnet-config-response" author="ecip">
+        <insert tableName="model_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="model_key" value="claude-sonnet-response"/>
+            <column name="provider" value="anthropic"/>
+            <column name="model_name" value="claude-sonnet-4-6"/>
+            <column name="description" value="Anthropic claude-sonnet-4-6 for high-quality response generation"/>
+            <column name="task_type" value="response"/>
+            <column name="input_cost_per_1k_tokens" valueNumeric="0.003"/>
+            <column name="output_cost_per_1k_tokens" valueNumeric="0.015"/>
+            <column name="context_window" valueNumeric="200000"/>
+            <column name="max_output_tokens" valueNumeric="8192"/>
+            <column name="avg_latency_ms" valueNumeric="2000.0"/>
+            <column name="supports_streaming" valueBoolean="true"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="priority" valueNumeric="2"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="005-seed-sonnet-config-summary" author="ecip">
+        <insert tableName="model_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="model_key" value="claude-sonnet-summary"/>
+            <column name="provider" value="anthropic"/>
+            <column name="model_name" value="claude-sonnet-4-6"/>
+            <column name="description" value="Anthropic claude-sonnet-4-6 for high-quality escalation summaries"/>
+            <column name="task_type" value="summary"/>
+            <column name="input_cost_per_1k_tokens" valueNumeric="0.003"/>
+            <column name="output_cost_per_1k_tokens" valueNumeric="0.015"/>
+            <column name="context_window" valueNumeric="200000"/>
+            <column name="max_output_tokens" valueNumeric="2048"/>
+            <column name="avg_latency_ms" valueNumeric="1500.0"/>
+            <column name="supports_streaming" valueBoolean="false"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="priority" valueNumeric="2"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="005-seed-sonnet-config-command-validation" author="ecip">
+        <insert tableName="model_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="model_key" value="claude-sonnet-command"/>
+            <column name="provider" value="anthropic"/>
+            <column name="model_name" value="claude-sonnet-4-6"/>
+            <column name="description" value="Anthropic claude-sonnet-4-6 for precise command validation"/>
+            <column name="task_type" value="command_validation"/>
+            <column name="input_cost_per_1k_tokens" valueNumeric="0.003"/>
+            <column name="output_cost_per_1k_tokens" valueNumeric="0.015"/>
+            <column name="context_window" valueNumeric="200000"/>
+            <column name="max_output_tokens" valueNumeric="1024"/>
+            <column name="avg_latency_ms" valueNumeric="1200.0"/>
+            <column name="supports_streaming" valueBoolean="false"/>
+            <column name="active" valueBoolean="false"/>
+            <column name="priority" valueNumeric="2"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

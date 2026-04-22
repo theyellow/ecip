@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMCIP Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+        /* Auth screen */
+        #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .login-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 40px; width: 100%; max-width: 400px; }
+        .login-card h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: #f1f5f9; }
+        .login-card p { color: #94a3b8; margin-bottom: 32px; font-size: 14px; }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        label { display: block; font-size: 13px; font-weight: 500; color: #94a3b8; margin-bottom: 6px; }
+        input { width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 14px; color: #f1f5f9; font-size: 14px; transition: border-color 0.15s; }
+        input:focus { outline: none; border-color: #6366f1; }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+        .btn-primary { background: #6366f1; color: white; width: 100%; justify-content: center; }
+        .btn-primary:hover { background: #5558e8; }
+        .btn-sm { padding: 6px 12px; font-size: 13px; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-secondary:hover { background: #475569; }
+
+        /* App layout */
+        #app { display: none; }
+        #app.visible { display: flex; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { width: 240px; background: #1e293b; border-right: 1px solid #334155; padding: 24px 0; flex-shrink: 0; display: flex; flex-direction: column; }
+        .sidebar-brand { padding: 0 20px 24px; border-bottom: 1px solid #334155; }
+        .sidebar-brand h2 { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+        .sidebar-brand span { font-size: 12px; color: #6366f1; }
+        .sidebar-nav { flex: 1; padding: 16px 0; }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: #94a3b8; font-size: 14px; cursor: pointer; transition: all 0.15s; border-left: 3px solid transparent; }
+        .nav-item:hover { color: #f1f5f9; background: #0f172a; }
+        .nav-item.active { color: #6366f1; background: #0f172a; border-left-color: #6366f1; }
+        .sidebar-footer { padding: 16px 20px; border-top: 1px solid #334155; }
+        .sidebar-footer button { width: 100%; }
+
+        /* Main content */
+        .main { flex: 1; overflow: auto; }
+        .page-header { padding: 32px 32px 0; border-bottom: 1px solid #1e293b; padding-bottom: 24px; margin-bottom: 32px; }
+        .page-header h1 { font-size: 22px; font-weight: 700; color: #f1f5f9; }
+        .page-header p { color: #64748b; font-size: 14px; margin-top: 4px; }
+        .page-body { padding: 0 32px 32px; }
+
+        /* Cards */
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; }
+        .card-header { padding: 16px 20px; border-bottom: 1px solid #334155; display: flex; align-items: center; justify-content: space-between; }
+        .card-header h3 { font-size: 15px; font-weight: 600; color: #f1f5f9; }
+
+        /* Table */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 16px; font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #334155; }
+        td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #1e293b; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #0f172a; }
+
+        /* Badges */
+        .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+        .badge-green { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .badge-red { background: rgba(239,68,68,0.15); color: #f87171; }
+        .badge-blue { background: rgba(99,102,241,0.15); color: #818cf8; }
+        .badge-yellow { background: rgba(234,179,8,0.15); color: #facc15; }
+
+        /* Modal */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 50; }
+        .modal { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 28px; width: 100%; max-width: 480px; }
+        .modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #f1f5f9; }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+
+        /* Misc */
+        .error-msg { color: #f87171; font-size: 13px; margin-top: 8px; }
+        .empty-state { text-align: center; padding: 48px; color: #64748b; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<!-- Auth screen -->
+<div id="auth-screen">
+    <div class="login-card">
+        <h1>EMCIP Admin</h1>
+        <p>Sign in to manage your platform</p>
+        <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="login-username" placeholder="admin" value="admin">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="password">
+        </div>
+        <div id="login-error" class="error-msg" style="display:none"></div>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="doLogin()">Sign In</button>
+    </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <h2>EMCIP</h2>
+            <span>Admin Console</span>
+        </div>
+        <nav class="sidebar-nav" id="sidebar-nav">
+            <div class="nav-item active" data-view="tenants" onclick="navigate('tenants')">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Tenants
+            </div>
+            <div class="nav-item" data-view="policy-rules" onclick="navigate('policy-rules')">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+                Policy Rules
+            </div>
+            <div class="nav-item" data-view="audit-log" onclick="navigate('audit-log')">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Audit Log
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="width:100%">Sign out</button>
+        </div>
+    </aside>
+
+    <main class="main" id="main-content"></main>
+</div>
+
+<script>
+'use strict';
+
+// ===== State =====
+var token = null;
+var API_BASE = 'http://localhost:9087';
+
+// ===== Escape helper to prevent XSS when inserting API data into HTML =====
+function esc(str) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(String(str == null ? '' : str)));
+    return d.innerHTML;
+}
+
+// ===== Auth =====
+function doLogin() {
+    var username = document.getElementById('login-username').value;
+    var password = document.getElementById('login-password').value;
+    var errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+
+    fetch(API_BASE + '/api/auth/token', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: username, password: password})
+    }).then(function(res) {
+        if (!res.ok) throw new Error('Invalid credentials');
+        return res.json();
+    }).then(function(data) {
+        token = data.token || data.access_token || data.jwt;
+        showApp();
+    }).catch(function(e) {
+        errEl.textContent = e.message || 'Login failed';
+        errEl.style.display = 'block';
+    });
+}
+
+function doLogout() {
+    token = null;
+    document.getElementById('app').classList.remove('visible');
+    document.getElementById('auth-screen').style.display = 'flex';
+}
+
+function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    navigate('tenants');
+}
+
+// ===== Navigation =====
+function navigate(view) {
+    document.querySelectorAll('.nav-item').forEach(function(el) {
+        el.classList.toggle('active', el.dataset.view === view);
+    });
+    var main = document.getElementById('main-content');
+    if (view === 'tenants') renderTenants(main);
+    else if (view === 'policy-rules') renderPolicyRules(main);
+    else if (view === 'audit-log') renderAuditLog(main);
+}
+
+// ===== API helpers =====
+function apiGet(path) {
+    return fetch(API_BASE + path, {
+        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+    }).then(function(res) {
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        return res.json();
+    });
+}
+
+function apiPost(path, body) {
+    return fetch(API_BASE + path, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    }).then(function(res) {
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        return res.json();
+    });
+}
+
+function apiDelete(path) {
+    return fetch(API_BASE + path, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+    }).then(function(res) {
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+    });
+}
+
+// ===== Tenants View =====
+function renderTenants(el) {
+    el.innerHTML =
+        '<div class="page-header">' +
+            '<h1>Tenants</h1>' +
+            '<p>Manage platform tenants and their configurations</p>' +
+        '</div>' +
+        '<div class="page-body">' +
+            '<div class="card">' +
+                '<div class="card-header">' +
+                    '<h3>All Tenants</h3>' +
+                    '<button class="btn btn-primary btn-sm" onclick="showCreateTenantModal()">+ New Tenant</button>' +
+                '</div>' +
+                '<div id="tenants-table-body"><div class="empty-state">Loading...</div></div>' +
+            '</div>' +
+        '</div>';
+
+    apiGet('/api/tenants').then(function(tenants) {
+        var tbody = document.getElementById('tenants-table-body');
+        if (!tenants || tenants.length === 0) {
+            tbody.innerHTML = '<div class="empty-state">No tenants yet. Create one to get started.</div>';
+            return;
+        }
+        var rows = tenants.map(function(t) {
+            return '<tr>' +
+                '<td><code style="font-size:12px;color:#94a3b8">' + esc(t.id) + '</code></td>' +
+                '<td>' + esc(t.name) + '</td>' +
+                '<td>' + (t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '\u2014') + '</td>' +
+                '<td><button class="btn btn-danger btn-sm" onclick="deleteTenant(\'' + esc(t.id) + '\')">Delete</button></td>' +
+                '</tr>';
+        }).join('');
+        tbody.innerHTML = '<table><thead><tr><th>ID</th><th>Name</th><th>Created</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }).catch(function(e) {
+        var tbody = document.getElementById('tenants-table-body');
+        if (tbody) tbody.innerHTML = '<div class="empty-state" style="color:#f87171">Error: ' + esc(e.message) + '</div>';
+    });
+}
+
+function showCreateTenantModal() {
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML =
+        '<div class="modal">' +
+            '<h3>Create Tenant</h3>' +
+            '<div class="form-group"><label>Tenant Name</label><input type="text" id="new-tenant-name" placeholder="e.g. Acme Corp"></div>' +
+            '<div id="modal-error" class="error-msg" style="display:none"></div>' +
+            '<div class="modal-actions">' +
+                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Cancel</button>' +
+                '<button class="btn btn-primary" onclick="createTenant(this)">Create</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(backdrop);
+}
+
+function createTenant(btn) {
+    var name = document.getElementById('new-tenant-name').value.trim();
+    var errEl = document.getElementById('modal-error');
+    if (!name) { errEl.textContent = 'Name required'; errEl.style.display='block'; return; }
+    apiPost('/api/tenants', {name: name}).then(function() {
+        btn.closest('.modal-backdrop').remove();
+        navigate('tenants');
+    }).catch(function(e) {
+        errEl.textContent = e.message; errEl.style.display='block';
+    });
+}
+
+function deleteTenant(id) {
+    if (!confirm('Delete this tenant?')) return;
+    apiDelete('/api/tenants/' + id).then(function() {
+        navigate('tenants');
+    }).catch(function(e) {
+        alert('Delete failed: ' + e.message);
+    });
+}
+
+// ===== Policy Rules View =====
+function renderPolicyRules(el) {
+    el.innerHTML =
+        '<div class="page-header">' +
+            '<h1>Policy Rules</h1>' +
+            '<p>Manage active policy rules and version history</p>' +
+        '</div>' +
+        '<div class="page-body">' +
+            '<div class="card">' +
+                '<div class="card-header">' +
+                    '<h3>Active Rules</h3>' +
+                    '<button class="btn btn-primary btn-sm" onclick="showCreateRuleModal()">+ New Rule Version</button>' +
+                '</div>' +
+                '<div id="rules-table-body"><div class="empty-state">Loading...</div></div>' +
+            '</div>' +
+        '</div>';
+
+    apiGet('/api/policy-rules').then(function(rules) {
+        var tbody = document.getElementById('rules-table-body');
+        if (!rules || rules.length === 0) {
+            tbody.innerHTML = '<div class="empty-state">No policy rules configured.</div>';
+            return;
+        }
+        var rows = rules.map(function(r) {
+            var statusClass = r.active ? 'badge-green' : 'badge-red';
+            var statusLabel = r.active ? 'Active' : 'Inactive';
+            var version = r.ruleVersion || r.rule_version || 1;
+            var fromDate = r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString() : 'Immediate';
+            return '<tr>' +
+                '<td>' + esc(r.name) + '</td>' +
+                '<td><span class="badge badge-blue">' + esc(r.action) + '</span></td>' +
+                '<td>v' + esc(version) + '</td>' +
+                '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+                '<td>' + fromDate + '</td>' +
+                '<td><button class="btn btn-secondary btn-sm" onclick="viewRuleHistory(\'' + esc(r.name) + '\')">History</button></td>' +
+                '</tr>';
+        }).join('');
+        tbody.innerHTML = '<table><thead><tr><th>Name</th><th>Action</th><th>Version</th><th>Status</th><th>Effective From</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }).catch(function(e) {
+        var tbody = document.getElementById('rules-table-body');
+        if (tbody) tbody.innerHTML = '<div class="empty-state" style="color:#f87171">Error: ' + esc(e.message) + '</div>';
+    });
+}
+
+function showCreateRuleModal() {
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML =
+        '<div class="modal">' +
+            '<h3>Create Rule Version</h3>' +
+            '<div class="form-group"><label>Rule Name</label><input type="text" id="new-rule-name" placeholder="e.g. spam-filter"></div>' +
+            '<div class="form-group"><label>Action</label>' +
+                '<select id="new-rule-action" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px">' +
+                    '<option>WARN</option><option>MUTE</option><option>BAN</option><option>ALLOW</option>' +
+                '</select>' +
+            '</div>' +
+            '<div class="form-group"><label>Priority</label><input type="number" id="new-rule-priority" placeholder="10" value="10"></div>' +
+            '<div id="modal-error" class="error-msg" style="display:none"></div>' +
+            '<div class="modal-actions">' +
+                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Cancel</button>' +
+                '<button class="btn btn-primary" onclick="createRule(this)">Create</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(backdrop);
+}
+
+function createRule(btn) {
+    var name = document.getElementById('new-rule-name').value.trim();
+    var action = document.getElementById('new-rule-action').value;
+    var priority = parseInt(document.getElementById('new-rule-priority').value) || 10;
+    var errEl = document.getElementById('modal-error');
+    if (!name) { errEl.textContent = 'Name required'; errEl.style.display='block'; return; }
+    apiPost('/api/policy-rules', {name: name, action: action, priority: priority, active: true}).then(function() {
+        btn.closest('.modal-backdrop').remove();
+        navigate('policy-rules');
+    }).catch(function(e) {
+        errEl.textContent = e.message; errEl.style.display='block';
+    });
+}
+
+function viewRuleHistory(name) {
+    apiGet('/api/policy-rules/' + encodeURIComponent(name) + '/history').then(function(history) {
+        var backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop';
+        var rows = (history || []).map(function(r) {
+            var activeClass = r.active ? 'badge-green' : 'badge-red';
+            var activeLabel = r.active ? 'Yes' : 'No';
+            return '<tr>' +
+                '<td>v' + esc(r.ruleVersion || 1) + '</td>' +
+                '<td>' + esc(r.action) + '</td>' +
+                '<td><span class="badge ' + activeClass + '">' + activeLabel + '</span></td>' +
+                '<td>' + (r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString() : '\u2014') + '</td>' +
+                '<td>' + (r.effectiveTo ? new Date(r.effectiveTo).toLocaleDateString() : '\u2014') + '</td>' +
+                '</tr>';
+        }).join('');
+        backdrop.innerHTML =
+            '<div class="modal" style="max-width:560px">' +
+                '<h3>Rule History: ' + esc(name) + '</h3>' +
+                '<table><thead><tr><th>Version</th><th>Action</th><th>Active</th><th>From</th><th>To</th></tr></thead>' +
+                '<tbody>' + rows + '</tbody></table>' +
+                '<div class="modal-actions">' +
+                    '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Close</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(backdrop);
+    }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+// ===== Audit Log View =====
+function renderAuditLog(el) {
+    el.innerHTML =
+        '<div class="page-header">' +
+            '<h1>Audit Log</h1>' +
+            '<p>Recent platform events and moderation actions</p>' +
+        '</div>' +
+        '<div class="page-body">' +
+            '<div class="card">' +
+                '<div class="card-header">' +
+                    '<h3>Recent Events</h3>' +
+                    '<button class="btn btn-secondary btn-sm" onclick="navigate(\'audit-log\')">Refresh</button>' +
+                '</div>' +
+                '<div id="audit-table-body"><div class="empty-state">Loading...</div></div>' +
+            '</div>' +
+        '</div>';
+
+    apiGet('/api/audit/events?size=50').then(function(events) {
+        var tbody = document.getElementById('audit-table-body');
+        var list = events.content || events || [];
+        if (list.length === 0) {
+            tbody.innerHTML = '<div class="empty-state">No audit events found.</div>';
+            return;
+        }
+        var rows = list.map(function(e) {
+            var ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '\u2014';
+            var type = e.eventType || e.event_type || '';
+            var actor = e.actorId || e.actor_id || 'system';
+            var payload = JSON.stringify(e.payload || {});
+            return '<tr>' +
+                '<td style="white-space:nowrap;color:#94a3b8">' + ts + '</td>' +
+                '<td><span class="badge badge-blue">' + esc(type) + '</span></td>' +
+                '<td>' + esc(actor) + '</td>' +
+                '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(payload) + '</td>' +
+                '</tr>';
+        }).join('');
+        tbody.innerHTML = '<table><thead><tr><th>Time</th><th>Type</th><th>Actor</th><th>Details</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }).catch(function(e) {
+        var tbody = document.getElementById('audit-table-body');
+        if (tbody) tbody.innerHTML = '<div class="empty-state" style="color:#f87171">Error: ' + esc(e.message) + '</div>';
+    });
+}
+
+// ===== Login on Enter =====
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('auth-screen').style.display !== 'none') doLogin();
+});
+</script>
+</body>
+</html>

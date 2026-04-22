@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="003-create-model-configs-table" author="ecip">
+        <comment>Create model_configs table for model routing configuration</comment>
+
+        <createTable tableName="model_configs">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="model_key" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="model_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="task_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="input_cost_per_1k_tokens" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="output_cost_per_1k_tokens" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="context_window" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_output_tokens" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="avg_latency_ms" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="supports_streaming" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="priority" type="INTEGER" defaultValueNumeric="100">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version_lock" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+                tableName="model_configs"
+                columnNames="model_key"
+                constraintName="uk_model_configs_key"/>
+
+        <createIndex indexName="idx_model_configs_active" tableName="model_configs">
+            <column name="active"/>
+        </createIndex>
+
+        <createIndex indexName="idx_model_configs_task_type" tableName="model_configs">
+            <column name="task_type"/>
+        </createIndex>
+
+        <createIndex indexName="idx_model_configs_provider" tableName="model_configs">
+            <column name="provider"/>
+        </createIndex>
+
+    </changeSet>
+
+</databaseChangeLog>

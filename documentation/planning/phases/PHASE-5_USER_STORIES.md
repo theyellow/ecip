@@ -34,6 +34,16 @@
 - [ ] US-5.5.3: Document backup/restore procedures
 - [ ] US-5.5.4: Add tests for backup/restore scenarios
 
+### Epic 5.6: Log Aggregation & Observability Dashboards
+- [ ] US-5.6.1: Add Grafana + Loki + Promtail to docker-compose (default stack)
+- [ ] US-5.6.2: Add Grafana dashboards for Prometheus metrics (error rate, Kafka lag, JVM)
+- [ ] US-5.6.3: Configure Promtail to ship Docker container JSON logs into Loki
+- [ ] US-5.6.4: Document observability stack usage and dashboard access
+
+> **Context:** All 8 services already emit structured JSON (logstash-logback-encoder) and expose
+> Prometheus metrics. The infrastructure layer (Loki, Promtail, Grafana) to consume them was
+> deferred from Phase 4 (US-4.2.4). This epic closes that gap.
+
 ---
 
 # User Stories (Details)
@@ -310,6 +320,66 @@ Add automated tests for backup and restore scenarios to ensure reliability.
 **Out-of-scope:** Manual backup testing
 **Hints:**
 - Use Testcontainers for DB tests.
+
+## US-5.6.1: Add Grafana + Loki + Promtail to docker-compose
+**Overview:**
+Add a lightweight log aggregation stack to the default docker-compose so developers can query logs
+from all 8 services in one place without external tooling.
+**Details:**
+- Add `grafana`, `loki`, and `promtail` services to `docker-compose.yml` (no profile — always-on)
+- Promtail reads Docker container log files from `/var/lib/docker/containers` and ships to Loki
+- Grafana pre-configured with Loki and Prometheus as data sources
+- Grafana available at `http://localhost:3000` (default credentials: admin/admin)
+**Acceptance Criteria:**
+- `docker compose up -d` starts Grafana, Loki, Promtail alongside application services
+- Logs from all 8 services visible in Grafana Explore within 30 seconds of service startup
+- Prometheus data source also connected (emcip metrics queryable)
+**In-scope:** docker-compose.yml, Promtail config, Grafana provisioning
+**Out-of-scope:** Production log shipping, cloud-hosted Grafana
+**Hints:**
+- Use `grafana/grafana:latest`, `grafana/loki:latest`, `grafana/promtail:latest`
+- Promtail pipeline_stages: use `json` parser since all services emit logstash JSON
+
+## US-5.6.2: Add Grafana dashboards for Prometheus metrics
+**Overview:**
+Create pre-built Grafana dashboards that are provisioned automatically on startup.
+**Details:**
+- Dashboard 1: Per-service health — request rate, error rate, JVM heap, GC pauses
+- Dashboard 2: Kafka consumer lag — per topic, per consumer group
+- Dashboard 3: Audit event throughput — events/min by event type
+- Dashboards provisioned via `grafana/provisioning/dashboards/` (JSON files, committed to repo)
+**Acceptance Criteria:**
+- Dashboards load automatically on first `docker compose up`
+- All 8 services appear in the service health dashboard
+- Kafka consumer lag visible for `telegram.messages`, `intent.classified`, `policy.decisions`, etc.
+**In-scope:** Grafana dashboard JSON, provisioning config
+**Out-of-scope:** Alerting rules, PagerDuty integration
+
+## US-5.6.3: Configure Promtail to ship Docker JSON logs into Loki
+**Overview:**
+Wire Promtail to read the structured JSON logs emitted by logstash-logback-encoder and make them
+queryable in Loki with useful labels.
+**Details:**
+- Extract labels from JSON log fields: `service_name`, `level`, `traceId`
+- LogQL queries become: `{service_name="emcip-audit-service"} |= "ERROR"`
+- Trace correlation: clicking a traceId in Grafana Explore links to related log lines
+**Acceptance Criteria:**
+- Each log line queryable by `service_name` and `level` in Loki
+- `traceId` and `spanId` extracted and searchable
+**In-scope:** Promtail pipeline config
+**Out-of-scope:** OpenTelemetry collector, Jaeger/Tempo
+
+## US-5.6.4: Document observability stack usage
+**Overview:**
+Write developer documentation covering the full observability setup.
+**Details:**
+- How to access Grafana (`localhost:3000`)
+- How to query logs in Loki (example LogQL queries for common scenarios)
+- How to read Prometheus metrics (example PromQL queries)
+- How to correlate a trace ID across logs and metrics
+**Acceptance Criteria:**
+- `documentation/developer/OBSERVABILITY.md` created and accurate
+- Covers all 4 observability pillars present in the stack (logs, metrics, traces, health)
 
 ---
 

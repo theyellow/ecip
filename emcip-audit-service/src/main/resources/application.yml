@@ -9,10 +9,28 @@ spring:
     username: emcip
     password: emcip
   liquibase:
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
+    user: ${SPRING_DATASOURCE_USERNAME:emcip}
+    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
+    consumer:
+      group-id: emcip-audit-service
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+audit:
+  retention:
+    days: 90
 
 management:
+  tracing:
+    sampling:
+      probability: 1.0
   endpoints:
     web:
       exposure:

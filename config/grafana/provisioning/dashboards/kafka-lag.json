@@ -1,0 +1,33 @@
+{
+  "annotations": { "list": [] },
+  "description": "Kafka consumer activity and dead-letter queue events",
+  "editable": true,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending" },
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "{container=~\"ecip-.*\"} |= \"ConsumerRecords\"", "refId": "A" }],
+      "title": "Kafka Consumer Activity",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "id": 2,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending" },
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "{container=~\"ecip-.*\"} |= \"dead-letter\"", "refId": "A" }],
+      "title": "Dead Letter Queue Events",
+      "type": "logs"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "tags": ["emcip", "kafka"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "EMCIP Kafka Consumer Lag",
+  "uid": "emcip-kafka-lag",
+  "version": 1
+}

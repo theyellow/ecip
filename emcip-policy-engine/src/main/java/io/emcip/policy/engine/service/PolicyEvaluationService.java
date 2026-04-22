@@ -2,18 +2,23 @@ package io.emcip.policy.engine.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.events.EventSchemas;
-import io.emcip.common.events.EventSchemas.PolicyDecisionEvent;
+import io.emcip.policy.engine.entity.PolicyDecision;
+import io.emcip.policy.engine.entity.PolicyRuleConfig;
+import io.emcip.policy.engine.repository.PolicyDecisionRepository;
+import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.time.ZonedDateTime;
+import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
+import org.springframework.transaction.annotation.Transactional;
 
-/** Policy evaluation service. Implements deterministic rule-based policy decisions. */
+/**
+ * Policy evaluation service implementing deterministic rule-based policy decisions. Evaluates
+ * intent classifications against configurable policy rules and persists decisions.
+ */
 @Service
 public class PolicyEvaluationService {
 
@@ -22,102 +27,254 @@ public class PolicyEvaluationService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final PolicyDecisionRepository decisionRepository;
+    private final PolicyRuleConfigRepository ruleConfigRepository;
+    private final PolicyActionService actionService;
 
-    // Simple policies for Phase 2
-    private final List<PolicyRule> policies =
+    // Default hardcoded rules for fallback
+    private final List<DefaultPolicyRule> defaultRules =
             List.of(
-                    new PolicyRule(
+                    new DefaultPolicyRule(
                             "policy-001",
                             "SPAM_BLOCK",
-                            (intent, confidence) -> "SPAM".equals(intent) && confidence > 0.8,
+                            "SPAM",
+                            0.8,
+                            null,
                             "BLOCK",
                             "Spam detected with high confidence"),
-                    new PolicyRule(
+                    new DefaultPolicyRule(
                             "policy-002",
                             "GREETING_RESPONSE",
-                            (intent, confidence) -> "GREETING".equals(intent) && confidence > 0.7,
+                            "GREETING",
+                            0.7,
+                            null,
                             "RESPOND",
                             "Greeting detected, auto-respond"),
-                    new PolicyRule(
+                    new DefaultPolicyRule(
                             "policy-003",
                             "QUESTION_ESCALATE",
-                            (intent, confidence) -> "QUESTION".equals(intent) && confidence > 0.75,
+                            "QUESTION",
+                            0.75,
+                            null,
                             "ESCALATE",
                             "Question requires human/AI response"),
-                    new PolicyRule(
+                    new DefaultPolicyRule(
                             "policy-004",
                             "COMMAND_EXECUTE",
-                            (intent, confidence) -> "COMMAND".equals(intent) && confidence > 0.8,
+                            "COMMAND",
+                            0.8,
+                            null,
                             "EXECUTE",
                             "Execute command if valid"),
-                    new PolicyRule(
+                    new DefaultPolicyRule(
                             "policy-005",
                             "MODERATION_CHECK",
-                            (intent, confidence) -> confidence < 0.3,
+                            "*",
+                            0.0,
+                            0.3,
                             "REVIEW",
                             "Low confidence classification requires review"));
 
     public PolicyEvaluationService(
-            KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
+            KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
+            PolicyDecisionRepository decisionRepository,
+            PolicyRuleConfigRepository ruleConfigRepository,
+            PolicyActionService actionService) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.decisionRepository = decisionRepository;
+        this.ruleConfigRepository = ruleConfigRepository;
+        this.actionService = actionService;
     }
 
-    /** Evaluate policies against an intent classification. */
-    public Mono<PolicyDecisionEvent> evaluate(EventSchemas.IntentClassifiedEvent classification) {
-        return Mono.fromCallable(
-                () -> {
-                    String decision = "ALLOW";
-                    String reason = "No policy matched";
-                    String matchedPolicyId = null;
+    /** Evaluate policies against an intent classification and persist the decision. */
+    @Transactional
+    public PolicyDecision evaluate(EventSchemas.IntentClassifiedEvent classification) {
+        String decision = "ALLOW";
+        String reason = "No policy matched";
+        String matchedPolicyId = null;
 
-                    // Evaluate all policies
-                    for (PolicyRule policy : policies) {
-                        if (policy.condition.test(
-                                classification.intent(), classification.confidence())) {
-                            decision = policy.action;
-                            reason = policy.reason;
-                            matchedPolicyId = policy.id;
-                            log.info(
-                                    "Policy {} matched for event {}: {} -> {}",
-                                    policy.id,
-                                    classification.sourceEventId(),
-                                    classification.intent(),
-                                    decision);
-                            break; // First match wins (priority order)
-                        }
-                    }
+        // Get active rules from database (ordered by priority)
+        List<PolicyRuleConfig> dbRules = ruleConfigRepository.findEffectiveRulesAt(Instant.now());
+        List<EvaluatedRule> rulesToEvaluate = new ArrayList<>();
 
-                    // Create decision event
-                    var decisionEvent =
-                            new PolicyDecisionEvent(
-                                    UUID.randomUUID().toString(),
-                                    Instant.now().toString(),
-                                    EventSchemas.POLICY_DECISION_V1,
-                                    "PolicyDecision",
-                                    classification.eventId(),
-                                    matchedPolicyId != null ? matchedPolicyId : "default",
-                                    decision,
-                                    reason,
-                                    Map.of(
-                                            "originalIntent", classification.intent(),
-                                            "confidence", classification.confidence(),
-                                            "matchedRules", classification.matchedRules()),
-                                    List.of(decision.toLowerCase()));
+        if (dbRules.isEmpty()) {
+            // Fallback to default hardcoded rules
+            log.debug("No database rules found, using default rules");
+            for (DefaultPolicyRule rule : defaultRules) {
+                rulesToEvaluate.add(
+                        new EvaluatedRule(
+                                rule.id,
+                                rule.name,
+                                rule.targetIntent,
+                                rule.minConfidence,
+                                rule.maxConfidence,
+                                rule.action,
+                                rule.reason));
+            }
+        } else {
+            for (PolicyRuleConfig rule : dbRules) {
+                rulesToEvaluate.add(
+                        new EvaluatedRule(
+                                rule.getId(),
+                                rule.getName(),
+                                rule.getTargetIntent(),
+                                rule.getMinConfidence(),
+                                rule.getMaxConfidence(),
+                                rule.getAction(),
+                                rule.getReason()));
+            }
+        }
 
-                    // Publish to Kafka
-                    String json = objectMapper.writeValueAsString(decisionEvent);
-                    kafkaTemplate.send(TOPIC_OUTPUT, classification.eventId(), json);
+        // Evaluate all rules (first match wins based on priority order)
+        for (EvaluatedRule rule : rulesToEvaluate) {
+            if (matchesRule(rule, classification.intent(), classification.confidence())) {
+                decision = rule.action;
+                reason = rule.reason;
+                matchedPolicyId = rule.id;
+                log.info(
+                        "Policy {} matched for event {}: {} -> {}",
+                        rule.id,
+                        classification.sourceEventId(),
+                        classification.intent(),
+                        decision);
+                break;
+            }
+        }
 
-                    return decisionEvent;
-                });
+        // Persist decision
+        PolicyDecision persistedDecision =
+                persistDecision(classification, matchedPolicyId, decision, reason);
+
+        // Publish to Kafka
+        try {
+            var decisionEvent =
+                    new EventSchemas.PolicyDecisionEvent(
+                            persistedDecision.getId(),
+                            Instant.now().toString(),
+                            EventSchemas.POLICY_DECISION_V1,
+                            "PolicyDecision",
+                            classification.eventId(),
+                            matchedPolicyId != null ? matchedPolicyId : "default",
+                            decision,
+                            reason,
+                            Map.of(
+                                    "originalIntent", classification.intent(),
+                                    "confidence", classification.confidence(),
+                                    "matchedRules", classification.matchedRules()),
+                            List.of(decision.toLowerCase()));
+
+            String json = objectMapper.writeValueAsString(decisionEvent);
+            kafkaTemplate.send(TOPIC_OUTPUT, classification.eventId(), json);
+        } catch (Exception e) {
+            log.error("Failed to publish policy decision to Kafka: {}", e.getMessage(), e);
+        }
+
+        // Execute the policy action
+        Map<String, Object> actionContext =
+                Map.of(
+                        "intent", classification.intent(),
+                        "confidence", classification.confidence(),
+                        "matchedRules", classification.matchedRules(),
+                        "parameters", classification.parameters());
+        actionService.executeAction(persistedDecision, actionContext);
+
+        return persistedDecision;
     }
 
-    private record PolicyRule(
-            String id, String name, PolicyCondition condition, String action, String reason) {}
+    /** Check if a rule matches the given intent and confidence. */
+    private boolean matchesRule(EvaluatedRule rule, String intent, double confidence) {
+        // Check intent match ("*" matches any)
+        boolean intentMatches = "*".equals(rule.targetIntent) || rule.targetIntent.equals(intent);
 
-    @FunctionalInterface
-    private interface PolicyCondition {
-        boolean test(String intent, double confidence);
+        // Check confidence range
+        boolean confidenceMatches =
+                confidence >= rule.minConfidence
+                        && (rule.maxConfidence == null || confidence <= rule.maxConfidence);
+
+        return intentMatches && confidenceMatches;
     }
+
+    /** Persist the policy decision to the database. */
+    private PolicyDecision persistDecision(
+            EventSchemas.IntentClassifiedEvent classification,
+            String matchedPolicyId,
+            String decision,
+            String reason) {
+        PolicyDecision policyDecision = new PolicyDecision();
+        policyDecision.setEventId(UUID.randomUUID().toString());
+        policyDecision.setSourceEventId(classification.eventId());
+        policyDecision.setPolicyId(matchedPolicyId != null ? matchedPolicyId : "default");
+        policyDecision.setDecision(decision);
+        policyDecision.setReason(reason);
+        policyDecision.setOriginalIntent(classification.intent());
+        policyDecision.setConfidence(classification.confidence());
+        policyDecision.setMatchedRules(Map.of("matchedRules", classification.matchedRules()));
+        policyDecision.setMetadata(
+                Map.of(
+                        "intent", classification.intent(),
+                        "confidence", classification.confidence()));
+        policyDecision.setTimestamp(Instant.now());
+
+        return decisionRepository.save(policyDecision);
+    }
+
+    /** Get all active policy rules (for admin/management purposes). */
+    public List<PolicyRuleConfig> getActiveRules() {
+        return ruleConfigRepository.findByActiveTrueOrderByPriorityAsc();
+    }
+
+    /** Returns true if the current time is within a configured time window (HH:mm format, UTC). */
+    static boolean matchesTimeWindow(Map<String, Object> conditions, ZonedDateTime now) {
+        if (conditions == null) return true;
+        String start = (String) conditions.get("timeWindowStart");
+        String end = (String) conditions.get("timeWindowEnd");
+        if (start == null || end == null) return true;
+        int nowMinutes = now.getHour() * 60 + now.getMinute();
+        int startMinutes = parseHhmm(start);
+        int endMinutes = parseHhmm(end);
+        if (startMinutes <= endMinutes) {
+            return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+        } else {
+            return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+        }
+    }
+
+    /** Returns true if context satisfies context-aware conditions (e.g. minThreadLength). */
+    static boolean matchesContextConditions(
+            Map<String, Object> conditions, Map<String, Object> context) {
+        if (conditions == null) return true;
+        Object minLen = conditions.get("minThreadLength");
+        if (minLen != null) {
+            int required = ((Number) minLen).intValue();
+            int actual = ((Number) context.getOrDefault("threadLength", 0)).intValue();
+            if (actual < required) return false;
+        }
+        return true;
+    }
+
+    private static int parseHhmm(String hhmm) {
+        String[] parts = hhmm.split(":");
+        return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
+    }
+
+    // Internal rule representations
+    private record DefaultPolicyRule(
+            String id,
+            String name,
+            String targetIntent,
+            Double minConfidence,
+            Double maxConfidence,
+            String action,
+            String reason) {}
+
+    private record EvaluatedRule(
+            String id,
+            String name,
+            String targetIntent,
+            Double minConfidence,
+            Double maxConfidence,
+            String action,
+            String reason) {}
 }

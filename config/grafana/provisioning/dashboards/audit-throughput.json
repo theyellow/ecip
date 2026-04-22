@@ -1,0 +1,42 @@
+{
+  "annotations": { "list": [] },
+  "description": "Audit event and moderation flag throughput over time",
+  "editable": true,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20 } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "sum(rate({service=\"audit-service\"} |= \"AuditEvent\" [5m]))", "legendFormat": "audit events/s", "refId": "A" }],
+      "title": "Audit Event Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 20 } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "sum(rate({service=\"moderation-service\"} |= \"ModerationFlag\" [5m]))", "legendFormat": "flags/s", "refId": "A" }],
+      "title": "Moderation Flag Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "Loki" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "showTime": true, "sortOrder": "Descending" },
+      "targets": [{ "datasource": { "type": "loki", "uid": "Loki" }, "expr": "{service=\"moderation-service\"} |= \"FLAGGED\"", "refId": "A" }],
+      "title": "Recent Moderation Flags",
+      "type": "logs"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["emcip", "audit"],
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "EMCIP Audit Throughput",
+  "uid": "emcip-audit-throughput",
+  "version": 1
+}

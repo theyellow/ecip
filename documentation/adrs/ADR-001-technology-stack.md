@@ -65,3 +65,7 @@ We will use the following technology stack:
 ## Notes
 
 This decision aligns with the project's goals for enterprise-grade reliability while maintaining developer productivity. Virtual threads specifically address our need for high concurrency with simpler code.
+
+## Amendment (2026-04-21)
+
+Java 21 is the current development and build target. Java 25 (next LTS) is the intended production target once it reaches GA and Spring Boot 4 adds official support. The pom.xml compiler target will be updated to 25 at that time. No source-level changes are required as Java 21+ code is forward-compatible.

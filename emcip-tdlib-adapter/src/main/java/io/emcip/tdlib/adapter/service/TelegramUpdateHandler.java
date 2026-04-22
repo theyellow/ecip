@@ -26,7 +26,7 @@ public class TelegramUpdateHandler {
     public void initializeHandlers() {
         tdLibClient.registerUpdateHandler("UpdateNewMessage", this::handleNewMessage);
         tdLibClient.registerUpdateHandler("UpdateMessageEdited", this::handleMessageEdited);
-        tdLibClient.registerUpdateHandler("UpdateMessageDeleted", this::handleMessageDeleted);
+        tdLibClient.registerUpdateHandler("UpdateDeleteMessages", this::handleMessageDeleted);
         tdLibClient.registerUpdateHandler("UpdateChatTitle", this::handleChatTitle);
         tdLibClient.registerUpdateHandler("UpdateUser", this::handleUserUpdate);
 
@@ -78,7 +78,7 @@ public class TelegramUpdateHandler {
     }
 
     private void handleMessageDeleted(TdApi.Update update) {
-        if (update instanceof TdApi.UpdateMessageDeleted deleted) {
+        if (update instanceof TdApi.UpdateDeleteMessages deleted) {
             log.debug("Messages deleted in chat {}", deleted.chatId);
 
             eventPublisher

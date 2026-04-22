@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <changeSet id="003" author="phase5">
+        <createIndex indexName="idx_policy_decisions_intent_created" tableName="policy_decisions">
+            <column name="original_intent"/>
+            <column name="timestamp"/>
+        </createIndex>
+        <createIndex indexName="idx_policy_decisions_source_event" tableName="policy_decisions">
+            <column name="source_event_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

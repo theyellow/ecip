@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <changeSet id="001-indexes" author="phase5">
+        <createIndex indexName="idx_audit_events_type_timestamp" tableName="audit_events">
+            <column name="event_type"/>
+            <column name="timestamp"/>
+        </createIndex>
+        <createIndex indexName="idx_audit_events_source_id" tableName="audit_events">
+            <column name="source_event_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

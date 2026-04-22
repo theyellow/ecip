@@ -2,7 +2,7 @@
 
 [![Java CI with Maven](https://github.com/theyellow/ecip/actions/workflows/maven.yml/badge.svg)](https://github.com/theyellow/ecip/actions/workflows/maven.yml)
 
-An enterprise-grade, microservice-based platform built on Java 25 and Spring Boot 4 that analyzes Telegram groups, channels, and discussion threads in real time, detects communication contexts, and reacts based on rules.
+An enterprise-grade, microservice-based platform built on Java 21 and Spring Boot 4 that analyzes Telegram groups, channels, and discussion threads in real time, detects communication contexts, and reacts based on rules.
 
 ## Overview
 
@@ -21,7 +21,7 @@ The platform acts as a context-sensitive communication assistant with four opera
 - **Group ID:** `io.emcip`
 - **Artifact ID:** `community-intelligence-parent`
 - **Version:** `0.1.0-SNAPSHOT`
-- **Java Version:** 25
+- **Java Version:** 21 (development target; Java 25 planned for production once GA)
 - **Spring Boot:** 4.x
 
 ## Module Structure
@@ -50,7 +50,7 @@ community-intelligence/
 │   └── pom.xml
 ├── emcip-admin-api/                        # Admin endpoints (port 9087)
 │   └── pom.xml
-└── docs/                                   # Documentation
+└── documentation/                          # Documentation
     ├── architecture.adoc
     ├── OPEN_QUESTIONS.md
     ├── DECISIONS_SUMMARY.md
@@ -100,7 +100,7 @@ mvn jacoco:report
 
 ### Docker Compose Setup
 
-A `docker-compose.yml` file will be provided in future user stories to set up:
+A `docker-compose.yml` is available in the project root. It starts:
 - Kafka (broker + Zookeeper)
 - PostgreSQL
 
@@ -125,11 +125,11 @@ This project enforces high code quality standards:
 
 ## Architecture
 
-See [architecture.adoc](docs/architecture.adoc) for detailed C4 diagrams, component breakdown, and technical decisions.
+See [architecture.adoc](documentation/architecture.adoc) for detailed C4 diagrams, component breakdown, and technical decisions.
 
 ### Key Technologies
 
-- **Java 25** - Modern Java features
+- **Java 21** - Modern Java features (virtual threads, records, sealed classes); Java 25 is the production target
 - **Spring Boot 4** - Microservices framework (WebFlux, Actuator, Security)
 - **Apache Kafka** - Event backbone (JSON serialization, no Schema Registry initially)
 - **PostgreSQL** - Persistent storage
@@ -139,11 +139,11 @@ See [architecture.adoc](docs/architecture.adoc) for detailed C4 diagrams, compon
 
 ## Documentation
 
-- [SOUL.md](docs/SOUL.md) - Vision, mission, and success criteria
-- [architecture.adoc](docs/architecture.adoc) - Technical architecture and decisions
-- [DECISIONS_SUMMARY.md](docs/DECISIONS_SUMMARY.md) - Consolidated technical decisions
-- [planning/MILESTONES.md](docs/planning/MILESTONES.md) - Project milestones and phases
-- [planning/DEEP-DIVE_MILESTONES.md](docs/planning/DEEP-DIVE_MILESTONES.md) - Sprint-level planning
+- [SOUL.md](documentation/SOUL.md) - Vision, mission, and success criteria
+- [architecture.adoc](documentation/architecture.adoc) - Technical architecture and decisions
+- [DECISIONS_SUMMARY.md](documentation/DECISIONS_SUMMARY.md) - Consolidated technical decisions
+- [planning/MILESTONES.md](documentation/planning/MILESTONES.md) - Project milestones and phases
+- [planning/DEEP-DIVE_MILESTONES.md](documentation/planning/DEEP-DIVE_MILESTONES.md) - Sprint-level planning
 
 ## Contributing
 

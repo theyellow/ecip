@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="001-create-prompt-templates-table" author="ecip">
+        <tagDatabase tag="v1.0.0-create-prompt-templates"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/001-create-prompt-templates-table.xml"/>
+
+    <changeSet id="002-create-model-cost-logs-table" author="ecip">
+        <tagDatabase tag="v1.0.0-create-model-cost-logs"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/002-create-model-cost-logs-table.xml"/>
+
+    <changeSet id="003-create-model-configs-table" author="ecip">
+        <tagDatabase tag="v1.0.0-create-model-configs"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/003-create-model-configs-table.xml"/>
+
+    <changeSet id="004-seed-initial-model-configs" author="ecip">
+        <tagDatabase tag="v1.0.0-seed-model-configs"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/004-seed-initial-model-configs.xml"/>
+
+    <changeSet id="005-seed-sonnet-model-configs" author="ecip">
+        <tagDatabase tag="v1.0.0-seed-sonnet-configs"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/005-seed-sonnet-model-configs.xml"/>
+
+    <changeSet id="006-add-tenant-id" author="phase5">
+        <tagDatabase tag="v1.0.0-add-tenant-id"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/006-add-tenant-id.xml"/>
+
+</databaseChangeLog>

@@ -1,0 +1,89 @@
+package io.emcip.audit.service.controller;
+
+import io.emcip.audit.service.entity.AuditEventEntity;
+import io.emcip.audit.service.service.AuditService;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+@RestController
+@RequestMapping("/api/audit")
+@Slf4j
+@RequiredArgsConstructor
+public class AuditController {
+
+    private final AuditService auditService;
+
+    /**
+     * Query audit events with optional filtering by event type and date range.
+     *
+     * @param eventType optional event type filter
+     * @param from optional ISO-8601 start timestamp; defaults to 24 hours ago
+     * @param to optional ISO-8601 end timestamp; defaults to now
+     */
+    @GetMapping("/events")
+    public Flux<AuditEventEntity> getEvents(
+            @RequestParam(required = false) String eventType,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+
+        Instant fromInstant =
+                from != null ? Instant.parse(from) : Instant.now().minus(24, ChronoUnit.HOURS);
+        Instant toInstant = to != null ? Instant.parse(to) : Instant.now();
+
+        if (eventType != null) {
+            return auditService.findByEventTypeAndDateRange(eventType, fromInstant, toInstant);
+        }
+        return auditService.findByDateRange(fromInstant, toInstant);
+    }
+
+    /**
+     * Retrieve a single audit event by its idempotency key.
+     *
+     * @param eventId the unique event identifier
+     */
+    @GetMapping("/events/{eventId}")
+    public Mono<ResponseEntity<AuditEventEntity>> getEvent(@PathVariable String eventId) {
+        return auditService
+                .findByEventId(eventId)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Return a summary of event counts grouped by event type for the given time window.
+     *
+     * @param from optional ISO-8601 start timestamp; defaults to 24 hours ago
+     * @param to optional ISO-8601 end timestamp; defaults to now
+     */
+    @GetMapping("/summary")
+    public Mono<Map<String, Long>> getSummary(
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+
+        Instant fromInstant =
+                from != null ? Instant.parse(from) : Instant.now().minus(24, ChronoUnit.HOURS);
+        Instant toInstant = to != null ? Instant.parse(to) : Instant.now();
+
+        return auditService
+                .findByDateRange(fromInstant, toInstant)
+                .collectMultimap(AuditEventEntity::getEventType)
+                .map(
+                        multimap ->
+                                multimap.entrySet().stream()
+                                        .collect(
+                                                java.util.stream.Collectors.toMap(
+                                                        Map.Entry::getKey,
+                                                        e -> (long) e.getValue().size())));
+    }
+}

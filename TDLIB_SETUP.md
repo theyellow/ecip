@@ -15,23 +15,48 @@ This guide explains how to set up and run the TDLib Adapter for connecting EMCIP
 
 ## Getting TDLib Java Bindings
 
-**Current State:** The project includes stub classes in `org.drinkless.tdlib` for compilation. You must replace these with the real TDLib library.
+**Current State:** The project includes stub classes in `org.drinkless.tdlib` for compilation only. At
+runtime, the real TDLib native library (`libtdjni.so`) must be present. The Dockerfile handles this
+automatically by building TDLib from source inside Docker.
 
-### Option 1: Download Pre-built JAR (Recommended)
+> **Note:** TDLib does **not** publish pre-built JARs on GitHub releases. The GitHub releases page
+> contains source archives only. You must build from source or use Docker (recommended).
 
-Check the TDLib GitHub releases or community builds:
+### Option 1: Docker (Recommended) — No manual TDLib setup required
+
+The `emcip-tdlib-adapter/Dockerfile` is a multi-stage build that:
+1. Clones TDLib v1.8.29 and builds the native library (`libtdjni.so`)
+2. Replaces the compile-time stubs with real generated Java sources
+3. Packages everything into a self-contained JRE image
+
+**Setup:**
 
 ```bash
-# Create lib directory
-mkdir -p emcip-tdlib-adapter/lib
+# 1. Copy the environment template and fill in your credentials
+cp .env.example .env
+# Edit .env and set TELEGRAM_API_ID and TELEGRAM_API_HASH
 
-# Download from official source (check latest release)
-# URL varies by version - see: https://github.com/tdlib/td/releases
-curl -L -o emcip-tdlib-adapter/lib/tdlib.jar \
-  https://github.com/tdlib/td/releases/download/v1.8.29/tdlib-1.8.29.jar
+# 2. Start infrastructure + tdlib-adapter (first build takes 15-30 min)
+docker compose --profile telegram up -d
+
+# 3. Authenticate (see "Authentication" section below)
+curl http://localhost:9080/api/auth/status
 ```
 
-### Option 2: Build from Source (Full Control)
+The build result is cached in Docker layer cache — subsequent starts are fast.
+
+**Multi-arch builds** (Apple Silicon, ARM servers):
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t emcip-tdlib-adapter:latest \
+  ./emcip-tdlib-adapter
+```
+
+QEMU handles cross-compilation automatically when buildx is configured.
+
+### Option 2: Build from Source (non-Docker, local development)
 
 **Prerequisites:**
 - C++ compiler (GCC 7+ or Clang 5+)
@@ -72,9 +97,11 @@ sudo apt-get install libtdlib-dev
 
 # macOS with Homebrew
 brew install tdlib
-
-# Note: Package managers often have older versions. Check version matches stubs.
 ```
+
+> **Warning:** Package managers typically install an older TDLib version and may **not** include the
+> Java JNI bindings (`libtdjni.so`). Verify with: `find /usr -name 'libtdjni*' 2>/dev/null`
+> If the library is absent, use Option 1 (Docker) or Option 2 (build from source) instead.
 
 ## Integrating Real TDLib
 
@@ -198,7 +225,11 @@ export TDLIB_FILES_DIR=tdlib-files             # TDLib files directory
 ### 1. Start Infrastructure
 
 ```bash
-docker-compose up -d kafka zookeeper
+# Infrastructure only (Kafka, PostgreSQL, etc.)
+docker compose up -d kafka zookeeper postgres
+
+# Or with tdlib-adapter via Docker (recommended):
+docker compose --profile telegram up -d
 ```
 
 ### 2. Run the Adapter
@@ -286,32 +317,34 @@ docker exec -it ecip-kafka kafka-console-consumer \
 
 ## Troubleshooting
 
-### "TDLib native library not found"
+### `UnsatisfiedLinkError: no tdjni in java.library.path`
 
-You need to build or download the TDLib native library:
+This is the most common failure. It means the TDLib native library is not found at runtime.
 
-**Option 1: Build from source**
+**If running via Docker:** The Dockerfile handles this automatically. Ensure you're using the
+provided `Dockerfile` (not a custom one). Rebuild if needed:
 ```bash
-git clone https://github.com/tdlib/td.git
-cd td
-mkdir build && cd build
-cmake ..
-cmake --build . --target install
+docker compose build tdlib-adapter
 ```
 
-**Option 2: Use pre-built**
-Check if your package manager has TDLib:
+**If running locally (mvn spring-boot:run):** You need to build TDLib from source and point the
+JVM to the native library:
 ```bash
-# Ubuntu/Debian
-sudo apt-get install libtdlib-dev
+# After building TDLib (see Option 2 above), run with:
+LD_LIBRARY_PATH=/path/to/td/build java \
+  -Djava.library.path=/path/to/td/build \
+  -jar target/emcip-tdlib-adapter.jar
 
-# macOS
-brew install tdlib
+# Or set it for the Maven run:
+export LD_LIBRARY_PATH=/path/to/td/build
+mvn spring-boot:run
 ```
 
-Then set the library path:
+**Verify TDLib is loaded:** Once the application starts, check:
 ```bash
-export LD_LIBRARY_PATH=/path/to/tdlib/lib:$LD_LIBRARY_PATH
+curl http://localhost:9080/actuator/health
+# "tdlib": {"status": "UP"} means the native library loaded correctly
+# "tdlib": {"status": "DOWN"} means the library failed to load (check logs)
 ```
 
 ### "Authorization state: WaitPhoneNumber"
@@ -392,9 +425,27 @@ Messages are published to `telegram.raw.messages` topic as JSON:
 
 ## Docker Deployment
 
-The adapter can run in Docker. Note: TDLib requires native libraries, so the Dockerfile must include them.
+Docker is the recommended deployment path. The multi-stage `Dockerfile` builds TDLib from source,
+installs the native library, and packages the Spring Boot app — no host-side setup needed.
 
-See `emcip-tdlib-adapter/Dockerfile` for the multi-stage build that includes TDLib.
+```bash
+# Start via docker-compose (uses the telegram profile):
+docker compose --profile telegram up -d tdlib-adapter
+
+# Monitor startup (first build takes 15-30 min):
+docker compose logs -f tdlib-adapter
+
+# Once running, check health:
+curl http://localhost:9080/actuator/health
+```
+
+**Session persistence:** TDLib session data is stored in Docker volumes `tdlib-data` and
+`tdlib-files`. These persist across container restarts. To reset (forces re-authentication):
+```bash
+docker compose down -v  # WARNING: deletes all volumes including postgres data
+# Or target only tdlib volumes:
+docker volume rm ecip_tdlib-data ecip_tdlib-files
+```
 
 ## Further Reading
 
