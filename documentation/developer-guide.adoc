@@ -1,0 +1,520 @@
+= EMCIP Developer Guide
+:toc:
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+== Quick Start
+
+*Prerequisites:* Java 21+, Docker Desktop, Maven 3.9+.
+
+[source,bash]
+----
+# 1. Clone
+git clone <repo-url>
+cd emcip
+
+# 2. Build (skip tests for speed)
+mvn install -DskipTests
+
+# 3. Start infrastructure
+docker compose up -d postgres kafka zookeeper
+
+# 4. Run a service (example: admin-api)
+mvn spring-boot:run -pl emcip-admin-api
+----
+
+The admin-api starts on port 9087. Health check: `curl http://localhost:9087/actuator/health`.
+
+NOTE: For the complete Docker Compose setup including all profiles and port assignments, see the _Operations Guide_.
+
+NOTE: For the architectural context of these services, see the _Architecture Guide_.
+
+== Module Structure
+
+The project is a Maven multi-module build with a single parent POM (`community-intelligence-parent:0.1.0-SNAPSHOT`).
+
+[cols="2,1,3"]
+|===
+|Module |Type |Owns
+
+|`emcip-core`
+|Library
+|Shared: `CommonKafkaConfig`, `TenantContext`, `TenantAwareKafkaSupport`, base event classes, common utilities.
+
+|`emcip-tdlib-adapter`
+|Service
+|TDLib integration, raw message ingestion, `telegram.raw.messages` producer.
+
+|`emcip-conversation-context`
+|Service
+|Chat / User / Message entities, thread tracking, `context.threads` producer.
+
+|`emcip-intent-classifier`
+|Service
+|Intent classification via NLP, `messages.classified` producer.
+
+|`emcip-policy-engine`
+|Service
+|Policy rule evaluation, versioned rules, `policies.decisions` producer.
+
+|`emcip-llm-orchestrator`
+|Service
+|LLM provider routing (Claude, OpenAI, Ollama), `responses.generated` producer.
+
+|`emcip-moderation-service`
+|Service
+|Keyword/regex/length rule enforcement, `moderation.flags` producer.
+
+|`emcip-audit-service`
+|Service
+|Append-only audit log, aggregates events from all topics.
+
+|`emcip-admin-api`
+|Service
+|REST management API (tenants, policy rules, audit, auth).
+
+|`emcip-admin-ui`
+|Service
+|Spring Boot wrapper serving the React SPA on port 14009.
+
+|`gatling-tests`
+|Test module
+|Gatling 3.11 load simulations. Excluded from standard `mvn test`. Run via `cd gatling-tests && mvn gatling:test`.
+|===
+
+== Development Patterns
+
+=== JPA Entities (Phase 2/3 services)
+
+Every JPA entity follows this pattern:
+
+[source,java]
+----
+@Entity
+@Table(name = "my_entity")
+@Data
+@NoArgsConstructor
+public class MyEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(nullable = false, updatable = false)
+    private UUID id;
+
+    @Version
+    private Long version;          // optimistic locking
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false)
+    private UUID tenantId;         // row-level tenant isolation
+
+    @CreatedDate
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+
+    @LastModifiedDate
+    private Instant updatedAt;
+}
+----
+
+Key rules:
+
+* UUID primary keys, never `BIGSERIAL`.
+* `@Version` on every entity for optimistic locking.
+* `@Column(nullable = false)` on every non-null column — never rely on database defaults.
+* Use Lombok `@Data` + `@NoArgsConstructor` — never write manual getters/setters.
+* Enable `@EnableJpaAuditing` on the `@SpringBootApplication` class for `@CreatedDate`/`@LastModifiedDate`.
+
+=== Kafka Producers and Consumers
+
+All Kafka configuration inherits from `CommonKafkaConfig` in `emcip-core`:
+
+[source,java]
+----
+// Producing an event
+@RequiredArgsConstructor
+@Service
+public class MessagePublisher {
+
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    public void publish(TelegramRawMessageEvent event) {
+        kafkaTemplate.send("telegram.raw.messages", event.getEventId().toString(), event);
+    }
+}
+----
+
+[source,java]
+----
+// Consuming events
+@Slf4j
+@Service
+public class MessageConsumer {
+
+    @KafkaListener(topics = "telegram.raw.messages", groupId = "intent-classifier")
+    public void consume(TelegramRawMessageEvent event) {
+        log.info("Received event: {}", event.getEventId());
+        // process...
+    }
+}
+----
+
+*DLQ pattern:* Failed messages after retry exhaustion are routed to `<topic>.dlq` by `CommonKafkaConfig`. Monitor via Kafka UI (port 14004).
+
+*Tenant propagation:* Use `TenantAwareKafkaSupport` when producing — it adds the `tenant_id` header automatically from `TenantContext`.
+
+=== Liquibase Migrations
+
+Every service has one master changelog at `src/main/resources/db/changelog/db.changelog-master.xml`.
+
+[source,xml]
+----
+<!-- db.changelog-master.xml -->
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.0.xsd">
+    <include file="db/changelog/2026-04-15-1-initial-schema.xml"
+             relativeToChangelogFile="false"/>
+    <!-- Add new changesets here. Never modify existing ones. -->
+</databaseChangeLog>
+----
+
+Individual changeset naming: `YYYY-MM-DD-N-description.xml`.
+
+Rules:
+
+* *Never Flyway* — this project uses Liquibase exclusively.
+* Never modify a committed changeset — always add a new one.
+* For a new column: `<addColumn>`, not `<modifyColumn>`.
+* Include `<rollback>` tags for destructive operations.
+
+=== Spotless Formatting
+
+Run before every commit:
+
+[source,bash]
+----
+mvn spotless:apply
+----
+
+Expected output: `0 were changed to be clean` (the zero is the important number — it means no files needed formatting).
+
+If files were changed: `git add -A && git commit --amend --no-edit`.
+
+CI enforces `mvn spotless:check` in the `verify` phase. A failing Spotless check blocks the build.
+
+== Kafka Topics Reference
+
+[cols="2,2,2,2"]
+|===
+|Topic |Producer |Consumer(s) |Key fields
+
+|`telegram.raw.messages`
+|tdlib-adapter
+|intent-classifier, audit-service
+|`eventId`, `chatId`, `text`, `senderId`
+
+|`telegram.raw.updates`
+|tdlib-adapter
+|conversation-context
+|`eventId`, `updateType`, `payload`
+
+|`messages.classified`
+|intent-classifier
+|policy-engine, audit-service
+|`eventId`, `intentType`, `confidence`, `originalMessageId`
+
+|`context.threads`
+|conversation-context
+|policy-engine
+|`eventId`, `threadId`, `messageCount`
+
+|`policies.decisions`
+|policy-engine
+|llm-orchestrator, moderation-service, audit-service
+|`eventId`, `decision`, `ruleId`, `reasoning`
+
+|`responses.generated`
+|llm-orchestrator
+|audit-service
+|`eventId`, `model`, `promptTokens`, `completionTokens`
+
+|`moderation.flags`
+|moderation-service
+|audit-service
+|`eventId`, `flagType`, `pattern`, `action`
+
+|`audit.events`
+|all services
+|audit-service
+|`eventId`, `eventType`, `sourceService`, `payload`
+|===
+
+Full JSON schemas are in `documentation/archive/old-root-docs/EVENT_SCHEMAS.md`.
+
+== Service APIs
+
+=== Health and Metrics (all services)
+
+Every service exposes standard Spring Boot Actuator endpoints:
+
+[source,bash]
+----
+# Liveness / Readiness
+curl http://localhost:<port>/actuator/health
+
+# Prometheus scrape endpoint
+curl http://localhost:<port>/actuator/prometheus
+----
+
+Ports: 9080 (tdlib-adapter) through 9087 (admin-api). See the _Operations Guide_ for the full port table.
+
+=== Admin API Endpoints Summary
+
+[cols="1,2,2"]
+|===
+|Method + Path |Description |Auth
+
+|`POST /api/auth/token`
+|Issue JWT; body: `{username, password}`
+|None
+
+|`GET /api/tenants`
+|List all tenants
+|Bearer token
+
+|`POST /api/tenants`
+|Create tenant; body: `{name}`
+|Bearer token
+
+|`DELETE /api/tenants/{id}`
+|Delete tenant (cascades data)
+|Bearer token
+
+|`GET /api/policy-rules`
+|List active policy rules
+|Bearer token
+
+|`POST /api/policy-rules`
+|Create new version; deactivates previous
+|Bearer token
+
+|`GET /api/policy-rules/{name}/history`
+|Full version history for a named rule
+|Bearer token
+
+|`GET /api/audit/events`
+|Paginated audit events; params: `size`, `page`, `eventType`, `from`, `to`
+|Bearer token
+
+|`GET /api/audit/events/{id}`
+|Single audit event with full payload
+|Bearer token
+
+|`GET /api/audit/summary`
+|Event counts by type
+|Bearer token
+
+|`GET /api/admin/moderation-rules`
+|List all moderation rules
+|Bearer token
+
+|`POST /api/admin/moderation-rules`
+|Create rule; body: `{ruleType, pattern, action, enabled}`
+|Bearer token
+
+|`DELETE /api/admin/moderation-rules/{id}`
+|Delete moderation rule
+|Bearer token
+|===
+
+== Testing
+
+=== Testcontainers (Integration Tests)
+
+Services with database operations use `TestcontainersInitializer` to spin up a real PostgreSQL container:
+
+[source,java]
+----
+@SpringBootTest
+@ContextConfiguration(initializers = TestcontainersInitializer.class)
+class PolicyEngineIntegrationTest {
+
+    @Autowired
+    private PolicyRuleRepository policyRuleRepository;
+
+    @Test
+    void shouldEvaluateActiveRule() {
+        // Arrange — insert rule using real DB
+        var rule = new PolicyRuleConfig();
+        rule.setName("spam-block");
+        rule.setAction("BLOCK");
+        rule.setActive(true);
+        policyRuleRepository.save(rule);
+
+        // Act
+        var decision = policyEvaluationService.evaluate("SPAM", "tenantA");
+
+        // Assert
+        assertThat(decision.getDecision()).isEqualTo("BLOCK");
+    }
+}
+----
+
+=== Unit Tests (Mockito)
+
+[source,java]
+----
+@ExtendWith(MockitoExtension.class)
+class IntentClassifierServiceTest {
+
+    @Mock
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    @InjectMocks
+    private IntentClassifierService service;
+
+    @Test
+    void shouldClassifyGreetingIntent() {
+        var result = service.classify("Hello, how are you?");
+        assertThat(result.getIntentType()).isEqualTo("GREETING");
+    }
+}
+----
+
+=== Backup/Restore Integration Test
+
+Gated by the environment variable `ECIP_IT_ENABLED=true`:
+
+[source,bash]
+----
+ECIP_IT_ENABLED=true mvn test -pl emcip-audit-service -Dtest=BackupRestoreIT
+----
+
+=== Gatling Load Tests
+
+[source,bash]
+----
+cd gatling-tests
+mvn gatling:test
+# Results at: gatling-tests/target/gatling/*/index.html
+----
+
+Simulations are in `gatling-tests/src/test/java/io/emcip/perf/`. They are excluded from the standard `mvn test` run via surefire `<skipTests>true</skipTests>`.
+
+== TDLib Integration
+
+=== Why TDLib (not Bot API)
+
+EMCIP connects as a *real Telegram user*, not a bot. This provides access to private groups, full message history, and member lists — capabilities unavailable via the Bot API.
+
+=== Docker Build
+
+The TDLib adapter builds TDLib from source inside Docker. The first build takes 15–30 minutes. Subsequent builds use the Docker layer cache.
+
+[source,bash]
+----
+# Build tdlib-adapter image (runs from repo root)
+docker compose build tdlib-adapter
+
+# Or with no-cache to force recompile
+docker compose build --no-cache tdlib-adapter
+----
+
+=== Authentication
+
+Required environment variables:
+
+[source,bash]
+----
+TELEGRAM_API_ID=<your-api-id>
+TELEGRAM_API_HASH=<your-api-hash>
+TELEGRAM_PHONE_NUMBER=+<country><number>
+----
+
+Obtain `API_ID` and `API_HASH` from https://my.telegram.org. On first startup, TDLib prompts for the SMS verification code via stdin.
+
+=== Troubleshooting `UnsatisfiedLinkError`
+
+If the service throws `java.lang.UnsatisfiedLinkError: libtdjni.so: cannot open shared object file`, the native library was not compiled or is in the wrong path.
+
+[source,bash]
+----
+# Rebuild from scratch
+docker compose build --no-cache tdlib-adapter
+
+# Verify the .so file is present
+docker compose run --rm tdlib-adapter ls /usr/local/lib/libtdjni.so
+----
+
+== Message Pipeline Walkthrough
+
+The three diagrams below trace a message from Telegram arrival to audit log entry.
+
+=== Full Message Lifecycle
+
+[plantuml,seq-lifecycle,png]
+----
+include::diagrams/sequence-full-message-lifecycle.puml[]
+----
+
+=== Policy Evaluation Detail
+
+[plantuml,seq-policy-eval,png]
+----
+include::diagrams/sequence-policy-evaluation.puml[]
+----
+
+=== LLM Orchestration Detail
+
+[plantuml,seq-llm,png]
+----
+include::diagrams/sequence-llm-orchestration.puml[]
+----
+
+== Contributing
+
+=== Branch Strategy
+
+[source,bash]
+----
+# Feature work
+git checkout -b feat/my-feature
+
+# Bug fix
+git checkout -b fix/my-bug
+
+# After all tests pass and Spotless is clean:
+git push origin feat/my-feature
+# Open PR to main
+----
+
+=== Commit Format
+
+[source]
+----
+feat(scope): short description
+
+Longer explanation of why the change was made.
+Reference any user story: US-3.2.1.
+----
+
+Common scopes: `policy-engine`, `admin-api`, `kafka`, `liquibase`, `diagrams`.
+
+One commit minimum per user story. Squash WIP commits before opening a PR.
+
+=== Pre-commit Checklist
+
+[source,bash]
+----
+mvn spotless:apply          # Format code
+mvn test                    # All tests pass
+mvn spotless:check          # Verify formatting (CI will check this)
+----
+
+CI runs `mvn verify` on every PR. A Spotless violation or failing test blocks merge.
