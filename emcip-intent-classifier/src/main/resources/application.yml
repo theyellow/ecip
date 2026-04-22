@@ -17,8 +17,11 @@ spring:
       group-id: intent-classifier
       auto-offset-reset: earliest
       enable-auto-commit: false
+      max-poll-records: 500
+      fetch-min-size: 1
+      fetch-max-wait: 500
       properties:
-        max.poll.records: 100
+        max.poll.records: 500
     listener:
       ack-mode: manual_immediate
 
