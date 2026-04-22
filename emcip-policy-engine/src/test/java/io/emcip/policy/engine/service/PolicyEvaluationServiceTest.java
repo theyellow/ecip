@@ -54,7 +54,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should use default rules when no database rules exist")
     void shouldUseDefaultRulesWhenNoDbRules() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any()))
                 .thenAnswer(
@@ -91,7 +91,7 @@ class PolicyEvaluationServiceTest {
         customRule.setPriority(10);
         customRule.setActive(true);
 
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(List.of(customRule));
         when(decisionRepository.save(any()))
                 .thenAnswer(
@@ -116,7 +116,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match SPAM intent with high confidence")
     void shouldMatchSpamWithHighConfidence() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -134,7 +134,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should not match SPAM with low confidence")
     void shouldNotMatchSpamWithLowConfidence() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -152,7 +152,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match GREETING intent with sufficient confidence")
     void shouldMatchGreeting() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -169,7 +169,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match QUESTION intent")
     void shouldMatchQuestion() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -186,7 +186,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should match COMMAND intent")
     void shouldMatchCommand() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -203,7 +203,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should trigger moderation check for low confidence")
     void shouldTriggerModerationForLowConfidence() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -221,7 +221,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should persist decision with correct metadata")
     void shouldPersistDecisionWithCorrectMetadata() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -246,7 +246,7 @@ class PolicyEvaluationServiceTest {
     @DisplayName("Should publish event to Kafka")
     void shouldPublishEventToKafka() {
         // Given
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(Collections.emptyList());
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -274,7 +274,7 @@ class PolicyEvaluationServiceTest {
         wildcardRule.setPriority(5);
         wildcardRule.setActive(true);
 
-        when(ruleConfigRepository.findByActiveTrueOrderByPriorityAsc())
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
                 .thenReturn(List.of(wildcardRule));
         when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

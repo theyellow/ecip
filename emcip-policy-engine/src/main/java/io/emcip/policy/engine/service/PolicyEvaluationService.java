@@ -7,6 +7,7 @@ import io.emcip.policy.engine.entity.PolicyRuleConfig;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
 import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
 import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,7 +96,7 @@ public class PolicyEvaluationService {
         String matchedPolicyId = null;
 
         // Get active rules from database (ordered by priority)
-        List<PolicyRuleConfig> dbRules = ruleConfigRepository.findByActiveTrueOrderByPriorityAsc();
+        List<PolicyRuleConfig> dbRules = ruleConfigRepository.findEffectiveRulesAt(Instant.now());
         List<EvaluatedRule> rulesToEvaluate = new ArrayList<>();
 
         if (dbRules.isEmpty()) {
@@ -222,6 +223,40 @@ public class PolicyEvaluationService {
     /** Get all active policy rules (for admin/management purposes). */
     public List<PolicyRuleConfig> getActiveRules() {
         return ruleConfigRepository.findByActiveTrueOrderByPriorityAsc();
+    }
+
+    /** Returns true if the current time is within a configured time window (HH:mm format, UTC). */
+    static boolean matchesTimeWindow(Map<String, Object> conditions, ZonedDateTime now) {
+        if (conditions == null) return true;
+        String start = (String) conditions.get("timeWindowStart");
+        String end = (String) conditions.get("timeWindowEnd");
+        if (start == null || end == null) return true;
+        int nowMinutes = now.getHour() * 60 + now.getMinute();
+        int startMinutes = parseHhmm(start);
+        int endMinutes = parseHhmm(end);
+        if (startMinutes <= endMinutes) {
+            return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+        } else {
+            return nowMinutes >= startMinutes || nowMinutes < endMinutes;
+        }
+    }
+
+    /** Returns true if context satisfies context-aware conditions (e.g. minThreadLength). */
+    static boolean matchesContextConditions(
+            Map<String, Object> conditions, Map<String, Object> context) {
+        if (conditions == null) return true;
+        Object minLen = conditions.get("minThreadLength");
+        if (minLen != null) {
+            int required = ((Number) minLen).intValue();
+            int actual = ((Number) context.getOrDefault("threadLength", 0)).intValue();
+            if (actual < required) return false;
+        }
+        return true;
+    }
+
+    private static int parseHhmm(String hhmm) {
+        String[] parts = hhmm.split(":");
+        return Integer.parseInt(parts[0]) * 60 + Integer.parseInt(parts[1]);
     }
 
     // Internal rule representations

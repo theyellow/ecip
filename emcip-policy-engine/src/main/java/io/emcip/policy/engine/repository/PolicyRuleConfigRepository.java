@@ -1,6 +1,7 @@
 package io.emcip.policy.engine.repository;
 
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,17 @@ public interface PolicyRuleConfigRepository extends JpaRepository<PolicyRuleConf
 
     /** Find all active rules ordered by priority. */
     List<PolicyRuleConfig> findByActiveTrueOrderByPriorityAsc();
+
+    /** Find rules that are active and temporally effective at the given instant. */
+    @Query(
+            """
+            SELECT r FROM PolicyRuleConfig r
+            WHERE r.active = true
+              AND (r.effectiveFrom IS NULL OR r.effectiveFrom <= :at)
+              AND (r.effectiveTo IS NULL OR r.effectiveTo > :at)
+            ORDER BY r.priority ASC
+            """)
+    List<PolicyRuleConfig> findEffectiveRulesAt(@Param("at") Instant at);
 
     /** Find rules by target intent. */
     List<PolicyRuleConfig> findByTargetIntentAndActiveTrueOrderByPriorityAsc(String targetIntent);
