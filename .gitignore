@@ -37,3 +37,6 @@ replay_pid*
 **/.vscode/
 **/*.iml
 /.env
+
+# Git worktrees
+.worktrees/
