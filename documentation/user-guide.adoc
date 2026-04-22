@@ -1,0 +1,415 @@
+= EMCIP User Guide
+:toc:
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+
+This guide covers two audiences:
+
+* *Part I — Admin UI*: Platform administrators using the browser-based interface at http://localhost:14009.
+* *Part II — REST API*: Developers and automation scripts calling the Admin API directly at http://localhost:9087.
+
+NOTE: For JWT internals and the full security architecture, see the _Architecture Guide_.
+
+== Part I — Admin UI
+
+=== Login
+
+Open http://localhost:14009.
+
+[plantuml,seq-admin-auth,png]
+----
+include::diagrams/sequence-admin-auth.puml[]
+----
+
+Enter your username and password in the login form and click *Sign In*. The UI calls `POST /api/auth/token` and stores the returned JWT in a JavaScript variable.
+
+[IMPORTANT]
+====
+The JWT is stored in memory (a JS variable), not in `localStorage`. If you reload the page, you will be logged out and must sign in again. This is intentional — it prevents token theft via XSS.
+====
+
+Default credentials are set via the `ADMIN_JWT_SECRET` and admin user seed in the `admin_users` table. For local development, use the credentials from your `.env` file.
+
+=== Tenant Management
+
+A *tenant* is a logical boundary for data isolation. All policy rules, audit events, and moderation flags belong to exactly one tenant. This enables a single EMCIP installation to serve multiple independent communities.
+
+==== Create a Tenant
+
+. Navigate to *Tenants* in the sidebar.
+. Click *New Tenant*.
+. Enter the community name in the *Name* field.
+. Click *Create*. The new tenant appears in the list with its UUID.
+
+==== Delete a Tenant
+
+[WARNING]
+====
+Deleting a tenant is irreversible. All policy rules, audit events, and moderation flags belonging to the tenant are permanently deleted via cascading database operations. There is no soft-delete or undo.
+====
+
+. Find the tenant in the list.
+. Click the *Delete* button (trash icon).
+. Confirm in the warning dialog.
+
+==== Tenant IDs
+
+The UUID shown in the tenant list is the `X-Tenant-Id` value required by all API calls scoped to that tenant.
+
+=== Policy Rules
+
+A *policy rule* maps an intent type to a moderation action. When the Policy Engine classifies a message as a given intent, it looks up the highest-priority active rule for that intent and applies the configured action.
+
+==== Rule Actions
+
+[cols="1,3"]
+|===
+|Action |Effect
+
+|`ALLOW`
+|No action taken. Message passes through.
+
+|`WARN`
+|Emits a `moderation.flags` event with severity WARN. No message action.
+
+|`MUTE`
+|Triggers a mute action on the sender (via TDLib Adapter).
+
+|`BAN`
+|Triggers a ban action on the sender (via TDLib Adapter).
+|===
+
+==== Creating a New Rule Version
+
+Policy rules are versioned. Creating a new version automatically deactivates the previous version for the same rule name.
+
+. Navigate to *Policy Rules*.
+. Click *New Rule Version*.
+. Fill in:
+** *Name*: unique identifier for this rule (e.g., `spam-block`).
+** *Action*: one of `ALLOW`, `WARN`, `MUTE`, `BAN`.
+** *Priority*: lower numbers are evaluated first.
+** *Effective From* (optional): activation date/time.
+** *Effective To* (optional): expiry date/time for time-limited rules.
+. Click *Save*. The previous version for this name is automatically deactivated.
+
+==== Rule Version History
+
+Click the *History* button (clock icon) next to any rule to open the version history modal. It shows all versions with their activation timestamps, deactivation timestamps, and actions.
+
+=== Audit Log
+
+The audit log is an append-only record of every significant event in the pipeline.
+
+==== Event Types
+
+[cols="1,3"]
+|===
+|Type |Description
+
+|`MESSAGE_RECEIVED`
+|A Telegram message was ingested by the TDLib Adapter.
+
+|`POLICY_DECISION`
+|The Policy Engine made a decision (includes ruleId and reasoning).
+
+|`LLM_RESPONSE`
+|The LLM Orchestrator generated a response (includes model and token counts).
+
+|`MODERATION_FLAG`
+|The Moderation Service flagged a message (includes rule type and pattern).
+|===
+
+==== Filtering Events
+
+Use the filter bar at the top of the Audit Log view:
+
+* *Event Type* — select one type or leave blank for all.
+* *From* / *To* — date range picker.
+* Click *Apply* to refresh results.
+
+Results are paginated (50 per page). Use *Previous* / *Next* to navigate.
+
+==== Inspecting Event Payload
+
+Click any row to expand the event payload. The raw JSON is displayed with syntax highlighting for inspection.
+
+---
+
+== Part II — REST API Reference
+
+All API requests require the `Authorization: Bearer <token>` header unless marked as public. Obtain a token from §5 Authentication.
+
+=== Authentication
+
+[cols="1,1,1,2"]
+|===
+|Method |Path |Auth |Description
+
+|`POST`
+|`/api/auth/token`
+|None
+|Issue a JWT
+|===
+
+==== Request
+
+[source,json]
+----
+POST /api/auth/token
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "changeme"
+}
+----
+
+==== Response
+
+[source,json]
+----
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "token": "eyJhbGciOiJIUzI1NiJ9..."
+}
+----
+
+Use the token value in all subsequent requests:
+
+[source,bash]
+----
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..." \
+     http://localhost:9087/api/tenants
+----
+
+Tokens expire after the duration configured in `app.jwt.expiration` (default: 24 hours). Re-authenticate to get a new token.
+
+=== Tenants API
+
+[cols="1,1,3"]
+|===
+|Method + Path |Description |Notes
+
+|`GET /api/tenants`
+|List all tenants
+|Returns array of `{id, name, createdAt}`
+
+|`POST /api/tenants`
+|Create tenant
+|Body: `{name}`. Returns created tenant with UUID.
+
+|`DELETE /api/tenants/{id}`
+|Delete tenant
+|Cascades all tenant data. Irreversible.
+|===
+
+==== Create Tenant Example
+
+[source,bash]
+----
+curl -X POST http://localhost:9087/api/tenants \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Community Alpha"}'
+----
+
+Response:
+
+[source,json]
+----
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "name": "Community Alpha",
+  "createdAt": "2026-04-22T10:00:00Z"
+}
+----
+
+=== Policy Rules API
+
+[cols="1,1,3"]
+|===
+|Method + Path |Description |Notes
+
+|`GET /api/policy-rules`
+|List active rules
+|Only returns `is_active = true` rules.
+
+|`POST /api/policy-rules`
+|Create new version
+|Auto-deactivates previous version with same `name`.
+
+|`GET /api/policy-rules/{name}/history`
+|Version history
+|All versions for the named rule, ordered by version DESC.
+|===
+
+==== Rule Schema
+
+[source,json]
+----
+{
+  "name": "spam-block",
+  "action": "BLOCK",
+  "priority": 10,
+  "active": true,
+  "ruleVersion": 3,
+  "effectiveFrom": "2026-04-01T00:00:00Z",
+  "effectiveTo": null
+}
+----
+
+==== Create New Version Example
+
+[source,bash]
+----
+curl -X POST http://localhost:9087/api/policy-rules \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "spam-block",
+    "action": "BAN",
+    "priority": 10,
+    "effectiveFrom": "2026-04-22T00:00:00Z"
+  }'
+----
+
+The previous version of `spam-block` (if any) is automatically deactivated.
+
+=== Audit Events API
+
+[cols="1,1,3"]
+|===
+|Method + Path |Description |Notes
+
+|`GET /api/audit/events`
+|Paginated event list
+|Query params: `size` (default 50), `page` (default 0), `eventType`, `from`, `to`
+
+|`GET /api/audit/events/{id}`
+|Single event
+|Full payload JSON included
+
+|`GET /api/audit/summary`
+|Count by type
+|Returns `{eventType: count}` map
+|===
+
+==== Paginated Response Envelope
+
+[source,json]
+----
+{
+  "content": [ { "..." }, { "..." } ],
+  "page": 0,
+  "size": 50,
+  "totalElements": 12453,
+  "totalPages": 250
+}
+----
+
+==== Filtered Query Example
+
+[source,bash]
+----
+curl "http://localhost:9087/api/audit/events?eventType=POLICY_DECISION&from=2026-04-22T00:00:00Z&size=20&page=0" \
+  -H "Authorization: Bearer <token>"
+----
+
+=== Moderation Rules API
+
+[cols="1,1,3"]
+|===
+|Method + Path |Description |Notes
+
+|`GET /api/admin/moderation-rules`
+|List all rules
+|Includes disabled rules (`enabled: false`).
+
+|`POST /api/admin/moderation-rules`
+|Create rule
+|Body: `{ruleType, pattern, action, enabled}`
+
+|`DELETE /api/admin/moderation-rules/{id}`
+|Delete rule
+|Permanent. Cache refreshes within 5 minutes.
+|===
+
+==== Rule Schema
+
+[source,json]
+----
+{
+  "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+  "ruleType": "KEYWORD",
+  "pattern": "scam",
+  "action": "FLAG",
+  "enabled": true,
+  "createdAt": "2026-04-22T09:00:00Z"
+}
+----
+
+==== Rule Types
+
+[cols="1,2,2"]
+|===
+|`ruleType` |Matches when |Pattern example
+
+|`KEYWORD`
+|Message contains the exact word (case-insensitive)
+|`scam`
+
+|`REGEX`
+|Message matches Java regex pattern
+|`\b(buy\|sell\|crypto)\b`
+
+|`LENGTH`
+|Message character count exceeds the numeric value
+|`500`
+|===
+
+=== Health & Metrics
+
+Every service exposes standard actuator endpoints. No authentication required.
+
+[cols="1,1,2"]
+|===
+|Endpoint |Port range |Response
+
+|`GET /actuator/health`
+|9080–9087
+|`{"status": "UP"}` or `{"status": "DOWN", "components": {...}}`
+
+|`GET /actuator/prometheus`
+|9080–9087
+|Prometheus text format metrics scrape
+|===
+
+==== Health Check All Services
+
+[source,bash]
+----
+for port in 9080 9081 9082 9083 9084 9085 9086 9087; do
+  echo -n "Port $port: "
+  curl -s http://localhost:$port/actuator/health | \
+    python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))"
+done
+----
+
+Expected output when all services are healthy:
+
+[source]
+----
+Port 9080: UP
+Port 9081: UP
+Port 9082: UP
+Port 9083: UP
+Port 9084: UP
+Port 9085: UP
+Port 9086: UP
+Port 9087: UP
+----
