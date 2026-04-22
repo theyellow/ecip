@@ -1,4 +1,4 @@
-@startuml DataFlow_Context_Enrichment class
+@startuml DataFlow_Context_Enrichment
 ' Purpose: Data flow diagram showing conversation context enrichment
 ' Used in: architecture.adoc - Context Enrichment section
 

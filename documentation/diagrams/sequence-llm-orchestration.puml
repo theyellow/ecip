@@ -1,4 +1,4 @@
-@startuml Sequence_LLM_Orchestration class
+@startuml Sequence_LLM_Orchestration
 ' Purpose: Detailed LLM orchestration flow showing model routing and cost tracking
 ' Used in: architecture.adoc - LLM Orchestration section
 
