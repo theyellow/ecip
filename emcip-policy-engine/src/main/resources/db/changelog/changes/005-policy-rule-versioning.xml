@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <changeSet id="005" author="phase5">
+        <addColumn tableName="policy_rules">
+            <column name="rule_version" type="INTEGER" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <addColumn tableName="policy_rules">
+            <column name="effective_from" type="TIMESTAMPTZ"/>
+        </addColumn>
+        <addColumn tableName="policy_rules">
+            <column name="effective_to" type="TIMESTAMPTZ"/>
+        </addColumn>
+        <createIndex indexName="idx_policy_rules_name_version" tableName="policy_rules">
+            <column name="name"/>
+            <column name="rule_version"/>
+        </createIndex>
+        <createIndex indexName="idx_policy_rules_effective" tableName="policy_rules">
+            <column name="effective_from"/>
+            <column name="effective_to"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
