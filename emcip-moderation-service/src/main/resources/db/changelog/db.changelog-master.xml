@@ -6,5 +6,6 @@
                       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
 
     <include file="classpath:db/changelog/changes/001-create-moderation-rules.xml"/>
+    <include file="changes/002-add-performance-indexes.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

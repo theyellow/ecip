@@ -8,5 +8,6 @@
     <include file="classpath:db/changelog/changes/001-create-users-table.xml"/>
     <include file="classpath:db/changelog/changes/002-create-threads-table.xml"/>
     <include file="classpath:db/changelog/changes/003-create-messages-table.xml"/>
+    <include file="changes/004-add-performance-indexes.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
