@@ -44,5 +44,8 @@ management:
       enabled: true
 
 logging:
+  structured:
+    format:
+      console: logstash
   level:
     io.emcip: INFO
