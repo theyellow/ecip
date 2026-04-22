@@ -1,0 +1,55 @@
+@startuml Sequence_Admin_Auth
+' Purpose: Admin UI authentication flow — credential verification and JWT issuance
+' Used in: user-guide.adoc - Login section
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title Admin UI Authentication Flow
+
+actor "Browser\n(Admin UI)" as Browser
+participant "AuthController\nPOST /api/auth/token" as AC
+participant "AuthService" as AS
+participant "AdminUserRepository" as Repo
+database "PostgreSQL\nadmin_users" as DB
+participant "JwtService" as JWT
+
+== Login ==
+
+Browser -> AC : POST /api/auth/token\n{username, password}
+activate AC
+AC -> AS : authenticate(username, password)
+activate AS
+AS -> Repo : findByUsername(username)
+activate Repo
+Repo -> DB : SELECT * FROM admin_users\nWHERE username = ?
+DB --> Repo : AdminUser row
+Repo --> AS : Optional<AdminUser>
+deactivate Repo
+AS -> AS : BCrypt.checkpw(\n  password, storedHash)
+AS -> JWT : sign(subject=username,\n  roles=user.roles)
+activate JWT
+JWT --> AS : signed JWT string
+deactivate JWT
+AS --> AC : token string
+deactivate AS
+AC --> Browser : 200 OK\n{token: "<jwt>"}
+deactivate AC
+
+note right of Browser
+  JWT stored in memory (JS variable)
+  NOT in localStorage — cleared on
+  page reload for security
+end note
+
+== Subsequent Authenticated Requests ==
+
+Browser -> AC : GET /api/tenants\nAuthorization: Bearer <token>
+activate AC
+AC -> AC : JwtAuthenticationFilter\nvalidates signature + expiry
+AC -> AC : Extracts subject + roles\ninto SecurityContext
+AC --> Browser : 200 OK {data}
+deactivate AC
+
+@enduml
