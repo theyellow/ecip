@@ -30,4 +30,9 @@
     </changeSet>
     <include file="classpath:db/changelog/changes/005-seed-sonnet-model-configs.xml"/>
 
+    <changeSet id="006-add-tenant-id" author="phase5">
+        <tagDatabase tag="v1.0.0-add-tenant-id"/>
+    </changeSet>
+    <include file="classpath:db/changelog/changes/006-add-tenant-id.xml"/>
+
 </databaseChangeLog>

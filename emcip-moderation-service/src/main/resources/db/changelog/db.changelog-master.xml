@@ -7,5 +7,6 @@
 
     <include file="classpath:db/changelog/changes/001-create-moderation-rules.xml"/>
     <include file="changes/002-add-performance-indexes.xml" relativeToChangelogFile="true"/>
+    <include file="changes/003-add-tenant-id.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

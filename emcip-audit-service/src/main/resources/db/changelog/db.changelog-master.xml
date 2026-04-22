@@ -79,5 +79,6 @@
     </changeSet>
 
     <include file="changes/001-add-performance-indexes.xml" relativeToChangelogFile="true"/>
+    <include file="changes/002-add-tenant-id.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
