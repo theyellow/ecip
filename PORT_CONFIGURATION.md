@@ -27,6 +27,9 @@ To avoid conflicts with existing Kubernetes deployments and common development t
 | Kafka UI | 14004 | Kafka management UI | 8080 |
 | PostgreSQL | 14005 | Primary database | 5432 |
 | pgAdmin | 14006 | PostgreSQL admin UI | 5050 |
+| Grafana | 14007 | Observability dashboards (admin/admin) | 3000 |
+| Loki | 14008 | Log aggregation backend | 3100 |
+| Admin UI | 14009 | React admin SPA | 14009 |
 
 ## Environment Variables
 
@@ -91,7 +94,7 @@ If running on a Kubernetes cluster:
 
 ```bash
 # Check all EMCIP ports are available
-for port in 9080 9081 9082 9083 9084 9085 9086 9087 14001 14002 14003 14004 14005 14006; do
+for port in 9080 9081 9082 9083 9084 9085 9086 9087 14001 14002 14003 14004 14005 14006 14007 14008 14009; do
   if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null ; then
     echo "Port $port is IN USE"
   else
