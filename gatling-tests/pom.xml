@@ -1,51 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>io.emcip</groupId>
-        <artifactId>community-intelligence-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-    </parent>
-    <artifactId>gatling-tests</artifactId>
-    <name>gatling-tests</name>
-    <description>Gatling load tests for EMCIP services</description>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>io.emcip</groupId>
+    <artifactId>community-intelligence-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>gatling-tests</artifactId>
+  <name>gatling-tests</name>
+  <description>Gatling load tests for EMCIP services</description>
 
-    <properties>
-        <gatling.version>3.11.5</gatling.version>
-        <gatling-maven-plugin.version>4.9.6</gatling-maven-plugin.version>
-    </properties>
+  <properties>
+    <gatling.version>3.11.5</gatling.version>
+    <gatling-maven-plugin.version>4.9.6</gatling-maven-plugin.version>
+  </properties>
 
-    <dependencies>
-        <dependency>
-            <groupId>io.gatling.highcharts</groupId>
-            <artifactId>gatling-charts-highcharts</artifactId>
-            <version>${gatling.version}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+  <dependencies>
+    <dependency>
+      <groupId>io.gatling.highcharts</groupId>
+      <artifactId>gatling-charts-highcharts</artifactId>
+      <version>${gatling.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
-    <build>
-        <testSourceDirectory>src/test/java</testSourceDirectory>
-        <plugins>
-            <plugin>
-                <groupId>io.gatling</groupId>
-                <artifactId>gatling-maven-plugin</artifactId>
-                <version>${gatling-maven-plugin.version}</version>
-                <configuration>
-                    <simulationClass>io.emcip.perf.AllSimulations</simulationClass>
-                    <runMultipleSimulations>true</runMultipleSimulations>
-                </configuration>
-            </plugin>
-            <!-- Exclude from standard test phase -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <skipTests>true</skipTests>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.gatling</groupId>
+        <artifactId>gatling-maven-plugin</artifactId>
+        <version>${gatling-maven-plugin.version}</version>
+        <configuration>
+          <simulationClass>io.emcip.perf.AllSimulations</simulationClass>
+          <runMultipleSimulations>true</runMultipleSimulations>
+        </configuration>
+      </plugin>
+      <!-- Exclude from standard test phase -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <skipTests>true</skipTests>
+        </configuration>
+      </plugin>
+    </plugins>
+    <testSourceDirectory>src/test/java</testSourceDirectory>
+  </build>
 </project>

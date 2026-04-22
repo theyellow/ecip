@@ -1,10 +1,10 @@
 package io.emcip.perf;
 
-import io.gatling.javaapi.core.*;
-import io.gatling.javaapi.http.*;
-
 import static io.gatling.javaapi.core.CoreDsl.*;
 import static io.gatling.javaapi.http.HttpDsl.*;
+
+import io.gatling.javaapi.core.*;
+import io.gatling.javaapi.http.*;
 
 public class IntentClassifierSimulation extends Simulation {
 
@@ -26,9 +26,7 @@ public class IntentClassifierSimulation extends Simulation {
                                     .check(status().is(200)));
 
     {
-        setUp(
-                        scn.injectOpen(
-                                rampUsers(50).during(30), constantUsersPerSec(10).during(60)))
+        setUp(scn.injectOpen(rampUsers(50).during(30), constantUsersPerSec(10).during(60)))
                 .protocols(httpProtocol)
                 .assertions(
                         global().responseTime().percentile(95).lt(200),
