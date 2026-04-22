@@ -1,0 +1,147 @@
+@startuml Deployment_Local_Docker
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+' Purpose: Docker Compose deployment diagram for local development
+' Used in: architecture.adoc - Local Development Setup section
+
+LAYOUT_WITH_LEGEND()
+
+title Local Development Deployment - Docker Compose
+
+Deployment_Node(docker_host, "Docker Host", "Linux/Windows/Mac") {
+
+    ' Infrastructure Layer
+    Deployment_Node(infrastructure, "Infrastructure Services") {
+        Deployment_Node(zk_node, "Zookeeper") {
+            Container(zookeeper, "ecip-zookeeper", "confluentinc/cp-zookeeper:7.5.0", "Port 14001<br/>ZOOKEEPER_CLIENT_PORT: 14001")
+        }
+
+        Deployment_Node(kafka_node, "Kafka Broker") {
+            Container(kafka, "ecip-kafka", "confluentinc/cp-kafka:7.5.0", "Ports 14002, 14003<br/>8 topics, 3 partitions<br/>Auto-create enabled")
+        }
+
+        Deployment_Node(db_node, "PostgreSQL Database") {
+            ContainerDb(postgres, "ecip-postgres", "postgres:16-alpine", "Port 14005<br/>DB: emcip<br/>User: emcip/emcip")
+        }
+    }
+
+    ' Monitoring Layer
+    Deployment_Node(monitoring, "Monitoring & Admin (Optional)") {
+        Container(kafka_ui, "ecip-kafka-ui", "provectuslabs/kafka-ui", "Port 14004<br/>Kafka management UI")
+        Container(pgadmin, "ecip-pgadmin", "dpage/pgadmin4", "Port 14006<br/>admin@ecip.io / admin")
+    }
+
+    ' EMCIP Application Services
+    Deployment_Node(app_services, "EMCIP Microservices") {
+
+        Deployment_Node(core_services, "Core Pipeline (profile: full)", $tags="core") {
+            Container(conversation_context, "conversation-context", "Java 21 / Spring Boot 4", "Port 9081<br/>Context tracking")
+            Container(intent_classifier, "intent-classifier", "Java 21 / Spring Boot 4", "Port 9082<br/>Intent classification")
+            Container(policy_engine, "policy-engine", "Java 21 / Spring Boot 4", "Port 9083<br/>Policy decisions")
+            Container(moderation_service, "moderation-service", "Java 21 / Spring Boot 4", "Port 9085<br/>Content moderation")
+            Container(audit_service, "audit-service", "Java 21 / Spring Boot 4", "Port 9086<br/>Audit logging")
+            Container(admin_api, "admin-api", "Java 21 / Spring Boot 4", "Port 9087<br/>Admin endpoints")
+        }
+
+        Deployment_Node(llm_service, "LLM Service (profile: llm)", $tags="llm") {
+            Container(llm_orchestrator, "llm-orchestrator", "Java 21 / Spring Boot 4", "Port 9084<br/>Model routing<br/>Requires ANTHROPIC_API_KEY")
+        }
+
+        Deployment_Node(tdlib_service, "Telegram Service (profile: telegram)", $tags="telegram") {
+            Container(tdlib_adapter, "tdlib-adapter", "Java 21 / Spring Boot 4 + TDLib", "Port 9080<br/>Telegram integration<br/>Builds TDLib on first run (~15-30 min)")
+        }
+    }
+
+    ' Docker Volumes
+    Deployment_Node(volumes, "Docker Volumes") {
+        Container_Ext(vol_postgres, "postgres-data", "Volume", "PostgreSQL persistent data")
+        Container_Ext(vol_tdlib_db, "tdlib-data", "Volume", "TDLib database files")
+        Container_Ext(vol_tdlib_files, "tdlib-files", "Volume", "TDLib downloaded files")
+    }
+
+    ' Docker Network
+    Deployment_Node(network, "Docker Network") {
+        Container_Ext(ecip_network, "ecip-network", "Bridge Network", "Internal service communication")
+    }
+}
+
+' External Systems
+System_Ext(telegram_api, "Telegram API", "Telegram servers<br/>api.telegram.org")
+System_Ext(minimax_api, "MiniMax API", "llm.minimaxi.com")
+System_Ext(claude_api, "Claude API", "api.anthropic.com")
+System_Ext(browser, "Developer Browser", "Access admin UIs")
+
+' Relationships - Infrastructure
+Rel(zookeeper, kafka, "Coordination", "ZooKeeper protocol")
+Rel(kafka_ui, kafka, "Management UI", "REST API")
+Rel(pgadmin, postgres, "Database admin", "PostgreSQL protocol")
+
+' Relationships - Services to Infrastructure
+Rel(conversation_context, postgres, "R2DBC", "Port 5432")
+Rel(intent_classifier, kafka, "Produce/Consume", "Port 14002")
+Rel(policy_engine, postgres, "R2DBC", "Port 5432")
+Rel(policy_engine, kafka, "Produce/Consume", "Port 14002")
+Rel(moderation_service, postgres, "R2DBC", "Port 5432")
+Rel(moderation_service, kafka, "Produce/Consume", "Port 14002")
+Rel(audit_service, postgres, "R2DBC", "Port 5432")
+Rel(audit_service, kafka, "Consume all", "Port 14002")
+Rel(admin_api, postgres, "JDBC/R2DBC", "Port 5432")
+
+Rel(llm_orchestrator, postgres, "R2DBC", "Port 5432")
+Rel(llm_orchestrator, kafka, "Produce/Consume", "Port 14002")
+Rel(llm_orchestrator, minimax_api, "HTTPS API", "External")
+Rel(llm_orchestrator, claude_api, "HTTPS API", "External")
+
+Rel(tdlib_adapter, kafka, "Produce/Consume", "Port 14002")
+Rel(tdlib_adapter, telegram_api, "TDLib Protocol", "Port 443")
+
+' Relationships - Volumes
+Rel(postgres, vol_postgres, "Mounts", "Container path: /var/lib/postgresql/data")
+Rel(tdlib_adapter, vol_tdlib_db, "Mounts", "Container path: /app/tdlib-db")
+Rel(tdlib_adapter, vol_tdlib_files, "Mounts", "Container path: /app/tdlib-files")
+
+' Relationships - External Access
+Rel(browser, kafka_ui, "HTTP", "Port 14004")
+Rel(browser, pgadmin, "HTTP", "Port 14006")
+Rel(browser, admin_api, "HTTPS/JWT", "Port 9087")
+Rel(browser, tdlib_adapter, "REST", "Port 9080")
+
+' Docker Compose Profiles Note
+note right of core_services
+  <b>Profile: full</b>
+  Start with: docker-compose --profile full up
+  Core processing pipeline services
+  (conversation-context, intent-classifier,
+  policy-engine, moderation-service,
+  audit-service, admin-api)
+end note
+
+note right of llm_service
+  <b>Profile: llm</b>
+  Start with: docker-compose --profile llm up
+  Requires ANTHROPIC_API_KEY in .env
+  Enables AI response generation
+end note
+
+note right of tdlib_service
+  <b>Profile: telegram</b>
+  Start with: docker-compose --profile telegram up
+  Requires TELEGRAM_API_ID, TELEGRAM_API_HASH,
+  TELEGRAM_PHONE_NUMBER in .env
+  First build takes 15-30 minutes
+  (TDLib compilation)
+end note
+
+' Environment Variables Note
+note bottom
+  <b>Required Environment Variables:</b>
+  • ANTHROPIC_API_KEY - For LLM orchestrator
+  • TELEGRAM_API_ID - Get from my.telegram.org
+  • TELEGRAM_API_HASH - Get from my.telegram.org
+  • TELEGRAM_PHONE_NUMBER - With country code
+  • ADMIN_JWT_SECRET - For admin API security
+  • ADMIN_SERVICE_TOKEN - For inter-service auth
+end note
+
+SHOW_LEGEND()
+@enduml

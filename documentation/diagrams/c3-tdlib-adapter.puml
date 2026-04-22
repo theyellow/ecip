@@ -1,0 +1,66 @@
+@startuml C3_TDLib_Adapter
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Purpose: Component-level view of TDLib Adapter showing internal structure
+' Used in: architecture.adoc - TDLib Adapter Component section
+
+LAYOUT_WITH_LEGEND()
+
+Container_Boundary(tdlib_adapter, "TDLib Adapter - Port 9080") {
+
+    ' TDLib Integration Layer
+    Component(tdlib_core, "TDLib Core", "C++ / JNI", "Official Telegram Database Library<br/>Native Telegram protocol implementation<br/>Handles authentication, updates, message sending")
+
+    Component(jni_bridge, "JNI Bridge", "Java / JNI", "Java bindings for TDLib<br/>TdApi.java auto-generated<br/>Manages native library lifecycle")
+
+    ' Event Processing
+    Component(event_normalizer, "Event Normalizer", "Java / Spring", "Transforms TDLib updates to EMCIP events<br/>Extracts message metadata<br/>Adds correlation IDs")
+
+    Component(update_dispatcher, "Update Dispatcher", "Java / Spring", "Routes TDLib updates to handlers<br/>MessageUpdateHandler<br/>UserUpdateHandler<br/>ChatUpdateHandler")
+
+    ' Session Management
+    Component(session_manager, "Session Manager", "Java / Spring", "Manages Telegram session lifecycle<br/>Handles 2FA authentication<br/>Session persistence to DB")
+
+    Component(auth_controller, "Auth Controller", "Java / Spring REST", "REST endpoints for authentication<br/>Phone verification<br/>2FA code input<br/>Session status")
+
+    ' Messaging
+    Component(kafka_producer, "Kafka Producer", "Java / Spring Kafka", "Publishes to telegram.raw.messages<br/>telegram.raw.updates<br/>Sends to responses.generated")
+
+    Component(message_sender, "Message Sender", "Java / Spring", "Sends responses back to Telegram<br/>Reply threading<br/>Rate limiting")
+
+    ' Storage
+    Component(message_store, "Message Store", "Java / Spring Data R2DBC", "Persists raw messages<br/>Stores update history<br/>PostgreSQL R2DBC")
+}
+
+' External connections
+ContainerDb(postgres, "PostgreSQL", "Database", "tdlib-db volume")
+ContainerQueue(kafka, "Kafka", "Message Broker", "telegram.raw.messages<br/>responses.generated")
+System_Ext(telegram, "Telegram", "TDLib Protocol")
+
+' Internal relationships
+Rel(jni_bridge, tdlib_core, "Calls native methods", "JNI")
+Rel(update_dispatcher, jni_bridge, "Receives updates", "Async")
+Rel(event_normalizer, update_dispatcher, "Processes updates", "Sync")
+Rel(kafka_producer, event_normalizer, "Publishes normalized events", "Sync")
+Rel(session_manager, jni_bridge, "Manages auth state", "Sync")
+Rel(auth_controller, session_manager, "Authentication flow", "REST")
+Rel(message_sender, jni_bridge, "Send messages", "JNI")
+Rel(message_store, event_normalizer, "Store raw data", "Sync")
+
+' External relationships
+Rel(tdlib_core, telegram, "TDLib protocol", "Encrypted")
+Rel(kafka_producer, kafka, "Publish events", "Async")
+Rel(kafka, message_sender, "Consume responses", "Async")
+Rel(message_store, postgres, "Persist messages", "R2DBC")
+Rel(session_manager, postgres, "Session data", "JDBC")
+
+' Note for architecture
+note right of event_normalizer
+  <b>Event Normalization:</b>
+  TDLib Update → TelegramRawMessageEvent
+  with eventId, timestamp, tenantId,
+  correlationId, payload
+end note
+
+SHOW_LEGEND()
+@enduml

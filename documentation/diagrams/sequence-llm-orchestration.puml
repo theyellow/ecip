@@ -1,0 +1,193 @@
+@startuml Sequence_LLM_Orchestration class
+' Purpose: Detailed LLM orchestration flow showing model routing and cost tracking
+' Used in: architecture.adoc - LLM Orchestration section
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam wrapWidth 180
+
+title LLM Orchestrator - Detailed Response Generation Flow
+
+queue "policies.\ndecisions" as InTopic
+participant "LlmOrchestrator\nConsumer" as Consumer
+box "LLM Orchestrator Components" #LightCoral
+    participant "Policy Event\nHandler" as Handler
+    participant "Response\nCache" as Cache
+    participant "Model\nRouter" as Router
+    participant "Routing\nStrategy" as Strategy
+    participant "Prompt\nBuilder" as PromptBuilder
+    participant "Template\nManager" as TemplateMgr
+    participant "LLM Client\n(MiniMax/Claude)" as LLMClient
+    participant "Response\nValidator" as Validator
+    participant "Cost\nTracker" as CostTracker
+end box
+participant "Conversation\nContext Service" as ContextSvc
+participant "LLM Provider\n(MiniMax/Claude)" as LLMAPI
+database "PostgreSQL" as DB
+queue "responses.\ngenerated" as OutTopic
+participant "Audit\nService" as Audit
+
+' Event Consumption
+== Event Ingestion ==
+InTopic -> Consumer: PolicyDecisionEvent
+activate Consumer
+Consumer -> Consumer: Deserialize & validate
+Consumer -> Consumer: Check decision == RESPOND
+
+alt Decision != RESPOND
+    Consumer -> Consumer: Skip processing
+    Consumer -> Audit: Skip audit
+    note right: Non-RESPOND decisions not processed by LLM Orchestrator
+else Decision == RESPOND
+    Consumer -> Handler: Handle RESPOND
+    activate Handler
+    
+    ' Cache Check
+    == Cache Check ==
+    Handler -> Cache: Check for similar request
+    activate Cache
+    
+    alt Cache hit
+        Cache --> Handler: CachedResponse
+        note right: Semantic similarity check reduces LLM calls and costs
+
+        Handler -> CostTracker: Record cache hit (cost = 0)
+    else Cache miss
+        Cache --> Handler: Not found
+        deactivate Cache
+        
+        ' Model Routing
+        == Model Routing ==
+        Handler -> Router: Route request
+        activate Router
+        Router -> Strategy: Determine strategy
+        activate Strategy
+        
+        Strategy -> Strategy: Analyze intent type
+        Strategy -> Strategy: Check complexity score
+        Strategy -> Strategy: Check sensitivity
+        Strategy -> Strategy: Check cost budget
+        
+        note right of Strategy
+          <b>Routing Criteria:</b>
+          • GREETING → MiniMax (fast/cheap)
+          • QUESTION (simple) → MiniMax
+          • QUESTION (complex) → Claude
+          • REPORT, SENSITIVE → Claude
+          • Budget > 80% → MiniMax
+        end note
+        
+        alt Route to MiniMax
+            Strategy --> Router: MINIMAX
+        else Route to Claude
+            Strategy --> Router: CLAUDE
+        end
+        
+        deactivate Strategy
+        Router --> Handler: SelectedModel
+        deactivate Router
+        
+        ' Context Enrichment
+        == Context Enrichment ==
+        Handler -> ContextSvc: Fetch conversation context
+        activate ContextSvc
+        ContextSvc -> ContextSvc: Load thread history
+        ContextSvc -> ContextSvc: Get speaker roles
+        ContextSvc --> Handler: ConversationContext
+        deactivate ContextSvc
+        
+        ' Prompt Building
+        == Prompt Building ==
+        Handler -> PromptBuilder: Build prompt
+        activate PromptBuilder
+        PromptBuilder -> TemplateMgr: Load template
+        activate TemplateMgr
+        TemplateMgr -> DB: Fetch template
+        DB --> TemplateMgr: PromptTemplate
+        TemplateMgr --> PromptBuilder: Template string
+        deactivate TemplateMgr
+        
+        PromptBuilder -> PromptBuilder: Substitute variables
+        note right
+          Variables:
+          • {{message.text}}
+          • {{sender.username}}
+          • {{conversation.history}}
+          • {{group.topic}}
+        end note
+        
+        PromptBuilder -> PromptBuilder: Inject context
+        PromptBuilder --> Handler: Complete prompt
+        deactivate PromptBuilder
+        
+        ' LLM Call
+        == LLM Call ==
+        Handler -> LLMClient: Generate response
+        activate LLMClient
+        LLMClient -> LLMAPI: POST /v1/chat/completions
+        activate LLMAPI
+        note right: External API call
+        LLMAPI --> LLMClient: Response + tokens
+        deactivate LLMAPI
+        
+        LLMClient -> CostTracker: Calculate cost
+        activate CostTracker
+        CostTracker -> CostTracker: Input tokens × rate
+        CostTracker -> CostTracker: Output tokens × rate
+        CostTracker -> CostTracker: Sum = total cost
+        CostTracker --> LLMClient: CostEstimate
+        deactivate CostTracker
+        
+        LLMClient --> Handler: LLMResponse
+        deactivate LLMClient
+        
+        ' Validation
+        == Response Validation ==
+        Handler -> Validator: Validate response
+        activate Validator
+        Validator -> Validator: Content safety check
+        Validator -> Validator: Format verification
+        Validator -> Validator: Length check
+        
+        alt Validation passed
+            Validator --> Handler: Valid
+        else Validation failed
+            Validator --> Handler: Invalid
+            Handler -> Handler: Retry with fallback
+            note right: Max 3 retries, then escalate
+        end
+        
+        deactivate Validator
+        
+        ' Cache Store
+        Handler -> Cache: Store response
+        activate Cache
+        Cache --> Handler: Stored
+        deactivate Cache
+    end
+    
+    ' Event Production
+    == Response Publishing ==
+    Handler -> Handler: Build ResponseGeneratedEvent
+    Handler -> DB: Store response metadata
+    Handler -> CostTracker: Persist cost record
+    Handler -> Consumer: Result
+    deactivate Handler
+    
+    Consumer -> OutTopic: Publish ResponseGeneratedEvent
+    Consumer -> Audit: Response audit
+    
+    deactivate Consumer
+end
+
+' Summary
+note right
+  <b>Cost Tracking:</b>
+  MiniMax: ~$0.001/1K tokens
+  Claude: ~$0.008/1K tokens
+  Cache hit rate target: 30%
+  Budget alerts at 80%, 95%
+end note
+
+@enduml

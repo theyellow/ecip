@@ -1,0 +1,180 @@
+@startuml DataFlow_Audit_Trail
+' Purpose: Data flow diagram showing audit trail collection and querying
+' Used in: architecture.adoc - Audit Trail section
+
+title Data Flow: Complete Audit Trail
+
+' --- Participants / grouped boxes ---
+box "Event Sources" #LightBlue
+  participant "TDLib Adapter\n(Port 9080)" as TDLib
+  participant "Intent Classifier\n(Port 9082)" as Intent
+  participant "Policy Engine\n(Port 9083)" as Policy
+  participant "LLM Orchestrator\n(Port 9084)" as LLM
+  participant "Moderation Service\n(Port 9085)" as Moderation
+  participant "Conversation Context\n(Port 9081)" as Context
+end box
+
+box "Kafka Topics" #LightYellow
+  participant "telegram.raw.\nmessages" as RawTopic
+  participant "messages.\nclassified" as ClassifiedTopic
+  participant "policies.\ndecisions" as DecisionTopic
+  participant "responses.\ngenerated" as ResponseTopic
+  participant "moderation.\nflags" as ModerationTopic
+  participant "audit.events" as AuditTopic #Red
+end box
+
+box "Audit Service (Port 9086)" #LightGray
+  participant "Audit Event\nConsumer" as AuditConsumer
+  participant "Event\nNormalizer" as Normalizer
+  participant "Log\nFormatter" as Formatter
+  participant "Metrics\nAggregator" as MetricsAgg
+  participant "Alert\nEngine" as AlertEngine
+  participant "Audit\nAPI" as AuditAPI
+end box
+
+box "PostgreSQL" #White
+  participant "AuditEvents" as EventTable
+  participant "AuditLogs" as LogTable
+  participant "CostTracking" as CostTableDB
+  participant "Metrics" as MetricsTable
+end box
+
+participant "Prometheus" as Prometheus
+participant "AlertManager" as AlertMgr
+actor "Admin" as Admin
+participant "Admin API\n(Port 9087)" as AdminAPI
+
+' === EVENT PRODUCTION FLOW ===
+' == Event Production to Audit Topic ==
+
+' Each service publishes audit events
+TDLib ->> AuditTopic : AuditEvent (MESSAGE_RECEIVED)
+Intent ->> AuditTopic : AuditEvent (INTENT_CLASSIFIED)
+Policy ->> AuditTopic : AuditEvent (POLICY_EVALUATED)
+LLM ->> AuditTopic : AuditEvent (RESPONSE_GENERATED)
+Moderation ->> AuditTopic : AuditEvent (MODERATION_APPLIED)
+Context ->> AuditTopic : AuditEvent (CONTEXT_UPDATED)
+
+' Main pipeline events also feed audit
+RawTopic ->> AuditTopic : Mirror for traceability
+ClassifiedTopic ->> AuditTopic : Mirror for traceability
+DecisionTopic ->> AuditTopic : Mirror for traceability
+ResponseTopic ->> AuditTopic : Mirror for traceability
+ModerationTopic ->> AuditTopic : Mirror for traceability
+
+' === AUDIT SERVICE PROCESSING ===
+' == Audit Event Processing ==
+
+AuditTopic ->> AuditConsumer : All audit events
+' activate AuditConsumer
+
+AuditConsumer ->> Normalizer : Normalize event
+' activate Normalizer
+Normalizer ->> Normalizer : Validate schema
+Normalizer ->> Normalizer : Enrich with metadata
+Normalizer ->> AuditConsumer : NormalizedAuditEvent
+'
+' deactivate Normalizer
+
+AuditConsumer ->> Formatter : Format for storage
+' activate Formatter
+Formatter ->> Formatter : Structured JSON
+Formatter ->> Formatter : Add timestamps
+Formatter ->> Formatter : Hash for integrity
+Formatter ->> AuditConsumer : FormattedLog
+'
+' deactivate Formatter
+
+AuditConsumer ->> EventTable : INSERT audit event
+AuditConsumer ->> LogTable : INSERT formatted log
+
+' Cost tracking
+alt Event contains cost data
+    AuditConsumer ->> CostTableDB : Track costs
+    CostTableDB ->> AuditConsumer : Aggregated
+end
+
+' Metrics aggregation
+AuditConsumer ->> MetricsAgg : Send metrics
+' activate MetricsAgg
+MetricsAgg ->> MetricsAgg : Calculate rates
+MetricsAgg ->> MetricsAgg : Compute percentiles
+MetricsAgg ->> MetricsTable : Store metrics
+MetricsAgg ->> Prometheus : Export metrics
+
+' deactivate MetricsAgg
+
+' Alerting
+AuditConsumer ->> AlertEngine : Check thresholds
+' activate AlertEngine
+
+alt Threshold exceeded
+    AlertEngine ->> AlertEngine : Evaluate severity
+    AlertEngine ->> AlertMgr : Send alert
+    AlertMgr ->> Admin : Notification
+end
+
+' deactivate AlertEngine
+'
+' deactivate AuditConsumer
+
+' === AUDIT QUERY FLOW ===
+== Audit Query and Reporting ==
+
+Admin ->> AdminAPI : Query audit logs
+AdminAPI ->> AuditAPI : GET /audit/query
+
+AuditAPI ->> EventTable : Execute query / Filter by time/action/actor
+AuditAPI ->> LogTable : Fetch details
+
+EventTable -->> AuditAPI : Query results
+AuditAPI ->> AdminAPI : AuditReport
+AdminAPI ->> Admin : JSON/CSV report
+
+' Specific query examples
+Admin ->> AdminAPI : GET /audit/costs
+AdminAPI ->> AuditAPI : Cost query
+AuditAPI ->> CostTableDB : Aggregate
+CostTableDB -->> AuditAPI : CostReport
+AuditAPI ->> AdminAPI : CostSummary
+AdminAPI ->> Admin : Costs by service/model
+
+' === AUDIT DATA MODEL (summarized) ===
+note right
+  AuditEvent (example fields): eventId(UUID), eventType, action, actor, resource,
+  outcome, details(map), processingTimeMs, timestamp, correlationId, serviceVersion.
+
+  Actor: type (SYSTEM/USER/SERVICE), id, serviceName, userName, ipAddress.
+  Resource: type, id, name, attributes.
+  CostRecord: id, correlationId, serviceName, modelType, inputTokens,
+  outputTokens, costAmount, currency, timestamp, tenantId.
+
+  IntegrityHash: eventId, previousHash, currentHash, timestamp.
+
+  Note: For full data model details see architecture.adoc / audit schema docs.
+end note
+
+' === CORRELATION ID TRACING ===
+note right
+  Tracing example (correlationId flows):
+  1) TDLib Adapter -> telegram.raw.messages
+  2) Intent Classifier -> messages.classified (same ID)
+  3) Policy Engine -> policies.decisions (same ID)
+  4) LLM Orchestrator -> responses.generated (same ID)
+  5) Audit Service collects linked events (same ID)
+
+  Query: GET /audit/trace/{correlationId} -> returns complete processing chain
+end note
+
+' === COMPLIANCE NOTES ===
+note right
+  Audit Compliance:
+  • Immutability: Audit logs WORM (Write Once Read Many)
+  • Integrity: Cryptographic hash chain for tamper detection
+  • Retention: 7 years (configurable tiers)
+  • Access: Role-based query access (admin, auditor, system)
+  • Export: CSV/JSON/PDF formats for regulatory requests
+  • Real-time: Stream to SIEM (Splunk, ELK, etc.)
+end note
+
+@enduml

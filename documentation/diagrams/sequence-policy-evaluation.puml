@@ -1,0 +1,167 @@
+@startuml Sequence_Policy_Evaluation
+' Purpose: Detailed policy evaluation flow within Policy Engine
+' Used in: architecture.adoc - Policy Evaluation section
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam wrapWidth 180
+
+title Policy Engine - Detailed Evaluation Flow
+
+queue "messages.\nclassified" as InTopic
+participant "PolicyEngine\nConsumer" as Consumer
+box "Policy Engine Components" #LightYellow
+    participant "Event\nHandler" as Handler
+    participant "Policy\nEvaluator" as Evaluator
+    participant "Rule\nEngine" as RuleEngine
+    participant "Decision\nCache" as Cache
+    participant "Decision\nLogger" as Logger
+    participant "Escalation\nManager" as Escalation
+end box
+database "PostgreSQL" as DB
+queue "policies.\ndecisions" as OutTopic
+participant "Audit\nService" as Audit
+
+' Event Consumption
+== Event Ingestion ==
+InTopic -> Consumer: IntentClassifiedEvent
+activate Consumer
+Consumer -> Consumer: Deserialize event
+Consumer -> Consumer: Validate schema
+Consumer -> Consumer: Extract correlation ID
+
+' Evaluation Start
+== Policy Evaluation ==
+Consumer -> Handler: Process event
+activate Handler
+Handler -> Handler: Extract intent & confidence
+Handler -> Evaluator: Evaluate policy
+activate Evaluator
+
+' Cache Check
+Evaluator -> Cache: Check cached decision
+activate Cache
+alt Cache hit
+    Cache --> Evaluator: Cached Decision
+    note right: Skip evaluation,\
+    use cached result
+else Cache miss
+    Cache --> Evaluator: Not found
+    deactivate Cache
+    
+    ' Load Rules
+    Evaluator -> DB: Fetch active policies
+    activate DB
+    DB --> Evaluator: List<Policy>
+    deactivate DB
+    
+    Evaluator -> Evaluator: Sort by priority
+    
+    ' Rule Evaluation Loop
+    loop For each policy (priority order)
+        Evaluator -> RuleEngine: Evaluate rules
+        activate RuleEngine
+        
+        loop For each rule in policy
+            RuleEngine -> RuleEngine: Check rule status
+            RuleEngine -> RuleEngine: Evaluate condition
+            note right
+              Condition examples:
+              • intent == "QUESTION"
+              • confidence > 0.8
+              • senderRole == "NEWCOMER"
+            end note
+            
+            alt Condition matches
+                RuleEngine -> RuleEngine: Execute action
+                RuleEngine -> RuleEngine: Calculate severity
+                RuleEngine --> Evaluator: Rule triggered
+                note right: Stop evaluating\
+                other rules for\
+                this policy
+            end
+        end
+        
+        alt Rule triggered
+            RuleEngine --> Evaluator: ActionResult
+            deactivate RuleEngine
+            Evaluator -> Evaluator: Aggregate decision
+            note right: Multiple policies\
+            may contribute
+        else No rule triggered
+            deactivate RuleEngine
+        end
+    end
+    
+    ' Final Decision
+    Evaluator -> Evaluator: Determine final decision
+    Evaluator -> Evaluator: Set severity level
+    
+    ' Cache Store
+    Evaluator -> Cache: Store decision
+    activate Cache
+    Cache --> Evaluator: Stored
+    deactivate Cache
+end
+
+' Decision Processing
+== Decision Processing ==
+Evaluator --> Handler: PolicyDecision
+
+deactivate Evaluator
+
+Handler -> Logger: Log decision
+activate Logger
+Logger -> Logger: Build decision record
+Logger -> DB: Persist decision
+activate DB
+DB --> Logger: Saved
+
+deactivate DB
+Logger -> Audit: AuditEvent (async)
+Logger --> Handler: Logged
+
+deactivate Logger
+
+' Escalation Check
+alt Decision == ESCALATE
+    Handler -> Escalation: Handle escalation
+    activate Escalation
+    Escalation -> Escalation: Priority assessment
+    Escalation -> Escalation: Route to admin queue
+    Escalation -> Audit: Escalation audit
+    Escalation --> Handler: Escalated
+    deactivate Escalation
+end
+
+' Event Production
+Handler -> Handler: Build PolicyDecisionEvent
+Handler -> Consumer: Return result
+
+deactivate Handler
+
+Consumer -> OutTopic: Publish decision
+Consumer -> Audit: Processing audit
+
+deactivate Consumer
+
+' Decision Outcomes
+note right of OutTopic
+  <b>Decision Types:</b>
+  • ALLOW - No action, message stored
+  • BLOCK - Discard message
+  • FLAG - Send to moderation
+  • RESPOND - Generate LLM response
+  • ESCALATE - Human review
+end note
+
+note bottom
+  <b>Evaluation Performance:</b>
+  • Cache hit: ~1ms
+  • Cache miss: ~10-50ms
+  • Complex policies: ~100ms
+  • All decisions logged for audit
+end note
+
+@enduml

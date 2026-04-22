@@ -1,0 +1,76 @@
+@startuml C3_Policy_Engine
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Purpose: Component-level view of Policy Engine showing decision logic
+' Used in: architecture.adoc - Policy Engine Component section
+
+LAYOUT_WITH_LEGEND()
+
+Container_Boundary(policy_engine, "Policy Engine - Port 9083") {
+
+    ' Event Processing
+    Component(kafka_consumer, "Kafka Consumer", "Java / Spring Kafka", "Consumes messages.classified<br/>Produces policies.decisions")
+
+    Component(event_handler, "Event Handler", "Java / Spring", "IntentClassifiedEvent handler<br/>Async event processing<br/>Error handling & retries")
+
+    ' Core Decision Logic
+    Component(policy_evaluator, "Policy Evaluator", "Java / Spring", "Main evaluation orchestrator<br/>Coordinates rule execution<br/>Aggregates decisions")
+
+    Component(rule_engine, "Rule Engine", "Java / Spring", "Drools/easy-rules based<br/>Evaluates conditions<br/>Matches against intents")
+
+    Component(rule_repository, "Rule Repository", "Java / Spring Data", "CRUD for policy rules<br/>Rule versioning<br/>Activation/deactivation")
+
+    ' Decision Management
+    Component(decision_logger, "Decision Logger", "Java / Spring", "Records all decisions<br/>Links to audit events<br/>Immutable audit trail")
+
+    Component(escalation_manager, "Escalation Manager", "Java / Spring", "Handles ESCALATE decisions<br/>Routes to human review<br/>Priority queuing")
+
+    Component(decision_cache, "Decision Cache", "Java / Caffeine", "Caches policy decisions<br/>TTL-based expiration<br/>Reduces DB load")
+
+    ' Policy API
+    Component(policy_api, "Policy API Controller", "Java / Spring REST", "REST endpoints for rules<br/>Policy CRUD operations<br/>JWT-secured")
+
+    Component(health_endpoint, "Health Endpoint", "Java / Spring Actuator", "/actuator/health<br/>Readiness & liveness<br/>Metrics export")
+}
+
+' External connections
+ContainerDb(postgres, "PostgreSQL", "Database", "policies, decisions, rules tables")
+ContainerQueue(kafka, "Kafka", "Message Broker", "messages.classified<br/>policies.decisions")
+Container(audit_service, "Audit Service", "Java / Port 9086", "Remote audit logging")
+
+' Internal relationships
+Rel(kafka_consumer, event_handler, "Delivers events", "Spring @KafkaListener")
+Rel(event_handler, policy_evaluator, "Evaluate policy", "Sync")
+Rel(policy_evaluator, rule_engine, "Execute rules", "Sync")
+Rel(rule_engine, rule_repository, "Load active rules", "Sync")
+Rel(policy_evaluator, decision_logger, "Log decision", "Async")
+Rel(policy_evaluator, escalation_manager, "If ESCALATE", "Conditional")
+Rel(policy_evaluator, decision_cache, "Check/Store cache", "Sync")
+Rel(policy_api, rule_repository, "CRUD operations", "REST")
+Rel(policy_api, rule_engine, "Reload rules", "Sync")
+
+' External relationships
+Rel(kafka_consumer, kafka, "Consume/Produce", "Async JSON")
+Rel(rule_repository, postgres, "Persist rules", "R2DBC")
+Rel(decision_logger, postgres, "Store decisions", "R2DBC")
+Rel(decision_logger, audit_service, "Audit events", "REST/Internal")
+
+' Data flow notes
+note right of policy_evaluator
+  <b>Decision Types:</b>
+  • ALLOW - No action needed
+  • BLOCK - Prevent processing
+  • FLAG - Mark for review
+  • RESPOND - Generate AI response
+  • ESCALATE - Human intervention
+end note
+
+note bottom of rule_engine
+  <b>Rule Structure:</b>
+  Condition: intent == "QUESTION" && confidence > 0.8
+  Action: RESPOND with template "helpful_response"
+  Severity: INFO | WARNING | CRITICAL
+end note
+
+SHOW_LEGEND()
+@enduml
