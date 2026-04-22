@@ -39,5 +39,8 @@ springdoc:
     path: /swagger-ui.html
 
 logging:
+  structured:
+    format:
+      console: logstash
   level:
     io.emcip: INFO

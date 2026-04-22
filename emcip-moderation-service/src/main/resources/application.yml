@@ -40,5 +40,8 @@ kafka:
     retry-delay-ms: 1000
 
 logging:
+  structured:
+    format:
+      console: logstash
   level:
     io.emcip: INFO

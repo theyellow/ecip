@@ -35,5 +35,8 @@ management:
       show-details: always
 
 logging:
+  structured:
+    format:
+      console: logstash
   level:
     io.emcip: INFO
