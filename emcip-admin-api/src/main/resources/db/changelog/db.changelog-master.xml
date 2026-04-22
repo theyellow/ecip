@@ -66,5 +66,6 @@
     </changeSet>
 
     <include file="db/changelog/changes/002-seed-admin-user.xml"/>
+    <include file="db/changelog/changes/003-create-tenants-table.xml"/>
 
 </databaseChangeLog>
