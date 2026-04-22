@@ -59,6 +59,18 @@ public class PolicyRuleConfig {
     @Column(nullable = false)
     private Boolean active = true;
 
+    /**
+     * Business version counter (1, 2, 3...). Separate from the JPA @Version optimistic lock field.
+     */
+    @Column(nullable = false)
+    private Integer ruleVersion = 1;
+
+    /** When this rule version becomes effective. Null = no lower bound. */
+    private Instant effectiveFrom;
+
+    /** When this rule version was superseded. Null = still current. */
+    private Instant effectiveTo;
+
     /** Additional conditions as JSON (for complex rules). */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
@@ -70,6 +82,14 @@ public class PolicyRuleConfig {
     private Instant updatedAt;
 
     @Version private Long version;
+
+    /** Returns true if this rule is active and temporally effective at the given instant. */
+    public boolean isEffectiveAt(Instant at) {
+        if (!Boolean.TRUE.equals(active)) return false;
+        if (effectiveFrom != null && at.isBefore(effectiveFrom)) return false;
+        if (effectiveTo != null && !at.isBefore(effectiveTo)) return false;
+        return true;
+    }
 
     @PrePersist
     protected void onCreate() {
