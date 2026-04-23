@@ -5,12 +5,12 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
     <changeSet id="001-indexes" author="phase5">
-        <createIndex indexName="idx_audit_events_type_timestamp" tableName="audit_events">
+        <createIndex indexName="idx_audit_events_type_created_at" tableName="audit_events">
             <column name="event_type"/>
-            <column name="timestamp"/>
+            <column name="created_at"/>
         </createIndex>
-        <createIndex indexName="idx_audit_events_source_id" tableName="audit_events">
-            <column name="source_event_id"/>
+        <createIndex indexName="idx_audit_events_source_service" tableName="audit_events">
+            <column name="source_service"/>
         </createIndex>
     </changeSet>
 </databaseChangeLog>

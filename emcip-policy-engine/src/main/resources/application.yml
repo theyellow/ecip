@@ -5,9 +5,9 @@ spring:
   application:
     name: emcip-policy-engine
   datasource:
-    url: jdbc:postgresql://localhost:14005/emcip
-    username: emcip
-    password: emcip
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:14005/emcip}
+    username: ${SPRING_DATASOURCE_USERNAME:emcip}
+    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 20
@@ -22,10 +22,9 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
   liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.xml
-    enabled: true
+    enabled: false
   kafka:
-    bootstrap-servers: localhost:14003
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
     consumer:
       group-id: policy-engine
       auto-offset-reset: earliest

@@ -8,12 +8,12 @@ spring:
     url: r2dbc:postgresql://localhost:14005/emcip
     username: emcip
     password: emcip
-  liquibase:
+  datasource:
     url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
-    user: ${SPRING_DATASOURCE_USERNAME:emcip}
+    username: ${SPRING_DATASOURCE_USERNAME:emcip}
     password: ${SPRING_DATASOURCE_PASSWORD:emcip}
-    change-log: classpath:db/changelog/db.changelog-master.xml
-    enabled: true
+    driver-class-name: org.postgresql.Driver
+
 
 management:
   tracing:
@@ -29,8 +29,10 @@ management:
 
 admin:
   jwt:
-    secret: ${ADMIN_JWT_SECRET:changeme-in-production-must-be-32-chars}
+    secret: ${ADMIN_JWT_SECRET:changeme-in-production-32chars-secret}
   service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
+  cors:
+    allowed-origins: ${ADMIN_CORS_ALLOWED_ORIGINS:http://localhost:14009}
 
 springdoc:
   api-docs:

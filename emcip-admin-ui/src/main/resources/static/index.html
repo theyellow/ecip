@@ -348,6 +348,7 @@ function showCreateRuleModal() {
         '<div class="modal">' +
             '<h3>Create Rule Version</h3>' +
             '<div class="form-group"><label>Rule Name</label><input type="text" id="new-rule-name" placeholder="e.g. spam-filter"></div>' +
+            '<div class="form-group"><label>Target Intent</label><input type="text" id="new-rule-intent" placeholder="e.g. SPAM or * for all" value="*"></div>' +
             '<div class="form-group"><label>Action</label>' +
                 '<select id="new-rule-action" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px">' +
                     '<option>WARN</option><option>MUTE</option><option>BAN</option><option>ALLOW</option>' +
@@ -365,11 +366,12 @@ function showCreateRuleModal() {
 
 function createRule(btn) {
     var name = document.getElementById('new-rule-name').value.trim();
+    var intent = document.getElementById('new-rule-intent').value.trim() || '*';
     var action = document.getElementById('new-rule-action').value;
     var priority = parseInt(document.getElementById('new-rule-priority').value) || 10;
     var errEl = document.getElementById('modal-error');
     if (!name) { errEl.textContent = 'Name required'; errEl.style.display='block'; return; }
-    apiPost('/api/policy-rules', {name: name, action: action, priority: priority, active: true}).then(function() {
+    apiPost('/api/policy-rules', {name: name, targetIntent: intent, action: action, priority: priority, active: true}).then(function() {
         btn.closest('.modal-backdrop').remove();
         navigate('policy-rules');
     }).catch(function(e) {
@@ -430,7 +432,7 @@ function renderAuditLog(el) {
             return;
         }
         var rows = list.map(function(e) {
-            var ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '\u2014';
+            var ts = e.createdAt ? new Date(e.createdAt).toLocaleString() : '\u2014';
             var type = e.eventType || e.event_type || '';
             var actor = e.actorId || e.actor_id || 'system';
             var payload = JSON.stringify(e.payload || {});

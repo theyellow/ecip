@@ -5,6 +5,7 @@ import io.emcip.admin.api.repository.PolicyRuleRepository;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +23,7 @@ import reactor.core.publisher.Mono;
 public class PolicyRuleController {
 
     private final PolicyRuleRepository policyRuleRepository;
+    private final R2dbcEntityTemplate r2dbcEntityTemplate;
 
     @GetMapping
     public Flux<PolicyRule> listActiveRules() {
@@ -39,11 +41,17 @@ public class PolicyRuleController {
         if (rule.getActive() == null) {
             rule.setActive(true);
         }
-        return policyRuleRepository.save(rule);
+        if (rule.getTargetIntent() == null || rule.getTargetIntent().isBlank()) {
+            rule.setTargetIntent("*");
+        }
+        if (rule.getMinConfidence() == null) {
+            rule.setMinConfidence(0.0);
+        }
+        return r2dbcEntityTemplate.insert(rule);
     }
 
     @GetMapping("/history/{ruleName}")
-    public Flux<PolicyRule> getRuleHistory(@PathVariable String ruleName) {
+    public Flux<PolicyRule> getRuleHistory(@PathVariable("ruleName") String ruleName) {
         return policyRuleRepository.findHistoryByName(ruleName);
     }
 }

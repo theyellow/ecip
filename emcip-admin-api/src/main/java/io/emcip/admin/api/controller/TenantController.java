@@ -5,6 +5,7 @@ import io.emcip.admin.api.repository.TenantRepository;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,7 @@ import reactor.core.publisher.Mono;
 public class TenantController {
 
     private final TenantRepository tenantRepository;
+    private final R2dbcEntityTemplate r2dbcEntityTemplate;
 
     @GetMapping
     public Flux<Tenant> listTenants() {
@@ -34,12 +36,12 @@ public class TenantController {
     public Mono<Tenant> createTenant(@RequestBody Tenant tenant) {
         tenant.setId(UUID.randomUUID());
         tenant.setCreatedAt(Instant.now());
-        return tenantRepository.save(tenant);
+        return r2dbcEntityTemplate.insert(tenant);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> deleteTenant(@PathVariable UUID id) {
+    public Mono<Void> deleteTenant(@PathVariable("id") UUID id) {
         return tenantRepository.deleteById(id);
     }
 }
