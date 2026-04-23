@@ -298,6 +298,15 @@ function deleteTenant(id) {
 }
 
 // ===== Policy Rules View =====
+var rulesCache = [];
+
+function actionBadgeClass(action) {
+    if (action === 'BAN') return 'badge-red';
+    if (action === 'WARN') return 'badge-yellow';
+    if (action === 'ALLOW') return 'badge-green';
+    return 'badge-blue';
+}
+
 function renderPolicyRules(el) {
     el.innerHTML =
         '<div class="page-header">' +
@@ -308,53 +317,154 @@ function renderPolicyRules(el) {
             '<div class="card">' +
                 '<div class="card-header">' +
                     '<h3>Active Rules</h3>' +
-                    '<button class="btn btn-primary btn-sm" onclick="showCreateRuleModal()">+ New Rule Version</button>' +
+                    '<button class="btn btn-primary btn-sm" onclick="showCreateRuleModal()">+ New Rule</button>' +
                 '</div>' +
                 '<div id="rules-table-body"><div class="empty-state">Loading...</div></div>' +
             '</div>' +
         '</div>';
 
     apiGet('/api/policy-rules').then(function(rules) {
+        rulesCache = rules || [];
         var tbody = document.getElementById('rules-table-body');
-        if (!rules || rules.length === 0) {
+        if (rulesCache.length === 0) {
             tbody.innerHTML = '<div class="empty-state">No policy rules configured.</div>';
             return;
         }
-        var rows = rules.map(function(r) {
+        var rows = rulesCache.map(function(r, idx) {
             var statusClass = r.active ? 'badge-green' : 'badge-red';
             var statusLabel = r.active ? 'Active' : 'Inactive';
-            var version = r.ruleVersion || r.rule_version || 1;
+            var actionClass = actionBadgeClass(r.action);
+            var minConf = (r.minConfidence !== undefined && r.minConfidence !== null) ? r.minConfidence + '%' : '0%';
+            var maxConf = (r.maxConfidence !== undefined && r.maxConfidence !== null) ? r.maxConfidence + '%' : '\u2014';
+            var confRange = minConf + '\u2013' + maxConf;
             var fromDate = r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString() : 'Immediate';
-            return '<tr>' +
+            var toDate = r.effectiveTo ? new Date(r.effectiveTo).toLocaleDateString() : '\u2014';
+            var effectivePeriod = fromDate + ' \u2192 ' + toDate;
+            return '<tr style="cursor:pointer" onclick="showRuleDetails(' + idx + ')">' +
                 '<td>' + esc(r.name) + '</td>' +
-                '<td><span class="badge badge-blue">' + esc(r.action) + '</span></td>' +
-                '<td>v' + esc(version) + '</td>' +
+                '<td>' + esc(r.targetIntent || '*') + '</td>' +
+                '<td><span class="badge ' + actionClass + '">' + esc(r.action) + '</span></td>' +
+                '<td>' + esc(confRange) + '</td>' +
+                '<td>' + esc(String(r.priority !== undefined ? r.priority : '')) + '</td>' +
                 '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
-                '<td>' + fromDate + '</td>' +
-                '<td><button class="btn btn-secondary btn-sm" onclick="viewRuleHistory(\'' + esc(r.name) + '\')">History</button></td>' +
+                '<td>' + esc(effectivePeriod) + '</td>' +
+                '<td onclick="event.stopPropagation()">' +
+                    '<button class="btn btn-secondary btn-sm" onclick="deleteRule(' + idx + ')">Delete</button>' +
+                '</td>' +
                 '</tr>';
         }).join('');
-        tbody.innerHTML = '<table><thead><tr><th>Name</th><th>Action</th><th>Version</th><th>Status</th><th>Effective From</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+        tbody.innerHTML =
+            '<table><thead><tr>' +
+                '<th>Name</th><th>Intent</th><th>Action</th><th>Confidence</th>' +
+                '<th>Priority</th><th>Status</th><th>Effective Period</th><th></th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table>';
     }).catch(function(e) {
         var tbody = document.getElementById('rules-table-body');
         if (tbody) tbody.innerHTML = '<div class="empty-state" style="color:#f87171">Error: ' + esc(e.message) + '</div>';
     });
 }
 
+function showRuleDetails(idx) {
+    var r = rulesCache[idx];
+    if (!r) return;
+    var actionClass = actionBadgeClass(r.action);
+    var statusClass = r.active ? 'badge-green' : 'badge-red';
+    var statusLabel = r.active ? 'Active' : 'Inactive';
+    var minConf = (r.minConfidence !== undefined && r.minConfidence !== null) ? r.minConfidence + '%' : '0%';
+    var maxConf = (r.maxConfidence !== undefined && r.maxConfidence !== null) ? r.maxConfidence + '%' : 'no limit';
+    var confRange = minConf + '\u2013' + maxConf;
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    var ruleName = r.name || '';
+    backdrop.innerHTML =
+        '<div class="modal" style="max-width:600px">' +
+            '<h3>Rule Details: ' + esc(ruleName) + '</h3>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin:16px 0">' +
+                '<div><span style="color:#94a3b8;font-size:12px">ID</span><div>' + esc(String(r.id || '')) + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Name</span><div>' + esc(r.name || '') + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Target Intent</span><div>' + esc(r.targetIntent || '*') + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Action</span><div><span class="badge ' + actionClass + '">' + esc(r.action || '') + '</span></div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Confidence Range</span><div>' + esc(confRange) + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Priority</span><div>' + esc(String(r.priority !== undefined ? r.priority : '')) + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Version</span><div>' + esc(String(r.ruleVersion !== undefined ? r.ruleVersion : '')) + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Status</span><div><span class="badge ' + statusClass + '">' + statusLabel + '</span></div></div>' +
+                '<div style="grid-column:span 2"><span style="color:#94a3b8;font-size:12px">Description</span><div>' + esc(r.description || '\u2014') + '</div></div>' +
+                '<div style="grid-column:span 2"><span style="color:#94a3b8;font-size:12px">Reason</span><div>' + esc(r.reason || '\u2014') + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Effective From</span><div>' + esc(r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleString() : 'Immediate') + '</div></div>' +
+                '<div><span style="color:#94a3b8;font-size:12px">Effective To</span><div>' + esc(r.effectiveTo ? new Date(r.effectiveTo).toLocaleString() : 'No expiry') + '</div></div>' +
+                '<div style="grid-column:span 2"><span style="color:#94a3b8;font-size:12px">Created At</span><div>' + esc(r.createdAt ? new Date(r.createdAt).toLocaleString() : '\u2014') + '</div></div>' +
+            '</div>' +
+            '<div class="modal-actions">' +
+                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Close</button>' +
+                '<button class="btn btn-primary" onclick="this.closest(\'.modal-backdrop\').remove();viewRuleHistory(\'' + esc(ruleName) + '\')">View History</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(backdrop);
+}
+
 function showCreateRuleModal() {
+    var selectStyle = 'width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px';
     var backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
     backdrop.innerHTML =
-        '<div class="modal">' +
-            '<h3>Create Rule Version</h3>' +
-            '<div class="form-group"><label>Rule Name</label><input type="text" id="new-rule-name" placeholder="e.g. spam-filter"></div>' +
-            '<div class="form-group"><label>Target Intent</label><input type="text" id="new-rule-intent" placeholder="e.g. SPAM or * for all" value="*"></div>' +
-            '<div class="form-group"><label>Action</label>' +
-                '<select id="new-rule-action" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px">' +
-                    '<option>WARN</option><option>MUTE</option><option>BAN</option><option>ALLOW</option>' +
-                '</select>' +
+        '<div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">' +
+            '<h3>Create Rule</h3>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">' +
+                '<div class="form-group" style="grid-column:span 2">' +
+                    '<label>Rule Name <span style="color:#f87171">*</span></label>' +
+                    '<input type="text" id="new-rule-name" placeholder="e.g. spam-filter">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Target Intent</label>' +
+                    '<select id="new-rule-intent" style="' + selectStyle + '" onchange="handleIntentChange(this)">' +
+                        '<option value="*">* (any intent)</option>' +
+                        '<option value="SPAM">SPAM</option>' +
+                        '<option value="HATE_SPEECH">HATE_SPEECH</option>' +
+                        '<option value="HARASSMENT">HARASSMENT</option>' +
+                        '<option value="VIOLENCE">VIOLENCE</option>' +
+                        '<option value="NORMAL">NORMAL</option>' +
+                        '<option value="__custom__">Custom\u2026</option>' +
+                    '</select>' +
+                    '<input type="text" id="new-rule-intent-custom" placeholder="Enter custom intent" style="display:none;margin-top:8px">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Action</label>' +
+                    '<select id="new-rule-action" style="' + selectStyle + '">' +
+                        '<option value="WARN">WARN \u2014 flag &amp; notify</option>' +
+                        '<option value="MUTE">MUTE \u2014 suppress message</option>' +
+                        '<option value="BAN">BAN \u2014 ban user</option>' +
+                        '<option value="ALLOW">ALLOW \u2014 always permit</option>' +
+                    '</select>' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Priority</label>' +
+                    '<input type="number" id="new-rule-priority" value="10" min="1">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Min Confidence <span style="color:#94a3b8;font-size:12px">% (0 = any)</span></label>' +
+                    '<input type="number" id="new-rule-min-conf" value="0" min="0" max="100" step="5">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Max Confidence <span style="color:#94a3b8;font-size:12px">% (blank = no limit)</span></label>' +
+                    '<input type="number" id="new-rule-max-conf" placeholder="blank = no limit" min="0" max="100" step="5">' +
+                '</div>' +
+                '<div class="form-group" style="grid-column:span 2">' +
+                    '<label>Description <span style="color:#94a3b8;font-size:12px">(optional)</span></label>' +
+                    '<input type="text" id="new-rule-description" placeholder="Brief description">' +
+                '</div>' +
+                '<div class="form-group" style="grid-column:span 2">' +
+                    '<label>Reason <span style="color:#94a3b8;font-size:12px">(shown to moderators)</span></label>' +
+                    '<input type="text" id="new-rule-reason" placeholder="Reason for this rule">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Effective From <span style="color:#94a3b8;font-size:12px">(blank = immediate)</span></label>' +
+                    '<input type="datetime-local" id="new-rule-effective-from">' +
+                '</div>' +
+                '<div class="form-group">' +
+                    '<label>Effective To <span style="color:#94a3b8;font-size:12px">(blank = no expiry)</span></label>' +
+                    '<input type="datetime-local" id="new-rule-effective-to">' +
+                '</div>' +
             '</div>' +
-            '<div class="form-group"><label>Priority</label><input type="number" id="new-rule-priority" placeholder="10" value="10"></div>' +
             '<div id="modal-error" class="error-msg" style="display:none"></div>' +
             '<div class="modal-actions">' +
                 '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Cancel</button>' +
@@ -364,40 +474,84 @@ function showCreateRuleModal() {
     document.body.appendChild(backdrop);
 }
 
+function handleIntentChange(sel) {
+    var customInput = document.getElementById('new-rule-intent-custom');
+    if (customInput) {
+        customInput.style.display = sel.value === '__custom__' ? 'block' : 'none';
+    }
+}
+
 function createRule(btn) {
     var name = document.getElementById('new-rule-name').value.trim();
-    var intent = document.getElementById('new-rule-intent').value.trim() || '*';
-    var action = document.getElementById('new-rule-action').value;
+    var intentSel = document.getElementById('new-rule-intent');
+    var intent = intentSel.value === '__custom__'
+        ? (document.getElementById('new-rule-intent-custom').value.trim() || '*')
+        : intentSel.value;
+    var actionSel = document.getElementById('new-rule-action');
+    var action = actionSel.value;
     var priority = parseInt(document.getElementById('new-rule-priority').value) || 10;
+    var minConfRaw = document.getElementById('new-rule-min-conf').value;
+    var maxConfRaw = document.getElementById('new-rule-max-conf').value;
+    var description = document.getElementById('new-rule-description').value.trim();
+    var reason = document.getElementById('new-rule-reason').value.trim();
+    var effectiveFromRaw = document.getElementById('new-rule-effective-from').value;
+    var effectiveToRaw = document.getElementById('new-rule-effective-to').value;
     var errEl = document.getElementById('modal-error');
-    if (!name) { errEl.textContent = 'Name required'; errEl.style.display='block'; return; }
-    apiPost('/api/policy-rules', {name: name, targetIntent: intent, action: action, priority: priority, active: true}).then(function() {
+    if (!name) { errEl.textContent = 'Rule Name is required'; errEl.style.display = 'block'; return; }
+    var payload = {
+        name: name,
+        targetIntent: intent,
+        action: action,
+        priority: priority,
+        active: true
+    };
+    if (minConfRaw !== '') payload.minConfidence = parseFloat(minConfRaw);
+    if (maxConfRaw !== '') payload.maxConfidence = parseFloat(maxConfRaw);
+    if (description) payload.description = description;
+    if (reason) payload.reason = reason;
+    if (effectiveFromRaw) payload.effectiveFrom = new Date(effectiveFromRaw).toISOString();
+    if (effectiveToRaw) payload.effectiveTo = new Date(effectiveToRaw).toISOString();
+    apiPost('/api/policy-rules', payload).then(function() {
         btn.closest('.modal-backdrop').remove();
         navigate('policy-rules');
     }).catch(function(e) {
-        errEl.textContent = e.message; errEl.style.display='block';
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+    });
+}
+
+function deleteRule(idx) {
+    var r = rulesCache[idx];
+    if (!r) return;
+    if (!confirm('Delete rule "' + r.name + '"? This cannot be undone.')) return;
+    apiDelete('/api/policy-rules/' + encodeURIComponent(r.id)).then(function() {
+        navigate('policy-rules');
+    }).catch(function(e) {
+        alert('Delete failed: ' + e.message);
     });
 }
 
 function viewRuleHistory(name) {
-    apiGet('/api/policy-rules/' + encodeURIComponent(name) + '/history').then(function(history) {
+    apiGet('/api/policy-rules/history/' + encodeURIComponent(name)).then(function(history) {
         var backdrop = document.createElement('div');
         backdrop.className = 'modal-backdrop';
         var rows = (history || []).map(function(r) {
             var activeClass = r.active ? 'badge-green' : 'badge-red';
-            var activeLabel = r.active ? 'Yes' : 'No';
+            var activeLabel = r.active ? 'Active' : 'Inactive';
+            var actionClass = actionBadgeClass(r.action);
             return '<tr>' +
-                '<td>v' + esc(r.ruleVersion || 1) + '</td>' +
-                '<td>' + esc(r.action) + '</td>' +
+                '<td>v' + esc(String(r.ruleVersion !== undefined ? r.ruleVersion : '')) + '</td>' +
+                '<td><span class="badge ' + actionClass + '">' + esc(r.action || '') + '</span></td>' +
+                '<td>' + esc(r.targetIntent || '*') + '</td>' +
                 '<td><span class="badge ' + activeClass + '">' + activeLabel + '</span></td>' +
                 '<td>' + (r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString() : '\u2014') + '</td>' +
                 '<td>' + (r.effectiveTo ? new Date(r.effectiveTo).toLocaleDateString() : '\u2014') + '</td>' +
                 '</tr>';
         }).join('');
         backdrop.innerHTML =
-            '<div class="modal" style="max-width:560px">' +
+            '<div class="modal" style="max-width:640px">' +
                 '<h3>Rule History: ' + esc(name) + '</h3>' +
-                '<table><thead><tr><th>Version</th><th>Action</th><th>Active</th><th>From</th><th>To</th></tr></thead>' +
+                '<table><thead><tr><th>Ver</th><th>Action</th><th>Intent</th><th>Status</th><th>From</th><th>To</th></tr></thead>' +
                 '<tbody>' + rows + '</tbody></table>' +
                 '<div class="modal-actions">' +
                     '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Close</button>' +

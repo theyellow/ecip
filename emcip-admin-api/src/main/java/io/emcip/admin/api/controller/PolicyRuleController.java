@@ -7,6 +7,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,6 +49,12 @@ public class PolicyRuleController {
             rule.setMinConfidence(0.0);
         }
         return r2dbcEntityTemplate.insert(rule);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> deleteRule(@PathVariable("id") String id) {
+        return policyRuleRepository.deleteById(id);
     }
 
     @GetMapping("/history/{ruleName}")
