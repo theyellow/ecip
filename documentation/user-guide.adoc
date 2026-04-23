@@ -30,7 +30,7 @@ Enter your username and password in the login form and click *Sign In*. The UI c
 The JWT is stored in memory (a JS variable), not in `localStorage`. If you reload the page, you will be logged out and must sign in again. This is intentional — it prevents token theft via XSS.
 ====
 
-Default credentials are set via the `ADMIN_JWT_SECRET` and admin user seed in the `admin_users` table. For local development, use the credentials from your `.env` file.
+NOTE: Default credentials for the Admin UI and all other UIs are listed in the _Operations Guide_, §1 "Default Credentials".
 
 === Tenant Management
 

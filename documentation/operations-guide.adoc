@@ -7,6 +7,52 @@
 
 NOTE: For the architectural context of these services, see the _Architecture Guide_.
 
+== Default Credentials
+
+[cols="2,1,1,1,2"]
+|===
+|UI |Port |Username |Password |How to change
+
+|Admin UI
+|14009
+|`admin`
+|`changeme`
+|Update `admin_users` table or edit `emcip-admin-api/.../db/changelog/changes/002-seed-admin-user.xml`
+
+|pgAdmin
+|14006
+|`admin@ecip.io`
+|`admin`
+|`docker-compose.yml` — `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`
+
+|Grafana
+|14007
+|`admin`
+|`admin`
+|`docker-compose.yml` — `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD`
+
+|Kafka UI
+|14004
+|(none)
+|(none)
+|No auth — open access for local development
+|===
+
+The Admin UI JWT signing secret is set via `ADMIN_JWT_SECRET` in `.env` (minimum 32 characters). Tokens expire after 8 hours.
+
+To change the Admin UI password on a running instance:
+
+[source,bash]
+----
+# Generate a new bcrypt hash (rounds=12)
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'newpassword', bcrypt.gensalt(12)).decode())"
+
+# Apply it
+docker exec -it $(docker compose ps -q postgres) \
+  psql -U emcip -d emcip -c \
+  "UPDATE admin_users SET password_hash = '<hash>' WHERE username = 'admin';"
+----
+
 == Infrastructure Overview
 
 [plantuml,deploy-local,png]
