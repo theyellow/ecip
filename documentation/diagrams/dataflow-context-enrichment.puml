@@ -1,0 +1,170 @@
+@startuml DataFlow_Context_Enrichment
+' Purpose: Data flow diagram showing conversation context enrichment
+' Used in: architecture.adoc - Context Enrichment section
+
+!theme plain
+skinparam wrapWidth 200
+
+title Data Flow: Conversation Context Enrichment
+
+' Data Sources
+cloud "Telegram\nMessages" as Telegram
+queue "telegram.raw.\nmessages" as RawTopic
+queue "messages.\nclassified" as ClassifiedTopic
+queue "policies.\ndecisions" as DecisionTopic
+queue "responses.\ngenerated" as ResponseTopic
+
+' Context Service
+rectangle "Conversation Context Service (Port 9081)" as ContextSvc #LightBlue {
+    component "Event\nConsumer" as Consumer
+    component "Context\nAggregator" as Aggregator
+    component "Thread\nTracker" as ThreadTracker
+    component "Role\nAnalyzer" as RoleAnalyzer
+    component "History\nManager" as HistoryMgr
+    component "Context\nAPI" as ContextAPI
+}
+
+' Data Stores
+database "PostgreSQL" as DB {
+    rectangle "Messages" as MsgTable
+    rectangle "Threads" as ThreadTable
+    rectangle "SpeakerRoles" as RoleTable
+    rectangle "ConversationHistory" as HistoryTable
+    rectangle "GroupProfiles" as GroupTable
+}
+
+' Consumers of Context
+rectangle "Intent Classifier" as Intent #LightGreen
+rectangle "Policy Engine" as Policy #LightYellow
+rectangle "LLM Orchestrator" as LLM #LightCoral
+rectangle "Audit Service" as Audit #LightGray
+
+' === INCOMING DATA FLOW ===
+'== Incoming Event Processing ==
+
+Telegram --> RawTopic : New message
+RawTopic --> Consumer : TelegramRawMessageEvent
+
+Consumer --> Aggregator : Enrich event
+'activate Aggregator
+
+' Thread Tracking
+Aggregator --> ThreadTracker : Extract thread info
+'activate ThreadTracker
+ThreadTracker --> DB : Query thread
+ThreadTracker --> ThreadTable : Read/Write
+ThreadTracker --> Aggregator : ThreadContext
+
+'deactivate ThreadTracker
+
+' Speaker Role Analysis
+Aggregator --> RoleAnalyzer : Analyze sender
+'activate RoleAnalyzer
+RoleAnalyzer --> DB : Query history
+RoleAnalyzer --> MsgTable : Read messages
+RoleAnalyzer --> RoleTable : Update roles
+RoleAnalyzer --> Aggregator : SpeakerRole
+
+'deactivate RoleAnalyzer
+
+' History Management
+Aggregator --> HistoryMgr : Build history
+'activate HistoryMgr
+HistoryMgr --> HistoryTable : Read recent
+HistoryMgr --> MsgTable : Query messages
+HistoryMgr --> Aggregator : ConversationHistory
+
+'deactivate HistoryMgr
+
+' Group Profile
+Aggregator --> GroupTable : Fetch group info
+GroupTable --> Aggregator : GroupProfile
+
+' Store enriched context
+Aggregator --> DB : Persist context
+Aggregator --> MsgTable : Store message
+Aggregator --> ThreadTable : Update thread
+Aggregator --> HistoryTable : Append history
+
+'deactivate Aggregator
+
+' === CONTEXT ENRICHMENT OUTPUT ===
+'== Context Enrichment Output ==
+
+ClassifiedTopic --> Consumer : IntentClassifiedEvent
+Consumer --> Aggregator : Enrich with intent
+Aggregator --> Intent : Enriched classification
+
+DecisionTopic --> Consumer : PolicyDecisionEvent
+Consumer --> Aggregator : Enrich with context
+Aggregator --> Policy : Enriched decision
+
+ResponseTopic --> Consumer : ResponseGeneratedEvent
+Consumer --> Aggregator : Track response
+Aggregator --> LLM : Conversation state
+
+' === CONTEXT API CONSUMPTION ===
+'== Context API Usage ==
+
+Intent --> ContextAPI : GET /context/{chatId}
+ContextAPI --> Intent : ThreadContext + History
+
+'deactivate ContextSvc
+
+Policy --> ContextAPI : GET /context/{chatId}/{threadId}
+ContextAPI --> Policy : Full conversation context
+
+LLM --> ContextAPI : GET /context/summary/{chatId}
+ContextAPI --> LLM : ConversationSummary
+
+Audit --> ContextAPI : GET /context/raw/{messageId}
+ContextAPI --> Audit : Complete message context
+
+' === DATA MODEL ===
+rectangle "Context Data Model" as DataModel #White {
+    
+        'rectangle "Context Data Model" as DataModel #White
+
+        rectangle "ThreadContext\nchatId: Long\nthreadId: Long\nchatType: String\nchatTitle: String\nmessageCount: Integer\nlastActivity: Instant\nparticipantIds: List<Long>" as ThreadContext
+
+        rectangle "SpeakerRole\nuserId: Long\nchatId: Long\nrole: RoleType\nmessageCount: Integer\nfirstSeen: Instant\nlastSeen: Instant\ncommonTopics: List<String>" as SpeakerRole
+
+        rectangle "ConversationHistory\nchatId: Long\nrecentMessages: List<Message>\ntopicSummary: String\nunreadCount: Integer\nkeywords: List<String>" as ConversationHistory
+
+        rectangle "EnrichedMessage\nbase: TelegramRawMessageEvent\nthread: ThreadContext\nsenderRole: SpeakerRole\nhistory: ConversationHistory\ngroup: GroupProfile" as EnrichedMessage
+}
+
+' Relationships in data model
+EnrichedMessage --> ThreadContext : contains
+EnrichedMessage --> SpeakerRole : contains
+EnrichedMessage --> ConversationHistory : contains
+
+' Data flow annotations
+note right of Aggregator
+  <b>Enrichment Process:</b>
+  1. Extract chatId, threadId, senderId
+  2. Load or create ThreadContext
+  3. Analyze sender history → SpeakerRole
+  4. Fetch recent messages → History
+  5. Aggregate all into EnrichedMessage
+end note
+
+note bottom of ContextAPI
+  <b>Context API Endpoints:</b>
+  • GET /api/v1/context/{chatId}
+  • GET /api/v1/context/{chatId}/thread/{threadId}
+  • GET /api/v1/context/summary/{chatId}
+  • GET /api/v1/context/speaker/{userId}/role
+  • GET /api/v1/context/history/{chatId}?limit=50
+end note
+
+note right of SpeakerRole
+  <b>Role Types:</b>
+  • NEWCOMER (< 5 messages)
+  • MEMBER (regular participant)
+  • VERIFIED (trusted user)
+  • MODERATOR (group admin)
+  • ADMIN (platform admin)
+end note
+
+@enduml

@@ -1,0 +1,390 @@
+= EMCIP Architecture Guide
+:toc:
+:toclevels: 3
+:sectnums:
+:icons: font
+:source-highlighter: rouge
+:imagesdir: diagrams
+
+== Introduction
+
+EMCIP (Enterprise Messenger Community Intelligence Platform) connects to Telegram as a *real user* (not a bot) via TDLib, listens passively in groups, channels, and discussion chats, classifies message intent, evaluates community policy rules, and optionally generates LLM responses or applies moderation actions.
+
+=== Operating Modes
+
+[cols="1,3"]
+|===
+|Mode |Description
+
+|*React*
+|Policy rule evaluates intent and produces a structured response via the LLM Orchestrator.
+
+|*Summarize*
+|Conversation context is periodically summarised and stored for retrieval.
+
+|*Moderate*
+|The Moderation Service applies keyword, regex, or length rules and flags violations.
+
+|*Observe*
+|All pipeline events are written to the Audit Service — read-only observation with no actions.
+|===
+
+NOTE: For setup steps and development prerequisites, see the _Developer Guide_.
+
+== System Context (C1)
+
+The following diagram shows EMCIP in relation to its external actors and systems.
+
+[plantuml,c1-context,png]
+----
+include::diagrams/c1-context.puml[]
+----
+
+*External actors:*
+
+* *Platform Admin* — configures tenants, policy rules, and moderation settings via the Admin API or Admin UI.
+* *Telegram User* — sends messages in groups and channels that EMCIP monitors.
+
+*External systems:*
+
+* *Telegram API (TDLib)* — EMCIP connects as a real account using `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`.
+* *LLM Providers* — Claude (Anthropic), OpenAI, and local Ollama models are supported via the LLM Orchestrator.
+
+== Container Architecture (C2)
+
+[plantuml,c2-container,png]
+----
+include::diagrams/c2-container.puml[]
+----
+
+The platform comprises 8 application microservices, each independently deployable:
+
+[cols="1,1,3"]
+|===
+|Service |Port |Responsibility
+
+|`emcip-tdlib-adapter`
+|9080
+|Connects to Telegram via TDLib; publishes `telegram.raw.messages`.
+
+|`emcip-conversation-context`
+|9081
+|Tracks threads, users, and message history; JPA / PostgreSQL.
+
+|`emcip-intent-classifier`
+|9082
+|Classifies message intent; publishes `messages.classified`.
+
+|`emcip-policy-engine`
+|9083
+|Evaluates policy rules; publishes `policies.decisions`.
+
+|`emcip-llm-orchestrator`
+|9084
+|Routes to LLM provider; publishes `responses.generated`.
+
+|`emcip-moderation-service`
+|9085
+|Applies moderation rules; publishes `moderation.flags`.
+
+|`emcip-audit-service`
+|9086
+|Appends all events to the audit log; R2DBC / PostgreSQL.
+
+|`emcip-admin-api`
+|9087
+|REST management API for tenants, policy rules, audit queries; R2DBC / WebFlux.
+|===
+
+Infrastructure services (Kafka, PostgreSQL, Grafana, Loki, Admin UI) are defined in `docker-compose.yml`.
+
+== Component Details (C3)
+
+=== Overview
+
+[plantuml,c3-overview,png]
+----
+include::diagrams/c3-component.puml[]
+----
+
+=== TDLib Adapter
+
+[plantuml,c3-tdlib,png]
+----
+include::diagrams/c3-tdlib-adapter.puml[]
+----
+
+=== Policy Engine
+
+[plantuml,c3-policy,png]
+----
+include::diagrams/c3-policy-engine.puml[]
+----
+
+=== LLM Orchestrator
+
+[plantuml,c3-llm,png]
+----
+include::diagrams/c3-llm-orchestrator.puml[]
+----
+
+=== Admin API
+
+[plantuml,c3-admin-api,png]
+----
+include::diagrams/c3-admin-api.puml[]
+----
+
+The Admin API uses Spring WebFlux with two filter chains: `JwtAuthenticationFilter` for human operators and `ServiceTokenAuthenticationFilter` for internal service-to-service calls. All four controllers (`AuthController`, `TenantController`, `PolicyRuleController`, `AuditController`) share `TenantWebFilter` which binds the `X-Tenant-Id` header to the Reactor subscriber context.
+
+== Domain & Code Model (C4)
+
+[plantuml,c4-code,png]
+----
+include::diagrams/c4-code.puml[]
+----
+
+[plantuml,c4-policy-domain,png]
+----
+include::diagrams/c4-policy-domain.puml[]
+----
+
+== Event Architecture
+
+The pipeline is fully event-driven. Services communicate via Kafka topics only — no synchronous HTTP calls between core pipeline services.
+
+=== Message Flow Introduction
+
+[plantuml,seq-msg-flow,png]
+----
+include::diagrams/sequence-message-flow.puml[]
+----
+
+=== Event Topology
+
+[plantuml,c4-event-flow,png]
+----
+include::diagrams/c4-event-flow.puml[]
+----
+
+=== Kafka Consumer Groups
+
+[plantuml,c4-kafka-consumers,png]
+----
+include::diagrams/c4-kafka-consumers.puml[]
+----
+
+=== Kafka Topic Reference
+
+[cols="2,2,2,2,3"]
+|===
+|Topic |Partitions |Producer |Consumer(s) |Schema summary
+
+|`telegram.raw.messages`
+|3
+|tdlib-adapter
+|intent-classifier
+|`eventId` (UUID), `eventType`, `timestamp`, `payload.chatId`, `payload.text`
+
+|`telegram.raw.updates`
+|3
+|tdlib-adapter
+|conversation-context
+|`eventId`, `updateType`, `timestamp`, `payload`
+
+|`messages.classified`
+|3
+|intent-classifier
+|policy-engine, audit-service
+|`eventId`, `intentType`, `confidence`, `originalMessageId`
+
+|`context.threads`
+|3
+|conversation-context
+|policy-engine
+|`eventId`, `threadId`, `messageCount`, `participants`
+
+|`policies.decisions`
+|3
+|policy-engine
+|llm-orchestrator, moderation-service, audit-service
+|`eventId`, `decision` (ALLOW/WARN/MUTE/BAN/RESPOND), `ruleId`, `reasoning`
+
+|`responses.generated`
+|3
+|llm-orchestrator
+|audit-service
+|`eventId`, `model`, `promptTokens`, `completionTokens`, `responseText`
+
+|`moderation.flags`
+|3
+|moderation-service
+|audit-service
+|`eventId`, `flagType` (KEYWORD/REGEX/LENGTH), `pattern`, `action`
+
+|`audit.events`
+|3
+|all services
+|audit-service
+|`eventId`, `eventType`, `sourceService`, `timestamp`, `payload` (JSONB)
+|===
+
+NOTE: For sequence-level pipeline detail showing the full message lifecycle, see the _Developer Guide_.
+
+== Data Flows
+
+=== Audit Trail
+
+[plantuml,df-audit,png]
+----
+include::diagrams/dataflow-audit-trail.puml[]
+----
+
+=== Context Enrichment
+
+[plantuml,df-context,png]
+----
+include::diagrams/dataflow-context-enrichment.puml[]
+----
+
+== Technology Stack & Guardrails
+
+=== Core Stack
+
+[cols="1,2"]
+|===
+|Layer |Technology
+
+|Language
+|Java 21 (LTS). Java 25 is the intended production target once Spring Boot 4 adds official support.
+
+|Framework
+|Spring Boot 4 (WebFlux + WebMvc). Services with blocking I/O use WebMvc; reactive services use WebFlux.
+
+|Build
+|Maven 3.x, multi-module parent POM (`community-intelligence-parent:0.1.0-SNAPSHOT`).
+
+|Database
+|PostgreSQL 16 (port 14005). Schema migrations: Liquibase only — never Flyway.
+
+|Messaging
+|Apache Kafka (external port 14003). All producers use `CommonKafkaConfig` from `emcip-core`.
+
+|Persistence
+|JPA/Hibernate for Phase 2/3 services (complex domain models). R2DBC for Phase 4 services (flat schemas + WebFlux). See ADR-003 and ADR-004.
+
+|Code style
+|Spotless with Google Java Format (AOSP variant). Run `mvn spotless:apply` before every commit.
+
+|Boilerplate
+|Lombok: `@Slf4j`, `@RequiredArgsConstructor`, `@Data` where appropriate. Never write manual getters/setters.
+|===
+
+=== JPA vs R2DBC Split
+
+[cols="1,1,2"]
+|===
+|Service |Persistence |Reason
+
+|conversation-context
+|JPA
+|Rich domain: Chat, User, Message with FK associations and JPQL queries.
+
+|intent-classifier
+|JPA
+|`@CreatedDate`, `@Version` optimistic locking; benefits from Hibernate caching.
+
+|policy-engine
+|JPA
+|Policy versioning, complex rule queries, transaction management.
+
+|llm-orchestrator
+|JPA
+|LLM cost tracking coordination requires JPA transaction management.
+
+|moderation-service
+|R2DBC
+|Event-driven, flat tables, fully reactive Kafka consumer loop.
+
+|audit-service
+|R2DBC
+|High-throughput append-only writes; non-blocking inserts maximise throughput.
+
+|admin-api
+|R2DBC
+|Simple CRUD, interactive requests; non-blocking keeps latency low.
+|===
+
+NOTE: All R2DBC services still include `spring-boot-starter-jdbc` as `runtime` scope for Liquibase migrations only.
+
+=== Liquibase Conventions
+
+* One `db.changelog-master.xml` per service under `src/main/resources/db/changelog/`.
+* Changeset IDs follow `YYYY-MM-DD-N-description` format.
+* Never use `<dropTable>` or destructive operations without a migration ticket.
+
+== Security Architecture
+
+=== JWT Authentication Chain
+
+The Admin API uses two parallel filter chains registered as Spring `WebFilter`:
+
+. *`JwtAuthenticationFilter`* — validates `Authorization: Bearer <token>` header. Extracts `sub` (username) and `roles` claims. Populates `ReactiveSecurityContextHolder`.
+. *`ServiceTokenAuthenticationFilter`* — validates `X-Service-Token` header for internal service calls.
+
+Tokens are signed with `ADMIN_JWT_SECRET` (HS256). Expiry is configurable via `app.jwt.expiration`.
+
+=== Tenant Isolation
+
+Every entity table contains a `tenant_id UUID NOT NULL` column. The `TenantWebFilter` extracts the `X-Tenant-Id` HTTP header and binds it to the Reactor subscriber context. All repository queries include a tenant filter derived from this context.
+
+[plantuml,seq-tenant,png]
+----
+include::diagrams/sequence-tenant-propagation.puml[]
+----
+
+Kafka messages carry `tenant_id` as a record header. `TenantAwareKafkaSupport` in `emcip-core` reads this header on the consumer side and binds it to the subscriber context before invoking the service method.
+
+NOTE: For deployment configuration and port assignments, see the _Operations Guide_.
+
+[appendix]
+== ADR-001: Technology Stack Selection
+
+*Status:* Accepted (2026-04-15). *Amendment:* Java 25 production target added 2026-04-21.
+
+*Decision:* Java 21, Spring Boot 4, Maven, Apache Kafka, PostgreSQL 16, R2DBC/JPA, Docker.
+
+*Context:* EMCIP requires high-throughput event processing, reactive non-blocking I/O, strong typing, and cloud-native deployment. Java 21 virtual threads simplify concurrent programming compared to explicit reactive chains.
+
+*Alternatives rejected:* Go (smaller ecosystem), Node.js (single-threaded, type safety), Python (GIL + performance), Kotlin (smaller talent pool at project start).
+
+[appendix]
+== ADR-002: Event-Driven Architecture with Kafka
+
+*Status:* Accepted (2026-04-15).
+
+*Decision:* All inter-service communication uses Kafka topics (JSON, 3 partitions each). No synchronous HTTP between pipeline services. At-least-once delivery with idempotent consumers.
+
+*Context:* Multi-stage pipeline (ingest → classify → evaluate → respond → audit) requires backpressure handling, independent scaling, and replay capability. Eight topics defined (see §6 Kafka Topic Reference).
+
+*Alternatives rejected:* RabbitMQ (no replay), Pulsar (smaller ecosystem), NATS (less durable), HTTP/gRPC (tight coupling).
+
+[appendix]
+== ADR-003: Data Persistence with PostgreSQL
+
+*Status:* Accepted (2026-04-15). *Amendment:* Migrated from R2DBC to JPA during Phase 2.
+
+*Decision:* PostgreSQL 16 as primary database. JPA/Hibernate (JDBC) for Phase 2/3 services with complex domain models. Liquibase for all schema migrations.
+
+*Context:* Initial R2DBC approach was replaced because JPA provided better Spring Data integration, easier testing, and simpler transaction management for services with entity associations.
+
+[appendix]
+== ADR-004: R2DBC and Reactive Stack for Phase 4 Services
+
+*Status:* Accepted (2026-04-21).
+
+*Decision:* R2DBC with Spring Data R2DBC is approved for `emcip-moderation-service`, `emcip-audit-service`, and `emcip-admin-api`. These three services have flat schemas, high I/O throughput, and a fully reactive WebFlux runtime — the profile where R2DBC outperforms JPA.
+
+*Relationship to ADR-003:* ADR-003 remains authoritative for Phase 2/3 services. ADR-004 extends it for Phase 4 services only. The rule is: JPA for complex domain models; R2DBC for flat schemas + WebFlux.
+
+*Consequence:* All R2DBC services include `spring-boot-starter-jdbc` as `runtime` scope for Liquibase only.

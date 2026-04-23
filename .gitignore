@@ -2,6 +2,13 @@
 *.class
 **/target/**
 
+# Generated documentation PDFs
+documentation/generated/
+
+# Generated diagram images (produced by asciidoctor-maven-plugin)
+documentation/diagrams/*.png
+documentation/diagrams/*.svg
+
 # Log file
 *.log
 

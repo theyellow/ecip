@@ -1,0 +1,246 @@
+@startuml Sequence_Full_Message_Lifecycle
+' Purpose: Complete message processing flow through the EMCIP pipeline
+' Used in: architecture.adoc - Message Lifecycle section
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam wrapWidth 200
+
+title Full Message Processing Lifecycle
+
+actor "Telegram User" as User
+participant "Telegram\nPlatform" as Telegram
+box "TDLib Adapter" #LightBlue
+    participant "TDLib Core\n(C++/JNI)" as TDLib
+    participant "Event\nNormalizer" as Normalizer
+    participant "Kafka\nProducer" as TProducer
+end box
+queue "telegram.raw.\nmessages" as RawTopic
+box "Intent Classifier" #LightGreen
+    participant "Kafka\nConsumer" as IConsumer
+    participant "Rule\nEngine" as IEngine
+    participant "Kafka\nProducer" as IProducer
+end box
+queue "messages.\nclassified" as ClassifiedTopic
+box "Policy Engine" #LightYellow
+    participant "Kafka\nConsumer" as PConsumer
+    participant "Policy\nEvaluator" as PEngine
+    participant "Decision\nLogger" as DLogger
+    participant "Kafka\nProducer" as PProducer
+end box
+queue "policies.\ndecisions" as DecisionTopic
+database "PostgreSQL" as DB
+box "LLM Orchestrator" #LightCoral
+    participant "Kafka\nConsumer" as LConsumer
+    participant "Model\nRouter" as LRouter
+    participant "Prompt\nBuilder" as PBuilder
+    participant "LLM\nClient" as LLMClient
+    participant "Kafka\nProducer" as LProducer
+end box
+queue "responses.\ngenerated" as ResponseTopic
+box "Moderation Service" #LightPink
+    participant "Kafka\nConsumer" as MConsumer
+    participant "Toxicity\nFilter" as MFilter
+end box
+queue "moderation.\nflags" as ModerationTopic
+box "Audit Service" #LightGray
+    participant "Audit\nConsumer" as AConsumer
+    participant "Audit\nLogger" as ALogger
+end box
+
+' ============================================
+' PHASE 1: Message Ingestion
+' ============================================
+== Phase 1: Message Ingestion ==
+
+User -> Telegram: Send message to group
+Telegram -> TDLib: TDLib Update (NewMessage)
+activate TDLib
+
+TDLib -> Normalizer: Raw TDLib update
+activate Normalizer
+Normalizer -> Normalizer: Extract metadata
+Normalizer -> Normalizer: Add correlation ID
+Normalizer -> DB: Store raw message
+Normalizer -> TProducer: TelegramRawMessageEvent
+activate TProducer
+TProducer -> RawTopic: Publish event
+TProducer -> AConsumer: Async audit event
+TProducer --> Normalizer: Ack
+
+deactivate TProducer
+deactivate Normalizer
+deactivate TDLib
+
+' ============================================
+' PHASE 2: Intent Classification
+' ============================================
+== Phase 2: Intent Classification ==
+
+RawTopic -> IConsumer: Consume event
+activate IConsumer
+IConsumer -> IEngine: Classify intent
+activate IEngine
+IEngine -> IEngine: Rule-based matching
+IEngine -> IEngine: Calculate confidence
+IEngine --> IConsumer: IntentClassification
+
+IConsumer -> DB: Store classification
+IConsumer -> IProducer: IntentClassifiedEvent
+activate IProducer
+IProducer -> ClassifiedTopic: Publish event
+IProducer -> AConsumer: Async audit event
+IProducer --> IConsumer: Ack
+
+deactivate IProducer
+deactivate IEngine
+deactivate IConsumer
+
+' ============================================
+' PHASE 3: Policy Evaluation
+' ============================================
+== Phase 3: Policy Evaluation ==
+
+ClassifiedTopic -> PConsumer: Consume event
+activate PConsumer
+PConsumer -> DB: Fetch active policies
+PConsumer -> PEngine: Evaluate policies
+activate PEngine
+PEngine -> PEngine: Match rules to intent
+PEngine -> PEngine: Determine decision
+
+alt Decision = RESPOND
+    PEngine --> PConsumer: Decision: RESPOND
+    PConsumer -> DLogger: Log decision
+    activate DLogger
+    DLogger -> DB: Store decision
+    DLogger -> AConsumer: Audit decision
+    deactivate DLogger
+    
+    PConsumer -> PProducer: PolicyDecisionEvent (RESPOND)
+    activate PProducer
+    PProducer -> DecisionTopic: Publish event
+    PProducer --> PConsumer: Ack
+    deactivate PProducer
+    
+else Decision = BLOCK
+    PEngine --> PConsumer: Decision: BLOCK
+    PConsumer -> DLogger: Log blocked message
+    activate DLogger
+    DLogger -> DB: Store decision
+    deactivate DLogger
+    note right: Message blocked,\
+    no further processing
+    
+else Decision = FLAG
+    PEngine --> PConsumer: Decision: FLAG
+    PConsumer -> PProducer: PolicyDecisionEvent (FLAG)
+    activate PProducer
+    PProducer -> DecisionTopic: Publish to Moderation
+    deactivate PProducer
+end
+
+deactivate PEngine
+deactivate PConsumer
+
+' ============================================
+' PHASE 4A: LLM Response Generation (if RESPOND)
+' ============================================
+== Phase 4A: LLM Orchestration (if needed) ==
+
+DecisionTopic -> LConsumer: Consume RESPOND event
+activate LConsumer
+LConsumer -> LRouter: Route to model
+activate LRouter
+LRouter -> LRouter: Select MiniMax or Claude
+LRouter --> LConsumer: Selected model
+
+LConsumer -> PBuilder: Build prompt
+activate PBuilder
+PBuilder -> PBuilder: Load template
+PBuilder -> PBuilder: Inject context
+PBuilder --> LConsumer: Complete prompt
+
+deactivate PBuilder
+
+LConsumer -> LLMClient: Send request
+activate LLMClient
+LLMClient -> LLMClient: Call external API
+LLMClient --> LConsumer: LLM response
+
+LConsumer -> DB: Store response & cost
+LConsumer -> LProducer: ResponseGeneratedEvent
+activate LProducer
+LProducer -> ResponseTopic: Publish event
+LProducer -> AConsumer: Async audit (cost tracking)
+LProducer --> LConsumer: Ack
+
+deactivate LProducer
+deactivate LLMClient
+deactivate LRouter
+deactivate LConsumer
+
+' ============================================
+' PHASE 4B: Moderation Check
+' ============================================
+== Phase 4B: Content Moderation ==
+
+DecisionTopic -> MConsumer: Consume FLAG/ESCALATE event
+activate MConsumer
+MConsumer -> MFilter: Check content
+activate MFilter
+MFilter -> MFilter: Toxicity detection
+MFilter -> MFilter: Rule violation check
+MFilter --> MConsumer: ModerationResult
+
+MConsumer -> DB: Store moderation flag
+MConsumer -> ModerationTopic: ModerationFlagEvent
+MConsumer -> AConsumer: Async audit event
+
+deactivate MFilter
+deactivate MConsumer
+
+' ============================================
+' PHASE 5: Response Delivery
+' ============================================
+== Phase 5: Response Delivery ==
+
+ResponseTopic -> TProducer: Consume response event
+activate TProducer
+TProducer -> TDLib: Send message
+activate TDLib
+TDLib -> Telegram: Deliver response
+Telegram -> User: Show response
+TDLib --> TProducer: Delivery confirmation
+
+TProducer -> DB: Update message status
+TProducer -> AConsumer: Delivery audit
+
+deactivate TDLib
+deactivate TProducer
+
+' ============================================
+' Audit Trail (continuous)
+' ============================================
+== Audit Trail (Continuous) ==
+
+AConsumer -> ALogger: Log all events
+activate ALogger
+ALogger -> DB: Persist audit records
+ALogger -> ALogger: Calculate metrics
+ALogger -> ALogger: Check alerts
+
+deactivate ALogger
+
+note right
+  <b>Event Flow Summary:</b>
+  telegram.raw.messages 
+    → messages.classified 
+    → policies.decisions 
+    → [responses.generated | moderation.flags]
+  
+  All events → audit.events
+end note
+
+@enduml

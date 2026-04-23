@@ -1,17 +1,37 @@
-@startuml
+@startuml C1_System_Context
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
-Person(admin, "Admin", "Manages and configures ECIP")
-Person(user, "Telegram User (Human)", "End user in Telegram groups/channels")
-System(ecip, "ECIP Platform (Telegram User)", "Connects as a real Telegram user, listens in groups/channels/discussion chats, collects information, interacts later")
-System_Ext(telegram, "Telegram", "Telegram Messenger Platform")
-System_Ext(groups, "Telegram Groups/Channels/Discussions", "Various group, channel, and discussion chat contexts on Telegram")
+' Purpose: High-level system context showing EMCIP's relationship with external actors and systems
+' Used in: architecture.adoc - System Context section
 
-Rel(admin, ecip, "Configures, Monitors")
-Rel(ecip, telegram, "Connects as Telegram User via TDLib")
-Rel(ecip, groups, "Listens, collects messages/events, interacts")
-Rel(user, groups, "Participates, posts messages")
-Rel(groups, telegram, "Exist and are managed on Telegram")
+LAYOUT_WITH_LEGEND()
+
+' Actors
+Person(admin, "Platform Admin", "Configures policies, monitors platform health, reviews audit logs")
+Person(telegram_user, "Telegram User", "Human participant in Telegram communities<br/>Posts messages, asks questions, interacts with groups")
+
+' EMCIP System
+System(ecip, "EMCIP Platform", "Enterprise Messenger Community Intelligence Platform<br/>Java 21 / Spring Boot 4<br/>Acts as Telegram user (TDLib-first)")
+
+' External Systems
+System_Ext(telegram_api, "Telegram API", "Telegram Messenger Platform<br/>TDLib protocol for real user connection")
+System_Ext(llm_provider, "LLM Providers", "MiniMax-2.7, Claude, etc.<br/>AI model APIs for response generation")
+
+' Relationships
+Rel(admin, ecip, "Manages via Admin API", "HTTPS/JWT")
+Rel(telegram_user, telegram_api, "Uses", "Mobile/Desktop App")
+Rel(ecip, telegram_api, "Connects as real user", "TDLib")
+Rel(ecip, telegram_user, "Observes, assists, moderates", "In groups/channels")
+Rel(ecip, llm_provider, "Routes requests", "HTTPS/API")
+
+' Annotations
+note right of ecip
+  <b>Operating Modes:</b>
+  • React (on mention)
+  • Summarize (confusing threads)
+  • Moderate (rule violations)
+  • Observe (silent monitoring)
+end note
 
 SHOW_LEGEND()
 @enduml

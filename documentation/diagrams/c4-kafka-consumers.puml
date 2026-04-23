@@ -1,0 +1,204 @@
+@startuml C4_Kafka_Consumer_Hierarchy
+' Purpose: Class diagram showing Kafka consumer hierarchy and event processing
+' Used in: architecture.adoc - Event Processing section
+
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor<<Abstract>> LightBlue
+    BackgroundColor<<Service>> LightGreen
+    BorderColor<<Abstract>> DarkBlue
+}
+
+' Base Consumer Hierarchy
+abstract class AbstractKafkaConsumer <<Abstract>> {
+    # String topic
+    # String consumerGroup
+    # ObjectMapper objectMapper
+    # MeterRegistry metrics
+    + consume(ConsumerRecord<String, String> record): void
+    # parseEvent(String json, Class<T> type): EMCIPEvent
+    # recordMetrics(String eventType, long latency): void
+    # handleError(Exception e, ConsumerRecord record): void
+    # abstract processEvent(EMCIPEvent event): void
+}
+
+class KafkaConsumerConfig {
+    + ConsumerFactory<String, String> consumerFactory()
+    + ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory()
+    + Map<String, Object> consumerConfigs()
+    - String bootstrapServers
+    - String groupId
+}
+
+class EventDeserializer {
+    + EMCIPEvent deserialize(String json): EMCIPEvent
+    - determineEventType(String json): String
+    - validateSchema(JsonNode node): boolean
+}
+
+' Event Handlers (Specific Consumers)
+class IntentClassifierConsumer <<Service>> {
+    - IntentClassificationService service
+    - KafkaTemplate<String, String> producer
+    + processEvent(EMCIPEvent event): void
+    - classifyIntent(TelegramRawMessageEvent event): IntentClassification
+    - publishResult(IntentClassifiedEvent result): void
+}
+
+class PolicyEngineConsumer <<Service>> {
+    - PolicyEvaluationService service
+    - DecisionLogger decisionLogger
+    - KafkaTemplate<String, String> producer
+    + processEvent(EMCIPEvent event): void
+    - evaluatePolicy(IntentClassifiedEvent event): Decision
+    - handleDecision(Decision decision): void
+    - escalateIfNeeded(Decision decision): void
+}
+
+class LlmOrchestratorConsumer <<Service>> {
+    - LlmOrchestrationService service
+    - CostTrackingService costTracker
+    - KafkaTemplate<String, String> producer
+    + processEvent(EMCIPEvent event): void
+    - shouldGenerateResponse(PolicyDecisionEvent event): boolean
+    - generateResponse(PolicyDecisionEvent event): GeneratedResponse
+    - trackCosts(ResponseGeneratedEvent event): void
+}
+
+class ModerationConsumer <<Service>> {
+    - ContentModerationService service
+    - ToxicityDetectionService toxicityService
+    - KafkaTemplate<String, String> producer
+    + processEvent(EMCIPEvent event): void
+    - checkModeration(PolicyDecisionEvent event): ModerationResult
+    - applyAction(ModerationFlagEvent event): void
+}
+
+class AuditConsumer <<Service>> {
+    - AuditLogService auditService
+    - MetricsExportService metricsService
+    + processEvent(EMCIPEvent event): void
+    - logToDatabase(AuditEvent event): void
+    - exportMetrics(EMCIPEvent event): void
+    - alertIfNeeded(AuditEvent event): void
+}
+
+class ConversationContextConsumer <<Service>> {
+    - ContextTrackingService contextService
+    - ThreadManager threadManager
+    + processEvent(EMCIPEvent event): void
+    - updateThreadContext(TelegramRawMessageEvent event): void
+    - trackSpeakerRole(Long userId, Long chatId): void
+    - buildConversationHistory(Long chatId): List<Message>
+}
+
+' Supporting Services
+class IntentClassificationService {
+    - RuleBasedClassifier ruleClassifier
+    - ConfidenceCalculator confidenceCalc
+    + classify(TelegramMessage message): IntentClassification
+}
+
+class PolicyEvaluationService {
+    - RuleEngine ruleEngine
+    - PolicyRepository policyRepo
+    + evaluate(IntentClassification intent, Context ctx): Decision
+}
+
+class LlmOrchestrationService {
+    - ModelRouter modelRouter
+    - PromptBuilder promptBuilder
+    - ResponseValidator validator
+    + orchestrate(Decision decision): GeneratedResponse
+}
+
+class ContentModerationService {
+    - ToxicityDetector toxicityDetector
+    - RuleViolationChecker ruleChecker
+    + moderate(Content content): ModerationResult
+}
+
+class AuditLogService {
+    - AuditRepository auditRepo
+    - LogFormatter logFormatter
+    + log(AuditEvent event): void
+    + queryAuditLog(Query query): List<AuditEvent>
+}
+
+class ContextTrackingService {
+    - MessageRepository messageRepo
+    - UserProfileRepository userRepo
+    + trackMessage(Message message): void
+    + getContext(Long chatId): ConversationContext
+}
+
+' Retry and Error Handling
+class RetryableKafkaConsumer {
+    - RetryTemplate retryTemplate
+    - DeadLetterQueue dlq
+    + consumeWithRetry(ConsumerRecord record): void
+    - sendToDLQ(ConsumerRecord record, Exception e): void
+}
+
+class DeadLetterQueue {
+    - KafkaTemplate<String, String> kafkaTemplate
+    - String dlqTopic
+    + send(ConsumerRecord record, Exception reason): void
+    + retryFromDLQ(): void
+}
+
+' Relationships
+AbstractKafkaConsumer <|-- IntentClassifierConsumer
+AbstractKafkaConsumer <|-- PolicyEngineConsumer
+AbstractKafkaConsumer <|-- LlmOrchestratorConsumer
+AbstractKafkaConsumer <|-- ModerationConsumer
+AbstractKafkaConsumer <|-- AuditConsumer
+AbstractKafkaConsumer <|-- ConversationContextConsumer
+
+AbstractKafkaConsumer --> EventDeserializer : uses >
+IntentClassifierConsumer --> IntentClassificationService : uses >
+PolicyEngineConsumer --> PolicyEvaluationService : uses >
+LlmOrchestratorConsumer --> LlmOrchestrationService : uses >
+ModerationConsumer --> ContentModerationService : uses >
+AuditConsumer --> AuditLogService : uses >
+ConversationContextConsumer --> ContextTrackingService : uses >
+
+AbstractKafkaConsumer ..> KafkaConsumerConfig : configured by >
+RetryableKafkaConsumer --> AbstractKafkaConsumer : wraps >
+RetryableKafkaConsumer --> DeadLetterQueue : uses >
+
+' Event Flow
+IntentClassifierConsumer ..> PolicyEngineConsumer : produces for >
+PolicyEngineConsumer ..> LlmOrchestratorConsumer : produces for >
+PolicyEngineConsumer ..> ModerationConsumer : produces for >
+AbstractKafkaConsumer ..> AuditConsumer : all produce for >
+
+' Notes
+note right of AbstractKafkaConsumer
+  <b>AbstractKafkaConsumer</b>
+  Provides common functionality:
+  • Deserialization
+  • Metrics recording
+  • Error handling
+  • Correlation ID tracking
+end note
+
+note bottom of RetryableKafkaConsumer
+  <b>Retry & DLQ Strategy:</b>
+  1. Immediate retry (3x with backoff)
+  2. If still failing → DLQ
+  3. DLQ consumer for manual review
+  4. DLQ metrics and alerting
+end note
+
+note left of EventDeserializer
+  <b>Event Deserialization:</b>
+  Reads eventType field to
+  determine concrete class:
+  • TelegramRawMessageEvent
+  • IntentClassifiedEvent
+  • PolicyDecisionEvent
+  • etc.
+end note
+
+@enduml

@@ -1,0 +1,60 @@
+@startuml C3_Admin_API
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Purpose: Component-level view of Admin API — auth, tenant, policy rule, audit controllers
+' Used in: architecture-guide.adoc - Component Details section
+
+LAYOUT_WITH_LEGEND()
+
+Container_Boundary(admin_api, "Admin API - Port 9087") {
+
+    ' Security Layer
+    Component(jwt_filter, "JwtAuthenticationFilter", "Java / Spring WebFlux", "Validates Bearer tokens<br/>Extracts subject + roles<br/>Populates SecurityContext")
+
+    Component(svc_token_filter, "ServiceTokenAuthenticationFilter", "Java / Spring WebFlux", "Validates service-to-service tokens<br/>Used by internal services<br/>Separate token secret")
+
+    Component(security_config, "SecurityConfig", "Java / Spring Security", "WebFlux security chain<br/>Route-level access rules<br/>CORS configuration")
+
+    Component(tenant_filter, "TenantWebFilter", "Java / Spring WebFlux WebFilter", "Extracts X-Tenant-Id header<br/>Binds to TenantContext<br/>Clears after request")
+
+    ' Controllers
+    Component(auth_ctrl, "AuthController", "Java / Spring REST", "POST /api/auth/token<br/>Verifies credentials via bcrypt<br/>Issues signed JWT")
+
+    Component(tenant_ctrl, "TenantController", "Java / Spring REST", "GET/POST/DELETE /api/tenants<br/>Tenant CRUD operations<br/>Cascade-delete guard")
+
+    Component(policy_ctrl, "PolicyRuleController", "Java / Spring REST", "GET/POST /api/policy-rules<br/>GET /api/policy-rules/{name}/history<br/>New version deactivates previous")
+
+    Component(audit_ctrl, "AuditController", "Java / Spring REST", "GET /api/audit/events<br/>GET /api/audit/events/{id}<br/>GET /api/audit/summary")
+
+    ' Repositories (R2DBC)
+    Component(admin_user_repo, "AdminUserRepository", "Spring Data R2DBC", "Loads admin users<br/>bcrypt password column<br/>Role assignment")
+
+    Component(tenant_repo, "TenantRepository", "Spring Data R2DBC", "Tenant CRUD<br/>tenant_id UUID primary key")
+
+    Component(policy_repo, "PolicyRuleRepository", "Spring Data R2DBC", "Policy rules with versioning<br/>is_active + effective_from/to<br/>Version history queries")
+
+    Component(audit_repo, "AuditEventRepository", "Spring Data R2DBC", "Paginated event reads<br/>Filter by type + date range")
+}
+
+ContainerDb(postgres, "PostgreSQL", "Database", "admin_users, tenants, policy_rules, audit_events")
+
+' Request path
+Rel(jwt_filter, security_config, "Feeds authentication", "SecurityContext")
+Rel(svc_token_filter, security_config, "Feeds authentication", "SecurityContext")
+Rel(tenant_filter, auth_ctrl, "Provides tenant context", "TenantContext")
+Rel(tenant_filter, tenant_ctrl, "Provides tenant context", "TenantContext")
+Rel(tenant_filter, policy_ctrl, "Provides tenant context", "TenantContext")
+Rel(tenant_filter, audit_ctrl, "Provides tenant context", "TenantContext")
+
+Rel(auth_ctrl, admin_user_repo, "Load user + verify bcrypt", "R2DBC")
+Rel(tenant_ctrl, tenant_repo, "CRUD", "R2DBC")
+Rel(policy_ctrl, policy_repo, "Versioned CRUD + history", "R2DBC")
+Rel(audit_ctrl, audit_repo, "Paginated reads", "R2DBC")
+
+Rel(admin_user_repo, postgres, "Queries", "R2DBC")
+Rel(tenant_repo, postgres, "Queries", "R2DBC")
+Rel(policy_repo, postgres, "Queries", "R2DBC")
+Rel(audit_repo, postgres, "Queries", "R2DBC")
+
+SHOW_LEGEND()
+@enduml

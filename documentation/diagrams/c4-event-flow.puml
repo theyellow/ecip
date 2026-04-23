@@ -1,0 +1,276 @@
+@startuml C4_Event_Class_Diagram
+' Purpose: Class diagram showing event hierarchy and relationships
+' Used in: architecture.adoc - Event Schema section
+
+skinparam classAttributeIconSize 0
+skinparam class {
+    BackgroundColor<<Abstract>> LightBlue
+    BorderColor<<Abstract>> DarkBlue
+}
+
+' Base Event Class
+abstract class EMCIPEvent <<Abstract>> {
+    + UUID eventId
+    + String eventType
+    + String version
+    + Instant timestamp
+    + String source
+    + String tenantId
+    + UUID correlationId
+    + Map<String, Object> payload
+    + getEventId(): UUID
+    + getTimestamp(): Instant
+    + getCorrelationId(): UUID
+}
+
+' Telegram Events
+class TelegramRawMessageEvent {
+    + TelegramMessagePayload payload
+    + Long messageId
+    + Long chatId
+    + Long senderId
+    + String senderUsername
+    + MessageContent content
+    + Instant messageTimestamp
+    + Boolean isReply
+    + Long replyToMessageId
+}
+
+class MessageContent {
+    + String text
+    + ContentType type
+    + getText(): String
+}
+
+enum ContentType {
+    TEXT
+    PHOTO
+    VIDEO
+    DOCUMENT
+    AUDIO
+    OTHER
+}
+
+' Intent Classification Events
+class IntentClassifiedEvent {
+    + IntentClassificationPayload payload
+    + Long messageId
+    + Long chatId
+    + List<ClassifiedIntent> classifiedIntents
+    + String primaryIntent
+    + Double confidence
+    + Boolean requiresPolicyCheck
+}
+
+class ClassifiedIntent {
+    + IntentType intent
+    + Double confidence
+    + Map<String, Object> parameters
+}
+
+enum IntentType {
+    GREETING
+    QUESTION
+    COMMAND
+    SPAM
+    MENTION
+    REPORT
+    OTHER
+}
+
+' Policy Events
+class PolicyDecisionEvent {
+    + PolicyDecisionPayload payload
+    + UUID decisionId
+    + Long messageId
+    + Long chatId
+    + DecisionType decision
+    + List<TriggeredRule> rulesTriggered
+    + Boolean requiresHumanReview
+    + SuggestedAction suggestedAction
+    + String responseTemplate
+}
+
+class TriggeredRule {
+    + String ruleId
+    + String ruleName
+    + Severity severity
+}
+
+enum DecisionType {
+    ALLOW
+    BLOCK
+    FLAG
+    RESPOND
+    ESCALATE
+}
+
+enum Severity {
+    INFO
+    WARNING
+    CRITICAL
+}
+
+enum SuggestedAction {
+    NONE
+    DELETE
+    WARN
+    BAN
+    RESPOND
+}
+
+' LLM Events
+class ResponseGeneratedEvent {
+    + ResponsePayload payload
+    + UUID responseId
+    + Long messageId
+    + Long chatId
+    + String responseText
+    + ModelType modelUsed
+    + Integer tokenCount
+    + Double costEstimate
+    + ResponseType responseType
+    + Boolean requiresModeration
+}
+
+enum ModelType {
+    MINIMAX_2_7
+    CLAUDE
+    OTHER
+}
+
+enum ResponseType {
+    ANSWER
+    SUMMARY
+    MODERATION_NOTICE
+    GREETING
+}
+
+' Moderation Events
+class ModerationFlagEvent {
+    + ModerationPayload payload
+    + UUID flagId
+    + Long messageId
+    + Long chatId
+    + ViolationType violationType
+    + Severity severity
+    + Double confidence
+    + ActionTaken actionTaken
+    + String reviewedBy
+}
+
+enum ViolationType {
+    SPAM
+    HARASSMENT
+    HATE_SPEECH
+    INAPPROPRIATE_CONTENT
+    SCAM
+    OTHER
+}
+
+enum ActionTaken {
+    NONE
+    WARNED
+    DELETED
+    USER_BANNED
+    REPORTED
+}
+
+' Audit Events
+class AuditEvent {
+    + AuditPayload payload
+    + AuditAction action
+    + Actor actor
+    + Resource resource
+    + Outcome outcome
+    + Map<String, Object> details
+    + Long processingTimeMs
+}
+
+enum AuditAction {
+    MESSAGE_RECEIVED
+    INTENT_CLASSIFIED
+    POLICY_EVALUATED
+    RESPONSE_GENERATED
+    MODERATION_APPLIED
+    USER_BANNED
+    RULE_CREATED
+    RULE_MODIFIED
+}
+
+class Actor {
+    + ActorType type
+    + String id
+    + String serviceName
+}
+
+enum ActorType {
+    SYSTEM
+    USER
+    SERVICE
+}
+
+class Resource {
+    + String type
+    + String id
+}
+
+enum Outcome {
+    SUCCESS
+    FAILURE
+    PARTIAL
+}
+
+' Inheritance
+EMCIPEvent <|-- TelegramRawMessageEvent
+EMCIPEvent <|-- IntentClassifiedEvent
+EMCIPEvent <|-- PolicyDecisionEvent
+EMCIPEvent <|-- ResponseGeneratedEvent
+EMCIPEvent <|-- ModerationFlagEvent
+EMCIPEvent <|-- AuditEvent
+
+' Composition
+TelegramRawMessageEvent "1" *-- "1" MessageContent : contains >
+MessageContent ..> ContentType : uses >
+
+IntentClassifiedEvent "1" *-- "*" ClassifiedIntent : contains >
+ClassifiedIntent ..> IntentType : uses >
+
+PolicyDecisionEvent "1" *-- "*" TriggeredRule : contains >
+TriggeredRule ..> Severity : uses >
+PolicyDecisionEvent ..> DecisionType : uses >
+PolicyDecisionEvent ..> SuggestedAction : uses >
+
+ResponseGeneratedEvent ..> ModelType : uses >
+ResponseGeneratedEvent ..> ResponseType : uses >
+
+ModerationFlagEvent ..> ViolationType : uses >
+ModerationFlagEvent ..> Severity : uses >
+ModerationFlagEvent ..> ActionTaken : uses >
+
+AuditEvent "1" *-- "1" Actor : contains >
+AuditEvent "1" *-- "1" Resource : contains >
+AuditEvent ..> AuditAction : uses >
+AuditEvent ..> Outcome : uses >
+Actor ..> ActorType : uses >
+
+' Notes
+note right of EMCIPEvent
+  <b>Common Event Wrapper</b>
+  All events share this structure
+  for consistent serialization,
+  routing, and auditability.
+  Correlation ID enables tracing
+  across the pipeline.
+end note
+
+note bottom of TelegramRawMessageEvent
+  <b>Event Flow:</b>
+  1. TelegramRawMessageEvent
+  2. IntentClassifiedEvent
+  3. PolicyDecisionEvent
+  4. ResponseGeneratedEvent (optional)
+  All events → AuditEvent
+end note
+
+@enduml

@@ -1,0 +1,95 @@
+@startuml C3_LLM_Orchestrator
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Purpose: Component-level view of LLM Orchestrator showing model routing and cost tracking
+' Used in: architecture.adoc - LLM Orchestrator Component section
+
+LAYOUT_WITH_LEGEND()
+
+Container_Boundary(llm_orchestrator, "LLM Orchestrator - Port 9084") {
+
+    ' Event Processing
+    Component(kafka_consumer, "Kafka Consumer", "Java / Spring Kafka", "Consumes policies.decisions<br/>Produces responses.generated")
+
+    Component(event_handler, "Policy Event Handler", "Java / Spring", "PolicyDecisionEvent handler<br/>Filters for RESPOND decisions<br/>Orchestrates response flow")
+
+    ' Model Routing
+    Component(model_router, "Model Router", "Java / Spring", "Routes to appropriate model<br/>MiniMax for simple tasks<br/>Claude for complex/sensitive")
+
+    Component(routing_strategy, "Routing Strategy", "Java / Strategy Pattern", "Intent-based routing<br/>Cost-based routing<br/>Load balancing")
+
+    ' LLM Clients
+    Component(minimax_client, "MiniMax Client", "Java / WebFlux", "MiniMax-2.7 API client<br/>Chinese/English support<br/>Fast & cost-effective")
+
+    Component(claude_client, "Claude Client", "Java / WebFlux", "Anthropic Claude API<br/>Complex reasoning<br/>Safety-focused")
+
+    Component(client_factory, "LLM Client Factory", "Java / Factory Pattern", "Creates appropriate client<br/>Connection pooling<br/>Timeout management")
+
+    ' Prompt Management
+    Component(prompt_template_manager, "Prompt Template Manager", "Java / Spring", "Loads prompt templates<br/>Variable substitution<br/>Template versioning")
+
+    Component(prompt_builder, "Prompt Builder", "Java / Spring", "Builds final prompts<br/>Adds context from Conversation Service<br/>Injects conversation history")
+
+    ' Cost & Response Management
+    Component(cost_tracker, "Cost Tracker", "Java / Spring", "Tracks token usage<br/>Calculates costs per model<br/>Budget enforcement")
+
+    Component(response_cache, "Response Cache", "Java / Caffeine + Redis", "Caches similar responses<br/>TTL-based expiration<br/>Semantic similarity")
+
+    Component(response_validator, "Response Validator", "Java / Spring", "Validates LLM output<br/>Content safety checks<br/>Format verification")
+
+    ' LLM API
+    Component(llm_api, "LLM API Controller", "Java / Spring REST", "REST endpoints for direct LLM calls<br/>Synchronous responses<br/>JWT-secured")
+
+    Component(health_endpoint, "Health Endpoint", "Java / Spring Actuator", "/actuator/health<br/>Model availability status")
+}
+
+' External connections
+ContainerDb(postgres, "PostgreSQL", "Database", "llm_costs, responses, prompt_templates")
+ContainerQueue(kafka, "Kafka", "Message Broker", "policies.decisions<br/>responses.generated")
+System_Ext(minimax_api, "MiniMax API", "MiniMax-2.7")
+System_Ext(claude_api, "Claude API", "Anthropic Claude")
+Container(context_service, "Conversation Context", "Java / Port 9081", "Fetches thread context")
+
+' Internal relationships
+Rel(kafka_consumer, event_handler, "Delivers RESPOND decisions", "Spring @KafkaListener")
+Rel(event_handler, model_router, "Route request", "Sync")
+Rel(model_router, routing_strategy, "Select strategy", "Sync")
+Rel(routing_strategy, client_factory, "Get client", "Sync")
+Rel(client_factory, minimax_client, "Create if MiniMax", "Sync")
+Rel(client_factory, claude_client, "Create if Claude", "Sync")
+Rel(event_handler, prompt_template_manager, "Load template", "Sync")
+Rel(prompt_builder, prompt_template_manager, "Get template", "Sync")
+Rel(prompt_builder, context_service, "Fetch context", "REST")
+Rel(model_router, prompt_builder, "Provide prompt", "Sync")
+Rel(minimax_client, response_validator, "Validate response", "Sync")
+Rel(claude_client, response_validator, "Validate response", "Sync")
+Rel(response_validator, cost_tracker, "Log costs", "Async")
+Rel(response_validator, response_cache, "Cache response", "Async")
+Rel(llm_api, model_router, "Direct routing", "REST")
+
+' External relationships
+Rel(kafka_consumer, kafka, "Consume/Produce", "Async JSON")
+Rel(minimax_client, minimax_api, "HTTP POST", "WebFlux/WebClient")
+Rel(claude_client, claude_api, "HTTP POST", "WebFlux/WebClient")
+Rel(cost_tracker, postgres, "Store costs", "R2DBC")
+Rel(response_cache, postgres, "Persist cache", "R2DBC")
+Rel(prompt_template_manager, postgres, "Load templates", "R2DBC")
+
+' Architecture notes
+note right of model_router
+  <b>Routing Criteria:</b>
+  • Intent type (GREETING → MiniMax)
+  • Complexity score (high → Claude)
+  • Sensitivity (REPORT → Claude)
+  • Cost budget (approaching limit → MiniMax)
+end note
+
+note bottom of cost_tracker
+  <b>Cost Tracking:</b>
+  Input tokens + Output tokens × Model rate
+  Per-tenant aggregation
+  Budget alerts at 80%, 95%
+end note
+
+SHOW_LEGEND()
+@enduml

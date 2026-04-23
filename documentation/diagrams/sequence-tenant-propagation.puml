@@ -1,0 +1,52 @@
+@startuml Sequence_Tenant_Propagation
+' Purpose: X-Tenant-Id propagation through HTTP and Kafka paths
+' Used in: architecture-guide.adoc - Security Architecture section
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title X-Tenant-Id Propagation — HTTP and Kafka Paths
+
+== HTTP Path ==
+
+participant "HTTP Client" as Client
+participant "TenantWebFilter" as TWF
+participant "TenantContext\n(Reactor Context)" as TC
+participant "Service Method" as Svc
+participant "R2DBC Repository" as Repo
+database "PostgreSQL\n(tenant_id column)" as DB
+
+Client -> TWF : HTTP request\nX-Tenant-Id: <uuid>
+activate TWF
+TWF -> TC : subscriberContext()\n.put("tenantId", uuid)
+TWF -> Svc : Mono / Flux with tenantId in context
+activate Svc
+Svc -> Repo : findAll() — query filtered\nby tenantId from context
+Repo -> DB : SELECT * FROM ... WHERE tenant_id = ?
+DB --> Repo : rows for this tenant only
+Repo --> Svc : reactive result
+Svc --> TWF : response
+deactivate Svc
+TWF --> Client : HTTP response
+deactivate TWF
+
+== Kafka Path ==
+
+participant "Kafka Producer\n(any service)" as Prod
+participant "TenantAwareKafkaSupport" as TAKS
+queue "Kafka Topic" as Topic
+participant "Kafka Consumer" as Cons
+participant "Downstream\nService Method" as DSvc
+
+Prod -> TAKS : send(event)
+TAKS -> TAKS : read tenantId\nfrom TenantContext
+TAKS -> Topic : ProducerRecord with\nheader tenant_id=<uuid>
+
+Topic -> Cons : ConsumerRecord
+Cons -> TAKS : extractTenantId(headers)
+TAKS -> TC : bind tenantId\nto subscriber context
+TAKS -> DSvc : invoke with\ntenantId in context
+DSvc -> DB : filtered query\nWHERE tenant_id = ?
+
+@enduml

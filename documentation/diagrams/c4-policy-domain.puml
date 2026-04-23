@@ -1,0 +1,219 @@
+@startuml C4_Policy_Domain_Model
+' Purpose: Domain model for Policy Engine showing entities and relationships
+' Used in: architecture.adoc - Policy Domain section
+
+skinparam classAttributeIconSize 0
+
+' Core Policy Entities
+class Policy {
+    + UUID id
+    + String name
+    + String description
+    + PolicyStatus status
+    + Integer priority
+    + UUID tenantId
+    + Instant createdAt
+    + Instant updatedAt
+    + List<Rule> rules
+    + addRule(Rule rule): void
+    + removeRule(UUID ruleId): void
+    + evaluate(Context context): Decision
+}
+
+class Rule {
+    + UUID id
+    + String name
+    + String description
+    + RuleCondition condition
+    + RuleAction action
+    + Severity severity
+    + Integer priority
+    + RuleStatus status
+    + UUID policyId
+    + matches(Context context): Boolean
+    + execute(Context context): ActionResult
+}
+
+class RuleCondition {
+    + ConditionType type
+    + String expression
+    + Map<String, Object> parameters
+    + evaluate(Context context): Boolean
+}
+
+class RuleAction {
+    + ActionType type
+    + Map<String, Object> parameters
+    + String responseTemplate
+    + execute(Context context): ActionResult
+}
+
+' Decision & Audit
+class Decision {
+    + UUID id
+    + UUID policyId
+    + UUID ruleId
+    + Long messageId
+    + Long chatId
+    + DecisionType type
+    + Severity severity
+    + String reason
+    + Map<String, Object> metadata
+    + Instant timestamp
+    + UUID correlationId
+    + createAuditEvent(): AuditEvent
+}
+
+class DecisionLog {
+    + UUID id
+    + UUID decisionId
+    + UUID messageId
+    + String eventType
+    + String inputSummary
+    + String outputSummary
+    + Long processingTimeMs
+    + String serviceVersion
+    + Instant createdAt
+}
+
+' Context for Evaluation
+class EvaluationContext {
+    + TelegramRawMessageEvent message
+    + IntentClassifiedEvent intent
+    + ConversationContext conversation
+    + UserProfile sender
+    + GroupProfile group
+    + Map<String, Object> additionalData
+    + getIntent(): IntentType
+    + getConfidence(): Double
+}
+
+class ConversationContext {
+    + Long chatId
+    + Long threadId
+    + List<Message> recentMessages
+    + Map<Long, UserRole> speakerRoles
+    + getSpeakerRole(Long userId): UserRole
+}
+
+enum UserRole {
+    ADMIN
+    MODERATOR
+    MEMBER
+    NEWCOMER
+    VERIFIED
+}
+
+' Enums
+enum PolicyStatus {
+    DRAFT
+    ACTIVE
+    PAUSED
+    ARCHIVED
+}
+
+enum RuleStatus {
+    DRAFT
+    ACTIVE
+    INACTIVE
+}
+
+enum ConditionType {
+    INTENT_MATCH
+    CONFIDENCE_THRESHOLD
+    SENDER_ROLE
+    KEYWORD_MATCH
+    REGEX_MATCH
+    COMPOSITE_AND
+    COMPOSITE_OR
+}
+
+enum ActionType {
+    ALLOW
+    BLOCK
+    FLAG
+    RESPOND_WITH_TEMPLATE
+    RESPOND_WITH_LLM
+    ESCALATE
+    DELETE_MESSAGE
+    WARN_USER
+    BAN_USER
+}
+
+enum Severity {
+    INFO
+    WARNING
+    CRITICAL
+}
+
+' Relationships
+Policy "1" *-- "*" Rule : contains >
+Rule "1" *-- "1" RuleCondition : has >
+Rule "1" *-- "1" RuleAction : has >
+Decision "*" --> "1" Policy : based on >
+Decision "*" --> "1" Rule : triggered by >
+Decision "1" --> "1" DecisionLog : logs to >
+EvaluationContext "1" --> "1" ConversationContext : uses >
+ConversationContext "1" --> "*" UserRole : tracks >
+
+' Template Library
+class ResponseTemplate {
+    + UUID id
+    + String name
+    + String templateText
+    + List<String> variables
+    + TemplateType type
+    + Locale locale
+    + render(Map<String, Object> context): String
+}
+
+enum TemplateType {
+    GREETING
+    FAQ_RESPONSE
+    MODERATION_WARNING
+    HELP_MESSAGE
+    SUMMARY
+    CUSTOM
+}
+
+RuleAction ..> ResponseTemplate : references >
+
+' Policy Versioning
+class PolicyVersion {
+    + UUID id
+    + UUID policyId
+    + Integer versionNumber
+    + String changeDescription
+    + List<Rule> rulesSnapshot
+    + Instant createdAt
+    + String createdBy
+}
+
+Policy "1" *-- "*" PolicyVersion : versions >
+
+' Notes
+note right of Policy
+  <b>Policy:</b>
+  A collection of rules that
+  determine system behavior.
+  Higher priority policies
+  evaluated first.
+end note
+
+note bottom of Rule
+  <b>Rule Evaluation:</b>
+  1. Check status == ACTIVE
+  2. Evaluate condition
+  3. If matches, execute action
+  4. Return decision with severity
+end note
+
+note left of Decision
+  <b>Decision Lifecycle:</b>
+  Created by Policy Engine
+  → Logged to DecisionLog
+  → Audited via AuditEvent
+  → Executed by downstream services
+end note
+
+@enduml

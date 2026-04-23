@@ -1,0 +1,197 @@
+@startuml Sequence_Error_Handling
+' Purpose: Error handling, retry logic, and DLQ flow for EMCIP
+' Used in: architecture.adoc - Error Handling & Resilience section
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+skinparam wrapWidth 180
+
+title Error Handling, Retry Logic, and Dead Letter Queue Flow
+
+queue "Kafka\nTopic" as Topic
+participant "Retryable\nConsumer" as RetryConsumer
+box "Error Handling Components" #LightPink
+    participant "Error\nClassifier" as ErrorClassifier
+    participant "Retry\nManager" as RetryManager
+    participant "Backoff\nStrategy" as Backoff
+    participant "DLQ\nProducer" as DLQProducer
+end box
+queue "Dead Letter\nQueue (DLQ)" as DLQ
+database "PostgreSQL" as DB
+participant "Alerting\nService" as Alerts
+participant "Admin\nDashboard" as Admin
+participant "Audit\nService" as Audit
+
+' Normal Processing with Error
+== Error Scenario 1: Retryable Error ==
+Topic -> RetryConsumer: ConsumerRecord
+activate RetryConsumer
+RetryConsumer -> RetryConsumer: Process message
+
+alt Database connection timeout
+    RetryConsumer -> ErrorClassifier: Classify error
+    activate ErrorClassifier
+    ErrorClassifier -> ErrorClassifier: Analyze exception type
+    ErrorClassifier --> RetryConsumer: RETRYABLE
+    deactivate ErrorClassifier
+    
+    RetryConsumer -> RetryManager: Schedule retry
+    activate RetryManager
+    RetryManager -> Backoff: Calculate delay
+    activate Backoff
+    Backoff -> Backoff: Exponential backoff
+    note right
+      Backoff strategy:
+      • 1st retry: 1s
+      • 2nd retry: 2s
+      • 3rd retry: 4s
+    end note
+    Backoff --> RetryManager: delayMs
+    deactivate Backoff
+    
+    RetryManager -> RetryManager: Schedule task
+    RetryManager --> RetryConsumer: Scheduled
+    deactivate RetryManager
+    
+    ' Retry loop
+    loop Retry 3 times
+        RetryConsumer -> RetryConsumer: Wait for backoff
+        RetryConsumer -> RetryConsumer: Retry processing
+        
+        alt Success
+            RetryConsumer -> RetryConsumer: Commit offset
+            RetryConsumer -> Audit: Success audit
+            note right: Processing complete
+        else Still failing
+            RetryConsumer -> RetryManager: Retry again
+        end
+    end
+    
+    ' Max retries exceeded
+    RetryConsumer -> ErrorClassifier: Classify error
+    activate ErrorClassifier
+    ErrorClassifier --> RetryConsumer: MAX_RETRIES_EXCEEDED
+    deactivate ErrorClassifier
+    
+    RetryConsumer -> DLQProducer: Send to DLQ
+    activate DLQProducer
+    DLQProducer -> DLQProducer: Enrich with metadata
+    note right
+      DLQ Metadata:
+      • Original topic
+      • Retry count
+      • Error message
+      • Stack trace
+      • Timestamp
+    end note
+    DLQProducer -> DLQ: Publish failed message
+    DLQProducer -> DB: Log DLQ entry
+    DLQProducer -> Alerts: Send alert
+    activate Alerts
+    Alerts -> Alerts: Trigger PagerDuty/email
+    Alerts --> DLQProducer: Alert sent
+    deactivate Alerts
+    DLQProducer -> Audit: DLQ audit event
+    DLQProducer --> RetryConsumer: Sent
+    deactivate DLQProducer
+end
+
+deactivate RetryConsumer
+
+' Non-retryable Error
+== Error Scenario 2: Non-Retryable Error ==
+Topic -> RetryConsumer: ConsumerRecord
+activate RetryConsumer
+RetryConsumer -> RetryConsumer: Process message
+
+alt Schema validation failure
+    RetryConsumer -> ErrorClassifier: Classify error
+    activate ErrorClassifier
+    ErrorClassifier -> ErrorClassifier: Check exception type
+    ErrorClassifier --> RetryConsumer: NON_RETRYABLE
+    deactivate ErrorClassifier
+    
+    note right: Schema errors won't be fixed by retrying
+    RetryConsumer -> DLQProducer: Send to DLQ (immediate)
+    activate DLQProducer
+    DLQProducer -> DLQ: Publish to poison queue
+    DLQProducer -> DB: Log schema error
+    DLQProducer -> Alerts: Schema violation alert
+    DLQProducer -> Audit: Schema error audit
+    DLQProducer --> RetryConsumer: Sent
+    deactivate DLQProducer
+end
+
+deactivate RetryConsumer
+
+' DLQ Processing
+== DLQ Processing and Recovery ==
+Admin -> DLQ: Query failed messages
+activate Admin
+DLQ --> Admin: List of messages
+
+loop For each message
+    Admin -> Admin: Review error details
+    Admin -> Admin: Analyze root cause
+    
+    alt Reprocess possible
+        Admin -> Admin: Fix issue (e.g., deploy bugfix)
+        Admin -> DLQ: Retry message
+        DLQ -> Topic: Republish to original topic
+        note right: Message re-enters\
+        normal processing flow
+    else Manual action needed
+        Admin -> Admin: Mark as resolved
+        Admin -> DB: Update status
+    end
+end
+
+deactivate Admin
+
+' Circuit Breaker Pattern
+== Circuit Breaker Protection ==
+participant "External\nService" as External
+Topic -> RetryConsumer: ConsumerRecord
+activate RetryConsumer
+RetryConsumer -> External: API call
+activate External
+
+alt Service unavailable
+    External --> RetryConsumer: Connection refused
+    deactivate External
+    
+    RetryConsumer -> RetryConsumer: Check circuit breaker
+    
+    alt Circuit = CLOSED
+        RetryConsumer -> RetryConsumer: Increment failure count
+        note right: Failure threshold: 5
+    else Circuit = OPEN
+        note right: Circuit breaker OPEN\
+        Reject requests for 30s
+        RetryConsumer -> DLQProducer: Fast-fail to DLQ
+        activate DLQProducer
+        DLQProducer -> DLQ: Send to DLQ
+        DLQProducer --> RetryConsumer: Sent
+        deactivate DLQProducer
+    else Circuit = HALF_OPEN
+        RetryConsumer -> External: Test request
+        note right: Allow 1 test request\
+        to check if service recovered
+    end
+end
+
+deactivate RetryConsumer
+
+' Summary
+note over RetryConsumer
+  **Error Handling Summary:**
+  • Retryable errors: 3 retries with exponential backoff
+  • Non-retryable errors: Immediate DLQ
+  • Max retries exceeded: DLQ + alert
+  • Circuit breaker: Prevents cascade failures
+  • DLQ messages: Manual review & reprocess
+  • All errors audited for compliance
+end note
+
+@enduml
