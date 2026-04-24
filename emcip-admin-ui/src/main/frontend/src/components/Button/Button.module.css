@@ -1,0 +1,8 @@
+.btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; transition: background 0.15s; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.primary   { background: var(--accent); color: var(--accent-text); }
+.primary:hover:not(:disabled) { background: var(--accent-hover); }
+.secondary { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+.secondary:hover:not(:disabled) { background: var(--bg-secondary); }
+.danger    { background: var(--badge-red-bg); color: var(--badge-red-text); }
+.danger:hover:not(:disabled) { opacity: 0.8; }

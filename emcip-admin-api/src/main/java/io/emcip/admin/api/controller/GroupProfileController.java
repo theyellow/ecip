@@ -63,6 +63,7 @@ public class GroupProfileController {
                 .flatMap(
                         existing -> {
                             existing.setName(update.getName());
+                            existing.setDescription(update.getDescription());
                             existing.setModerationLevel(update.getModerationLevel());
                             existing.setAutoRespond(update.isAutoRespond());
                             existing.setWelcomeMessage(update.getWelcomeMessage());
