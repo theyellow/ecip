@@ -1,0 +1,5 @@
+src/main/frontend/node_modules/
+src/main/resources/static/*
+!src/main/resources/static/.gitkeep
+target/node/
+target/node_modules/
