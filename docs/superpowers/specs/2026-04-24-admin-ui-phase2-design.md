@@ -206,11 +206,45 @@ File: `documentation/emcip-docs.css`
 
 ---
 
+## Frontend Architecture
+
+The existing monolithic `index.html` (vanilla JS) is replaced with a proper React SPA.
+
+**Stack:**
+- **Vite** — build tool, dev server with HMR
+- **React 18** — component framework
+- **React Router v6** — client-side routing (one route per page)
+- **CSS Modules** — scoped styles per component, no global bleed
+- **Theme context** — React context wrapping the app, exposes `theme` + `toggleTheme`, persists to `localStorage`
+
+**Module structure:**
+```
+emcip-admin-ui/src/main/frontend/
+  src/
+    api/           # one file per domain (groups.js, tenants.js, simulate.js, ...)
+    components/    # shared (Badge, Modal, Table, Button, Logo, ...)
+    pages/         # one directory per page (Groups/, Tenants/, Simulate/, ...)
+    theme/         # ThemeContext, useTheme hook, CSS variables
+    layout/        # AppShell, Sidebar, StarField canvas
+    App.jsx        # router + ThemeProvider
+    main.jsx       # entry point
+  index.html
+  vite.config.js
+```
+
+**Build integration:**
+- Maven `frontend-maven-plugin` runs `vite build` during `mvn package`
+- Output lands in `src/main/resources/static/` (replaces current index.html)
+- Dev mode: `vite dev` proxies `/api/*` to `localhost:9087`
+
+**Phase A bugs** are fixed in React from the start — no double-fixing needed.
+
+---
+
 ## Architecture Notes
 
 - **Single origin:** All UI calls go to admin-api only. Orchestrator and tdlib-adapter are internal.
-- **Auth:** JWT from `POST /api/auth/token`. All new endpoints follow existing JWT filter pattern.
-- **No new JS frameworks:** Everything stays in the existing vanilla JS + HTML approach.
+- **Auth:** JWT from `POST /api/auth/token`. Stored in memory (not localStorage) for XSS safety; all new API calls use the shared api/ layer.
 - **Spotless:** `mvn spotless:apply` before every commit on Java changes.
 - **Liquibase only:** Any schema changes via Liquibase changesets, never Flyway or DDL-auto.
 
