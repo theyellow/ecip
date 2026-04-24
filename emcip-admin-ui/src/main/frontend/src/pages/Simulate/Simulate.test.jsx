@@ -10,7 +10,7 @@ beforeEach(() => {
 
 const wrap = ui => render(<ThemeProvider><AuthProvider>{ui}</AuthProvider></ThemeProvider>)
 
-test('publishes to /api/simulate/message via POST', async () => {
+test('publishes via POST to /api/simulate/message', async () => {
   fetch.mockResolvedValueOnce({
     ok: true,
     status: 202,
@@ -27,5 +27,17 @@ test('publishes to /api/simulate/message via POST', async () => {
     const call = fetch.mock.calls.find(c => c[0].includes('/api/simulate/message'))
     expect(call).toBeDefined()
     expect(call[1].method).toBe('POST')
+    // Verify it goes through makeRequest (not a hardcoded relative URL bypassing API_BASE)
+    // In test env, VITE_API_BASE is '' so full URL is just '/api/simulate/message'
+    // The key: no fetch call to a different path like '/api/simulate' without '/message'
+    expect(call[0]).toMatch(/\/api\/simulate\/message$/)
   })
+})
+
+test('shows error when fields are empty', async () => {
+  wrap(<Simulate />)
+  await userEvent.click(screen.getByRole('button', { name: /publish/i }))
+  await waitFor(() =>
+    expect(screen.getByRole('alert')).toHaveTextContent(/required/i)
+  )
 })
