@@ -10,4 +10,10 @@ public interface AuditEventRepository extends ReactiveCrudRepository<AuditEvent,
 
     @Query("SELECT * FROM audit_events ORDER BY created_at DESC LIMIT :limit")
     Flux<AuditEvent> findRecent(@Param("limit") int limit);
+
+    @Query(
+            "SELECT * FROM audit_events WHERE event_type = :eventType ORDER BY created_at DESC"
+                    + " LIMIT :limit")
+    Flux<AuditEvent> findRecentByType(
+            @Param("eventType") String eventType, @Param("limit") int limit);
 }

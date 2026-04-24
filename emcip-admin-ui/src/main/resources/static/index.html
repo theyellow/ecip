@@ -119,6 +119,10 @@
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
                 Policy Rules
             </div>
+            <div class="nav-item" data-view="groups" onclick="navigate('groups')">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                Groups
+            </div>
             <div class="nav-item" data-view="audit-log" onclick="navigate('audit-log')">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 Audit Log
@@ -189,6 +193,7 @@ function navigate(view) {
     var main = document.getElementById('main-content');
     if (view === 'tenants') renderTenants(main);
     else if (view === 'policy-rules') renderPolicyRules(main);
+    else if (view === 'groups') renderGroups(main);
     else if (view === 'audit-log') renderAuditLog(main);
 }
 
@@ -662,43 +667,188 @@ function viewRuleHistory(name) {
     }).catch(function(e) { alert('Error: ' + e.message); });
 }
 
-// ===== Audit Log View =====
-function renderAuditLog(el) {
+// ===== Groups View =====
+var groupsCache = [];
+
+var MOD_LEVELS = ['LOW', 'MEDIUM', 'HIGH', 'STRICT'];
+
+function modLevelBadge(level) {
+    var cls = level === 'LOW' ? 'badge-green' : level === 'MEDIUM' ? 'badge-blue' : level === 'HIGH' ? 'badge-yellow' : 'badge-red';
+    return '<span class="badge ' + cls + '">' + esc(level || 'MEDIUM') + '</span>';
+}
+
+function renderGroups(el) {
     el.innerHTML =
-        '<div class="page-header">' +
-            '<h1>Audit Log</h1>' +
-            '<p>Recent platform events and moderation actions</p>' +
-        '</div>' +
-        '<div class="page-body">' +
-            '<div class="card">' +
-                '<div class="card-header">' +
-                    '<h3>Recent Events</h3>' +
-                    '<button class="btn btn-secondary btn-sm" onclick="navigate(\'audit-log\')">Refresh</button>' +
-                '</div>' +
-                '<div id="audit-table-body"><div class="empty-state">Loading...</div></div>' +
+        '<div class="page-header"><h1>Groups</h1><p>Telegram group moderation profiles</p></div>' +
+        '<div class="page-body"><div class="card">' +
+            '<div class="card-header"><h3>Monitored Groups</h3>' +
+                '<button class="btn btn-primary btn-sm" onclick="showGroupModal(null)">+ Add Group</button>' +
+            '</div>' +
+            '<div id="groups-table-body"><div class="empty-state">Loading\u2026</div></div>' +
+        '</div></div>';
+
+    apiGet('/api/groups').then(function(groups) {
+        groupsCache = groups || [];
+        var tbody = document.getElementById('groups-table-body');
+        if (!groupsCache.length) {
+            tbody.innerHTML = '<div class="empty-state">No groups configured. Add a Telegram group to start monitoring it.</div>';
+            return;
+        }
+        var rows = groupsCache.map(function(g, idx) {
+            return '<tr>' +
+                '<td style="font-family:monospace;font-size:13px;color:#94a3b8">' + esc(String(g.telegramChatId)) + '</td>' +
+                '<td style="font-weight:500">' + esc(g.name) + '</td>' +
+                '<td>' + modLevelBadge(g.moderationLevel) + '</td>' +
+                '<td><span class="badge ' + (g.autoRespond ? 'badge-green' : 'badge-red') + '">' + (g.autoRespond ? 'Yes' : 'No') + '</span></td>' +
+                '<td style="color:#64748b;font-size:13px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(g.description || '\u2014') + '</td>' +
+                '<td onclick="event.stopPropagation()" style="white-space:nowrap">' +
+                    '<button class="btn btn-secondary btn-sm" style="margin-right:4px" onclick="showGroupModal(' + idx + ')">Edit</button>' +
+                    '<button class="btn btn-danger btn-sm" onclick="deleteGroup(' + idx + ')">Delete</button>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+        tbody.innerHTML = '<table><thead><tr>' +
+            '<th>Chat ID</th><th>Name</th><th>Moderation</th><th>Auto-respond</th><th>Description</th><th></th>' +
+            '</tr></thead><tbody>' + rows + '</tbody></table>';
+    }).catch(function(e) {
+        var tbody = document.getElementById('groups-table-body');
+        if (tbody) tbody.innerHTML = '<div class="empty-state" style="color:#f87171">Error: ' + esc(e.message) + '</div>';
+    });
+}
+
+function showGroupModal(idx) {
+    var isEdit = idx !== null;
+    var g = isEdit ? groupsCache[idx] : null;
+    var selectStyle = 'width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px';
+    var modOptions = MOD_LEVELS.map(function(l) {
+        return '<option value="' + l + '"' + ((g && g.moderationLevel === l) || (!g && l === 'MEDIUM') ? ' selected' : '') + '>' + l + '</option>';
+    }).join('');
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML =
+        '<div class="modal" style="max-width:500px">' +
+            '<h3>' + (isEdit ? 'Edit Group: ' + esc(g.name) : 'Add Group') + '</h3>' +
+            '<div class="form-group"><label>Telegram Chat ID <span style="color:#f87171">*</span></label>' +
+                '<input type="number" id="gm-chatid" value="' + (g ? esc(String(g.telegramChatId)) : '') + '"' + (isEdit ? ' disabled style="opacity:0.5"' : '') + ' placeholder="e.g. -1001234567890"></div>' +
+            '<div class="form-group"><label>Name <span style="color:#f87171">*</span></label>' +
+                '<input type="text" id="gm-name" value="' + (g ? esc(g.name) : '') + '" placeholder="e.g. My Community"></div>' +
+            '<div class="form-group"><label>Description</label>' +
+                '<input type="text" id="gm-desc" value="' + (g ? esc(g.description || '') : '') + '" placeholder="Optional"></div>' +
+            '<div class="form-group"><label>Moderation Level</label>' +
+                '<select id="gm-level" style="' + selectStyle + '">' + modOptions + '</select></div>' +
+            '<div class="form-group" style="display:flex;align-items:center;gap:10px">' +
+                '<input type="checkbox" id="gm-autorespond"' + (g && g.autoRespond ? ' checked' : (!g ? ' checked' : '')) + ' style="width:auto">' +
+                '<label for="gm-autorespond" style="margin:0;cursor:pointer">Auto-respond with AI</label></div>' +
+            '<div class="form-group"><label>Welcome Message</label>' +
+                '<textarea id="gm-welcome" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px;resize:vertical;min-height:80px" placeholder="Optional welcome message for new members">' + (g ? esc(g.welcomeMessage || '') : '') + '</textarea></div>' +
+            '<div id="gm-error" class="error-msg" style="display:none"></div>' +
+            '<div class="modal-actions">' +
+                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Cancel</button>' +
+                '<button class="btn btn-primary" onclick="saveGroup(' + (isEdit ? '\'' + esc(String(g.telegramChatId)) + '\'' : 'null') + ', this)">' + (isEdit ? 'Save Changes' : 'Add Group') + '</button>' +
             '</div>' +
         '</div>';
+    document.body.appendChild(backdrop);
+}
 
-    apiGet('/api/audit/events?size=50').then(function(events) {
+function saveGroup(existingChatId, btn) {
+    var errEl = document.getElementById('gm-error');
+    var chatId = existingChatId
+        ? parseInt(existingChatId)
+        : parseInt(document.getElementById('gm-chatid').value);
+    if (!chatId) { errEl.textContent = 'Chat ID is required'; errEl.style.display = 'block'; return; }
+    var name = document.getElementById('gm-name').value.trim();
+    if (!name) { errEl.textContent = 'Name is required'; errEl.style.display = 'block'; return; }
+    var body = {
+        telegramChatId: chatId,
+        name: name,
+        description: document.getElementById('gm-desc').value.trim() || null,
+        moderationLevel: document.getElementById('gm-level').value,
+        autoRespond: document.getElementById('gm-autorespond').checked,
+        welcomeMessage: document.getElementById('gm-welcome').value.trim() || null
+    };
+    var method = existingChatId ? 'PUT' : 'POST';
+    var url = API_BASE + '/api/groups' + (existingChatId ? '/' + encodeURIComponent(existingChatId) : '');
+    fetch(url, {
+        method: method,
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    }).then(function(res) {
+        if (!res.ok) return res.text().then(function(t) { throw new Error(res.status + ' ' + t); });
+        btn.closest('.modal-backdrop').remove();
+        navigate('groups');
+    }).catch(function(e) { errEl.textContent = e.message; errEl.style.display = 'block'; });
+}
+
+function deleteGroup(idx) {
+    var g = groupsCache[idx];
+    if (!g || !confirm('Delete group "' + g.name + '"?')) return;
+    fetch(API_BASE + '/api/groups/' + encodeURIComponent(g.telegramChatId), {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+    }).then(function(res) {
+        if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+        navigate('groups');
+    }).catch(function(e) { alert('Delete failed: ' + e.message); });
+}
+
+// ===== Audit Log View =====
+var AUDIT_EVENT_TYPES = ['', 'TELEGRAM_MESSAGE_RECEIVED', 'INTENT_CLASSIFIED', 'POLICY_DECISION', 'RESPONSE_GENERATED', 'MODERATION_FLAG'];
+
+function renderAuditLog(el) {
+    el.innerHTML =
+        '<div class="page-header"><h1>Audit Log</h1><p>Platform events across all services</p></div>' +
+        '<div class="page-body">' +
+            '<div class="card" style="margin-bottom:16px">' +
+                '<div class="card-header" style="flex-wrap:wrap;gap:8px">' +
+                    '<h3>Filters</h3>' +
+                    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+                        '<select id="audit-type-filter" style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:6px 10px;color:#f1f5f9;font-size:13px">' +
+                            AUDIT_EVENT_TYPES.map(function(t) { return '<option value="' + t + '">' + (t || 'All event types') + '</option>'; }).join('') +
+                        '</select>' +
+                        '<select id="audit-size-filter" style="background:#0f172a;border:1px solid #334155;border-radius:6px;padding:6px 10px;color:#f1f5f9;font-size:13px">' +
+                            '<option value="50">Last 50</option><option value="100">Last 100</option><option value="200">Last 200</option>' +
+                        '</select>' +
+                        '<button class="btn btn-primary btn-sm" onclick="loadAuditEvents()">Apply</button>' +
+                        '<button class="btn btn-secondary btn-sm" onclick="navigate(\'audit-log\')">Reset</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="card"><div id="audit-table-body"><div class="empty-state">Loading\u2026</div></div></div>' +
+        '</div>';
+
+    loadAuditEvents();
+}
+
+function loadAuditEvents() {
+    var type = (document.getElementById('audit-type-filter') || {}).value || '';
+    var size = (document.getElementById('audit-size-filter') || {}).value || '50';
+    var params = 'size=' + encodeURIComponent(size);
+    if (type) params += '&eventType=' + encodeURIComponent(type);
+    apiGet('/api/audit/events?' + params).then(function(events) {
         var tbody = document.getElementById('audit-table-body');
-        var list = events.content || events || [];
-        if (list.length === 0) {
+        var list = Array.isArray(events) ? events : (events.content || []);
+        if (!list.length) {
             tbody.innerHTML = '<div class="empty-state">No audit events found.</div>';
             return;
         }
         var rows = list.map(function(e) {
             var ts = e.createdAt ? new Date(e.createdAt).toLocaleString() : '\u2014';
-            var type = e.eventType || e.event_type || '';
-            var actor = e.actorId || e.actor_id || 'system';
-            var payload = JSON.stringify(e.payload || {});
+            var typeLabel = e.eventType || '';
+            var source = e.sourceService || 'system';
+            var actor = e.actorId || e.actorType || '\u2014';
+            var outcome = e.outcome || '';
+            var outcomeClass = outcome === 'PROCESSED' ? 'badge-green' : outcome === 'FAILED' ? 'badge-red' : 'badge-blue';
+            var resource = e.resourceType ? (e.resourceType + (e.resourceId ? ' ' + e.resourceId.slice(0, 8) : '')) : '\u2014';
             return '<tr>' +
-                '<td style="white-space:nowrap;color:#94a3b8">' + ts + '</td>' +
-                '<td><span class="badge badge-blue">' + esc(type) + '</span></td>' +
-                '<td>' + esc(actor) + '</td>' +
-                '<td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(payload) + '</td>' +
+                '<td style="white-space:nowrap;color:#94a3b8;font-size:12px">' + esc(ts) + '</td>' +
+                '<td><span class="badge badge-blue" style="font-size:11px">' + esc(typeLabel) + '</span></td>' +
+                '<td style="font-size:13px;color:#94a3b8">' + esc(source) + '</td>' +
+                '<td style="font-size:13px">' + esc(actor) + '</td>' +
+                '<td style="font-size:12px;color:#64748b">' + esc(resource) + '</td>' +
+                '<td><span class="badge ' + outcomeClass + '" style="font-size:11px">' + esc(outcome) + '</span></td>' +
                 '</tr>';
         }).join('');
-        tbody.innerHTML = '<table><thead><tr><th>Time</th><th>Type</th><th>Actor</th><th>Details</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        tbody.innerHTML = '<table><thead><tr><th>Time</th><th>Event Type</th><th>Source</th><th>Actor</th><th>Resource</th><th>Outcome</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }).catch(function(e) {
         var tbody = document.getElementById('audit-table-body');
         if (tbody) tbody.innerHTML = '<div class="empty-state" style="color:#f87171">Error: ' + esc(e.message) + '</div>';

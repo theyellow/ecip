@@ -17,7 +17,12 @@ public class AuditController {
     private final AuditEventRepository auditEventRepository;
 
     @GetMapping("/events")
-    public Flux<AuditEvent> getEvents(@RequestParam(name = "size", defaultValue = "50") int size) {
+    public Flux<AuditEvent> getEvents(
+            @RequestParam(name = "size", defaultValue = "50") int size,
+            @RequestParam(name = "eventType", required = false) String eventType) {
+        if (eventType != null && !eventType.isBlank()) {
+            return auditEventRepository.findRecentByType(eventType, size);
+        }
         return auditEventRepository.findRecent(size);
     }
 }

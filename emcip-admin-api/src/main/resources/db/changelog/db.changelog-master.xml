@@ -68,5 +68,6 @@
     <include file="db/changelog/changes/002-seed-admin-user.xml"/>
     <include file="db/changelog/changes/003-create-tenants-table.xml"/>
     <include file="db/changelog/changes/004-reset-admin-password.xml"/>
+    <include file="db/changelog/changes/005-group-rules-default.xml"/>
 
 </databaseChangeLog>
