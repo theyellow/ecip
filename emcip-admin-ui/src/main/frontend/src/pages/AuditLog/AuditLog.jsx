@@ -41,7 +41,7 @@ export function AuditLog() {
               <td className={styles.mono}>{e.timestamp ? new Date(e.timestamp).toLocaleString() : '\u2014'}</td>
               <td>{e.eventType}</td>
               <td className={styles.mono}>{e.entityId ?? '\u2014'}</td>
-              <td>{e.details ?? '\u2014'}</td>
+              <td className={styles.details}>{e.details ?? '\u2014'}</td>
             </tr>
           ))}
         </tbody>

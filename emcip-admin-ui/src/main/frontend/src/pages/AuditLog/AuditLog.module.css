@@ -8,3 +8,4 @@
 .table tr:last-child td { border-bottom: none; }
 .mono { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); }
 .error { color: var(--badge-red-text); background: var(--badge-red-bg); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; }
+.details { color: var(--text-secondary); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
