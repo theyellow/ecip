@@ -11,9 +11,9 @@ export function Modal({ title, onClose, onSubmit, submitLabel = 'Save', children
 
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className={styles.card} role="dialog" aria-modal="true">
+      <div className={styles.card} role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div className={styles.header}>
-          <h3>{title}</h3>
+          <h3 id="modal-title">{title}</h3>
           <button className={styles.close} onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className={styles.body}>{children}</div>
