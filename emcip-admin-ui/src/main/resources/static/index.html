@@ -396,10 +396,111 @@ function showRuleDetails(idx) {
             '</div>' +
             '<div class="modal-actions">' +
                 '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Close</button>' +
-                '<button class="btn btn-primary" onclick="this.closest(\'.modal-backdrop\').remove();viewRuleHistory(\'' + esc(ruleName) + '\')">View History</button>' +
+                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove();viewRuleHistory(\'' + esc(ruleName) + '\')">History</button>' +
+                '<button class="btn btn-primary" onclick="this.closest(\'.modal-backdrop\').remove();showEditRuleModal(' + idx + ')">Edit</button>' +
             '</div>' +
         '</div>';
     document.body.appendChild(backdrop);
+}
+
+function showEditRuleModal(idx) {
+    var r = rulesCache[idx];
+    if (!r) return;
+    var selectStyle = 'width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px';
+    var knownIntents = ['*', 'SPAM', 'HATE_SPEECH', 'HARASSMENT', 'VIOLENCE', 'NORMAL'];
+    var isKnown = knownIntents.indexOf(r.targetIntent) !== -1;
+    var intentOptions = knownIntents.map(function(i) {
+        return '<option value="' + i + '"' + (r.targetIntent === i ? ' selected' : '') + '>' + (i === '*' ? '* (any intent)' : i) + '</option>';
+    }).join('') + '<option value="__custom__"' + (!isKnown ? ' selected' : '') + '>Custom\u2026</option>';
+    var actionOptions = ['WARN', 'MUTE', 'BAN', 'ALLOW'].map(function(a) {
+        return '<option value="' + a + '"' + (r.action === a ? ' selected' : '') + '>' + a + '</option>';
+    }).join('');
+    var toLocalDt = function(iso) {
+        if (!iso) return '';
+        var d = new Date(iso);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().slice(0, 16);
+    };
+    var minPct = r.minConfidence != null ? Math.round(r.minConfidence * 100) : 0;
+    var maxPct = r.maxConfidence != null ? Math.round(r.maxConfidence * 100) : '';
+    var backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML =
+        '<div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto">' +
+            '<h3>Edit Rule: ' + esc(r.name) + '</h3>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">' +
+                '<div class="form-group" style="grid-column:span 2"><label>Rule Name <span style="color:#f87171">*</span></label>' +
+                    '<input type="text" id="er-name" value="' + esc(r.name) + '"></div>' +
+                '<div class="form-group"><label>Target Intent</label>' +
+                    '<select id="er-intent" style="' + selectStyle + '" onchange="handleEditIntentChange(this)">' + intentOptions + '</select></div>' +
+                '<div class="form-group" id="er-intent-custom-wrap" style="display:' + (!isKnown ? 'block' : 'none') + '"><label>Custom Intent</label>' +
+                    '<input type="text" id="er-intent-custom" value="' + esc(!isKnown ? r.targetIntent : '') + '"></div>' +
+                '<div class="form-group"><label>Action <span style="color:#f87171">*</span></label>' +
+                    '<select id="er-action" style="' + selectStyle + '">' + actionOptions + '</select></div>' +
+                '<div class="form-group"><label>Priority</label>' +
+                    '<input type="number" id="er-priority" value="' + esc(String(r.priority)) + '" min="1" max="1000"></div>' +
+                '<div class="form-group"><label>Min Confidence %</label>' +
+                    '<input type="number" id="er-min-conf" value="' + minPct + '" min="0" max="100" step="5"></div>' +
+                '<div class="form-group"><label>Max Confidence %</label>' +
+                    '<input type="number" id="er-max-conf" value="' + maxPct + '" min="0" max="100" step="5" placeholder="no limit"></div>' +
+                '<div class="form-group" style="grid-column:span 2"><label>Description</label>' +
+                    '<input type="text" id="er-desc" value="' + esc(r.description || '') + '"></div>' +
+                '<div class="form-group" style="grid-column:span 2"><label>Reason</label>' +
+                    '<input type="text" id="er-reason" value="' + esc(r.reason || '') + '"></div>' +
+                '<div class="form-group"><label>Effective From</label>' +
+                    '<input type="datetime-local" id="er-from" value="' + toLocalDt(r.effectiveFrom) + '" style="color-scheme:dark"></div>' +
+                '<div class="form-group"><label>Effective To</label>' +
+                    '<input type="datetime-local" id="er-to" value="' + toLocalDt(r.effectiveTo) + '" style="color-scheme:dark"></div>' +
+                '<div class="form-group" style="grid-column:span 2;display:flex;align-items:center;gap:10px">' +
+                    '<input type="checkbox" id="er-active"' + (r.active ? ' checked' : '') + ' style="width:auto">' +
+                    '<label for="er-active" style="margin:0;cursor:pointer">Active</label></div>' +
+            '</div>' +
+            '<div id="er-error" class="error-msg" style="display:none"></div>' +
+            '<div class="modal-actions">' +
+                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-backdrop\').remove()">Cancel</button>' +
+                '<button class="btn btn-primary" onclick="saveEditRule(\'' + esc(r.id) + '\', this)">Save Changes</button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(backdrop);
+}
+
+function handleEditIntentChange(sel) {
+    var wrap = document.getElementById('er-intent-custom-wrap');
+    if (wrap) wrap.style.display = sel.value === '__custom__' ? 'block' : 'none';
+}
+
+function saveEditRule(id, btn) {
+    var errEl = document.getElementById('er-error');
+    var name = document.getElementById('er-name').value.trim();
+    if (!name) { errEl.textContent = 'Name is required'; errEl.style.display = 'block'; return; }
+    var intentSel = document.getElementById('er-intent').value;
+    var intent = intentSel === '__custom__'
+        ? (document.getElementById('er-intent-custom').value.trim() || '*')
+        : intentSel;
+    var action = document.getElementById('er-action').value;
+    var priority = parseInt(document.getElementById('er-priority').value) || 10;
+    var minConf = parseFloat(document.getElementById('er-min-conf').value) / 100 || 0;
+    var maxConfVal = document.getElementById('er-max-conf').value;
+    var maxConf = maxConfVal !== '' ? parseFloat(maxConfVal) / 100 : null;
+    var desc = document.getElementById('er-desc').value.trim() || null;
+    var reason = document.getElementById('er-reason').value.trim() || null;
+    var fromVal = document.getElementById('er-from').value;
+    var toVal = document.getElementById('er-to').value;
+    var active = document.getElementById('er-active').checked;
+    var body = { name: name, targetIntent: intent, action: action, priority: priority,
+        minConfidence: minConf, maxConfidence: maxConf, description: desc, reason: reason,
+        active: active,
+        effectiveFrom: fromVal ? new Date(fromVal).toISOString() : null,
+        effectiveTo: toVal ? new Date(toVal).toISOString() : null };
+    fetch(API_BASE + '/api/policy-rules/' + encodeURIComponent(id), {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    }).then(function(res) {
+        if (!res.ok) return res.text().then(function(t) { throw new Error(res.status + ' ' + t); });
+        btn.closest('.modal-backdrop').remove();
+        navigate('policy-rules');
+    }).catch(function(e) { errEl.textContent = e.message; errEl.style.display = 'block'; });
 }
 
 function showCreateRuleModal() {

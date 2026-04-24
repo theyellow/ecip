@@ -37,7 +37,9 @@ public class ModerationEventConsumer {
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
-    @KafkaListener(topics = "telegram.messages", containerFactory = "kafkaListenerContainerFactory")
+    @KafkaListener(
+            topics = "telegram.raw.messages",
+            containerFactory = "kafkaListenerContainerFactory")
     public void consume(String message, Acknowledgment acknowledgment) {
         try {
             TelegramMessageEvent event =

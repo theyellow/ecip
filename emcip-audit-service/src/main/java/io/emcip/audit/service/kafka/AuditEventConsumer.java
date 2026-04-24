@@ -27,7 +27,7 @@ public class AuditEventConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(
-            topics = "telegram.messages",
+            topics = "telegram.raw.messages",
             groupId = "emcip-audit-service",
             containerFactory = "kafkaListenerContainerFactory")
     public void handleTelegramMessage(
@@ -66,13 +66,13 @@ public class AuditEventConsumer {
 
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             log.error(
-                    "Permanently malformed telegram.messages record at offset {}, skipping: {}",
+                    "Permanently malformed telegram.raw.messages record at offset {}, skipping: {}",
                     record.offset(),
                     e.getMessage());
             acknowledgment.acknowledge();
         } catch (Exception e) {
             log.error(
-                    "Failed to persist audit event for telegram.messages offset {}: {}",
+                    "Failed to persist audit event for telegram.raw.messages offset {}: {}",
                     record.offset(),
                     e.getMessage(),
                     e);
@@ -81,7 +81,7 @@ public class AuditEventConsumer {
     }
 
     @KafkaListener(
-            topics = "intent.classified",
+            topics = "messages.classified",
             groupId = "emcip-audit-service",
             containerFactory = "kafkaListenerContainerFactory")
     public void handleIntentClassified(
@@ -117,13 +117,13 @@ public class AuditEventConsumer {
 
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             log.error(
-                    "Permanently malformed intent.classified record at offset {}, skipping: {}",
+                    "Permanently malformed messages.classified record at offset {}, skipping: {}",
                     record.offset(),
                     e.getMessage());
             acknowledgment.acknowledge();
         } catch (Exception e) {
             log.error(
-                    "Failed to persist audit event for intent.classified offset {}: {}",
+                    "Failed to persist audit event for messages.classified offset {}: {}",
                     record.offset(),
                     e.getMessage(),
                     e);
@@ -132,7 +132,7 @@ public class AuditEventConsumer {
     }
 
     @KafkaListener(
-            topics = "policy.decisions",
+            topics = "policies.decisions",
             groupId = "emcip-audit-service",
             containerFactory = "kafkaListenerContainerFactory")
     public void handlePolicyDecision(
@@ -168,13 +168,13 @@ public class AuditEventConsumer {
 
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             log.error(
-                    "Permanently malformed policy.decisions record at offset {}, skipping: {}",
+                    "Permanently malformed policies.decisions record at offset {}, skipping: {}",
                     record.offset(),
                     e.getMessage());
             acknowledgment.acknowledge();
         } catch (Exception e) {
             log.error(
-                    "Failed to persist audit event for policy.decisions offset {}: {}",
+                    "Failed to persist audit event for policies.decisions offset {}: {}",
                     record.offset(),
                     e.getMessage(),
                     e);
