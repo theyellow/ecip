@@ -48,3 +48,9 @@ logging:
       console: logstash
   level:
     io.emcip: INFO
+
+service:
+  tdlib:
+    url: ${SERVICE_TDLIB_URL:http://localhost:9080}
+  orchestrator:
+    url: ${SERVICE_ORCHESTRATOR_URL:http://localhost:9084}
