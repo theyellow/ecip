@@ -127,6 +127,10 @@
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 Audit Log
             </div>
+            <div class="nav-item" data-view="simulate" onclick="navigate('simulate')">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Simulate Event
+            </div>
         </nav>
         <div class="sidebar-footer">
             <button class="btn btn-secondary btn-sm" onclick="doLogout()" style="width:100%">Sign out</button>
@@ -195,6 +199,7 @@ function navigate(view) {
     else if (view === 'policy-rules') renderPolicyRules(main);
     else if (view === 'groups') renderGroups(main);
     else if (view === 'audit-log') renderAuditLog(main);
+    else if (view === 'simulate') renderSimulate(main);
 }
 
 // ===== API helpers =====
@@ -852,6 +857,90 @@ function loadAuditEvents() {
     }).catch(function(e) {
         var tbody = document.getElementById('audit-table-body');
         if (tbody) tbody.innerHTML = '<div class="empty-state" style="color:#f87171">Error: ' + esc(e.message) + '</div>';
+    });
+}
+
+// ===== Simulate Event View =====
+function renderSimulate(el) {
+    el.innerHTML =
+        '<div class="page-header"><h1>Simulate Event</h1><p>Publish a test Telegram message into the processing pipeline</p></div>' +
+        '<div class="page-body">' +
+            '<div class="card" style="max-width:560px">' +
+                '<div class="card-header"><h3>Telegram Message</h3></div>' +
+                '<div style="padding:20px">' +
+                    '<div class="form-group">' +
+                        '<label>Chat ID <span style="color:#f87171">*</span></label>' +
+                        '<input type="number" id="sim-chat-id" placeholder="-100123456789" style="width:100%">' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Sender ID</label>' +
+                        '<input type="text" id="sim-sender-id" placeholder="sim-user-1" style="width:100%">' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Sender Type</label>' +
+                        '<select id="sim-sender-type" style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px">' +
+                            '<option value="USER">USER</option>' +
+                            '<option value="BOT">BOT</option>' +
+                            '<option value="ADMIN">ADMIN</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<div class="form-group">' +
+                        '<label>Message Text <span style="color:#f87171">*</span></label>' +
+                        '<textarea id="sim-text" rows="4" placeholder="Type a test message..." style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:10px 14px;color:#f1f5f9;font-size:14px;resize:vertical"></textarea>' +
+                    '</div>' +
+                    '<div id="sim-result" style="display:none;margin-bottom:16px;padding:12px;border-radius:8px;font-size:13px;font-family:monospace"></div>' +
+                    '<button class="btn btn-primary" onclick="sendSimulateMessage(this)">Publish to Pipeline</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="card" style="max-width:560px;margin-top:16px">' +
+                '<div class="card-header"><h3>Pipeline Overview</h3></div>' +
+                '<div style="padding:20px;font-size:13px;color:#94a3b8;line-height:1.8">' +
+                    '<p>Simulated messages flow through the same pipeline as real Telegram messages:</p>' +
+                    '<ol style="margin:12px 0 0 20px">' +
+                        '<li><strong style="color:#f1f5f9">telegram.raw.messages</strong> &rarr; LLM Orchestrator classifies intent</li>' +
+                        '<li><strong style="color:#f1f5f9">messages.classified</strong> &rarr; Policy Engine evaluates rules</li>' +
+                        '<li><strong style="color:#f1f5f9">policies.decisions</strong> &rarr; Moderation Service applies action</li>' +
+                        '<li>All steps are recorded in the Audit Log</li>' +
+                    '</ol>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+}
+
+function sendSimulateMessage(btn) {
+    var chatId = document.getElementById('sim-chat-id').value.trim();
+    var text = document.getElementById('sim-text').value.trim();
+    if (!chatId || !text) { alert('Chat ID and Message Text are required'); return; }
+    var resultEl = document.getElementById('sim-result');
+    btn.disabled = true;
+    btn.textContent = 'Publishing...';
+    resultEl.style.display = 'none';
+    fetch('/api/simulate/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+            chatId: parseInt(chatId, 10),
+            senderId: document.getElementById('sim-sender-id').value.trim() || 'sim-user',
+            senderType: document.getElementById('sim-sender-type').value,
+            text: text
+        })
+    }).then(function(res) {
+        return res.json().then(function(data) { return { ok: res.ok, data: data }; });
+    }).then(function(r) {
+        resultEl.style.background = r.ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)';
+        resultEl.style.border = '1px solid ' + (r.ok ? '#4ade80' : '#f87171');
+        resultEl.style.color = r.ok ? '#4ade80' : '#f87171';
+        resultEl.textContent = JSON.stringify(r.data, null, 2);
+        resultEl.style.display = 'block';
+    }).catch(function(e) {
+        resultEl.style.background = 'rgba(239,68,68,0.1)';
+        resultEl.style.border = '1px solid #f87171';
+        resultEl.style.color = '#f87171';
+        resultEl.textContent = 'Error: ' + e.message;
+        resultEl.style.display = 'block';
+    }).finally(function() {
+        btn.disabled = false;
+        btn.textContent = 'Publish to Pipeline';
     });
 }
 
