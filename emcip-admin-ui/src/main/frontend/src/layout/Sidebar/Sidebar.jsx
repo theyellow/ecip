@@ -9,6 +9,8 @@ const NAV = [
   { to: '/groups',       label: 'Groups',         icon: '◈' },
   { to: '/audit-log',    label: 'Audit Log',      icon: '◎' },
   { to: '/simulate',     label: 'Simulate Event', icon: '▶' },
+  { to: '/telegram',     label: 'Telegram',       icon: '⌘' },
+  { to: '/ai-config',    label: 'AI Config',      icon: '✦' },
 ]
 
 export function Sidebar() {

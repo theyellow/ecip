@@ -8,6 +8,8 @@ import { Tenants } from './pages/Tenants/Tenants'
 import { PolicyRules } from './pages/PolicyRules/PolicyRules'
 import { AuditLog } from './pages/AuditLog/AuditLog'
 import { Simulate } from './pages/Simulate/Simulate'
+import { Telegram } from './pages/Telegram/Telegram'
+import { AIConfig } from './pages/AIConfig/AIConfig'
 
 function AuthGate() {
   const { token } = useAuth()
@@ -25,6 +27,8 @@ function AuthGate() {
         <Route path="groups" element={<Groups />} />
         <Route path="audit-log" element={<AuditLog />} />
         <Route path="simulate" element={<Simulate />} />
+        <Route path="telegram" element={<Telegram />} />
+        <Route path="ai-config" element={<AIConfig />} />
       </Route>
     </Routes>
   )
