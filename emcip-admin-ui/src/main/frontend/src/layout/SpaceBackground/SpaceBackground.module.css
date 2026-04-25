@@ -1,0 +1,27 @@
+@keyframes rotateA {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes rotateB {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes sunPulse {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 1; }
+}
+
+.planetHeroSvg {
+  animation: rotateA 120s linear infinite;
+  display: block;
+}
+
+.planetDistantSvg {
+  animation: rotateB 180s linear infinite;
+  display: block;
+}
+
+.sunPulse {
+  animation: sunPulse 8s ease-in-out infinite;
+  display: block;
+}

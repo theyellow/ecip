@@ -1,12 +1,12 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from '../Sidebar/Sidebar'
-import { StarField } from '../StarField/StarField'
+import { SpaceBackground } from '../SpaceBackground/SpaceBackground'
 import styles from './AppShell.module.css'
 
 export function AppShell() {
   return (
     <>
-      <StarField />
+      <SpaceBackground />
       <div className={styles.shell}>
         <Sidebar />
         <main className={styles.main}>
