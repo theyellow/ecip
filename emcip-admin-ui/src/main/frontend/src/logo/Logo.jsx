@@ -13,14 +13,14 @@ export function Logo({ size = 40, className = '' }) {
       <polygon
         points="20,5 32.99,12.5 32.99,27.5 20,35 7.01,27.5 7.01,12.5"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="2.5"
         fill="none"
       />
       {/* Circuit traces from each corner */}
       <path
         d="M20,5 L20,1 M32.99,12.5 L37.32,10 M32.99,27.5 L37.32,30 M20,35 L20,39 M7.01,27.5 L2.68,30 M7.01,12.5 L2.68,10"
         stroke="currentColor"
-        strokeWidth="1"
+        strokeWidth="1.5"
         strokeLinecap="round"
       />
       {/* Eye — outer ellipse */}
@@ -34,7 +34,7 @@ export function Logo({ size = 40, className = '' }) {
       <circle
         cx="20" cy="20" r="2"
         stroke="currentColor"
-        strokeWidth="1"
+        strokeWidth="1.5"
         fill="none"
       />
       {/* Eye — pupil */}

@@ -1,12 +1,14 @@
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .header h2 { font-size: 1.25rem; font-weight: 600; }
 .table { width: 100%; border-collapse: collapse; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.table th { padding: 0.7rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+.table th { padding: 0.7rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); background: var(--table-header-bg); border-bottom: 1px solid var(--border); }
 .table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
 .table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--table-row-hover); }
 .mono { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); }
 .actions { display: flex; gap: 0.4rem; }
 .error { color: var(--badge-red-text); background: var(--badge-red-bg); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; }
-.input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.875rem; }
+.input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); color: var(--text-primary); font-size: 0.875rem; }
+.input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.30); }
 .historyItem { display: flex; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
 .historyItem:last-child { border-bottom: none; }
