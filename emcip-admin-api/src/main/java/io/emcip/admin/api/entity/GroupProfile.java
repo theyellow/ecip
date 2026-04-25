@@ -1,6 +1,7 @@
 package io.emcip.admin.api.entity;
 
 import java.time.Instant;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -38,6 +39,9 @@ public class GroupProfile {
 
     @Column("welcome_message")
     private String welcomeMessage;
+
+    @Column("tenant_id")
+    private UUID tenantId;
 
     @Column("created_at")
     private Instant createdAt;

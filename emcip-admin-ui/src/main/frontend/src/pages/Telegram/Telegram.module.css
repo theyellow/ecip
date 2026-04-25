@@ -1,0 +1,72 @@
+.page { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.message {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.form { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+  display: block;
+}
+
+.input {
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+.sessionToggle {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  margin-bottom: 0.25rem;
+}
+
+.mono {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.8rem;
+}
+
+.actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+
+.feedback { font-size: 0.85rem; color: var(--accent); margin-top: 0.5rem; }
+
+.error { color: #ef4444; font-size: 0.85rem; }
+
+.disabledSection { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+.disabledLabel { color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; }

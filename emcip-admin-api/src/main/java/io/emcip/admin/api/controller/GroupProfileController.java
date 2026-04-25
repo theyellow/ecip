@@ -37,7 +37,7 @@ public class GroupProfileController {
 
     @Operation(summary = "Get a group profile by Telegram chat ID")
     @GetMapping("/{chatId}")
-    public Mono<ResponseEntity<GroupProfile>> getByChatId(@PathVariable Long chatId) {
+    public Mono<ResponseEntity<GroupProfile>> getByChatId(@PathVariable("chatId") Long chatId) {
         return repository
                 .findByTelegramChatId(chatId)
                 .map(ResponseEntity::ok)
@@ -57,12 +57,13 @@ public class GroupProfileController {
     @Operation(summary = "Update an existing group profile")
     @PutMapping("/{chatId}")
     public Mono<ResponseEntity<GroupProfile>> update(
-            @PathVariable Long chatId, @RequestBody GroupProfile update) {
+            @PathVariable("chatId") Long chatId, @RequestBody GroupProfile update) {
         return repository
                 .findByTelegramChatId(chatId)
                 .flatMap(
                         existing -> {
                             existing.setName(update.getName());
+                            existing.setDescription(update.getDescription());
                             existing.setModerationLevel(update.getModerationLevel());
                             existing.setAutoRespond(update.isAutoRespond());
                             existing.setWelcomeMessage(update.getWelcomeMessage());
@@ -75,7 +76,7 @@ public class GroupProfileController {
 
     @Operation(summary = "Delete a group profile by Telegram chat ID")
     @DeleteMapping("/{chatId}")
-    public Mono<ResponseEntity<Void>> delete(@PathVariable Long chatId) {
+    public Mono<ResponseEntity<Void>> delete(@PathVariable("chatId") Long chatId) {
         return repository
                 .findByTelegramChatId(chatId)
                 .flatMap(

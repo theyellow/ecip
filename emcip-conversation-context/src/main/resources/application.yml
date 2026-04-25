@@ -5,9 +5,9 @@ spring:
   application:
     name: emcip-conversation-context
   datasource:
-    url: jdbc:postgresql://localhost:14005/emcip
-    username: emcip
-    password: emcip
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:14005/emcip}
+    username: ${SPRING_DATASOURCE_USERNAME:emcip}
+    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -20,7 +20,7 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
   kafka:
-    bootstrap-servers: localhost:14003
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
     consumer:
       group-id: conversation-context
       auto-offset-reset: earliest

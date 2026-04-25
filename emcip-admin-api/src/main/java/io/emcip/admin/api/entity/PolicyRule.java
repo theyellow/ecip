@@ -1,6 +1,7 @@
 package io.emcip.admin.api.entity;
 
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Column;
@@ -50,4 +51,7 @@ public class PolicyRule {
 
     @Column("created_at")
     private Instant createdAt;
+
+    @Column("tenant_id")
+    private UUID tenantId;
 }

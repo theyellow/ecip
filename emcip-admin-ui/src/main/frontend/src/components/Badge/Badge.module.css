@@ -1,0 +1,6 @@
+.badge { display: inline-block; padding: 0.2em 0.6em; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+.green  { background: var(--badge-green-bg);  color: var(--badge-green-text); }
+.blue   { background: var(--badge-blue-bg);   color: var(--badge-blue-text); }
+.yellow { background: var(--badge-yellow-bg); color: var(--badge-yellow-text); }
+.red    { background: var(--badge-red-bg);    color: var(--badge-red-text); }
+.gray   { background: var(--badge-gray-bg);   color: var(--badge-gray-text); }

@@ -39,13 +39,7 @@ scrape_configs:
             message: message
             trace_id: traceId
             span_id: spanId
-            timestamp: "@timestamp"
       - labels:
           level:
           logger:
           service:
-      - timestamp:
-          source: timestamp
-          format: RFC3339Nano
-          fallback_formats:
-            - RFC3339

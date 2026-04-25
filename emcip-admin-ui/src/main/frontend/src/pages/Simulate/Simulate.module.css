@@ -1,0 +1,14 @@
+.container { max-width: 640px; }
+.container h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
+.subtitle { color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem; }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.field label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+.input { padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.875rem; width: 100%; }
+.error { color: var(--badge-red-text); background: var(--badge-red-bg); padding: 0.5rem; border-radius: 6px; font-size: 0.85rem; }
+.result { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; }
+.result pre { font-size: 0.8rem; color: var(--text-secondary); white-space: pre-wrap; margin-top: 0.5rem; }
+.success { color: var(--badge-green-text); font-weight: 600; font-size: 0.85rem; }
+.pipeline { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+.pipeline h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-secondary); }
+.pipeline ol { padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.85rem; }

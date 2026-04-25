@@ -5,15 +5,14 @@ spring:
   application:
     name: emcip-audit-service
   r2dbc:
-    url: r2dbc:postgresql://localhost:14005/emcip
-    username: emcip
-    password: emcip
-  liquibase:
-    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
-    user: ${SPRING_DATASOURCE_USERNAME:emcip}
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:14005/emcip}
+    username: ${SPRING_DATASOURCE_USERNAME:emcip}
     password: ${SPRING_DATASOURCE_PASSWORD:emcip}
-    change-log: classpath:db/changelog/db.changelog-master.xml
-    enabled: true
+  datasource:
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
+    username: ${SPRING_DATASOURCE_USERNAME:emcip}
+    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
+    driver-class-name: org.postgresql.Driver
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
     consumer:

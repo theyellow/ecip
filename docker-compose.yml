@@ -239,7 +239,7 @@ services:
       - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgres:5432/emcip
       - SPRING_DATASOURCE_USERNAME=emcip
       - SPRING_DATASOURCE_PASSWORD=emcip
-      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-changeme-in-production-32chars}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-changeme-in-production-32chars-secret}
       - ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN:-internal-service-token}
     networks:
       - ecip-network

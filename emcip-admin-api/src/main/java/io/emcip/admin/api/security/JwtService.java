@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class JwtService {
 
-    @Value("${admin.jwt.secret:changeme-in-production-must-be-32-chars}")
+    @Value("${admin.jwt.secret}")
     private String secret;
 
     private static final long EXPIRY_MS = 8 * 60 * 60 * 1000L;
