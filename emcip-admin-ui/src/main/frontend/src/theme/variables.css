@@ -25,6 +25,9 @@
   --badge-red-text: #991b1b;
   --badge-gray-bg: #f1f5f9;
   --badge-gray-text: #475569;
+  --table-header-bg: rgba(160, 120, 40, 0.05);
+  --table-row-hover: rgba(91, 79, 212, 0.04);
+  --input-bg: rgba(255, 255, 255, 0.85);
 }
 
 [data-theme="dark"] {
@@ -54,4 +57,7 @@
   --badge-red-text: #f87171;
   --badge-gray-bg: rgba(19, 17, 48, 0.88);
   --badge-gray-text: #8a8090;
+  --table-header-bg: rgba(201, 168, 76, 0.06);
+  --table-row-hover: rgba(123, 108, 246, 0.06);
+  --input-bg: rgba(8, 8, 20, 0.60);
 }

@@ -36,6 +36,8 @@
   vertical-align: top;
 }
 
+.table tr:hover td { background: var(--table-row-hover); }
+
 .mono { font-family: 'Source Code Pro', monospace; font-size: 0.8rem; }
 
 .actions { display: flex; gap: 0.4rem; }
@@ -45,11 +47,13 @@
   padding: 0.45rem 0.7rem;
   border: 1px solid var(--border);
   border-radius: 0.35rem;
-  background: var(--bg-secondary);
+  background: var(--input-bg);
   color: var(--text-primary);
   font-size: 0.875rem;
   box-sizing: border-box;
 }
+
+.input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.30); }
 
 .promptTextarea {
   font-family: 'Source Code Pro', monospace;
