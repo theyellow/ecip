@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { makeRequest } from '../../api/client'
 import { policyRulesApi } from '../../api/policyRules'
+import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
 import styles from './PolicyRules.module.css'
 
-function RuleModal({ rule, onClose, onSave }) {
+function RuleModal({ rule, onClose, onSave, tenants }) {
   const [form, setForm] = useState({
     ruleName: rule?.ruleName ?? '',
     ruleType: rule?.ruleType ?? 'KEYWORD',
@@ -15,6 +16,7 @@ function RuleModal({ rule, onClose, onSave }) {
     parameters: rule?.parameters ?? '',
     effectiveFrom: rule?.effectiveFrom?.slice(0, 16) ?? '',
     effectiveTo: rule?.effectiveTo?.slice(0, 16) ?? '',
+    tenantId: rule?.tenantId ?? '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -40,6 +42,16 @@ function RuleModal({ rule, onClose, onSave }) {
       <label>Effective To</label>
       <input type="datetime-local" value={form.effectiveTo}
         onChange={e => set('effectiveTo', e.target.value)} className={styles.input} />
+      <label>Tenant</label>
+      <select value={form.tenantId ?? ''}
+        onChange={e => set('tenantId', e.target.value || null)} className={styles.input}>
+        <option value="">— none —</option>
+        {tenants.map(t => (
+          <option key={t.id} value={t.id}>
+            {t.name} ({t.id.slice(0, 8)})
+          </option>
+        ))}
+      </select>
     </Modal>
   )
 }
@@ -67,9 +79,14 @@ export function PolicyRules() {
   const [modal, setModal] = useState(null)
   const [history, setHistory] = useState(null)
   const [error, setError] = useState('')
+  const [tenants, setTenants] = useState([])
 
   const load = () => api.list().then(setRules).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    tenantsApi(makeRequest(token)).list().then(setTenants).catch(() => {})
+  }, [])
 
   const save = async form => {
     try {
@@ -123,7 +140,7 @@ export function PolicyRules() {
           ))}
         </tbody>
       </table>
-      {modal && <RuleModal rule={modal === 'add' ? null : modal} onClose={() => setModal(null)} onSave={save} />}
+      {modal && <RuleModal rule={modal === 'add' ? null : modal} onClose={() => setModal(null)} onSave={save} tenants={tenants} />}
       {history && <HistoryModal ruleName={history.ruleName} history={history.items} onClose={() => setHistory(null)} />}
     </div>
   )
