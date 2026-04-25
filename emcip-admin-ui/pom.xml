@@ -45,18 +45,28 @@
         <executions>
           <execution>
             <id>install-node-and-npm</id>
-            <goals><goal>install-node-and-npm</goal></goals>
+            <goals>
+              <goal>install-node-and-npm</goal>
+            </goals>
           </execution>
           <execution>
             <id>npm-install</id>
-            <goals><goal>npm</goal></goals>
-            <configuration><arguments>install</arguments></configuration>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>install</arguments>
+            </configuration>
           </execution>
           <execution>
             <id>npm-build</id>
-            <goals><goal>npm</goal></goals>
+            <goals>
+              <goal>npm</goal>
+            </goals>
             <phase>generate-resources</phase>
-            <configuration><arguments>run build</arguments></configuration>
+            <configuration>
+              <arguments>run build</arguments>
+            </configuration>
           </execution>
         </executions>
       </plugin>

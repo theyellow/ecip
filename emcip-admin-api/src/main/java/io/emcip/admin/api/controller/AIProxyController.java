@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 /**
@@ -35,7 +36,20 @@ public class AIProxyController {
 
     @GetMapping("/models")
     public Mono<String> listModels() {
-        return orchestratorClient.get().uri("/api/models").retrieve().bodyToMono(String.class);
+        return orchestratorClient
+                .get()
+                .uri("/api/models")
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                body ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(), body))))
+                .bodyToMono(String.class);
     }
 
     @PostMapping(value = "/models", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -47,6 +61,16 @@ public class AIProxyController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
                 .bodyToMono(String.class);
     }
 
@@ -58,6 +82,16 @@ public class AIProxyController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
                 .bodyToMono(String.class);
     }
 
@@ -68,6 +102,16 @@ public class AIProxyController {
                 .delete()
                 .uri("/api/models/{id}", id)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
                 .bodyToMono(Void.class);
     }
 
@@ -75,7 +119,20 @@ public class AIProxyController {
 
     @GetMapping("/templates")
     public Mono<String> listTemplates() {
-        return orchestratorClient.get().uri("/api/templates").retrieve().bodyToMono(String.class);
+        return orchestratorClient
+                .get()
+                .uri("/api/templates")
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                body ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(), body))))
+                .bodyToMono(String.class);
     }
 
     @PostMapping(value = "/templates", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -87,6 +144,16 @@ public class AIProxyController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
                 .bodyToMono(String.class);
     }
 
@@ -98,6 +165,16 @@ public class AIProxyController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
                 .bodyToMono(String.class);
     }
 
@@ -108,6 +185,16 @@ public class AIProxyController {
                 .delete()
                 .uri("/api/templates/{id}", id)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
                 .bodyToMono(Void.class);
     }
 }
