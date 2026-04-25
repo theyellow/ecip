@@ -5,9 +5,8 @@
 html, body, #root {
   height: 100%;
   font-family: system-ui, -apple-system, sans-serif;
-  background: var(--bg-primary);
   color: var(--text-primary);
-  transition: background 0.2s, color 0.2s;
+  transition: color 0.2s;
 }
 
 .emcip-wordmark {
