@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { makeRequest } from '../../api/client'
 import { groupsApi } from '../../api/groups'
+import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
@@ -9,7 +10,7 @@ import styles from './Groups.module.css'
 
 const LEVEL_VARIANT = { LOW: 'green', MEDIUM: 'blue', HIGH: 'yellow', STRICT: 'red' }
 
-function GroupModal({ group, onClose, onSave }) {
+function GroupModal({ group, onClose, onSave, tenants }) {
   const [form, setForm] = useState({
     telegramChatId: group?.telegramChatId ?? '',
     name: group?.name ?? '',
@@ -17,6 +18,7 @@ function GroupModal({ group, onClose, onSave }) {
     moderationLevel: group?.moderationLevel ?? 'LOW',
     autoRespond: group?.autoRespond ?? false,
     welcomeMessage: group?.welcomeMessage ?? '',
+    tenantId: group?.tenantId ?? '',
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -48,6 +50,16 @@ function GroupModal({ group, onClose, onSave }) {
       <label>Welcome Message</label>
       <textarea value={form.welcomeMessage}
         onChange={e => set('welcomeMessage', e.target.value)} className={styles.input} rows={3} />
+      <label>Tenant</label>
+      <select value={form.tenantId ?? ''}
+        onChange={e => set('tenantId', e.target.value || null)} className={styles.input}>
+        <option value="">— none —</option>
+        {tenants.map(t => (
+          <option key={t.id} value={t.id}>
+            {t.name} ({t.id.slice(0, 8)})
+          </option>
+        ))}
+      </select>
     </Modal>
   )
 }
@@ -58,9 +70,14 @@ export function Groups() {
   const [groups, setGroups] = useState([])
   const [modal, setModal] = useState(null)
   const [error, setError] = useState('')
+  const [tenants, setTenants] = useState([])
 
   const load = () => api.list().then(setGroups).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    tenantsApi(makeRequest(token)).list().then(setTenants).catch(() => {})
+  }, [])
 
   const save = async form => {
     try {
@@ -103,7 +120,7 @@ export function Groups() {
           ))}
         </tbody>
       </table>
-      {modal && <GroupModal group={modal === 'add' ? null : modal} onClose={() => setModal(null)} onSave={save} />}
+      {modal && <GroupModal group={modal === 'add' ? null : modal} onClose={() => setModal(null)} onSave={save} tenants={tenants} />}
     </div>
   )
 }
