@@ -70,5 +70,6 @@
     <include file="db/changelog/changes/004-reset-admin-password.xml"/>
     <include file="db/changelog/changes/005-group-rules-default.xml"/>
     <include file="db/changelog/changes/006-telegram-config-and-group-tenant.xml"/>
+    <include file="db/changelog/changes/007-telegram-accounts.xml"/>
 
 </databaseChangeLog>
