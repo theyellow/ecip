@@ -1,138 +1,124 @@
 package io.emcip.tdlib.adapter.config;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import java.util.concurrent.CompletableFuture;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.drinkless.tdlib.Client;
 import org.drinkless.tdlib.TdApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-@Component
 public class TdLibClient {
 
     private static final Logger log = LoggerFactory.getLogger(TdLibClient.class);
 
+    private final UUID accountId;
+    private final int apiId;
+    private final String apiHash;
+    private final String phoneNumber;
+    private final String databaseDirectory;
     private final TdLibProperties properties;
+    private final BiConsumer<UUID, TdApi.AuthorizationState> authStateCallback;
+
     private Client client;
-    private volatile boolean isInitialized = false;
-    private volatile boolean isAuthorized = false;
-    private final ConcurrentMap<Long, CompletableFuture<TdApi.Object>> pendingRequests =
-            new ConcurrentHashMap<>();
+    private volatile boolean initialized = false;
+    private volatile boolean authorized = false;
+    private volatile String lastError = null;
+
     private final ConcurrentMap<String, Consumer<TdApi.Update>> updateHandlers =
             new ConcurrentHashMap<>();
 
-    private final Client.ResultHandler defaultHandler = this::handleResponse;
-    private final Client.ExceptionHandler exceptionHandler = new DefaultExceptionHandler();
-
-    public TdLibClient(TdLibProperties properties) {
+    public TdLibClient(
+            UUID accountId,
+            int apiId,
+            String apiHash,
+            String phoneNumber,
+            String databaseDirectory,
+            TdLibProperties properties,
+            BiConsumer<UUID, TdApi.AuthorizationState> authStateCallback) {
+        this.accountId = accountId;
+        this.apiId = apiId;
+        this.apiHash = apiHash;
+        this.phoneNumber = phoneNumber;
+        this.databaseDirectory = databaseDirectory;
         this.properties = properties;
+        this.authStateCallback = authStateCallback;
     }
 
-    @PostConstruct
     public void initialize() {
         try {
             System.loadLibrary("tdjni");
         } catch (UnsatisfiedLinkError e) {
-            log.warn("TDLib native library not found in java.library.path: {}", e.getMessage());
+            log.warn("[{}] TDLib native library not found: {}", accountId, e.getMessage());
         }
 
         try {
             Client.execute(new TdApi.SetLogVerbosityLevel(properties.logVerbosityLevel()));
         } catch (Client.ExecutionException e) {
-            log.warn("Failed to set TDLib log verbosity: {}", e.getMessage());
+            log.warn("[{}] Failed to set TDLib log verbosity: {}", accountId, e.getMessage());
         }
 
-        client = Client.create(defaultHandler, exceptionHandler, null);
-        isInitialized = true;
-
-        log.info("TDLib client initialized");
-
+        client = Client.create(this::handleResponse, new DefaultExceptionHandler(accountId), null);
+        initialized = true;
+        log.info("[{}] TDLib client initialized", accountId);
         sendInitialParameters();
     }
 
     private void sendInitialParameters() {
         TdApi.SetTdlibParameters params = new TdApi.SetTdlibParameters();
         params.useTestDc = false;
-        params.databaseDirectory = properties.databaseDirectory();
-        params.filesDirectory = properties.filesDirectory();
+        params.databaseDirectory = databaseDirectory;
+        params.filesDirectory = databaseDirectory + "/files";
         params.useFileDatabase = properties.useFileDatabase();
         params.useChatInfoDatabase = properties.useChatInfoDatabase();
         params.useMessageDatabase = properties.useMessageDatabase();
         params.useSecretChats = properties.useSecretChats();
-        params.apiId = properties.apiId();
-        params.apiHash = properties.apiHash();
+        params.apiId = apiId;
+        params.apiHash = apiHash;
         params.systemLanguageCode = "en";
         params.deviceModel = "Desktop";
         params.systemVersion = "Unknown";
         params.applicationVersion = "0.1.0";
-
-        client.send(params, this::handleAuthorizationState);
-    }
-
-    private void handleAuthorizationState(TdApi.Object object) {
-        if (object instanceof TdApi.AuthorizationState state) {
-            handleAuthorizationStateUpdate(state);
-        }
+        client.send(params, result -> log.debug("[{}] TDLib params sent", accountId));
     }
 
     public void handleAuthorizationStateUpdate(TdApi.AuthorizationState state) {
+        log.info("[{}] Auth state: {}", accountId, state.getClass().getSimpleName());
         switch (state.getConstructor()) {
-            case TdApi.AuthorizationStateWaitTdlibParameters.CONSTRUCTOR:
-                sendInitialParameters();
-                break;
-
-            case TdApi.AuthorizationStateWaitPhoneNumber.CONSTRUCTOR:
-                log.info("Waiting for phone number...");
-                if (properties.phoneNumber() != null && !properties.phoneNumber().isBlank()) {
-                    setPhoneNumber(properties.phoneNumber());
+            case TdApi.AuthorizationStateWaitTdlibParameters.CONSTRUCTOR -> sendInitialParameters();
+            case TdApi.AuthorizationStateWaitPhoneNumber.CONSTRUCTOR -> {
+                if (phoneNumber != null && !phoneNumber.isBlank()) {
+                    setPhoneNumber(phoneNumber);
                 }
-                break;
-
-            case TdApi.AuthorizationStateWaitCode.CONSTRUCTOR:
-                log.info("Waiting for authentication code...");
-                break;
-
-            case TdApi.AuthorizationStateWaitPassword.CONSTRUCTOR:
-                log.info("Waiting for 2FA password...");
-                break;
-
-            case TdApi.AuthorizationStateReady.CONSTRUCTOR:
-                log.info("Authorization completed successfully");
-                isAuthorized = true;
-                break;
-
-            case TdApi.AuthorizationStateLoggingOut.CONSTRUCTOR:
-                log.info("Logging out...");
-                isAuthorized = false;
-                break;
-
-            case TdApi.AuthorizationStateClosing.CONSTRUCTOR:
-                log.info("Closing...");
-                break;
-
-            case TdApi.AuthorizationStateClosed.CONSTRUCTOR:
-                log.info("Closed");
-                isInitialized = false;
-                break;
-
-            default:
-                log.warn("Unknown authorization state: {}", state.getClass().getSimpleName());
+            }
+            case TdApi.AuthorizationStateReady.CONSTRUCTOR -> {
+                authorized = true;
+                lastError = null;
+            }
+            case TdApi.AuthorizationStateLoggingOut.CONSTRUCTOR -> authorized = false;
+            case TdApi.AuthorizationStateClosed.CONSTRUCTOR -> {
+                initialized = false;
+                authorized = false;
+            }
+            default ->
+                    log.debug(
+                            "[{}] Unhandled auth state: {}",
+                            accountId,
+                            state.getClass().getSimpleName());
         }
+        authStateCallback.accept(accountId, state);
     }
 
-    public void setPhoneNumber(String phoneNumber) {
+    public void setPhoneNumber(String phone) {
         client.send(
-                new TdApi.SetAuthenticationPhoneNumber(phoneNumber, null),
+                new TdApi.SetAuthenticationPhoneNumber(phone, null),
                 result -> {
                     if (result instanceof TdApi.Error error) {
-                        log.error("Failed to set phone number: {} - {}", error.code, error.message);
-                    } else {
-                        log.info("Phone number set successfully");
+                        lastError = error.message;
+                        log.error("[{}] Phone error {}: {}", accountId, error.code, error.message);
                     }
                 });
     }
@@ -142,9 +128,10 @@ public class TdLibClient {
                 new TdApi.CheckAuthenticationCode(code),
                 result -> {
                     if (result instanceof TdApi.Error error) {
-                        log.error("Failed to check code: {} - {}", error.code, error.message);
+                        lastError = error.message;
+                        log.error("[{}] Code error {}: {}", accountId, error.code, error.message);
                     } else {
-                        log.info("Code verified successfully");
+                        lastError = null;
                     }
                 });
     }
@@ -154,85 +141,79 @@ public class TdLibClient {
                 new TdApi.CheckAuthenticationPassword(password),
                 result -> {
                     if (result instanceof TdApi.Error error) {
-                        log.error("Failed to check password: {} - {}", error.code, error.message);
+                        lastError = error.message;
+                        log.error(
+                                "[{}] Password error {}: {}", accountId, error.code, error.message);
                     } else {
-                        log.info("Password verified successfully");
+                        lastError = null;
                     }
                 });
     }
 
     public void logout() {
-        client.send(new TdApi.LogOut(), result -> log.info("Logout request sent"));
-    }
-
-    private void handleResponse(TdApi.Object object) {
-        if (object instanceof TdApi.Update update) {
-            handleUpdate(update);
-        } else {
-            log.debug("Received non-update response: {}", object.getClass().getSimpleName());
-        }
-    }
-
-    private void handleUpdate(TdApi.Update update) {
-        String updateType = update.getClass().getSimpleName();
-
-        if (update instanceof TdApi.UpdateAuthorizationState authState) {
-            handleAuthorizationStateUpdate(authState.authorizationState);
-        }
-
-        Consumer<TdApi.Update> handler = updateHandlers.get(updateType);
-        if (handler != null) {
-            try {
-                handler.accept(update);
-            } catch (Exception e) {
-                log.error("Error handling update {}: {}", updateType, e.getMessage(), e);
-            }
-        } else {
-            log.debug("No handler for update type: {}", updateType);
-        }
+        client.send(new TdApi.LogOut(), result -> log.info("[{}] Logout sent", accountId));
     }
 
     public void registerUpdateHandler(String updateType, Consumer<TdApi.Update> handler) {
         updateHandlers.put(updateType, handler);
-        log.info("Registered handler for update type: {}", updateType);
     }
 
     public void unregisterUpdateHandler(String updateType) {
         updateHandlers.remove(updateType);
-        log.info("Unregistered handler for update type: {}", updateType);
     }
 
     public void sendRequest(TdApi.Function<?> query, Client.ResultHandler handler) {
-        if (!isInitialized || client == null) {
-            throw new IllegalStateException("TDLib client not initialized");
+        if (!initialized || client == null) {
+            throw new IllegalStateException(
+                    "TDLib client not initialized for account " + accountId);
         }
         client.send(query, handler);
     }
 
     public boolean isInitialized() {
-        return isInitialized;
+        return initialized;
     }
 
     public boolean isAuthorized() {
-        return isAuthorized;
+        return authorized;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public UUID getAccountId() {
+        return accountId;
+    }
+
+    private void handleResponse(TdApi.Object object) {
+        if (object instanceof TdApi.Update update) {
+            if (update instanceof TdApi.UpdateAuthorizationState s) {
+                handleAuthorizationStateUpdate(s.authorizationState);
+            }
+            Consumer<TdApi.Update> handler = updateHandlers.get(update.getClass().getSimpleName());
+            if (handler != null) {
+                try {
+                    handler.accept(update);
+                } catch (Exception e) {
+                    log.error("[{}] Handler error: {}", accountId, e.getMessage(), e);
+                }
+            }
+        }
     }
 
     @PreDestroy
     public void destroy() {
-        log.info("Shutting down TDLib client...");
-        if (isAuthorized) {
-            logout();
-        }
-        if (client != null) {
-            client.send(new TdApi.Close(), null);
-        }
+        log.info("[{}] Destroying TDLib client", accountId);
+        if (authorized) logout();
+        if (client != null) client.send(new TdApi.Close(), null);
     }
 
-    private static class DefaultExceptionHandler implements Client.ExceptionHandler {
+    private record DefaultExceptionHandler(UUID accountId) implements Client.ExceptionHandler {
         @Override
         public void onException(Throwable e) {
             LoggerFactory.getLogger(TdLibClient.class)
-                    .error("TDLib exception: {}", e.getMessage(), e);
+                    .error("[{}] TDLib exception: {}", accountId, e.getMessage(), e);
         }
     }
 }
