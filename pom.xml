@@ -373,6 +373,7 @@
             <allow-uri-read>true</allow-uri-read>
             <imagesdir>${project.basedir}/documentation/diagrams</imagesdir>
             <plantumldir>${project.basedir}/documentation/diagrams</plantumldir>
+            <pdf-theme>default-with-font-fallbacks</pdf-theme>
           </attributes>
         </configuration>
         <dependencies>
