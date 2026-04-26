@@ -368,12 +368,14 @@
             <require>asciidoctor-diagram</require>
           </requires>
           <backend>pdf</backend>
-          <outputDirectory>${project.basedir}/documentation/generated</outputDirectory>
+          <outputDirectory>${project.basedir}/target/generated-docs</outputDirectory>
           <attributes>
             <allow-uri-read>true</allow-uri-read>
             <imagesdir>${project.basedir}/documentation/diagrams</imagesdir>
             <plantumldir>${project.basedir}/documentation/diagrams</plantumldir>
-            <pdf-theme>default-with-font-fallbacks</pdf-theme>
+            <pdf-theme>emcip</pdf-theme>
+            <pdf-themesdir>${project.basedir}/documentation</pdf-themesdir>
+            <pdf-fontsdir>${project.basedir}/documentation/fonts</pdf-fontsdir>
           </attributes>
         </configuration>
         <dependencies>

@@ -1,0 +1,149 @@
+extends: default-with-font-fallbacks
+
+font:
+  catalog:
+    merge: true
+    Cinzel:
+      normal: Cinzel-Variable.ttf
+      bold: Cinzel-Variable.ttf
+    Source Code Pro:
+      normal: SourceCodePro-Variable.ttf
+      bold: SourceCodePro-Variable.ttf
+
+page:
+  background_color: FFFFFF
+  size: A4
+  margin: [0.6in, 0.75in, 0.75in, 0.75in]
+
+base:
+  font_family: Noto Serif
+  font_color: 0f172a
+  font_size: 10.5
+  line_height: 1.5
+  border_color: e2e8f0
+
+link:
+  font_color: c9a84c
+
+heading:
+  font_family: Cinzel
+  font_color: c9a84c
+  font_style: bold
+  line_height: 1.2
+  margin_top: 16
+  margin_bottom: 8
+
+heading_h1:
+  font_size: 22
+  border_bottom_color: c9a84c
+  border_bottom_width: 1.5
+  padding_bottom: 4
+
+heading_h2:
+  font_size: 16
+
+heading_h3:
+  font_size: 13
+
+heading_h4:
+  font_size: 11
+
+# Title page
+title_page:
+  align: left
+  title:
+    font_family: Cinzel
+    font_color: c9a84c
+    font_size: 28
+    font_style: bold
+    line_height: 1
+  subtitle:
+    font_family: Cinzel
+    font_color: 64748b
+    font_size: 16
+    font_style: normal
+    margin_top: 8
+  authors:
+    font_color: 64748b
+    font_size: 10
+    margin_top: 24
+
+# Inline code
+codespan:
+  font_color: c9a84c
+  font_family: Source Code Pro
+  background_color: f8fafc
+  border_color: e2e8f0
+  border_radius: 3
+  border_width: 0.5
+
+# Code blocks
+code:
+  font_family: Source Code Pro
+  font_color: c7d2fe
+  font_size: 9
+  background_color: 1e1b4b
+  border_left_color: c9a84c
+  border_left_width: 3
+  border_radius: 4
+  padding: [8, 12, 8, 12]
+  line_height: 1.4
+
+# Tables
+table:
+  background_color: FFFFFF
+  border_color: e2e8f0
+  border_width: 0.5
+  head:
+    background_color: c9a84c
+    font_color: 0d0b24
+    font_family: Cinzel
+    font_size: 8.5
+    font_style: bold
+  body:
+    stripe_background_color: f8fafc
+  foot:
+    background_color: f1f5f9
+
+# Admonition blocks (NOTE, TIP, WARNING, etc.)
+admonition:
+  border_left_width: 3
+  border_color: c9a84c
+  background_color: f8fafc
+  padding: [8, 16, 8, 16]
+  label:
+    font_family: Cinzel
+    font_color: c9a84c
+    font_size: 8
+    font_style: bold
+
+# Header / footer
+header:
+  border_bottom_color: c9a84c
+  border_bottom_width: 0.5
+  font_family: Cinzel
+  font_color: 64748b
+  font_size: 8
+  height: 0.4in
+  padding: [0, 0, 4, 0]
+  recto:
+    right:
+      content: '{doctitle}'
+  verso:
+    left:
+      content: '{doctitle}'
+
+footer:
+  border_top_color: e2e8f0
+  border_top_width: 0.5
+  font_family: Noto Serif
+  font_color: 64748b
+  font_size: 8
+  height: 0.4in
+  padding: [4, 0, 0, 0]
+  recto:
+    right:
+      content: '{page-number}'
+  verso:
+    left:
+      content: '{page-number}'

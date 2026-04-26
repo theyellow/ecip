@@ -1,8 +1,9 @@
-/* EMCIP AsciiDoc stylesheet — use with: asciidoctor -a stylesheet=../../documentation/emcip-docs.css */
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Source+Code+Pro:wght@400;600&display=swap');
+/* EMCIP AsciiDoc stylesheet — HTML output only (PDF uses emcip-theme.yml) */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Source+Code+Pro:wght@400;600&display=swap');
 
 :root {
-  --emcip-accent: #3730a3;
+  --emcip-accent: #c9a84c;
+  --emcip-accent-dark: #a07828;
   --emcip-bg: #ffffff;
   --emcip-bg-alt: #f8fafc;
   --emcip-text: #0f172a;
@@ -13,18 +14,18 @@
 }
 
 body { font-family: system-ui, -apple-system, sans-serif; color: var(--emcip-text); background: var(--emcip-bg); max-width: 960px; margin: 0 auto; padding: 2rem; }
-h1, h2, h3, h4 { font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: 0.1em; color: var(--emcip-accent); margin: 1.5em 0 0.5em; }
+h1, h2, h3, h4 { font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.1em; color: var(--emcip-accent); margin: 1.5em 0 0.5em; }
 h1 { font-size: 2rem; border-bottom: 2px solid var(--emcip-accent); padding-bottom: 0.5rem; }
 h2 { font-size: 1.4rem; }
 h3 { font-size: 1.1rem; }
 p, li { line-height: 1.7; }
 a { color: var(--emcip-accent); }
 code, pre { font-family: 'Source Code Pro', monospace; }
-code { background: var(--emcip-bg-alt); border: 1px solid var(--emcip-border); padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.9em; }
+code { background: var(--emcip-bg-alt); border: 1px solid var(--emcip-border); padding: 0.1em 0.4em; border-radius: 3px; font-size: 0.9em; color: var(--emcip-accent-dark); }
 pre { background: var(--emcip-code-bg); color: var(--emcip-code-text); padding: 1.2rem; border-radius: 6px; overflow-x: auto; border-left: 3px solid var(--emcip-accent); }
 table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
-th { background: var(--emcip-accent); color: white; font-family: 'Orbitron', sans-serif; font-size: 0.75rem; letter-spacing: 0.1em; padding: 0.6rem 1rem; text-align: left; }
+th { background: var(--emcip-accent); color: #0d0b24; font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.1em; padding: 0.6rem 1rem; text-align: left; }
 td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--emcip-border); }
 tr:nth-child(even) td { background: var(--emcip-bg-alt); }
 .admonitionblock { border-left: 3px solid var(--emcip-accent); padding: 1rem 1.5rem; margin: 1rem 0; background: var(--emcip-bg-alt); }
-.admonitionblock td.icon { font-family: 'Orbitron', sans-serif; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--emcip-accent); padding-right: 1rem; white-space: nowrap; }
+.admonitionblock td.icon { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.1em; color: var(--emcip-accent); padding-right: 1rem; white-space: nowrap; }
