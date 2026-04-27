@@ -1,61 +1,121 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { makeRequest } from '../../api/client'
 import { telegramApi } from '../../api/telegram'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { Modal } from '../../components/Modal/Modal'
 import styles from './Telegram.module.css'
 
-const STATUS_VARIANT = { CONNECTED: 'green', PENDING: 'yellow', DISCONNECTED: 'red' }
+const STATUS_VARIANT = {
+  ACTIVE: 'green',
+  AWAITING_CODE: 'yellow',
+  AWAITING_PASSWORD: 'yellow',
+  UNCONFIGURED: 'gray',
+  DISCONNECTED: 'red',
+}
 
 export function Telegram() {
   const { token } = useAuth()
-  const api = telegramApi(makeRequest(token))
+  const api = useMemo(() => telegramApi(makeRequest(token)), [token])
 
-  const [status, setStatus] = useState({ status: 'DISCONNECTED', message: '', phoneNumber: '' })
-  const [config, setConfig] = useState({ phoneNumber: '', apiId: '', apiHash: '', sessionStringSet: false })
-  const [sessionInput, setSessionInput] = useState('')
-  const [showSession, setShowSession] = useState(false)
-  const [feedback, setFeedback] = useState('')
+  const [accounts, setAccounts] = useState([])
   const [error, setError] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+  const [addForm, setAddForm] = useState({ phoneNumber: '', apiId: '', apiHash: '', displayName: '' })
+  const [wizard, setWizard] = useState(null) // { accountId, step: 'code'|'password', error }
+  const [codeInput, setCodeInput] = useState('')
+  const [passwordInput, setPasswordInput] = useState('')
 
-  const loadStatus = () =>
-    api.getStatus().then(setStatus).catch(e => setError(e.message))
-
-  const loadConfig = () =>
-    api.getConfig().then(setConfig).catch(e => setError(e.message))
+  const loadAccounts = useCallback(() => {
+    api.listAccounts().then(setAccounts).catch(e => setError(e.message))
+  }, [api])
 
   useEffect(() => {
-    loadStatus()
-    loadConfig()
-  }, [])
+    loadAccounts()
+  }, [loadAccounts])
 
-  const handleSave = async () => {
-    setFeedback('')
+  // Poll status when wizard is open
+  useEffect(() => {
+    if (!wizard) return
+    const interval = setInterval(async () => {
+      try {
+        const s = await api.getStatus(wizard.accountId)
+        if (s.status === 'ACTIVE') {
+          setWizard(null)
+          loadAccounts()
+        } else if (s.status === 'AWAITING_PASSWORD' && wizard.step !== 'password') {
+          setWizard(w => ({ ...w, step: 'password', error: null }))
+        }
+      } catch (_) {}
+    }, 2500)
+    return () => clearInterval(interval)
+  }, [wizard, api, loadAccounts])
+
+  const handleAdd = async () => {
     setError('')
     try {
-      const payload = {
-        phoneNumber: config.phoneNumber,
-        apiId: config.apiId ? parseInt(config.apiId, 10) : undefined,
-        apiHash: config.apiHash,
-      }
-      if (sessionInput.trim()) payload.sessionString = sessionInput.trim()
-      await api.saveConfig(payload)
-      setFeedback('Saved')
-      setSessionInput('')
-      loadConfig()
+      await api.createAccount({
+        phoneNumber: addForm.phoneNumber,
+        apiId: parseInt(addForm.apiId, 10),
+        apiHash: addForm.apiHash,
+        displayName: addForm.displayName,
+      })
+      setShowAdd(false)
+      setAddForm({ phoneNumber: '', apiId: '', apiHash: '', displayName: '' })
+      loadAccounts()
     } catch (e) {
       setError(e.message)
     }
   }
 
-  const handleReconnect = async () => {
-    setFeedback('')
+  const handleReconnect = async id => {
     setError('')
     try {
-      const res = await api.reconnect()
-      setFeedback(res.accepted ? 'Reconnect triggered' : `Failed: ${res.reason}`)
-      setTimeout(loadStatus, 1500)
+      const res = await api.reconnect(id)
+      if (res.accepted) {
+        setWizard({ accountId: id, step: 'code', error: null })
+      } else {
+        setError(res.reason)
+      }
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  const handleSubmitCode = async () => {
+    try {
+      await api.submitCode(wizard.accountId, codeInput)
+      setCodeInput('')
+    } catch (e) {
+      setWizard(w => ({ ...w, error: e.message }))
+    }
+  }
+
+  const handleSubmitPassword = async () => {
+    try {
+      await api.submitPassword(wizard.accountId, passwordInput)
+      setPasswordInput('')
+    } catch (e) {
+      setWizard(w => ({ ...w, error: e.message }))
+    }
+  }
+
+  const handleLogout = async id => {
+    setError('')
+    try {
+      await api.logout(id)
+      loadAccounts()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  const handleDelete = async id => {
+    setError('')
+    try {
+      await api.deleteAccount(id)
+      loadAccounts()
     } catch (e) {
       setError(e.message)
     }
@@ -63,85 +123,111 @@ export function Telegram() {
 
   return (
     <div className={styles.page}>
-      <h2>Telegram</h2>
-
-      {/* Connection Status */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Connection Status</h3>
-        <div className={styles.statusRow}>
-          <Badge variant={STATUS_VARIANT[status.status] ?? 'gray'}>{status.status}</Badge>
-          {status.phoneNumber && <span className={styles.message}>{status.phoneNumber}</span>}
-          <span className={styles.message}>{status.message}</span>
-          <Button variant="secondary" onClick={handleReconnect}>Reconnect</Button>
-        </div>
+      <div className={styles.header}>
+        <h2>Telegram Accounts</h2>
+        <Button onClick={() => setShowAdd(true)}>Add Account</Button>
       </div>
 
-      {/* Credentials */}
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>Credentials</h3>
-        {error && <p className={styles.error} role="alert">{error}</p>}
-        <div className={styles.form}>
-          <div>
-            <label className={styles.label}>Phone Number</label>
-            <input
-              type="text"
-              className={styles.input}
-              value={config.phoneNumber}
-              onChange={e => setConfig(c => ({ ...c, phoneNumber: e.target.value }))}
-              placeholder="+49123456789"
-            />
-          </div>
-          <div>
-            <label className={styles.label}>API ID</label>
-            <input
-              type="number"
-              className={styles.input}
-              value={config.apiId}
-              onChange={e => setConfig(c => ({ ...c, apiId: e.target.value }))}
-            />
-          </div>
-          <div>
-            <label className={styles.label}>API Hash</label>
-            <input
-              type="text"
-              className={`${styles.input} ${styles.mono}`}
-              value={config.apiHash}
-              onChange={e => setConfig(c => ({ ...c, apiHash: e.target.value }))}
-            />
-          </div>
-          <div>
-            <button
-              type="button"
-              className={styles.sessionToggle}
-              onClick={() => setShowSession(s => !s)}
-            >
-              {showSession ? '▲ Hide' : '▼ Session String'}{config.sessionStringSet ? ' (set)' : ' (not set)'}
-            </button>
-            {showSession && (
-              <textarea
-                className={`${styles.input} ${styles.mono}`}
-                rows={4}
-                value={sessionInput}
-                onChange={e => setSessionInput(e.target.value)}
-                placeholder="Paste new session string here to update..."
-              />
-            )}
-          </div>
+      {error && <p className={styles.error} role="alert">{error}</p>}
 
-          <div className={styles.actions}>
-            <Button onClick={handleSave}>Save</Button>
-          </div>
-          {feedback && <p className={styles.feedback}>{feedback}</p>}
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {accounts.map(a => (
+            <tr key={a.id}>
+              <td>{a.displayName || '—'}</td>
+              <td>{a.phoneNumber}</td>
+              <td>
+                <Badge variant={STATUS_VARIANT[a.status] ?? 'gray'} title={a.lastError ?? ''}>
+                  {a.status}
+                </Badge>
+              </td>
+              <td className={styles.actions}>
+                <Button variant="secondary" onClick={() => handleReconnect(a.id)}>Auth</Button>
+                <Button variant="secondary" onClick={() => handleLogout(a.id)}>Logout</Button>
+                <Button variant="danger" onClick={() => handleDelete(a.id)}>Delete</Button>
+              </td>
+            </tr>
+          ))}
+          {accounts.length === 0 && (
+            <tr><td colSpan={4} className={styles.empty}>No accounts configured</td></tr>
+          )}
+        </tbody>
+      </table>
 
-          <div className={styles.disabledSection}>
-            <p className={styles.disabledLabel}>Live auth flow (coming in next phase)</p>
-            <div className={styles.actions}>
-              <Button disabled title="Coming in next phase">Request Auth Code</Button>
-              <Button disabled title="Coming in next phase">Submit Code</Button>
+      {showAdd && (
+        <Modal title="Add Telegram Account" onClose={() => setShowAdd(false)}>
+          <div className={styles.form}>
+            {[
+              { label: 'Display Name', key: 'displayName', type: 'text', placeholder: 'Monitor account 1' },
+              { label: 'Phone Number', key: 'phoneNumber', type: 'text', placeholder: '+49123456789' },
+              { label: 'API ID', key: 'apiId', type: 'number', placeholder: '12345' },
+              { label: 'API Hash', key: 'apiHash', type: 'text', placeholder: 'abc123...' },
+            ].map(({ label, key, type, placeholder }) => (
+              <div key={key}>
+                <label className={styles.label}>{label}</label>
+                <input
+                  type={type}
+                  className={styles.input}
+                  placeholder={placeholder}
+                  value={addForm[key]}
+                  onChange={e => setAddForm(f => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+            <div className={styles.modalActions}>
+              <Button onClick={handleAdd}>Save</Button>
+              <Button variant="secondary" onClick={() => setShowAdd(false)}>Cancel</Button>
             </div>
           </div>
-        </div>
-      </div>
+        </Modal>
+      )}
+
+      {wizard && (
+        <Modal title="Authenticate Account" onClose={() => setWizard(null)}>
+          <div className={styles.form}>
+            {wizard.error && <p className={styles.error}>{wizard.error}</p>}
+            {wizard.step === 'code' && (
+              <>
+                <p>Enter the verification code sent to your Telegram app.</p>
+                <input
+                  type="text"
+                  className={styles.input}
+                  placeholder="12345"
+                  value={codeInput}
+                  onChange={e => setCodeInput(e.target.value)}
+                  autoFocus
+                />
+                <div className={styles.modalActions}>
+                  <Button onClick={handleSubmitCode}>Submit Code</Button>
+                </div>
+              </>
+            )}
+            {wizard.step === 'password' && (
+              <>
+                <p>Enter your 2FA password.</p>
+                <input
+                  type="password"
+                  className={styles.input}
+                  value={passwordInput}
+                  onChange={e => setPasswordInput(e.target.value)}
+                  autoFocus
+                />
+                <div className={styles.modalActions}>
+                  <Button onClick={handleSubmitPassword}>Submit Password</Button>
+                </div>
+              </>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
