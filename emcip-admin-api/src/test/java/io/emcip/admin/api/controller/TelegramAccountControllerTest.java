@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -24,7 +23,13 @@ class TelegramAccountControllerTest {
 
     @Mock TelegramAccountRepository repository;
     @Mock WebClient tdlibClient;
-    @InjectMocks TelegramAccountController controller;
+
+    TelegramAccountController controller;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        controller = new TelegramAccountController(repository, tdlibClient, 12345, "abc123");
+    }
 
     @Test
     void listAccounts_returnsMaskedSessionString() {
@@ -66,8 +71,7 @@ class TelegramAccountControllerTest {
                         });
 
         TelegramAccountController.CreateAccountRequest req =
-                new TelegramAccountController.CreateAccountRequest(
-                        "+49123456789", 12345, "abc123", "Monitor 1");
+                new TelegramAccountController.CreateAccountRequest("+49123456789", "Monitor 1");
 
         StepVerifier.create(controller.createAccount(req))
                 .assertNext(
