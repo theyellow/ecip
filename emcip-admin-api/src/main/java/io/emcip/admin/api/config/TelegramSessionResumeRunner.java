@@ -6,7 +6,6 @@ import io.emcip.admin.api.repository.TelegramAccountRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -17,13 +16,17 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class TelegramSessionResumeRunner {
 
     private final TelegramAccountRepository repository;
-
-    @Qualifier("tdlibWebClient")
     private final WebClient tdlibClient;
+
+    public TelegramSessionResumeRunner(
+            TelegramAccountRepository repository,
+            @Qualifier("tdlibWebClient") WebClient tdlibClient) {
+        this.repository = repository;
+        this.tdlibClient = tdlibClient;
+    }
 
     @EventListener(ApplicationReadyEvent.class)
     public void resumeActiveSessions() {
