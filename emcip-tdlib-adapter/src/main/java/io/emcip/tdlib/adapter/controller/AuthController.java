@@ -30,11 +30,8 @@ public class AuthController {
         return Mono.just(
                 ResponseEntity.ok(
                         new AuthStatusResponse(
-                                tdLibClient.isInitialized(),
-                                tdLibClient.isAuthorized(),
-                                tdLibClient.isAuthorized()
-                                        ? "Ready"
-                                        : "Waiting for authentication")));
+                                tdLibClient.isAuthorized() ? "Ready" : "Waiting for authentication",
+                                tdLibClient.getLastError())));
     }
 
     @PostMapping("/phone")
