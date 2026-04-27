@@ -1,36 +1,32 @@
 package io.emcip.tdlib.adapter.service;
 
 import io.emcip.tdlib.adapter.config.TdLibClient;
-import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.drinkless.tdlib.TdApi;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class TelegramUpdateHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(TelegramUpdateHandler.class);
-
-    private final TdLibClient tdLibClient;
     private final TelegramEventPublisher eventPublisher;
 
-    public TelegramUpdateHandler(TdLibClient tdLibClient, TelegramEventPublisher eventPublisher) {
-        this.tdLibClient = tdLibClient;
-        this.eventPublisher = eventPublisher;
-    }
+    /**
+     * Register all update handlers on the given client. Called by TdLibClientManager after a new
+     * TdLibClient is created and initialized.
+     */
+    public void registerOn(TdLibClient client) {
+        client.registerUpdateHandler("UpdateNewMessage", this::handleNewMessage);
+        client.registerUpdateHandler("UpdateMessageEdited", this::handleMessageEdited);
+        client.registerUpdateHandler("UpdateDeleteMessages", this::handleMessageDeleted);
+        client.registerUpdateHandler("UpdateChatTitle", this::handleChatTitle);
+        client.registerUpdateHandler("UpdateUser", this::handleUserUpdate);
 
-    @PostConstruct
-    public void initializeHandlers() {
-        tdLibClient.registerUpdateHandler("UpdateNewMessage", this::handleNewMessage);
-        tdLibClient.registerUpdateHandler("UpdateMessageEdited", this::handleMessageEdited);
-        tdLibClient.registerUpdateHandler("UpdateDeleteMessages", this::handleMessageDeleted);
-        tdLibClient.registerUpdateHandler("UpdateChatTitle", this::handleChatTitle);
-        tdLibClient.registerUpdateHandler("UpdateUser", this::handleUserUpdate);
-
-        log.info("Telegram update handlers registered");
+        log.info("[{}] Telegram update handlers registered", client.getAccountId());
     }
 
     private void handleNewMessage(TdApi.Update update) {

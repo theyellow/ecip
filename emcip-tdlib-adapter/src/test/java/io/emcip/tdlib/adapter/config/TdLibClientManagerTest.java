@@ -2,7 +2,9 @@ package io.emcip.tdlib.adapter.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
+import io.emcip.tdlib.adapter.service.TelegramUpdateHandler;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +17,7 @@ class TdLibClientManagerTest {
     @BeforeEach
     void setUp() {
         properties = new TdLibProperties("tdlib-test", true, true, true, false, 1);
-        manager = new TdLibClientManager(properties);
+        manager = new TdLibClientManager(properties, mock(TelegramUpdateHandler.class));
     }
 
     @Test

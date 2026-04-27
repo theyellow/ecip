@@ -1,76 +1,92 @@
 package io.emcip.tdlib.adapter.controller;
 
 import io.emcip.tdlib.adapter.config.TdLibClient;
+import io.emcip.tdlib.adapter.config.TdLibClientManager;
 import io.emcip.tdlib.adapter.model.AuthRequest;
 import io.emcip.tdlib.adapter.model.AuthStatusResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
-    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
+    private final TdLibClientManager manager;
 
-    private final TdLibClient tdLibClient;
-
-    public AuthController(TdLibClient tdLibClient) {
-        this.tdLibClient = tdLibClient;
-    }
-
-    @GetMapping("/status")
-    public Mono<ResponseEntity<AuthStatusResponse>> getStatus() {
-        return Mono.just(
-                ResponseEntity.ok(
-                        new AuthStatusResponse(
-                                tdLibClient.isAuthorized() ? "Ready" : "Waiting for authentication",
-                                tdLibClient.getLastError())));
-    }
-
-    @PostMapping("/phone")
-    public Mono<ResponseEntity<Void>> setPhoneNumber(@RequestBody AuthRequest.PhoneNumber request) {
+    /**
+     * Called by admin-api on reconnect or startup session resume. Creates a TdLibClient for the
+     * account. If sessionString is provided, TDLib will attempt silent resume.
+     */
+    @PostMapping("/{accountId}/initialize")
+    public Mono<ResponseEntity<Void>> initialize(
+            @PathVariable UUID accountId, @RequestBody AuthRequest.Initialize req) {
         return Mono.fromRunnable(
                         () -> {
-                            log.info("Setting phone number: {}", request.phoneNumber());
-                            tdLibClient.setPhoneNumber(request.phoneNumber());
+                            log.info("[{}] Initializing TdLibClient", accountId);
+                            manager.createAndInitialize(
+                                    accountId,
+                                    req.apiId(),
+                                    req.apiHash(),
+                                    req.phoneNumber(),
+                                    req.sessionString());
                         })
-                .thenReturn(ResponseEntity.accepted().build());
+                .thenReturn(ResponseEntity.accepted().<Void>build());
     }
 
-    @PostMapping("/code")
-    public Mono<ResponseEntity<Void>> setCode(@RequestBody AuthRequest.Code request) {
-        return Mono.fromRunnable(
-                        () -> {
-                            log.info("Setting authentication code");
-                            tdLibClient.setAuthenticationCode(request.code());
-                        })
-                .thenReturn(ResponseEntity.accepted().build());
+    @GetMapping("/{accountId}/status")
+    public Mono<ResponseEntity<AuthStatusResponse>> getStatus(@PathVariable UUID accountId) {
+        if (!manager.hasClient(accountId)) {
+            return Mono.just(ResponseEntity.ok(new AuthStatusResponse("UNCONFIGURED", null)));
+        }
+        TdLibClient client = manager.getClient(accountId);
+        String status =
+                client.isAuthorized()
+                        ? "ACTIVE"
+                        : client.isInitialized() ? "AWAITING_CODE" : "DISCONNECTED";
+        return Mono.just(ResponseEntity.ok(new AuthStatusResponse(status, client.getLastError())));
     }
 
-    @PostMapping("/password")
-    public Mono<ResponseEntity<Void>> setPassword(@RequestBody AuthRequest.Password request) {
+    @PostMapping("/{accountId}/phone")
+    public Mono<ResponseEntity<Void>> setPhoneNumber(
+            @PathVariable UUID accountId, @RequestBody AuthRequest.PhoneNumber req) {
         return Mono.fromRunnable(
-                        () -> {
-                            log.info("Setting 2FA password");
-                            tdLibClient.setPassword(request.password());
-                        })
-                .thenReturn(ResponseEntity.accepted().build());
+                        () -> manager.getClient(accountId).setPhoneNumber(req.phoneNumber()))
+                .thenReturn(ResponseEntity.accepted().<Void>build());
     }
 
-    @PostMapping("/logout")
-    public Mono<ResponseEntity<Void>> logout() {
+    @PostMapping("/{accountId}/code")
+    public Mono<ResponseEntity<Void>> setCode(
+            @PathVariable UUID accountId, @RequestBody AuthRequest.Code req) {
+        return Mono.fromRunnable(
+                        () -> manager.getClient(accountId).setAuthenticationCode(req.code()))
+                .thenReturn(ResponseEntity.accepted().<Void>build());
+    }
+
+    @PostMapping("/{accountId}/password")
+    public Mono<ResponseEntity<Void>> setPassword(
+            @PathVariable UUID accountId, @RequestBody AuthRequest.Password req) {
+        return Mono.fromRunnable(() -> manager.getClient(accountId).setPassword(req.password()))
+                .thenReturn(ResponseEntity.accepted().<Void>build());
+    }
+
+    @PostMapping("/{accountId}/logout")
+    public Mono<ResponseEntity<Void>> logout(@PathVariable UUID accountId) {
         return Mono.fromRunnable(
                         () -> {
-                            log.info("Logging out");
-                            tdLibClient.logout();
+                            manager.getClient(accountId).logout();
+                            manager.removeClient(accountId);
                         })
-                .thenReturn(ResponseEntity.accepted().build());
+                .thenReturn(ResponseEntity.accepted().<Void>build());
     }
 }
