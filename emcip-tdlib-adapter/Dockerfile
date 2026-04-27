@@ -103,6 +103,8 @@ COPY emcip-llm-orchestrator/pom.xml ./emcip-llm-orchestrator/pom.xml
 COPY emcip-moderation-service/pom.xml ./emcip-moderation-service/pom.xml
 COPY emcip-audit-service/pom.xml ./emcip-audit-service/pom.xml
 COPY emcip-admin-api/pom.xml ./emcip-admin-api/pom.xml
+COPY emcip-admin-ui/pom.xml ./emcip-admin-ui/pom.xml
+COPY gatling-tests/pom.xml ./gatling-tests/pom.xml
 
 # Install local artifacts into the Maven repo so emcip-tdlib-adapter can depend on them.
 # -N installs the root parent POM without recursing into child modules.
