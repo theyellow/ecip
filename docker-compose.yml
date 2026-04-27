@@ -242,6 +242,8 @@ services:
       - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-changeme-in-production-32chars-secret}
       - ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN:-internal-service-token}
       - SERVICE_TDLIB_URL=http://ecip-tdlib-adapter:9080
+      - TELEGRAM_API_ID=${TELEGRAM_API_ID}
+      - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
     networks:
       - ecip-network
 

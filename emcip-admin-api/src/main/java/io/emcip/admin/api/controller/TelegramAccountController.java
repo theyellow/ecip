@@ -11,6 +11,7 @@ import java.util.UUID;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,12 +31,18 @@ public class TelegramAccountController {
 
     private final TelegramAccountRepository repository;
     private final WebClient tdlibClient;
+    private final int telegramApiId;
+    private final String telegramApiHash;
 
     public TelegramAccountController(
             TelegramAccountRepository repository,
-            @Qualifier("tdlibWebClient") WebClient tdlibClient) {
+            @Qualifier("tdlibWebClient") WebClient tdlibClient,
+            @Value("${telegram.api-id}") int telegramApiId,
+            @Value("${telegram.api-hash}") String telegramApiHash) {
         this.repository = repository;
         this.tdlibClient = tdlibClient;
+        this.telegramApiId = telegramApiId;
+        this.telegramApiHash = telegramApiHash;
     }
 
     @GetMapping
@@ -50,8 +57,8 @@ public class TelegramAccountController {
                 TelegramAccount.builder()
                         .id(UUID.randomUUID())
                         .phoneNumber(req.phoneNumber())
-                        .apiId(req.apiId())
-                        .apiHash(req.apiHash())
+                        .apiId(telegramApiId)
+                        .apiHash(telegramApiHash)
                         .displayName(req.displayName())
                         .status(TelegramAccountStatus.UNCONFIGURED)
                         .createdAt(Instant.now())
@@ -203,8 +210,7 @@ public class TelegramAccountController {
         return m;
     }
 
-    public record CreateAccountRequest(
-            String phoneNumber, Integer apiId, String apiHash, String displayName) {}
+    public record CreateAccountRequest(String phoneNumber, String displayName) {}
 
     public record CodeRequest(String code) {}
 

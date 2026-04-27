@@ -22,7 +22,7 @@ export function Telegram() {
   const [accounts, setAccounts] = useState([])
   const [error, setError] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ phoneNumber: '', apiId: '', apiHash: '', displayName: '' })
+  const [addForm, setAddForm] = useState({ phoneNumber: '', displayName: '' })
   const [wizard, setWizard] = useState(null) // { accountId, step: 'code'|'password', error }
   const [codeInput, setCodeInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
@@ -57,12 +57,10 @@ export function Telegram() {
     try {
       await api.createAccount({
         phoneNumber: addForm.phoneNumber,
-        apiId: parseInt(addForm.apiId, 10),
-        apiHash: addForm.apiHash,
         displayName: addForm.displayName,
       })
       setShowAdd(false)
-      setAddForm({ phoneNumber: '', apiId: '', apiHash: '', displayName: '' })
+      setAddForm({ phoneNumber: '', displayName: '' })
       loadAccounts()
     } catch (e) {
       setError(e.message)
@@ -168,8 +166,6 @@ export function Telegram() {
             {[
               { label: 'Display Name', key: 'displayName', type: 'text', placeholder: 'Monitor account 1' },
               { label: 'Phone Number', key: 'phoneNumber', type: 'text', placeholder: '+49123456789' },
-              { label: 'API ID', key: 'apiId', type: 'number', placeholder: '12345' },
-              { label: 'API Hash', key: 'apiHash', type: 'text', placeholder: 'abc123...' },
             ].map(({ label, key, type, placeholder }) => (
               <div key={key}>
                 <label className={styles.label}>{label}</label>
