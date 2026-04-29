@@ -1,6 +1,5 @@
 package io.emcip.tdlib.adapter.model;
 
-import java.time.Instant;
 import java.util.Map;
 
 public record TelegramMessageEvent(
@@ -16,4 +15,4 @@ public record TelegramMessageEvent(
         long replyToMessageId,
         long replyInChatId,
         Map<String, Object> metadata,
-        Instant ingestedAt) {}
+        String ingestedAt) {}

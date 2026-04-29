@@ -62,7 +62,8 @@ class AuditEventConsumerTest {
                         false,
                         null,
                         null,
-                        Map.of());
+                        Map.of(),
+                        "");
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("telegram.messages", 0, 0L, "key", json);
@@ -106,7 +107,8 @@ class AuditEventConsumerTest {
                         false,
                         null,
                         null,
-                        Map.of());
+                        Map.of(),
+                        "");
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("telegram.messages", 0, 2L, "key", json);

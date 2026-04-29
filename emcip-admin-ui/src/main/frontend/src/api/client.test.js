@@ -28,3 +28,14 @@ test('makeRequest returns null for 204 No Content', async () => {
   const result = await request('/api/groups/1', { method: 'DELETE' })
   expect(result).toBeNull()
 })
+
+test('makeRequest returns null for 202 Accepted with empty body', async () => {
+  fetch.mockResolvedValue({
+    ok: true,
+    status: 202,
+    headers: { get: () => '0' },
+  })
+  const request = makeRequest('tok')
+  const result = await request('/api/telegram/accounts/1/code', { method: 'POST' })
+  expect(result).toBeNull()
+})

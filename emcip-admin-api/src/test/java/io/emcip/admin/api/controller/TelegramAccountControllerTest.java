@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -22,13 +23,16 @@ import reactor.test.StepVerifier;
 class TelegramAccountControllerTest {
 
     @Mock TelegramAccountRepository repository;
+    @Mock R2dbcEntityTemplate r2dbcEntityTemplate;
     @Mock WebClient tdlibClient;
 
     TelegramAccountController controller;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        controller = new TelegramAccountController(repository, tdlibClient, 12345, "abc123");
+        controller =
+                new TelegramAccountController(
+                        repository, r2dbcEntityTemplate, tdlibClient, 12345, "abc123");
     }
 
     @Test
@@ -61,12 +65,10 @@ class TelegramAccountControllerTest {
 
     @Test
     void createAccount_savesWithUnconfiguredStatus() {
-        UUID id = UUID.randomUUID();
-        when(repository.save(any()))
+        when(r2dbcEntityTemplate.insert(any(TelegramAccount.class)))
                 .thenAnswer(
                         inv -> {
                             TelegramAccount a = inv.getArgument(0);
-                            a.setId(id);
                             return Mono.just(a);
                         });
 

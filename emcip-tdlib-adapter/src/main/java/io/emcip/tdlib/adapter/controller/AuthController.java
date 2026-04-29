@@ -30,7 +30,7 @@ public class AuthController {
      */
     @PostMapping("/{accountId}/initialize")
     public Mono<ResponseEntity<Void>> initialize(
-            @PathVariable UUID accountId, @RequestBody AuthRequest.Initialize req) {
+            @PathVariable("accountId") UUID accountId, @RequestBody AuthRequest.Initialize req) {
         return Mono.fromRunnable(
                         () -> {
                             log.info("[{}] Initializing TdLibClient", accountId);
@@ -45,7 +45,8 @@ public class AuthController {
     }
 
     @GetMapping("/{accountId}/status")
-    public Mono<ResponseEntity<AuthStatusResponse>> getStatus(@PathVariable UUID accountId) {
+    public Mono<ResponseEntity<AuthStatusResponse>> getStatus(
+            @PathVariable("accountId") UUID accountId) {
         if (!manager.hasClient(accountId)) {
             return Mono.just(ResponseEntity.ok(new AuthStatusResponse("UNCONFIGURED", null)));
         }
@@ -59,7 +60,7 @@ public class AuthController {
 
     @PostMapping("/{accountId}/phone")
     public Mono<ResponseEntity<Void>> setPhoneNumber(
-            @PathVariable UUID accountId, @RequestBody AuthRequest.PhoneNumber req) {
+            @PathVariable("accountId") UUID accountId, @RequestBody AuthRequest.PhoneNumber req) {
         return Mono.fromRunnable(
                         () -> manager.getClient(accountId).setPhoneNumber(req.phoneNumber()))
                 .thenReturn(ResponseEntity.accepted().<Void>build());
@@ -67,7 +68,7 @@ public class AuthController {
 
     @PostMapping("/{accountId}/code")
     public Mono<ResponseEntity<Void>> setCode(
-            @PathVariable UUID accountId, @RequestBody AuthRequest.Code req) {
+            @PathVariable("accountId") UUID accountId, @RequestBody AuthRequest.Code req) {
         return Mono.fromRunnable(
                         () -> manager.getClient(accountId).setAuthenticationCode(req.code()))
                 .thenReturn(ResponseEntity.accepted().<Void>build());
@@ -75,13 +76,13 @@ public class AuthController {
 
     @PostMapping("/{accountId}/password")
     public Mono<ResponseEntity<Void>> setPassword(
-            @PathVariable UUID accountId, @RequestBody AuthRequest.Password req) {
+            @PathVariable("accountId") UUID accountId, @RequestBody AuthRequest.Password req) {
         return Mono.fromRunnable(() -> manager.getClient(accountId).setPassword(req.password()))
                 .thenReturn(ResponseEntity.accepted().<Void>build());
     }
 
     @PostMapping("/{accountId}/logout")
-    public Mono<ResponseEntity<Void>> logout(@PathVariable UUID accountId) {
+    public Mono<ResponseEntity<Void>> logout(@PathVariable("accountId") UUID accountId) {
         return Mono.fromRunnable(
                         () -> {
                             manager.getClient(accountId).logout();

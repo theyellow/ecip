@@ -12,6 +12,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,16 +31,19 @@ import reactor.core.publisher.Mono;
 public class TelegramAccountController {
 
     private final TelegramAccountRepository repository;
+    private final R2dbcEntityTemplate r2dbcEntityTemplate;
     private final WebClient tdlibClient;
     private final int telegramApiId;
     private final String telegramApiHash;
 
     public TelegramAccountController(
             TelegramAccountRepository repository,
+            R2dbcEntityTemplate r2dbcEntityTemplate,
             @Qualifier("tdlibWebClient") WebClient tdlibClient,
             @Value("${telegram.api-id}") int telegramApiId,
             @Value("${telegram.api-hash}") String telegramApiHash) {
         this.repository = repository;
+        this.r2dbcEntityTemplate = r2dbcEntityTemplate;
         this.tdlibClient = tdlibClient;
         this.telegramApiId = telegramApiId;
         this.telegramApiHash = telegramApiHash;
@@ -64,17 +68,17 @@ public class TelegramAccountController {
                         .createdAt(Instant.now())
                         .updatedAt(Instant.now())
                         .build();
-        return repository.save(account).map(TelegramAccountController::toSafeMap);
+        return r2dbcEntityTemplate.insert(account).map(TelegramAccountController::toSafeMap);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> deleteAccount(@PathVariable UUID id) {
+    public Mono<Void> deleteAccount(@PathVariable("id") UUID id) {
         return repository.deleteById(id);
     }
 
     @GetMapping("/{id}/status")
-    public Mono<Map<String, Object>> getStatus(@PathVariable UUID id) {
+    public Mono<Map<String, Object>> getStatus(@PathVariable("id") UUID id) {
         return repository
                 .findById(id)
                 .flatMap(
@@ -84,13 +88,30 @@ public class TelegramAccountController {
                                         .uri("/api/auth/{id}/status", id)
                                         .retrieve()
                                         .bodyToMono(TdlibStatusResponse.class)
-                                        .map(
+                                        .flatMap(
                                                 r -> {
+                                                    TelegramAccountStatus adapterStatus =
+                                                            TelegramAccountStatus.valueOf(
+                                                                    r.getStatus());
                                                     Map<String, Object> m = new LinkedHashMap<>();
                                                     m.put("id", id.toString());
                                                     m.put("status", r.getStatus());
                                                     m.put("lastError", r.getLastError());
-                                                    return m;
+                                                    if (adapterStatus != account.getStatus()
+                                                            || (r.getLastError() != null
+                                                                    && !r.getLastError()
+                                                                            .equals(
+                                                                                    account
+                                                                                            .getLastError()))) {
+                                                        return repository
+                                                                .save(
+                                                                        update(
+                                                                                account,
+                                                                                adapterStatus,
+                                                                                r.getLastError()))
+                                                                .thenReturn(m);
+                                                    }
+                                                    return Mono.just(m);
                                                 })
                                         .onErrorResume(
                                                 e -> {
@@ -106,7 +127,7 @@ public class TelegramAccountController {
 
     @PostMapping("/{id}/reconnect")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Mono<Map<String, Object>> reconnect(@PathVariable UUID id) {
+    public Mono<Map<String, Object>> reconnect(@PathVariable("id") UUID id) {
         return repository
                 .findById(id)
                 .flatMap(
@@ -148,7 +169,7 @@ public class TelegramAccountController {
 
     @PostMapping("/{id}/code")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Mono<Void> submitCode(@PathVariable UUID id, @RequestBody CodeRequest req) {
+    public Mono<Void> submitCode(@PathVariable("id") UUID id, @RequestBody CodeRequest req) {
         return tdlibClient
                 .post()
                 .uri("/api/auth/{id}/code", id)
@@ -159,7 +180,8 @@ public class TelegramAccountController {
 
     @PostMapping("/{id}/password")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Mono<Void> submitPassword(@PathVariable UUID id, @RequestBody PasswordRequest req) {
+    public Mono<Void> submitPassword(
+            @PathVariable("id") UUID id, @RequestBody PasswordRequest req) {
         return tdlibClient
                 .post()
                 .uri("/api/auth/{id}/password", id)
@@ -170,7 +192,7 @@ public class TelegramAccountController {
 
     @PostMapping("/{id}/logout")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Mono<Void> logout(@PathVariable UUID id) {
+    public Mono<Void> logout(@PathVariable("id") UUID id) {
         return tdlibClient
                 .post()
                 .uri("/api/auth/{id}/logout", id)

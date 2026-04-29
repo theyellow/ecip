@@ -50,7 +50,8 @@ public final class EventSchemas {
             Boolean isOutgoing,
             Long replyToMessageId,
             Long replyInChatId,
-            java.util.Map<String, Object> metadata)
+            java.util.Map<String, Object> metadata,
+            String ingestedAt)
             implements Event {
 
         public TelegramMessageEvent {
