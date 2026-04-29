@@ -66,6 +66,7 @@
     <spring-boot.version>4.0.5</spring-boot.version>
 
     <!-- Plugin Versions -->
+    <native-build-tools.version>0.10.6</native-build-tools.version>
     <spotless.version>2.43.0</spotless.version>
     <sortpom.version>3.4.0</sortpom.version>
     <maven-enforcer.version>3.4.1</maven-enforcer.version>
@@ -169,6 +170,13 @@
               </configuration>
             </execution>
           </executions>
+        </plugin>
+
+        <!-- GraalVM Native Image -->
+        <plugin>
+          <groupId>org.graalvm.buildtools</groupId>
+          <artifactId>native-maven-plugin</artifactId>
+          <version>${native-build-tools.version}</version>
         </plugin>
 
         <!-- Spotless - Code Formatting -->
