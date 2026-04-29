@@ -62,7 +62,8 @@ class ModerationEventConsumerTest {
                         false,
                         null,
                         null,
-                        Map.of());
+                        Map.of(),
+                        null);
         String message = objectMapper.writeValueAsString(event);
 
         EvaluationResult matchResult =
@@ -102,7 +103,8 @@ class ModerationEventConsumerTest {
                         false,
                         null,
                         null,
-                        Map.of());
+                        Map.of(),
+                        null);
         String message = objectMapper.writeValueAsString(event);
 
         when(ruleEvaluationService.evaluate("a perfectly clean message"))
@@ -143,7 +145,8 @@ class ModerationEventConsumerTest {
                         false,
                         null,
                         null,
-                        Map.of());
+                        Map.of(),
+                        null);
         String message = objectMapper.writeValueAsString(event);
 
         EvaluationResult matchResult =

@@ -1,38 +1,40 @@
 package io.emcip.tdlib.adapter.health;
 
 import io.emcip.tdlib.adapter.config.TdLibClient;
+import io.emcip.tdlib.adapter.config.TdLibClientManager;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class TdLibHealthIndicator implements HealthIndicator {
 
-    private final TdLibClient tdLibClient;
-
-    public TdLibHealthIndicator(TdLibClient tdLibClient) {
-        this.tdLibClient = tdLibClient;
-    }
+    private final TdLibClientManager manager;
 
     @Override
     public Health health() {
-        boolean initialized = tdLibClient.isInitialized();
-        boolean authorized = tdLibClient.isAuthorized();
+        var clients = manager.getClients();
 
-        if (!initialized) {
-            return Health.down().withDetail("tdlib", "not initialized").build();
+        if (clients.isEmpty()) {
+            return Health.down().withDetail("tdlib", "no accounts configured").build();
         }
 
-        if (!authorized) {
-            return Health.outOfService()
-                    .withDetail("tdlib", "initialized but not authorized")
-                    .withDetail("authorization", "pending")
+        boolean anyAuthorized = clients.values().stream().anyMatch(TdLibClient::isAuthorized);
+
+        if (anyAuthorized) {
+            return Health.up()
+                    .withDetail("tdlib", "connected and authorized")
+                    .withDetail(
+                            "activeAccounts",
+                            clients.values().stream().filter(TdLibClient::isAuthorized).count())
                     .build();
         }
 
-        return Health.up()
-                .withDetail("tdlib", "connected and authorized")
-                .withDetail("authorization", "complete")
+        return Health.down()
+                .withDetail("tdlib", "no authorized accounts")
+                .withDetail("totalAccounts", clients.size())
                 .build();
     }
 }

@@ -54,3 +54,7 @@ service:
     url: ${SERVICE_TDLIB_URL:http://localhost:9080}
   orchestrator:
     url: ${SERVICE_ORCHESTRATOR_URL:http://localhost:9084}
+
+telegram:
+  api-id: ${TELEGRAM_API_ID:0}
+  api-hash: ${TELEGRAM_API_HASH:}

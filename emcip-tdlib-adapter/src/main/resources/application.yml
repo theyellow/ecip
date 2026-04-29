@@ -8,11 +8,7 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
 
 tdlib:
-  api-id: ${TELEGRAM_API_ID:0}
-  api-hash: ${TELEGRAM_API_HASH:}
-  phone-number: ${TELEGRAM_PHONE_NUMBER:}
-  database-directory: ${TDLIB_DB_DIR:tdlib-db}
-  files-directory: ${TDLIB_FILES_DIR:tdlib-files}
+  base-directory: ${TDLIB_BASE_DIR:tdlib-db}
   use-file-database: true
   use-chat-info-database: true
   use-message-database: true

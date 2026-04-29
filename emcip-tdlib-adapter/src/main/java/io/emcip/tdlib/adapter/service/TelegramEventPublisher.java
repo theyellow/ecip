@@ -108,7 +108,7 @@ public class TelegramEventPublisher {
                 extractReplyToMessageId(message),
                 extractReplyInChatId(message),
                 extractMetadata(message),
-                Instant.now());
+                Instant.now().toString());
     }
 
     private long extractReplyToMessageId(TdApi.Message message) {
