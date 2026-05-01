@@ -1,4 +1,4 @@
-package io.emcip.conversation.context.config;
+package io.emcip.llm.orchestrator.config;
 
 import java.io.IOException;
 import org.springframework.aot.hint.MemberCategory;
@@ -10,7 +10,7 @@ import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
 
 /**
- * GraalVM native image hints for emcip-conversation-context.
+ * GraalVM native image hints for emcip-llm-orchestrator.
  *
  * <p>Spring Boot AOT handles entity reflection, JPA repository proxies, and Kafka listener wiring.
  * We only need to register resources that Spring Boot's auto-configuration would normally register
@@ -21,7 +21,7 @@ import org.springframework.core.type.classreading.MetadataReaderFactory;
  * classes for full reflection access. Array types and event listeners are handled by
  * hibernate-graalvm's GraalVMStaticFeature (configured in the native Maven profile).
  */
-public class ConversationContextRuntimeHints implements RuntimeHintsRegistrar {
+public class LlmOrchestratorRuntimeHints implements RuntimeHintsRegistrar {
 
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
