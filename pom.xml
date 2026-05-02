@@ -83,7 +83,7 @@
     <postgresql-test.version>1.19.7</postgresql-test.version>
 
     <!-- Lombok -->
-    <lombok.version>1.18.32</lombok.version>
+    <lombok.version>1.18.40</lombok.version>
   </properties>
 
   <!-- Dependency Management -->
@@ -154,6 +154,22 @@
   <build>
     <pluginManagement>
       <plugins>
+        <!-- Java Compiler — 3.13+ for maven.compiler.parameters; explicit Lombok AP path for JDK 21+ -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+          <configuration>
+            <annotationProcessorPaths>
+              <path>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+              </path>
+            </annotationProcessorPaths>
+          </configuration>
+        </plugin>
+
         <!-- Spring Boot Plugin -->
         <plugin>
           <groupId>org.springframework.boot</groupId>

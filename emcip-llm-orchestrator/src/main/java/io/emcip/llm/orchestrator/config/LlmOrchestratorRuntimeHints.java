@@ -1,4 +1,4 @@
-package io.emcip.policy.engine.config;
+package io.emcip.llm.orchestrator.config;
 
 import java.io.IOException;
 import org.springframework.aot.hint.MemberCategory;
@@ -10,7 +10,7 @@ import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
 import org.springframework.core.type.classreading.MetadataReaderFactory;
 
 /**
- * GraalVM native image hints for emcip-policy-engine.
+ * GraalVM native image hints for emcip-llm-orchestrator.
  *
  * <p>Spring Boot AOT handles entity reflection, JPA repository proxies, and Kafka listener wiring.
  * We only need to register resources that Spring Boot's auto-configuration would normally register
@@ -21,39 +21,15 @@ import org.springframework.core.type.classreading.MetadataReaderFactory;
  * classes for full reflection access. Array types and event listeners are handled by
  * hibernate-graalvm's GraalVMStaticFeature (configured in the native Maven profile).
  */
-public class PolicyEngineRuntimeHints implements RuntimeHintsRegistrar {
+public class LlmOrchestratorRuntimeHints implements RuntimeHintsRegistrar {
 
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         hints.resources().registerPattern("db/changelog/**");
         registerAllHibernateClasses(hints, classLoader);
-        registerAllLiquibaseClasses(hints, classLoader);
 
         // Array types used by Hibernate type descriptors at runtime
         hints.reflection().registerType(TypeReference.of("java.util.UUID[]"));
-    }
-
-    private void registerAllLiquibaseClasses(RuntimeHints hints, ClassLoader classLoader) {
-        PathMatchingResourcePatternResolver resolver =
-                new PathMatchingResourcePatternResolver(classLoader);
-        MetadataReaderFactory factory = new CachingMetadataReaderFactory(resolver);
-        try {
-            for (var resource : resolver.getResources("classpath*:liquibase/**/*.class")) {
-                var className =
-                        factory.getMetadataReader(resource).getClassMetadata().getClassName();
-                if (className.endsWith("package-info")) {
-                    continue;
-                }
-                hints.reflection()
-                        .registerType(
-                                TypeReference.of(className),
-                                MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                                MemberCategory.INVOKE_DECLARED_METHODS,
-                                MemberCategory.DECLARED_FIELDS);
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to scan Liquibase classes", e);
-        }
     }
 
     private void registerAllHibernateClasses(RuntimeHints hints, ClassLoader classLoader) {

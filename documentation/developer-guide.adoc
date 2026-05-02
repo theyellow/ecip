@@ -477,6 +477,82 @@ include::diagrams/sequence-policy-evaluation.puml[]
 include::diagrams/sequence-llm-orchestration.puml[]
 ----
 
+== GraalVM Native Image Development
+
+Three services support native image compilation: `emcip-policy-engine`, `emcip-conversation-context`, and `emcip-llm-orchestrator`.
+Native images start in ~1-2 seconds and require no JVM.
+
+=== Installing GraalVM (Ubuntu 22.04 / 24.04)
+
+GraalVM Community Edition is available via snap on Ubuntu:
+
+[source,bash]
+----
+# Install GraalVM CE (includes native-image)
+sudo snap install graalvm-jdk --classic
+
+# Set JAVA_HOME for the current shell
+export JAVA_HOME=/snap/graalvm-jdk/current/graalvm-ce
+export PATH=$JAVA_HOME/bin:$PATH
+
+# Verify
+java -version        # GraalVM CE 25.x.x
+native-image --version
+----
+
+TIP: Add the `export` lines to your shell profile (`~/.bashrc` or `~/.zshrc`) to make them permanent.
+However, for day-to-day JVM development you may want to keep JDK 21 as the default and only switch to GraalVM when building native images.
+
+=== Building a Native Image
+
+[source,bash]
+----
+# Switch to GraalVM
+export JAVA_HOME=/snap/graalvm-jdk/current/graalvm-ce
+export PATH=$JAVA_HOME/bin:$PATH
+
+# Build native binary (takes ~15-20 minutes per service)
+mvn -Pnative package -DskipTests -pl emcip-policy-engine -am
+mvn -Pnative package -DskipTests -pl emcip-conversation-context -am
+mvn -Pnative package -DskipTests -pl emcip-llm-orchestrator -am
+
+# The binary is at target/<module-name>
+./emcip-policy-engine/target/emcip-policy-engine
+----
+
+=== Running Spotless with GraalVM Installed
+
+`spotless-maven-plugin` is incompatible with JDK 25 (GraalVM CE).
+Always run Spotless with the system JDK 21:
+
+[source,bash]
+----
+# Temporarily unset GraalVM overrides
+unset JAVA_HOME
+# Or explicitly point at JDK 21
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+mvn spotless:apply
+----
+
+=== Architecture Notes
+
+* Each native-enabled service has a `RuntimeHintsRegistrar` that scans all `org/hibernate/**/*.class` at AOT time to register full reflection access (required for Hibernate 7 strategy and logger classes).
+* The `hibernate-graalvm` dependency provides `GraalVMStaticFeature`, which is activated via `--features=org.hibernate.graalvm.internal.GraalVMStaticFeature` in the native Maven profile.
+* R2DBC-based services are excluded from native image support; see ADR-0007 for the rationale.
+
+=== Docker Native Image Build
+
+Each native-enabled service has a `Dockerfile.native` in its module directory.
+The build must be invoked from the repo root (Docker build context):
+
+[source,bash]
+----
+docker build -f emcip-policy-engine/Dockerfile.native -t emcip-policy-engine:native .
+docker build -f emcip-conversation-context/Dockerfile.native -t emcip-conversation-context:native .
+docker build -f emcip-llm-orchestrator/Dockerfile.native -t emcip-llm-orchestrator:native .
+----
+
 == Contributing
 
 === Branch Strategy

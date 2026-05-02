@@ -1,4 +1,4 @@
-# Multi-stage native image build for emcip-policy-engine
+# Multi-stage native image build for emcip-conversation-context
 # Build context must be the project root (context: .)
 
 # Stage 1: Native image build
@@ -27,9 +27,9 @@ COPY gatling-tests/pom.xml ./gatling-tests/pom.xml
 RUN mvn install -N -q && \
     mvn install -pl emcip-core -DskipTests -q
 
-COPY emcip-policy-engine/src ./emcip-policy-engine/src
+COPY emcip-conversation-context/src ./emcip-conversation-context/src
 
-RUN mvn -Pnative package -DskipTests -q -pl emcip-policy-engine -am
+RUN mvn -Pnative package -DskipTests -q -pl emcip-conversation-context -am
 
 # Stage 2: Minimal runtime
 FROM debian:12-slim
@@ -40,14 +40,14 @@ RUN apt-get update && apt-get install -y curl --no-install-recommends \
 
 RUN groupadd -r emcip && useradd -r -g emcip emcip
 
-COPY --from=builder /build/emcip-policy-engine/target/emcip-policy-engine app
+COPY --from=builder /build/emcip-conversation-context/target/emcip-conversation-context app
 
 RUN chown -R emcip:emcip /app
 USER emcip
 
-EXPOSE 9083
+EXPOSE 9081
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:9083/actuator/health || exit 1
+  CMD curl -f http://localhost:9081/actuator/health || exit 1
 
 ENTRYPOINT ["./app"]
