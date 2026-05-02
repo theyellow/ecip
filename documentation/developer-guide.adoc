@@ -544,7 +544,8 @@ mvn spotless:apply
 === Docker Native Image Build
 
 Each native-enabled service has a `Dockerfile.native` in its module directory.
-The build must be invoked from the repo root (Docker build context):
+The build must be invoked from the repo root (Docker build context).
+All `Dockerfile.native` files use `ghcr.io/graalvm/native-image-community:25` as the builder — this must match the GraalVM version used locally, because Spring Boot 4 AOT records the JDK version at compile time and refuses to start on a lower runtime.
 
 [source,bash]
 ----
@@ -552,6 +553,26 @@ docker build -f emcip-policy-engine/Dockerfile.native -t emcip-policy-engine:nat
 docker build -f emcip-conversation-context/Dockerfile.native -t emcip-conversation-context:native .
 docker build -f emcip-llm-orchestrator/Dockerfile.native -t emcip-llm-orchestrator:native .
 ----
+
+Each build takes ~20 minutes and requires ~4 GB RAM. Results are cached by Docker layer.
+
+=== Running with Docker Compose (native images)
+
+A `docker-compose.native.yml` override file switches the three native-capable services
+to use the pre-built images instead of the JVM `Dockerfile`:
+
+[source,bash]
+----
+# Infrastructure + native services (full profile)
+docker compose -f docker-compose.yml -f docker-compose.native.yml --profile full up
+
+# Include llm-orchestrator
+docker compose -f docker-compose.yml -f docker-compose.native.yml --profile full --profile llm up
+----
+
+NOTE: The Kafka health indicator takes 10–15 seconds to stabilise after startup.
+The `/actuator/health` endpoint will return `DOWN` briefly — this is normal.
+
 
 == Contributing
 
