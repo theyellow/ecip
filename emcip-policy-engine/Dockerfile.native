@@ -1,52 +1,50 @@
-# Native image build for emcip-policy-engine
+# Multi-stage native image build for emcip-policy-engine
 # Build context must be the project root (context: .)
-#
-# Usage:
-#   docker build -f emcip-policy-engine/Dockerfile.native -t emcip-policy-engine:native .
-#
-# The resulting image has no JVM — startup ~50ms, memory ~50MB.
-# Health checks: use Kubernetes liveness/readiness probes instead of HEALTHCHECK
-# (distroless runtime has no curl/shell).
 
-# Stage 1: Native compile with GraalVM Community 21
+# Stage 1: Native image build
 FROM ghcr.io/graalvm/native-image-community:21 AS builder
 WORKDIR /build
 
-ARG MAVEN_VERSION=3.9.9
-RUN microdnf install -y curl tar findutils && microdnf clean all && \
-    curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
-    | tar xzf - -C /opt && \
-    ln -sf /opt/apache-maven-${MAVEN_VERSION}/bin/mvn /usr/local/bin/mvn
+RUN microdnf install -y maven findutils && microdnf clean all
 
-COPY pom.xml ./
-COPY emcip-core/pom.xml emcip-core/pom.xml
-COPY emcip-core/src emcip-core/src
-COPY emcip-tdlib-adapter/pom.xml emcip-tdlib-adapter/pom.xml
-COPY emcip-conversation-context/pom.xml emcip-conversation-context/pom.xml
-COPY emcip-intent-classifier/pom.xml emcip-intent-classifier/pom.xml
-COPY emcip-policy-engine/pom.xml emcip-policy-engine/pom.xml
-COPY emcip-llm-orchestrator/pom.xml emcip-llm-orchestrator/pom.xml
-COPY emcip-moderation-service/pom.xml emcip-moderation-service/pom.xml
-COPY emcip-audit-service/pom.xml emcip-audit-service/pom.xml
-COPY emcip-admin-api/pom.xml emcip-admin-api/pom.xml
-COPY emcip-admin-ui/pom.xml emcip-admin-ui/pom.xml
-COPY gatling-tests/pom.xml gatling-tests/pom.xml
+COPY pom.xml ./pom.xml
+COPY emcip-core/pom.xml ./emcip-core/pom.xml
+COPY emcip-core/src ./emcip-core/src
+COPY emcip-tdlib-adapter/pom.xml ./emcip-tdlib-adapter/pom.xml
+COPY emcip-conversation-context/pom.xml ./emcip-conversation-context/pom.xml
+COPY emcip-intent-classifier/pom.xml ./emcip-intent-classifier/pom.xml
+COPY emcip-policy-engine/pom.xml ./emcip-policy-engine/pom.xml
+COPY emcip-llm-orchestrator/pom.xml ./emcip-llm-orchestrator/pom.xml
+COPY emcip-moderation-service/pom.xml ./emcip-moderation-service/pom.xml
+COPY emcip-audit-service/pom.xml ./emcip-audit-service/pom.xml
+COPY emcip-admin-api/pom.xml ./emcip-admin-api/pom.xml
+COPY emcip-admin-ui/pom.xml ./emcip-admin-ui/pom.xml
+COPY gatling-tests/pom.xml ./gatling-tests/pom.xml
 
 RUN mvn install -N -q && \
     mvn install -pl emcip-core -DskipTests -q
 
-COPY emcip-policy-engine/src emcip-policy-engine/src
+COPY emcip-policy-engine/src ./emcip-policy-engine/src
 
-RUN mvn -Pnative native:compile -DskipTests -q -pl emcip-policy-engine -am
+RUN mvn -Pnative package -DskipTests -q -pl emcip-policy-engine -am
 
-# Stage 2: Minimal distroless runtime (glibc, no shell, no package manager)
-FROM gcr.io/distroless/base-debian12
+# Stage 2: Minimal runtime
+FROM debian:12-slim
 WORKDIR /app
 
-COPY --from=builder /build/emcip-policy-engine/target/emcip-policy-engine ./app
+RUN apt-get update && apt-get install -y curl --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 
-USER nonroot:nonroot
+RUN groupadd -r emcip && useradd -r -g emcip emcip
+
+COPY --from=builder /build/emcip-policy-engine/target/emcip-policy-engine app
+
+RUN chown -R emcip:emcip /app
+USER emcip
 
 EXPOSE 9083
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:9083/actuator/health || exit 1
 
 ENTRYPOINT ["./app"]

@@ -1,0 +1,23 @@
+# Native image override for GraalVM-compiled services.
+#
+# Build the native images first (once, ~20 min each, from repo root):
+#   docker build -f emcip-policy-engine/Dockerfile.native        -t emcip-policy-engine:native .
+#   docker build -f emcip-conversation-context/Dockerfile.native  -t emcip-conversation-context:native .
+#   docker build -f emcip-llm-orchestrator/Dockerfile.native      -t emcip-llm-orchestrator:native .
+#
+# Then run with both files:
+#   docker compose -f docker-compose.yml -f docker-compose.native.yml --profile full up
+#   docker compose -f docker-compose.yml -f docker-compose.native.yml --profile full --profile llm up
+
+services:
+  conversation-context:
+    build: !reset null
+    image: emcip-conversation-context:native
+
+  policy-engine:
+    build: !reset null
+    image: emcip-policy-engine:native
+
+  llm-orchestrator:
+    build: !reset null
+    image: emcip-llm-orchestrator:native
