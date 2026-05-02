@@ -1,0 +1,12 @@
+apiVersion: v2
+name: emcip
+description: EMCIP - Community Intelligence Platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0-SNAPSHOT"
+keywords:
+  - emcip
+  - telegram
+  - intelligence
+  - kafka
+  - spring-boot
