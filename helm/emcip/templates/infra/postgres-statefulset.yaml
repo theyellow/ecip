@@ -43,14 +43,16 @@ spec:
               mountPath: /var/lib/postgresql/data
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "emcip"]
+              command: ["pg_isready", "-h", "localhost", "-p", "5432"]
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             exec:
-              command: ["pg_isready", "-U", "emcip"]
+              command: ["pg_isready", "-h", "localhost", "-p", "5432"]
             initialDelaySeconds: 30
             periodSeconds: 10
+      # NOTE: Uses a pre-provisioned PVC (not volumeClaimTemplates).
+      # Multi-replica is NOT supported — all replicas would share the same PVC.
       volumes:
         - name: postgres-data
           persistentVolumeClaim:
