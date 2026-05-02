@@ -1,0 +1,37 @@
+# KafkaTopic CRs for all EMCIP topics.
+# Strimzi entity operator reconciles these into Kafka.
+{{- $ns := .Release.Namespace }}
+{{- $release := .Release.Name }}
+{{- $chart := .Chart }}
+{{- $topics := list
+  "telegram.raw.messages"
+  "telegram.raw.updates"
+  "telegram.messages"
+  "messages.classified"
+  "policies.decisions"
+  "responses.generated"
+  "responses.pending"
+  "moderation.flags"
+  "moderation.actions"
+  "commands.execute"
+  "escalation.human"
+  "review.pending"
+}}
+{{- range $topics }}
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: {{ . | replace "." "-" }}
+  namespace: {{ $ns }}
+  labels:
+    strimzi.io/cluster: emcip
+    helm.sh/chart: {{ $chart.Name }}-{{ $chart.Version }}
+    app.kubernetes.io/instance: {{ $release }}
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000   # 7 days
+    cleanup.policy: delete
+{{- end }}
