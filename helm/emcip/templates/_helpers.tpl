@@ -16,14 +16,15 @@ Create a default fully qualified app name.
 Common labels applied to all resources.
 */}}
 {{- define "emcip.labels" -}}
-helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Selector labels for a given service name.
-Usage: include "emcip.selectorLabels" (dict "name" "policy-engine")
+Usage: include "emcip.selectorLabels" (dict "name" "policy-engine" "instance" .Release.Name)
 */}}
 {{- define "emcip.selectorLabels" -}}
 app.kubernetes.io/name: {{ .name }}
