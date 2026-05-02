@@ -5,8 +5,8 @@ metadata:
   name: emcip
   namespace: {{ .Release.Namespace }}
   annotations:
-    strimzi.io/node-pools: enabled
-    strimzi.io/kraft: enabled
+    strimzi.io/node-pools: "enabled"
+    strimzi.io/kraft: "enabled"
   labels:
     {{- include "emcip.labels" . | nindent 4 }}
 spec:

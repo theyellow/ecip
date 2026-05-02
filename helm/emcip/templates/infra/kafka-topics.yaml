@@ -3,6 +3,7 @@
 {{- $ns := .Release.Namespace }}
 {{- $release := .Release.Name }}
 {{- $chart := .Chart }}
+{{- $appVersion := .Chart.AppVersion }}
 {{- $topics := list
   "telegram.raw.messages"
   "telegram.raw.updates"
@@ -26,7 +27,9 @@ metadata:
   namespace: {{ $ns }}
   labels:
     strimzi.io/cluster: emcip
-    helm.sh/chart: {{ $chart.Name }}-{{ $chart.Version }}
+    helm.sh/chart: {{ printf "%s-%s" $chart.Name $chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
+    app.kubernetes.io/version: {{ $appVersion | quote }}
+    app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: {{ $release }}
 spec:
   partitions: 3
