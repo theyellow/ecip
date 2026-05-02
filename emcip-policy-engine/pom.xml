@@ -120,7 +120,7 @@
             <configuration>
               <buildArgs>
                 <buildArg>--features=org.hibernate.graalvm.internal.GraalVMStaticFeature</buildArg>
-                <buildArg>--initialize-at-run-time=org.hibernate.internal.util.ReflectHelper</buildArg>
+                <buildArg>--initialize-at-build-time=org.hibernate.internal.util.ReflectHelper</buildArg>
               </buildArgs>
             </configuration>
             <executions>
