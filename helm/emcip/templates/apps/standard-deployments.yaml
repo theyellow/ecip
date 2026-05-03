@@ -6,9 +6,7 @@ metadata:
   name: emcip-{{ $svc.name }}
   namespace: {{ $.Release.Namespace }}
   labels:
-    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
-    app.kubernetes.io/managed-by: {{ $.Release.Service }}
-    app.kubernetes.io/instance: {{ $.Release.Name }}
+    {{- include "emcip.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $svc.name }}
     app.kubernetes.io/component: application
 spec:
@@ -34,6 +32,7 @@ spec:
             - name: {{ $envKey }}
               value: {{ $envVal | quote }}
             {{- end }}
+            {{- if ne $svc.name "admin-ui" }}
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -58,6 +57,7 @@ spec:
                   name: {{ $.Values.secretName }}
                   key: postgres-password
                   optional: true
+            {{- end }}
             {{- range $secretKey, $secretRef := $svc.secrets }}
             - name: {{ $secretKey }}
               valueFrom:
@@ -88,8 +88,7 @@ metadata:
   name: emcip-{{ $svc.name }}
   namespace: {{ $.Release.Namespace }}
   labels:
-    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
-    app.kubernetes.io/instance: {{ $.Release.Name }}
+    {{- include "emcip.labels" $ | nindent 4 }}
     app.kubernetes.io/name: {{ $svc.name }}
 spec:
   type: ClusterIP
