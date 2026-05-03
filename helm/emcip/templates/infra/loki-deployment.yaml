@@ -30,6 +30,13 @@ spec:
               port: {{ .Values.infra.loki.port }}
             initialDelaySeconds: 15
             periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.infra.loki.port }}
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            failureThreshold: 3
           volumeMounts:
             - name: config
               mountPath: /etc/loki

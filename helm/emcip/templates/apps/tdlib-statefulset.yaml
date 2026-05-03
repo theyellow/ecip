@@ -48,6 +48,13 @@ spec:
               port: {{ .Values.tdlibAdapter.port }}
             initialDelaySeconds: 30
             periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.tdlibAdapter.port }}
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 3
           volumeMounts:
             - name: tdlib-db
               mountPath: /app/tdlib-db
