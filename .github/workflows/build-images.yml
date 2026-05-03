@@ -1,0 +1,151 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+
+env:
+  IMAGE_PREFIX: ghcr.io/theyellow/ecip
+
+jobs:
+
+  build-jvm-only:
+    name: Build JVM-only (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: intent-classifier
+            module: emcip-intent-classifier
+          - service: moderation-service
+            module: emcip-moderation-service
+          - service: audit-service
+            module: emcip-audit-service
+          - service: admin-api
+            module: emcip-admin-api
+          - service: admin-ui
+            module: emcip-admin-ui
+          - service: tdlib-adapter
+            module: emcip-tdlib-adapter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.module }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  build-jvm-latest:
+    name: Build JVM-latest (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: policy-engine
+            module: emcip-policy-engine
+          - service: conversation-context
+            module: emcip-conversation-context
+          - service: llm-orchestrator
+            module: emcip-llm-orchestrator
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=jvm-latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}-jvm
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.module }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  build-native-amd64:
+    name: Build native-amd64 (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: policy-engine
+            module: emcip-policy-engine
+          - service: conversation-context
+            module: emcip-conversation-context
+          - service: llm-orchestrator
+            module: emcip-llm-orchestrator
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=raw,value=native-amd64,enable={{is_default_branch}}
+            type=semver,pattern={{version}}-native-amd64
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.module }}/Dockerfile.native
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
