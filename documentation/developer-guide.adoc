@@ -29,6 +29,10 @@ The admin-api starts on port 9087. Health check: `curl http://localhost:9087/act
 
 NOTE: For the complete Docker Compose setup including all profiles and port assignments, see the _Operations Guide_.
 
+NOTE: Docker Compose is the recommended local development environment (see above).
+Kubernetes deployment via Helm is for staging and production environments.
+See the _Operations Guide_ for the full Kubernetes setup instructions.
+
 NOTE: For the architectural context of these services, see the _Architecture Guide_.
 
 == Module Structure
