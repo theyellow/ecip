@@ -8,7 +8,7 @@
 
 ## Context
 
-EMCIP runs on a mixed microk8s cluster with x86_64 and arm64 (Pi 4) nodes. Three services have GraalVM native images (`policy-engine`, `conversation-context`, `llm-orchestrator`) which are x86_64-only binaries. All other services use JVM images built on `eclipse-temurin:21-jdk`, which already publishes multi-arch manifests and runs on Pi 4 without changes.
+EMCIP runs on a mixed microk8s cluster with x86_64 and arm64 (Pi 4) nodes. Three services have GraalVM native images (`policy-engine`, `conversation-context`, `llm-orchestrator`) which are x86_64-only binaries. `tdlib-adapter` compiles `libtdjni.so` (TDLib's JNI native library) from source during its Docker build — that binary is also architecture-specific and must run on amd64. All other services use JVM images built on `eclipse-temurin:21-jdk`, which already publishes multi-arch manifests and runs on Pi 4 without changes.
 
 The base `values.yaml` (from the kubernetes-helm branch) continues to work for homogeneous x86_64 clusters. A new `values-mixed-cluster.yaml` overlay handles the mixed case without touching the base chart.
 
@@ -23,6 +23,14 @@ The base `values.yaml` (from the kubernetes-helm branch) continues to work for h
 | `emcip/<service>:native-amd64` | `Dockerfile.native` on x86_64 | x86_64 nodes only |
 | `emcip/<service>:latest` | `Dockerfile` (JVM) | any node (dev / fallback) |
 
+### tdlib-adapter
+
+| Tag | Built from | Runs on |
+|---|---|---|
+| `emcip/tdlib-adapter:latest` | `Dockerfile` (JVM + native `libtdjni.so` compiled amd64) | x86_64 nodes only |
+
+`tdlib-adapter`'s `Dockerfile` builds `libtdjni.so` from source using cmake on the builder stage. That shared library is amd64-only — the image must be pinned to amd64 nodes via `nodeSelector`.
+
 ### JVM-only services (all others)
 
 | Tag | Built from | Runs on |
@@ -30,8 +38,6 @@ The base `values.yaml` (from the kubernetes-helm branch) continues to work for h
 | `emcip/<service>:latest` | `Dockerfile` (JVM, eclipse-temurin multi-arch) | any node |
 
 `eclipse-temurin:21-jdk` already publishes `linux/amd64` and `linux/arm64` manifests — no `docker buildx` cross-compilation needed for JVM services. A single `docker build` + `docker push` on an x86_64 machine produces an image that runs on Pi 4.
-
-**tdlib-adapter** uses a native TDLib binary (amd64). It is pinned to amd64 nodes via `nodeSelector` regardless of image tag.
 
 ---
 
@@ -120,8 +126,9 @@ services:
       kubernetes.io/arch: amd64
 
 tdlibAdapter:
+  image: emcip/tdlib-adapter:latest   # libtdjni.so is amd64-only — must stay on amd64 nodes
   nodeSelector:
-    kubernetes.io/arch: amd64   # TDLib native binary is amd64-only
+    kubernetes.io/arch: amd64
 ```
 
 Infrastructure components (PostgreSQL StatefulSet, Kafka, Loki, Grafana) receive no nodeSelector — they can run on any node. If you want to pin infra to amd64 for reliability, add `nodeSelector` overrides to the infra section in this file.
@@ -135,13 +142,13 @@ Shell script for manual builds, structured for CI/CD reuse.
 **Interface:**
 
 ```bash
-scripts/build-images.sh --native amd64   # build :native-amd64 for policy-engine, conversation-context, llm-orchestrator
+scripts/build-images.sh --native amd64   # build :native-amd64 for policy-engine, conversation-context, llm-orchestrator; build :latest for tdlib-adapter
 scripts/build-images.sh --jvm            # build :latest (JVM) for all services
 scripts/build-images.sh --all            # both of the above
 ```
 
 **Behaviour:**
-- `--native amd64`: runs `docker build -f <service>/Dockerfile.native -t emcip/<service>:native-amd64 .` for each of the three native-capable services, then `docker push`
+- `--native amd64`: runs `docker build -f <service>/Dockerfile.native -t emcip/<service>:native-amd64 .` for the three native services, plus `docker build -f emcip-tdlib-adapter/Dockerfile -t emcip/tdlib-adapter:latest .` (tdlib compiles its native binary during the JVM build, so no separate Dockerfile.native is needed), then `docker push` for all
 - `--jvm`: runs `docker build -f <service>/Dockerfile -t emcip/<service>:latest .` for all services (including native-capable ones, using their JVM Dockerfile), then `docker push`
 - Must be run from the project root (build context requirement of existing Dockerfiles)
 - Exits non-zero on first build failure
