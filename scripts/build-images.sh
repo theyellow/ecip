@@ -3,9 +3,13 @@
 # Must be run from the project root (Dockerfiles use '.' as build context).
 #
 # Usage:
-#   scripts/build-images.sh --native amd64   # native-amd64 for GraalVM services + tdlib-adapter:latest
-#   scripts/build-images.sh --jvm            # :latest (JVM) for all services
-#   scripts/build-images.sh --all            # both of the above
+#   scripts/build-images.sh [--registry <prefix>] --native amd64 | --jvm | --all
+#
+# Examples:
+#   scripts/build-images.sh --native amd64                             # local: emcip/<svc>:native-amd64
+#   scripts/build-images.sh --jvm                                      # local: emcip/<svc>:latest
+#   scripts/build-images.sh --jvm --registry ghcr.io/theyellow/ecip   # CI: ghcr.io/theyellow/ecip/<svc>:latest
+#   scripts/build-images.sh --all --registry ghcr.io/theyellow/ecip   # all images with ghcr.io prefix
 set -euo pipefail
 
 # module/image-name pairs for all services
@@ -28,38 +32,71 @@ SERVICES_NATIVE=(
   "emcip-llm-orchestrator/llm-orchestrator"
 )
 
+REGISTRY=""
+
+is_native_capable() {
+  local svc="$1"
+  for entry in "${SERVICES_NATIVE[@]}"; do
+    [[ "${entry##*/}" == "$svc" ]] && return 0
+  done
+  return 1
+}
+
+image_tag() {
+  local svc="$1" tag="$2"
+  if [[ -n "$REGISTRY" ]]; then
+    echo "${REGISTRY}/${svc}:${tag}"
+  else
+    echo "emcip/${svc}:${tag}"
+  fi
+}
+
 build_native_amd64() {
   echo "=== Building :native-amd64 images (GraalVM) ==="
   for entry in "${SERVICES_NATIVE[@]}"; do
     module="${entry%%/*}"
     svc="${entry##*/}"
-    echo "--> emcip/${svc}:native-amd64  (${module}/Dockerfile.native)"
-    docker build -f "${module}/Dockerfile.native" -t "emcip/${svc}:native-amd64" .
-    docker push "emcip/${svc}:native-amd64"
-    echo "    Pushed emcip/${svc}:native-amd64"
+    tag="$(image_tag "$svc" "native-amd64")"
+    echo "--> ${tag}  (${module}/Dockerfile.native)"
+    docker build -f "${module}/Dockerfile.native" -t "${tag}" .
+    docker push "${tag}"
+    echo "    Pushed ${tag}"
   done
-  echo "--> emcip/tdlib-adapter:latest  (emcip-tdlib-adapter/Dockerfile, libtdjni.so compiled amd64)"
-  docker build -f "emcip-tdlib-adapter/Dockerfile" -t "emcip/tdlib-adapter:latest" .
-  docker push "emcip/tdlib-adapter:latest"
-  echo "    Pushed emcip/tdlib-adapter:latest"
+  tdlib_tag="$(image_tag "tdlib-adapter" "latest")"
+  echo "--> ${tdlib_tag}  (emcip-tdlib-adapter/Dockerfile, libtdjni.so compiled amd64)"
+  docker build -f "emcip-tdlib-adapter/Dockerfile" -t "${tdlib_tag}" .
+  docker push "${tdlib_tag}"
+  echo "    Pushed ${tdlib_tag}"
 }
 
 build_jvm() {
-  echo "=== Building :latest (JVM) images ==="
+  echo "=== Building JVM images ==="
   for entry in "${SERVICES_ALL[@]}"; do
     module="${entry%%/*}"
     svc="${entry##*/}"
-    echo "--> emcip/${svc}:latest  (${module}/Dockerfile)"
-    docker build -f "${module}/Dockerfile" -t "emcip/${svc}:latest" .
-    docker push "emcip/${svc}:latest"
-    echo "    Pushed emcip/${svc}:latest"
+    if [[ -n "$REGISTRY" ]] && is_native_capable "$svc"; then
+      tag="$(image_tag "$svc" "jvm-latest")"
+    else
+      tag="$(image_tag "$svc" "latest")"
+    fi
+    echo "--> ${tag}  (${module}/Dockerfile)"
+    docker build -f "${module}/Dockerfile" -t "${tag}" .
+    docker push "${tag}"
+    echo "    Pushed ${tag}"
   done
 }
 
 usage() {
-  echo "Usage: $0 --native amd64 | --jvm | --all" >&2
+  echo "Usage: $0 [--registry <prefix>] --native amd64 | --jvm | --all" >&2
   exit 1
 }
+
+# Parse optional --registry flag
+if [[ "${1:-}" == "--registry" ]]; then
+  [[ -n "${2:-}" ]] || { echo "Error: --registry requires a value" >&2; usage; }
+  REGISTRY="${2%/}"
+  shift 2
+fi
 
 [[ $# -eq 0 ]] && usage
 
