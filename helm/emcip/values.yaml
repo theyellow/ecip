@@ -46,6 +46,7 @@ services:
     image: emcip/conversation-context:latest
     port: 9081
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
@@ -62,6 +63,7 @@ services:
     image: emcip/intent-classifier:latest
     port: 9082
     replicas: 1
+    nodeSelector: {}
     env:
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
     resources:
@@ -77,6 +79,7 @@ services:
     image: emcip/policy-engine:latest
     port: 9083
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
@@ -93,6 +96,7 @@ services:
     image: emcip/llm-orchestrator:latest
     port: 9084
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
@@ -111,6 +115,7 @@ services:
     image: emcip/moderation-service:latest
     port: 9085
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
@@ -128,6 +133,7 @@ services:
     image: emcip/audit-service:latest
     port: 9086
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
@@ -145,6 +151,7 @@ services:
     image: emcip/admin-api:latest
     port: 9087
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
@@ -165,6 +172,7 @@ services:
     image: emcip/admin-ui:latest
     port: 14009
     replicas: 1
+    nodeSelector: {}
     env: {}
     resources:
       requests:
@@ -180,6 +188,7 @@ tdlibAdapter:
   image: emcip/tdlib-adapter:latest
   port: 9080
   replicas: 1
+  nodeSelector: {}
   env:
     KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
   secrets:
