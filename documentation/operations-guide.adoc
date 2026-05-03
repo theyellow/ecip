@@ -640,11 +640,9 @@ kubectl create secret generic emcip-secrets \
   -n emcip
 ----
 
-<1> PostgreSQL password — choose a strong password
-<2> Anthropic API key — required for LLM Orchestrator
-<3> Admin API JWT signing secret — minimum 32 characters
-<4> Telegram credentials — required for tdlib-adapter
-<5> Grafana admin password — change on first login
+NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` must be at least 32 characters.
+`anthropic-api-key` is required only if the LLM profile is active.
+`telegram-*` values are required only if the Telegram profile is active.
 
 === Install
 
