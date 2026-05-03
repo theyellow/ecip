@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: emcip-loki
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "emcip.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.infra.loki.port }}
+      targetPort: {{ .Values.infra.loki.port }}
+  selector:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/instance: {{ .Release.Name }}

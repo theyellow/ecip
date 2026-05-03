@@ -1,0 +1,26 @@
+# Strimzi KafkaNodePool — KRaft mode (no ZooKeeper)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: emcip
+  namespace: {{ .Release.Namespace }}
+  labels:
+    strimzi.io/cluster: emcip
+    {{- include "emcip.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: persistent-claim
+    size: {{ .Values.storage.kafka.size }}
+    class: {{ .Values.storage.storageClassName }}
+    deleteClaim: false
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 200m
+    limits:
+      memory: 1Gi
+      cpu: 1000m

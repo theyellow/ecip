@@ -579,3 +579,131 @@ The moderation-service caches active rules with a 5-minute TTL. Changes made via
 |`curl http://localhost:14008/ready`
 |Loki not ready. Wait 30s and retry. Check `docker compose logs loki`.
 |===
+
+== Kubernetes Deployment
+
+EMCIP ships a Helm chart at `helm/emcip/`. Docker Compose remains the recommended local development environment; Kubernetes is for staging and production.
+
+=== Prerequisites
+
+The following must be installed and configured on the cluster **before** running `helm install`:
+
+[cols="2,3"]
+|===
+|Prerequisite |Setup command
+
+|microk8s addons
+|`microk8s enable dns ingress storage helm3`
+
+|NFS StorageClass
+a|
+[source,bash]
+----
+helm repo add nfs-subdir-external-provisioner \
+  https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
+helm install nfs-provisioner \
+  nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
+  --set nfs.server=<NAS_IP> \
+  --set nfs.path=/exports/emcip \
+  --set storageClass.name=nfs-client
+----
+
+|Strimzi operator
+a|
+[source,bash]
+----
+helm repo add strimzi https://strimzi.io/charts/
+helm install strimzi-operator strimzi/strimzi-kafka-operator \
+  -n strimzi-system --create-namespace
+----
+
+|Namespace
+|`kubectl create namespace emcip`
+|===
+
+=== Secrets — Create Before Installing
+
+Secrets are never stored in the chart. Create them manually once:
+
+[source,bash]
+----
+kubectl create secret generic emcip-secrets \
+  --from-literal=postgres-password=<password> \
+  --from-literal=postgres-user=emcip \
+  --from-literal=anthropic-api-key=<key> \
+  --from-literal=admin-jwt-secret=<min-32-char-secret> \
+  --from-literal=admin-service-token=<token> \
+  --from-literal=telegram-api-id=<id> \
+  --from-literal=telegram-api-hash=<hash> \
+  --from-literal=telegram-phone-number=<+4912345> \
+  --from-literal=grafana-admin-password=<password> \
+  -n emcip
+----
+
+NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` must be at least 32 characters.
+`anthropic-api-key` is required only if the LLM profile is active.
+`telegram-*` values are required only if the Telegram profile is active.
+
+=== Install
+
+[source,bash]
+----
+helm install emcip helm/emcip/ -n emcip
+----
+
+Watch rollout progress:
+
+[source,bash]
+----
+kubectl get pods -n emcip -w
+----
+
+All pods should reach `Running` state. Kafka and PostgreSQL may take 2-3 minutes on first start.
+
+=== Upgrade
+
+[source,bash]
+----
+helm upgrade emcip helm/emcip/ -n emcip
+----
+
+=== Rollback
+
+[source,bash]
+----
+helm rollback emcip -n emcip        # rolls back to previous release
+helm history emcip -n emcip         # list available revisions
+helm rollback emcip 2 -n emcip      # roll back to specific revision
+----
+
+=== Access Services
+
+With microk8s ingress enabled and `emcip.local` pointing to the cluster IP (add to `/etc/hosts`):
+
+[source,bash]
+----
+# Add to /etc/hosts (replace with your microk8s IP)
+echo "$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}') emcip.local" \
+  | sudo tee -a /etc/hosts
+----
+
+[cols="2,2,3"]
+|===
+|UI |URL |Notes
+
+|Admin UI
+|http://emcip.local/
+|React SPA
+
+|Admin API
+|http://emcip.local/api
+|REST endpoints
+
+|Grafana
+|http://emcip.local/grafana
+|admin / <grafana-admin-password>
+|===
+
+=== Namespace Strategy
+
+All EMCIP resources deploy to the `emcip` namespace. The Strimzi operator runs in `strimzi-system` (managed separately).

@@ -1,0 +1,207 @@
+# ============================================================
+# EMCIP Helm Chart values
+# ============================================================
+# IMPORTANT: Never put secrets here.
+# All secrets live in a Kubernetes Secret named 'emcip-secrets'.
+# See documentation/operations-guide.adoc for creation instructions.
+
+# Global image settings
+image:
+  registry: ""          # e.g. "registry.example.com/" — leave empty for Docker Hub
+  pullPolicy: IfNotPresent
+
+# Storage — all PVCs use this StorageClass (points to NAS NFS provisioner)
+storage:
+  storageClassName: nfs-client
+  postgres:
+    size: 10Gi
+  kafka:
+    size: 20Gi
+  loki:
+    size: 10Gi
+  grafana:
+    size: 1Gi
+  tdlibDb:
+    size: 1Gi
+  tdlibFiles:
+    size: 5Gi
+
+# Secret reference — name of the pre-created Kubernetes Secret
+secretName: emcip-secrets
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  host: emcip.local
+
+# ============================================================
+# Application services
+# Services listed here get a standard Deployment + ClusterIP Service.
+# tdlib-adapter is separate (StatefulSet).
+# ============================================================
+services:
+  conversationContext:
+    name: conversation-context
+    image: emcip/conversation-context:latest
+    port: 9081
+    replicas: 1
+    env:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  intentClassifier:
+    name: intent-classifier
+    image: emcip/intent-classifier:latest
+    port: 9082
+    replicas: 1
+    env:
+      KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  policyEngine:
+    name: policy-engine
+    image: emcip/policy-engine:latest
+    port: 9083
+    replicas: 1
+    env:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  llmOrchestrator:
+    name: llm-orchestrator
+    image: emcip/llm-orchestrator:latest
+    port: 9084
+    replicas: 1
+    env:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    secrets:
+      ANTHROPIC_API_KEY: anthropic-api-key
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+
+  moderationService:
+    name: moderation-service
+    image: emcip/moderation-service:latest
+    port: 9085
+    replicas: 1
+    env:
+      SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
+      SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  auditService:
+    name: audit-service
+    image: emcip/audit-service:latest
+    port: 9086
+    replicas: 1
+    env:
+      SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
+      SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  adminApi:
+    name: admin-api
+    image: emcip/admin-api:latest
+    port: 9087
+    replicas: 1
+    env:
+      SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
+      SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    secrets:
+      ADMIN_JWT_SECRET: admin-jwt-secret
+      ADMIN_SERVICE_TOKEN: admin-service-token
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  adminUi:
+    name: admin-ui
+    image: emcip/admin-ui:latest
+    port: 14009
+    replicas: 1
+    env: {}
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+# tdlib-adapter is a StatefulSet (separate section — needs PVC for session state)
+tdlibAdapter:
+  name: tdlib-adapter
+  image: emcip/tdlib-adapter:latest
+  port: 9080
+  replicas: 1
+  env:
+    KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+  secrets:
+    TELEGRAM_API_ID: telegram-api-id
+    TELEGRAM_API_HASH: telegram-api-hash
+    TELEGRAM_PHONE_NUMBER: telegram-phone-number
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Infrastructure image versions
+infra:
+  postgres:
+    image: postgres:16-alpine
+    port: 5432
+  loki:
+    image: grafana/loki:3.0.0
+    port: 3100
+  grafana:
+    image: grafana/grafana-oss:11.0.0
+    port: 3000
