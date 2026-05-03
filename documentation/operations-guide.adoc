@@ -707,3 +707,65 @@ echo "$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].a
 === Namespace Strategy
 
 All EMCIP resources deploy to the `emcip` namespace. The Strimzi operator runs in `strimzi-system` (managed separately).
+
+=== Mixed-Cluster Deployment (x86_64 + arm64)
+
+Use this when your microk8s cluster contains both x86_64 and arm64 (Raspberry Pi 4) nodes.
+The base `values.yaml` works unchanged for homogeneous x86_64 clusters; the overlay only changes
+what differs.
+
+==== Why some services must run on amd64
+
+[cols="2,3"]
+|===
+|Service |Reason
+
+|`policy-engine`
+|GraalVM native image (`native-amd64` tag) — x86_64 binary
+
+|`conversation-context`
+|GraalVM native image (`native-amd64` tag) — x86_64 binary
+
+|`llm-orchestrator`
+|GraalVM native image (`native-amd64` tag) — x86_64 binary
+
+|`tdlib-adapter`
+|`libtdjni.so` compiled from source during Docker build (cmake, amd64-only)
+|===
+
+All other services use `eclipse-temurin:21-jdk` which publishes multi-arch manifests — they run
+on Pi 4 without changes.
+
+==== Build images
+
+Run from the project root on an x86_64 machine:
+
+[source,bash]
+----
+# Build native-amd64 images for the three GraalVM services + tdlib-adapter:latest
+scripts/build-images.sh --native amd64
+
+# Build JVM :latest images for all services (multi-arch via eclipse-temurin base)
+scripts/build-images.sh --jvm
+----
+
+==== Deploy
+
+[source,bash]
+----
+helm upgrade --install emcip helm/emcip/ \
+  -f helm/emcip/values-mixed-cluster.yaml \
+  -n emcip
+----
+
+==== Node placement
+
+After deployment, verify pods landed on the correct nodes:
+
+[source,bash]
+----
+microk8s kubectl get pods -n emcip -o wide
+----
+
+`policy-engine`, `conversation-context`, `llm-orchestrator`, and `tdlib-adapter` pods should show
+an x86_64 node in the `NODE` column. All other pods may run on any node.
