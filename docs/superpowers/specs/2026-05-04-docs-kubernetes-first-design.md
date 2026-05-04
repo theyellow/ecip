@@ -72,7 +72,7 @@ New CSS file referenced by AsciiDoc documents for HTML rendering. Targets AsciiD
 
 ### `pom.xml` — add HTML output execution
 
-Add a second execution to the `asciidoctor-maven-plugin` config to produce HTML alongside PDF, referencing `emcip-screen.css` as stylesheet.
+Add a second execution to the `asciidoctor-maven-plugin` config to produce HTML alongside PDF. The HTML execution must pass `emcip-screen.css` as a global asciidoctor attribute (e.g. `<stylesheet>emcip-screen.css</stylesheet>` or via `<attributes><stylesheet>emcip-screen.css</stylesheet></attributes>`). Do **not** add `:stylesheet:` to individual `.adoc` document headers — stylesheet wiring is done exclusively through the pom.xml plugin configuration so it applies uniformly to all documents without touching source files.
 
 ---
 
@@ -197,19 +197,6 @@ The existing `deployment-local-docker.puml` reference in the architecture guide 
 ### `documentation/user-guide.adoc`
 
 No structural changes needed — user guide is about using the Admin UI and API, not about deployment. The only addition: a brief note in the intro clarifying that EMCIP runs on microk8s in production.
-
----
-
-## AsciiDoc Header Updates
-
-All four `.adoc` files need the HTML stylesheet reference added to their header:
-
-```asciidoc
-:stylesheet: emcip-screen.css
-:stylesdir: {docdir}
-```
-
-This makes IDE preview and `asciidoctor` HTML output pick up the new stylesheet automatically.
 
 ---
 
