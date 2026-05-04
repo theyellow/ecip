@@ -1,8 +1,10 @@
 # Telegram Multi-Account Auth — Design Spec
 
 **Date:** 2026-04-26
-**Status:** Approved
+**Status:** Implemented (PR #10, post-merge fix commit `9472913`)
 **Scope:** emcip-tdlib-adapter, emcip-admin-api, emcip-admin-ui
+
+> **Implementation note:** After PR #10 merged, `apiId` and `apiHash` were moved from per-account form fields to server-side environment variables (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH` injected via `@Value` in admin-api). The data model and Admin UI sections below reflect this final state.
 
 ---
 
@@ -25,8 +27,6 @@ telegram_accounts
 ─────────────────────────────────────────────────────
 id             UUID         PK
 phone_number   VARCHAR(50)  NOT NULL UNIQUE
-api_id         INTEGER      NOT NULL
-api_hash       VARCHAR(255) NOT NULL
 display_name   VARCHAR(100)              -- e.g. "Monitor account 1"
 session_string TEXT                      -- persisted TDLib session
 status         VARCHAR(30)  NOT NULL     -- state machine value
@@ -34,6 +34,8 @@ last_error     VARCHAR(500)              -- null when healthy
 created_at     TIMESTAMP    NOT NULL
 updated_at     TIMESTAMP    NOT NULL
 ```
+
+> `api_id` and `api_hash` are not stored per-account. They are read from `TELEGRAM_API_ID` and `TELEGRAM_API_HASH` environment variables in `emcip-admin-api` and forwarded to `emcip-tdlib-adapter` on each auth operation.
 
 ### Auth Status State Machine
 
@@ -88,7 +90,7 @@ POST /api/auth/{accountId}/logout    -- logout and clear session
 **`TelegramAccountController`** (replaces `TelegramController`)
 ```
 GET    /api/telegram/accounts            -- list all accounts with status
-POST   /api/telegram/accounts            -- create account (phone, apiId, apiHash, displayName)
+POST   /api/telegram/accounts            -- create account (phoneNumber, displayName)
 DELETE /api/telegram/accounts/{id}       -- remove account
 GET    /api/telegram/accounts/{id}/status -- current status + last_error
 POST   /api/telegram/accounts/{id}/reconnect -- trigger re-auth (→ AWAITING_CODE)
@@ -108,7 +110,7 @@ POST   /api/telegram/accounts/{id}/reconnect -- trigger re-auth (→ AWAITING_CO
 Replace the existing single Telegram config panel with an **Accounts page**:
 
 - Table listing all accounts: `displayName`, `phoneNumber`, `status` badge, `lastError` tooltip on failure badges
-- **Add account** button → modal with fields: Display Name, Phone Number, API ID, API Hash
+- **Add account** button → modal with fields: Display Name, Phone Number
 - Per-row actions:
   - **Authenticate** → opens auth wizard (step 1: phone sent automatically on reconnect; step 2: enter code; step 3: enter 2FA password if required)
   - **Disconnect** → logout
