@@ -422,6 +422,28 @@
             </goals>
             <phase>generate-resources</phase>
           </execution>
+          <execution>
+            <id>generate-html-docs</id>
+            <goals>
+              <goal>process-asciidoc</goal>
+            </goals>
+            <phase>generate-resources</phase>
+            <configuration>
+              <backend>html5</backend>
+              <outputDirectory>${project.basedir}/target/generated-docs</outputDirectory>
+              <attributes>
+                <allow-uri-read>true</allow-uri-read>
+                <imagesdir>${project.basedir}/documentation/diagrams</imagesdir>
+                <plantumldir>${project.basedir}/documentation/diagrams</plantumldir>
+                <stylesheet>emcip-screen.css</stylesheet>
+                <stylesdir>${project.basedir}/documentation</stylesdir>
+                <toc>left</toc>
+                <toclevels>3</toclevels>
+                <sectnums>true</sectnums>
+                <icons>font</icons>
+              </attributes>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>
