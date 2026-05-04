@@ -29,6 +29,9 @@ EMCIP (Enterprise Messenger Community Intelligence Platform) connects to Telegra
 |All pipeline events are written to the Audit Service — read-only observation with no actions.
 |===
 
+NOTE: Production runtime is Kubernetes (microk8s) via Helm.
+Local development uses Docker Compose. See the _Operations Guide_ for deployment details.
+
 NOTE: For setup steps and development prerequisites, see the _Developer Guide_.
 
 == System Context (C1)
@@ -49,6 +52,10 @@ include::diagrams/c1-context.puml[]
 
 * *Telegram API (TDLib)* — EMCIP connects as a real account using `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`.
 * *LLM Providers* — Claude (Anthropic), OpenAI, and local Ollama models are supported via the LLM Orchestrator.
+
+*Production deployment:* EMCIP runs on microk8s managed by Helm.
+Images are built by GitHub Actions and pulled from `ghcr.io/theyellow/ecip`.
+See the _Operations Guide_ for the full Kubernetes deployment diagram and instructions.
 
 == Container Architecture (C2)
 
@@ -96,7 +103,8 @@ The platform comprises 8 application microservices, each independently deployabl
 |REST management API for tenants, policy rules, audit queries; R2DBC / WebFlux.
 |===
 
-Infrastructure services (Kafka, PostgreSQL, Grafana, Loki, Admin UI) are defined in `docker-compose.yml`.
+Infrastructure services (Kafka, PostgreSQL, Grafana, Loki, Admin UI) are defined in `docker-compose.yml` for local development and in the Helm chart (`helm/emcip/`) for production.
+For the production deployment topology, see the Kubernetes deployment diagram in the _Operations Guide_.
 
 == Component Details (C3)
 

@@ -1,0 +1,103 @@
+@startuml Deployment_Kubernetes
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+' Purpose: microk8s production deployment diagram
+' Used in: operations-guide.adoc - Kubernetes Deployment section
+
+LAYOUT_WITH_LEGEND()
+
+title Production Deployment - Kubernetes (microk8s)
+
+' External: GitHub Actions CI/CD
+System_Ext(github_actions, "GitHub Actions", "Builds Docker images on push to main,\npushes to ghcr.io/theyellow/ecip")
+
+' External: ghcr.io registry
+System_Ext(ghcr, "ghcr.io/theyellow/ecip", "GitHub Container Registry\nPublic image registry")
+
+' microk8s cluster
+Deployment_Node(cluster, "microk8s Cluster") {
+
+    ' amd64 node (required for native + tdlib)
+    Deployment_Node(amd64_node, "Node: amd64 (x86_64)") {
+
+        Deployment_Node(emcip_ns_amd64, "Namespace: emcip") {
+
+            Deployment_Node(native_services, "Native / amd64-only Deployments") {
+                Container(policy_engine, "policy-engine", "GraalVM native (native-amd64)", "Port 9083\nnodeSelector: amd64")
+                Container(conv_context, "conversation-context", "GraalVM native (native-amd64)", "Port 9081\nnodeSelector: amd64")
+                Container(llm_orch, "llm-orchestrator", "GraalVM native (native-amd64)", "Port 9084\nnodeSelector: amd64")
+                Container(tdlib, "tdlib-adapter", "JVM (latest) + libtdjni.so", "Port 9080\nnodeSelector: amd64")
+            }
+        }
+    }
+
+    ' arm64 node (Pi 4 -- runs JVM services)
+    Deployment_Node(arm64_node, "Node: arm64 (Raspberry Pi 4)") {
+
+        Deployment_Node(emcip_ns_arm, "Namespace: emcip") {
+
+            Deployment_Node(jvm_services, "JVM Deployments (multi-arch)") {
+                Container(intent_classifier, "intent-classifier", "JVM (latest)", "Port 9082")
+                Container(moderation_svc, "moderation-service", "JVM (latest)", "Port 9085")
+                Container(audit_svc, "audit-service", "JVM (latest)", "Port 9086")
+                Container(admin_api, "admin-api", "JVM (latest)", "Port 9087")
+            }
+        }
+    }
+
+    ' Shared namespace resources
+    Deployment_Node(emcip_shared, "Namespace: emcip -- Shared") {
+
+        ContainerDb(postgres, "PostgreSQL", "postgres:16", "Port 5432\nNFS PVC: emcip-postgres")
+
+        Deployment_Node(observability, "Observability") {
+            Container(grafana, "Grafana", "grafana/grafana", "Port 3000\nNFS PVC: emcip-grafana\nIngress: /grafana")
+            Container(loki, "Loki", "grafana/loki", "Port 3100\nNFS PVC: emcip-loki")
+            Container(promtail, "Promtail", "grafana/promtail", "Scrapes pod logs -> Loki")
+        }
+
+        Container(admin_ui, "admin-ui", "nginx + React SPA (latest)", "Port 80\nIngress: /")
+        Container(ingress, "nginx Ingress", "microk8s ingress addon", "emcip.local\nRoutes /, /api, /grafana")
+    }
+
+    ' Strimzi Kafka
+    Deployment_Node(strimzi_ns, "Namespace: strimzi-system") {
+        Container(strimzi, "Strimzi Operator", "strimzi/operator", "Manages Kafka CRs")
+        Deployment_Node(kafka_cluster, "Namespace: emcip (Kafka CR)") {
+            Container(kafka, "Kafka Broker", "strimzi/kafka", "Port 9092\n8 topics, 3 partitions")
+        }
+    }
+}
+
+' Relationships
+Rel(github_actions, ghcr, "pushes images", "docker push")
+Rel(ghcr, policy_engine, "pulls :native-amd64")
+Rel(ghcr, conv_context, "pulls :native-amd64")
+Rel(ghcr, llm_orch, "pulls :native-amd64")
+Rel(ghcr, tdlib, "pulls :latest")
+Rel(ghcr, intent_classifier, "pulls :latest")
+Rel(ghcr, moderation_svc, "pulls :latest")
+Rel(ghcr, audit_svc, "pulls :latest")
+Rel(ghcr, admin_api, "pulls :latest")
+Rel(ghcr, admin_ui, "pulls :latest")
+
+Rel(ingress, admin_ui, "/ -> port 80")
+Rel(ingress, admin_api, "/api -> port 9087")
+Rel(ingress, grafana, "/grafana -> port 3000")
+
+Rel(tdlib, kafka, "publishes telegram.raw.messages", "Kafka")
+Rel(conv_context, kafka, "pub/sub", "Kafka")
+Rel(intent_classifier, kafka, "pub/sub", "Kafka")
+Rel(policy_engine, kafka, "pub/sub", "Kafka")
+Rel(llm_orch, kafka, "pub/sub", "Kafka")
+Rel(moderation_svc, kafka, "pub/sub", "Kafka")
+Rel(audit_svc, kafka, "subscribes", "Kafka")
+
+Rel(conv_context, postgres, "reads/writes")
+Rel(policy_engine, postgres, "reads/writes")
+Rel(intent_classifier, postgres, "reads")
+Rel(moderation_svc, postgres, "reads/writes")
+Rel(audit_svc, postgres, "writes")
+Rel(admin_api, postgres, "reads/writes")
+
+@enduml

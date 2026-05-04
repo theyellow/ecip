@@ -486,6 +486,10 @@ include::diagrams/sequence-llm-orchestration.puml[]
 Three services support native image compilation: `emcip-policy-engine`, `emcip-conversation-context`, and `emcip-llm-orchestrator`.
 Native images start in ~1-2 seconds and require no JVM.
 
+NOTE: For production deployments, native images are built automatically by GitHub Actions
+(`.github/workflows/build-images.yml`) and pushed to `ghcr.io/theyellow/ecip`.
+You only need to build native images locally if you are developing or testing native-image-specific code.
+
 === Installing GraalVM (Ubuntu 22.04 / 24.04)
 
 GraalVM Community Edition is available via snap on Ubuntu:
@@ -619,3 +623,41 @@ mvn spotless:check          # Verify formatting (CI will check this)
 ----
 
 CI runs `mvn verify` on every PR. A Spotless violation or failing test blocks merge.
+
+== Image Publishing
+
+Docker images are published to `ghcr.io/theyellow/ecip` automatically by GitHub Actions.
+
+*Workflow file:* `.github/workflows/build-images.yml`
+
+*Triggers:* push to `main` branch, or push of a tag matching `v*.*.*`.
+
+*Jobs:*
+
+[cols="2,3,2"]
+|===
+|Job |Services |Tag on `main` push
+
+|`build-jvm-only`
+|`intent-classifier`, `moderation-service`, `audit-service`, `admin-api`, `admin-ui`, `tdlib-adapter`
+|`:latest`
+
+|`build-jvm-latest`
+|`policy-engine`, `conversation-context`, `llm-orchestrator`
+|`:jvm-latest`
+
+|`build-native-amd64`
+|`policy-engine`, `conversation-context`, `llm-orchestrator`
+|`:native-amd64`
+|===
+
+To build and push images locally with a registry prefix (for testing):
+
+[source,bash]
+----
+# Requires docker login ghcr.io first
+scripts/build-images.sh --jvm --registry ghcr.io/theyellow/ecip
+scripts/build-images.sh --native amd64 --registry ghcr.io/theyellow/ecip
+----
+
+See `scripts/build-images.sh --help` for full options.

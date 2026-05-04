@@ -7,7 +7,473 @@
 
 NOTE: For the architectural context of these services, see the _Architecture Guide_.
 
-== Default Credentials
+[[deployment-paths]]
+== Deployment Paths
+
+EMCIP supports two deployment modes. Choose the one that fits your context:
+
+[cols="1,2,2"]
+|===
+| | Kubernetes (microk8s) | Docker Compose
+
+|Purpose
+|Production, staging
+|Local development, quick patch
+
+|Images
+|`ghcr.io/theyellow/ecip` (CI-built, automatic)
+|Local `docker build` (manual)
+
+|Config
+|`helm/emcip/values.yaml`
+|`.env` + `docker-compose.yml`
+
+|Start command
+|`helm upgrade --install emcip helm/emcip/ -n emcip`
+|`docker compose up`
+|===
+
+=== Kubernetes (Production)
+
+Production deployments run on microk8s via Helm.
+Images are built and published automatically by GitHub Actions on every push to `main`.
+The operator does not build images manually for production.
+See <<kubernetes-deployment>> for full setup instructions.
+
+=== Docker Compose (Local Development / Quick Patch)
+
+Docker Compose is the recommended local development and quick-patch environment.
+Use it when developing features, debugging locally, or testing configuration changes before rolling to Kubernetes.
+See <<appendix-docker-compose>> for setup instructions.
+
+=== CI/CD Responsibilities vs Operator Responsibilities
+
+[cols="1,2,2"]
+|===
+| | CI/CD (GitHub Actions — automatic) | Operator (manual)
+
+|Image builds
+|Builds all images on push to `main` or version tag
+|Not required for production
+
+|Image publishing
+|Pushes to `ghcr.io/theyellow/ecip`
+|Not required for production
+
+|Tests
+|Runs `mvn verify` on every PR
+|Not required for production
+
+|Kubernetes secrets
+|Does NOT manage (no cluster access)
+|`kubectl create secret generic emcip-secrets ...` (once per environment)
+
+|Helm deploy
+|Does NOT deploy (no cluster access)
+|`helm upgrade --install emcip helm/emcip/ -n emcip`
+
+|Telegram auth
+|Not applicable
+|Interactive auth via `kubectl exec` into tdlib-adapter pod
+
+|Pod monitoring
+|Not applicable
+|`kubectl get pods -n emcip`, Grafana dashboards
+
+|Backup & restore
+|Not applicable
+|`scripts/db/backup.sh`, `scripts/db/restore.sh`
+|===
+
+[[kubernetes-deployment]]
+== Kubernetes Deployment
+
+[plantuml,deploy-kubernetes,png]
+----
+include::diagrams/deployment-kubernetes.puml[]
+----
+
+EMCIP ships a Helm chart at `helm/emcip/`.
+Images are built by GitHub Actions on every push to `main` and pushed to `ghcr.io/theyellow/ecip`.
+The Helm chart pulls these images directly — no local build required for production deployments.
+
+=== Prerequisites
+
+The following must be installed and configured on the cluster **before** running `helm install`:
+
+[cols="2,3"]
+|===
+|Prerequisite |Setup command
+
+|microk8s addons
+|`microk8s enable dns ingress storage helm3`
+
+|NFS StorageClass
+a|
+[source,bash]
+----
+helm repo add nfs-subdir-external-provisioner \
+  https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
+helm install nfs-provisioner \
+  nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
+  --set nfs.server=<NAS_IP> \
+  --set nfs.path=/exports/emcip \
+  --set storageClass.name=nfs-client
+----
+
+|Strimzi operator
+a|
+[source,bash]
+----
+helm repo add strimzi https://strimzi.io/charts/
+helm install strimzi-operator strimzi/strimzi-kafka-operator \
+  -n strimzi-system --create-namespace
+----
+
+|Namespace
+|`kubectl create namespace emcip`
+|===
+
+=== Image Overview
+
+All 9 service images are published to `ghcr.io/theyellow/ecip` by GitHub Actions CI.
+Tags are updated on every push to `main` (rolling) and on version tags (`v*.*.*`).
+
+[cols="2,3,2"]
+|===
+|Service |Image |Tag (default values.yaml)
+
+|`tdlib-adapter`
+|`ghcr.io/theyellow/ecip/tdlib-adapter`
+|`:latest` — amd64 JVM; libtdjni.so amd64-only
+
+|`conversation-context`
+|`ghcr.io/theyellow/ecip/conversation-context`
+|`:jvm-latest` (default) / `:native-amd64` (mixed-cluster overlay)
+
+|`intent-classifier`
+|`ghcr.io/theyellow/ecip/intent-classifier`
+|`:latest` — multi-arch JVM
+
+|`policy-engine`
+|`ghcr.io/theyellow/ecip/policy-engine`
+|`:jvm-latest` (default) / `:native-amd64` (mixed-cluster overlay)
+
+|`llm-orchestrator`
+|`ghcr.io/theyellow/ecip/llm-orchestrator`
+|`:jvm-latest` (default) / `:native-amd64` (mixed-cluster overlay)
+
+|`moderation-service`
+|`ghcr.io/theyellow/ecip/moderation-service`
+|`:latest` — multi-arch JVM
+
+|`audit-service`
+|`ghcr.io/theyellow/ecip/audit-service`
+|`:latest` — multi-arch JVM
+
+|`admin-api`
+|`ghcr.io/theyellow/ecip/admin-api`
+|`:latest` — multi-arch JVM
+
+|`admin-ui`
+|`ghcr.io/theyellow/ecip/admin-ui`
+|`:latest` — multi-arch JVM
+|===
+
+The `values-mixed-cluster.yaml` overlay switches policy-engine, conversation-context, and llm-orchestrator to `:native-amd64` and adds `nodeSelector: kubernetes.io/arch: amd64`.
+See <<mixed-cluster-deployment>>.
+
+=== Secrets — Create Before Installing
+
+Secrets are never stored in the chart. Create them manually once:
+
+[source,bash]
+----
+kubectl create secret generic emcip-secrets \
+  --from-literal=postgres-password=<password> \
+  --from-literal=postgres-user=emcip \
+  --from-literal=anthropic-api-key=<key> \
+  --from-literal=admin-jwt-secret=<min-32-char-secret> \
+  --from-literal=admin-service-token=<token> \
+  --from-literal=telegram-api-id=<id> \
+  --from-literal=telegram-api-hash=<hash> \
+  --from-literal=telegram-phone-number=<+4912345> \
+  --from-literal=grafana-admin-password=<password> \
+  -n emcip
+----
+
+NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` must be at least 32 characters.
+`anthropic-api-key` is required only if the LLM profile is active.
+`telegram-*` values are required only if the Telegram profile is active.
+
+=== Install
+
+[source,bash]
+----
+helm install emcip helm/emcip/ -n emcip
+----
+
+Watch rollout progress:
+
+[source,bash]
+----
+kubectl get pods -n emcip -w
+----
+
+All pods should reach `Running` state. Kafka and PostgreSQL may take 2-3 minutes on first start.
+
+=== Upgrade
+
+[source,bash]
+----
+helm upgrade emcip helm/emcip/ -n emcip
+----
+
+=== Rollback
+
+[source,bash]
+----
+helm rollback emcip -n emcip        # rolls back to previous release
+helm history emcip -n emcip         # list available revisions
+helm rollback emcip 2 -n emcip      # roll back to specific revision
+----
+
+[[mixed-cluster-deployment]]
+=== Mixed-Cluster Deployment (x86_64 + arm64)
+
+Use this when your microk8s cluster contains both x86_64 and arm64 (Raspberry Pi 4) nodes.
+The base `values.yaml` works unchanged for homogeneous x86_64 clusters; the overlay only changes
+what differs.
+
+==== Why some services must run on amd64
+
+[cols="2,3"]
+|===
+|Service |Reason
+
+|`policy-engine`
+|GraalVM native image (`native-amd64` tag) — x86_64 binary
+
+|`conversation-context`
+|GraalVM native image (`native-amd64` tag) — x86_64 binary
+
+|`llm-orchestrator`
+|GraalVM native image (`native-amd64` tag) — x86_64 binary
+
+|`tdlib-adapter`
+|`libtdjni.so` compiled from source during Docker build (cmake, amd64-only)
+|===
+
+All other services use `eclipse-temurin:21-jdk` which publishes multi-arch manifests — they run
+on Pi 4 without changes.
+
+==== Build images
+
+Run from the project root on an x86_64 machine:
+
+[source,bash]
+----
+# Build native-amd64 images for the three GraalVM services + tdlib-adapter:latest
+scripts/build-images.sh --native amd64
+
+# Build JVM :latest images for all services (multi-arch via eclipse-temurin base)
+scripts/build-images.sh --jvm
+----
+
+==== Deploy
+
+[source,bash]
+----
+helm upgrade --install emcip helm/emcip/ \
+  -f helm/emcip/values-mixed-cluster.yaml \
+  -n emcip
+----
+
+==== Node placement
+
+After deployment, verify pods landed on the correct nodes:
+
+[source,bash]
+----
+microk8s kubectl get pods -n emcip -o wide
+----
+
+`policy-engine`, `conversation-context`, `llm-orchestrator`, and `tdlib-adapter` pods should show
+an x86_64 node in the `NODE` column. All other pods may run on any node.
+
+=== Access Services
+
+With microk8s ingress enabled and `emcip.local` pointing to the cluster IP (add to `/etc/hosts`):
+
+[source,bash]
+----
+# Add to /etc/hosts (replace with your microk8s IP)
+echo "$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}') emcip.local" \
+  | sudo tee -a /etc/hosts
+----
+
+[cols="2,2,3"]
+|===
+|UI |URL |Notes
+
+|Admin UI
+|http://emcip.local/
+|React SPA
+
+|Admin API
+|http://emcip.local/api
+|REST endpoints
+
+|Grafana
+|http://emcip.local/grafana
+|admin / <grafana-admin-password>
+|===
+
+=== Namespace Strategy
+
+All EMCIP resources deploy to the `emcip` namespace. The Strimzi operator runs in `strimzi-system` (managed separately).
+
+== Observability
+
+=== Grafana Dashboards
+
+In Kubernetes: open http://emcip.local/grafana (admin / <grafana-admin-password> from K8s secret). +
+In Docker Compose: open http://localhost:14007 (admin / admin).
+
+Three pre-built dashboards are provisioned automatically on startup:
+
+[cols="1,3"]
+|===
+|Dashboard |Shows
+
+|*Service Health*
+|Actuator UP/DOWN status per service, JVM heap used, GC pause time.
+
+|*Kafka Consumer Lag*
+|Consumer group lag per topic. Alert threshold: > 1000 messages.
+
+|*Audit Throughput*
+|Audit events/minute and moderation flags/minute over time.
+|===
+
+=== Loki Log Queries
+
+In Kubernetes: Grafana → Explore → Loki datasource. +
+In Docker Compose: http://localhost:14008 or Grafana → Explore.
+
+[source]
+----
+# All ERROR logs across services
+{job="emcip"} |= "ERROR"
+
+# Errors from policy-engine only
+{job="emcip", service="emcip-policy-engine"} | json | level="ERROR"
+
+# Messages by trace ID
+{job="emcip"} | json | traceId="<trace-id>"
+
+# Kafka consumer errors
+{job="emcip"} |= "KafkaListenerErrorHandler"
+----
+
+=== Prometheus Metrics
+
+Key metrics to watch:
+
+[cols="2,1,2"]
+|===
+|Metric |Service |Meaning
+
+|`kafka_consumer_fetch_manager_records_lag_max`
+|all consumers
+|Maximum consumer lag — spike indicates backpressure
+
+|`hikaricp_connections_active`
+|JPA services
+|Active DB connections — saturation if near `maximum-pool-size` (20)
+
+|`jvm_memory_used_bytes`
+|all services
+|Heap usage — watch for growth trend
+
+|`http_server_requests_seconds_max`
+|admin-api
+|Worst-case request latency
+
+|`spring_kafka_listener_seconds_max`
+|all consumers
+|Worst-case consumer processing time
+|===
+
+=== Structured Log Fields
+
+All services emit JSON logs via Spring Boot 4 native structured logging (`logging.structured.format.console: logstash`). Key fields:
+
+[cols="1,2"]
+|===
+|Field |Example value
+
+|`@timestamp`
+|`2026-04-22T10:15:30.123Z`
+
+|`level`
+|`INFO`, `WARN`, `ERROR`
+
+|`logger_name`
+|`io.emcip.policyengine.PolicyEvaluationService`
+
+|`message`
+|`Policy decision: BLOCK for intent SPAM`
+
+|`traceId`
+|`4bf92f3577b34da6` (populated by Micrometer Tracing)
+
+|`spanId`
+|`00f067aa0ba902b7`
+|===
+
+== Operations Reference
+
+=== Default Credentials
+
+==== Kubernetes (microk8s)
+
+[cols="2,1,1,1,2"]
+|===
+|UI |URL |Username |Password |How to change
+
+|Admin UI
+|http://emcip.local/
+|`admin`
+|`changeme`
+|Update `admin_users` table via `kubectl exec` (see below)
+
+|Grafana
+|http://emcip.local/grafana
+|`admin`
+|<from K8s secret `grafana-admin-password`>
+|Update the K8s secret and restart Grafana pod
+|===
+
+To change the Admin UI password on a running Kubernetes instance:
+
+[source,bash]
+----
+# Get the postgres pod name
+PGPOD=$(kubectl get pod -l app=emcip-postgres -n emcip -o jsonpath='{.items[0].metadata.name}')
+
+# Generate a new bcrypt hash (rounds=12)
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'newpassword', bcrypt.gensalt(12)).decode())"
+
+# Apply it
+kubectl exec -it "$PGPOD" -n emcip -- \
+  psql -U emcip -d emcip -c \
+  "UPDATE admin_users SET password_hash = '<hash>' WHERE username = 'admin';"
+----
+
+The Admin UI JWT signing secret is set via the `admin-jwt-secret` key in the `emcip-secrets` K8s secret (minimum 32 characters). Tokens expire after 8 hours.
+
+==== Docker Compose
 
 [cols="2,1,1,1,2"]
 |===
@@ -38,9 +504,7 @@ NOTE: For the architectural context of these services, see the _Architecture Gui
 |No auth — open access for local development
 |===
 
-The Admin UI JWT signing secret is set via `ADMIN_JWT_SECRET` in `.env` (minimum 32 characters). Tokens expire after 8 hours.
-
-To change the Admin UI password on a running instance:
+To change the Admin UI password on a running Docker Compose instance:
 
 [source,bash]
 ----
@@ -53,7 +517,361 @@ docker exec -it $(docker compose ps -q postgres) \
   "UPDATE admin_users SET password_hash = '<hash>' WHERE username = 'admin';"
 ----
 
-== Infrastructure Overview
+=== Performance Tuning
+
+==== SLOs
+
+[cols="2,1"]
+|===
+|Metric |Target
+
+|p95 intent classification latency
+|< 200ms
+
+|p95 policy evaluation latency
+|< 100ms
+
+|p99 end-to-end pipeline (ingest → audit)
+|< 2s
+
+|Kafka throughput (sustained)
+|500 msg/s
+|===
+
+==== HikariCP Connection Pool
+
+`emcip-policy-engine` is the most DB-intensive service. Current tuning in `application.yml`:
+
+[source,yaml]
+----
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000    # 30s
+      idle-timeout: 600000         # 10min
+----
+
+Monitor `hikaricp_connections_active`. If it saturates at 20 under load, increase `maximum-pool-size` and verify PostgreSQL `max_connections` (default 100).
+
+==== Kafka Consumer Tuning
+
+`emcip-intent-classifier` handles the highest message volume:
+
+[source,yaml]
+----
+spring:
+  kafka:
+    consumer:
+      max-poll-records: 500
+----
+
+Higher values increase throughput but require more heap. Monitor `jvm_memory_used_bytes` when increasing.
+
+==== Java Flight Recorder Profiling
+
+[source,bash]
+----
+# Kubernetes: attach to a running pod
+kubectl exec -it <pod-name> -n emcip -- \
+  jcmd 1 JFR.start duration=60s filename=/tmp/profile.jfr
+kubectl cp emcip/<pod-name>:/tmp/profile.jfr ./profile.jfr
+
+# Docker Compose (replace PID)
+docker exec <container> jcmd <pid> JFR.start duration=60s filename=/tmp/profile.jfr
+----
+
+Open the `.jfr` file in IntelliJ or JDK Mission Control.
+
+==== Running Load Tests
+
+[source,bash]
+----
+cd gatling-tests
+mvn gatling:test
+# Review: gatling-tests/target/gatling/*/index.html
+----
+
+Simulations cover: Admin API auth + CRUD, Kafka publish throughput, policy evaluation endpoint.
+
+=== Error Handling & DLQ
+
+[plantuml,seq-errors,png]
+----
+include::diagrams/sequence-error-handling.puml[]
+----
+
+==== Retry Configuration
+
+Configured in `CommonKafkaConfig` (emcip-core):
+
+* *Retries:* 3 attempts with exponential backoff (500ms, 1s, 2s).
+* *Retryable exceptions:* `RetryableException`, `TransientDataAccessException`, network errors.
+* *Non-retryable exceptions:* `DataIntegrityViolationException`, `IllegalArgumentException`, parse errors — sent directly to DLQ without retry.
+
+==== DLQ Naming Convention
+
+Each topic has a corresponding DLQ:
+
+[source]
+----
+telegram.raw.messages  ->  telegram.raw.messages.dlq
+messages.classified    ->  messages.classified.dlq
+policies.decisions     ->  policies.decisions.dlq
+----
+
+==== Monitoring DLQ
+
+[source,bash]
+----
+# Kubernetes — view DLQ via Kafka CLI
+kubectl exec -it $(kubectl get pod -l app=emcip-kafka -n emcip \
+  -o jsonpath='{.items[0].metadata.name}') -n emcip -- \
+  kafka-console-consumer.sh \
+    --bootstrap-server localhost:9092 \
+    --topic telegram.raw.messages.dlq \
+    --from-beginning
+
+# Docker Compose — view DLQ via Kafka UI (port 14004)
+open http://localhost:14004
+
+# Docker Compose — CLI
+docker exec -it $(docker compose ps -q kafka) \
+  kafka-console-consumer.sh \
+    --bootstrap-server localhost:14002 \
+    --topic telegram.raw.messages.dlq \
+    --from-beginning
+----
+
+The `DeadLetterQueueConsumer` in `emcip-audit-service` writes a DLQ event to the audit log with the original payload and failure reason.
+
+=== Moderation Rules
+
+Rules are evaluated by `emcip-moderation-service` against every `policies.decisions` event.
+
+==== Rule Types
+
+[cols="1,3,2"]
+|===
+|Type |Behaviour |Example pattern
+
+|`KEYWORD`
+|Exact case-insensitive word match in message text
+|`spam`
+
+|`REGEX`
+|Full Java `Pattern.compile()` regex applied to message text
+|`\b(buy\|sell\|crypto)\b`
+
+|`LENGTH`
+|Fires when message character count exceeds the numeric pattern value
+|`500`
+|===
+
+==== Configuring Rules via Admin API
+
+[source,bash]
+----
+# Create a keyword rule
+curl -X POST http://localhost:9087/api/admin/moderation-rules \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ruleType": "KEYWORD",
+    "pattern": "scam",
+    "action": "FLAG",
+    "enabled": true
+  }'
+
+# List all rules
+curl http://localhost:9087/api/admin/moderation-rules \
+  -H "Authorization: Bearer <token>"
+
+# Delete a rule
+curl -X DELETE http://localhost:9087/api/admin/moderation-rules/<id> \
+  -H "Authorization: Bearer <token>"
+----
+
+In Kubernetes, replace `localhost:9087` with `http://emcip.local/api`.
+
+==== Cache Refresh
+
+The moderation-service caches active rules with a 5-minute TTL. Changes made via the Admin API take effect within 5 minutes without a service restart.
+
+=== Troubleshooting
+
+[cols="2,2,3"]
+|===
+|Symptom |Diagnosis command |Fix
+
+|Pod stuck in `Pending`
+|`kubectl describe pod <pod> -n emcip`
+|Check `Events` section — usually a missing secret, PVC not bound, or node selector mismatch.
+
+|Pod stuck in `CrashLoopBackOff`
+|`kubectl logs <pod> -n emcip --previous`
+|Read the previous container's last logs. Common: missing env var, wrong secret key, Kafka not ready.
+
+|Kafka `Connection refused` (K8s)
+|`kubectl get pods -n strimzi-system`
+|Strimzi operator or Kafka CR may not be ready. Check `kubectl get kafka -n emcip`.
+
+|PostgreSQL not ready (K8s)
+|`kubectl logs <postgres-pod> -n emcip`
+|Wait for Liquibase migration to complete. First start with NFS PVC may take 60s.
+
+|Liquibase migration fails (K8s)
+|`kubectl logs <service-pod> -n emcip \| grep Liquibase`
+|A changeset is locked. Connect via `kubectl exec` to postgres pod and delete the lock row.
+
+|TDLib auth fails (K8s)
+|`kubectl logs -l app=emcip-tdlib-adapter -n emcip`
+|Verify `telegram-*` keys in `emcip-secrets`. Interactive auth may be required via `kubectl exec`.
+
+|Grafana shows no data (K8s)
+|`kubectl logs -l app=emcip-loki -n emcip`
+|Loki may not be ready. Check PVC is bound: `kubectl get pvc -n emcip`.
+
+|Port already in use (Docker Compose)
+|`lsof -i :<port>`
+|Stop the process using that port, or remap in `docker-compose.yml`.
+
+|Kafka `Connection refused` (Docker Compose)
+|`docker compose ps kafka`
+|Ensure `KAFKA_BOOTSTRAP_SERVERS=localhost:14003` in `.env`. Internal services use `kafka:14002`.
+
+|PostgreSQL `Connection refused` (Docker Compose)
+|`docker compose ps postgres`
+|Wait for Liquibase migration to complete. Check `docker compose logs postgres`.
+
+|Liquibase migration fails on startup (Docker Compose)
+|`docker compose logs <service> \| grep Liquibase`
+|A changeset is locked or malformed. Run `mvn liquibase:releaseLocks -pl <module>` against the dev DB.
+
+|TDLib auth fails (Docker Compose)
+|`docker compose logs tdlib-adapter`
+|Add `TELEGRAM_PHONE_NUMBER=+<number>` to `.env` and restart.
+
+|Logback startup errors
+|`docker compose logs <service> \| grep logback`
+|Ensure `logstash-logback-encoder` is NOT on the classpath. Use `logging.structured.format.console: logstash` in `application.yml` instead.
+
+|Grafana shows no data (Docker Compose)
+|`curl http://localhost:14008/ready`
+|Loki not ready. Wait 30s and retry. Check `docker compose logs loki`.
+|===
+
+== Backup & Restore
+
+=== Creating a Backup
+
+==== Kubernetes
+
+[source,bash]
+----
+# Get the postgres pod name
+PGPOD=$(kubectl get pod -l app=emcip-postgres -n emcip -o jsonpath='{.items[0].metadata.name}')
+
+# Run pg_dump inside the pod and copy the dump locally
+kubectl exec "$PGPOD" -n emcip -- \
+  pg_dump -U emcip -Fc emcip > backup_$(date +%Y%m%d_%H%M%S).dump
+----
+
+==== Docker Compose
+
+[source,bash]
+----
+# Uses defaults: localhost:14005, database emcip, user emcip
+./scripts/db/backup.sh
+
+# Custom connection
+DB_HOST=myhost DB_PORT=14005 DB_NAME=emcip DB_USER=emcip \
+  PGPASSWORD=secret ./scripts/db/backup.sh
+----
+
+Output: `backup_YYYYMMDD_HHMMSS.dump` in the current directory.
+
+=== Restore Procedure
+
+==== Kubernetes
+
+[source,bash]
+----
+# Step 1: Scale down application services
+kubectl scale deployment -l app.kubernetes.io/instance=emcip -n emcip --replicas=0
+
+# Step 2: Copy dump file into postgres pod
+PGPOD=$(kubectl get pod -l app=emcip-postgres -n emcip -o jsonpath='{.items[0].metadata.name}')
+kubectl cp backup_20260422_120000.dump emcip/"$PGPOD":/tmp/backup.dump
+
+# Step 3: Restore
+kubectl exec "$PGPOD" -n emcip -- \
+  pg_restore -U emcip -d emcip --clean /tmp/backup.dump
+
+# Step 4: Restart services
+kubectl scale deployment -l app.kubernetes.io/instance=emcip -n emcip --replicas=1
+----
+
+==== Docker Compose
+
+[source,bash]
+----
+# Step 1: Stop all application services
+docker compose stop tdlib-adapter conversation-context intent-classifier \
+  policy-engine llm-orchestrator moderation-service audit-service admin-api
+
+# Step 2: Restore from dump file
+./scripts/db/restore.sh backup_20260422_120000.dump
+
+# Step 3: Verify row counts
+docker exec -it $(docker compose ps -q postgres) \
+  psql -U emcip -d emcip -c "
+    SELECT schemaname, tablename, n_live_tup
+    FROM pg_stat_user_tables
+    ORDER BY n_live_tup DESC
+    LIMIT 10;
+  "
+
+# Step 4: Restart services
+docker compose --profile full up -d
+----
+
+=== Environment Variables for Scripts
+
+[cols="1,1,2"]
+|===
+|Variable |Default |Description
+
+|`DB_HOST`
+|`localhost`
+|PostgreSQL host
+
+|`DB_PORT`
+|`14005`
+|PostgreSQL port (EMCIP custom range)
+
+|`DB_NAME`
+|`emcip`
+|Database name
+
+|`DB_USER`
+|`emcip`
+|PostgreSQL username
+
+|`PGPASSWORD`
+|`emcip`
+|PostgreSQL password (read by pg_dump/pg_restore)
+|===
+
+[[appendix-docker-compose]]
+[appendix]
+== Appendix A: Docker Compose
+
+NOTE: Docker Compose is the local development and quick-patch environment.
+For production deployments, see <<kubernetes-deployment>>.
+
+=== Infrastructure Overview
 
 [plantuml,deploy-local,png]
 ----
@@ -73,9 +891,9 @@ The local Docker Compose environment runs 8 application services and 9 infrastru
 |Zookeeper, Kafka broker, Kafka UI, PostgreSQL, pgAdmin, Grafana, Loki, Promtail, Admin UI
 |===
 
-== Docker Compose Quickstart
+=== Quick Start
 
-=== Default Startup (infrastructure only)
+==== Default Startup (infrastructure only)
 
 [source,bash]
 ----
@@ -101,7 +919,7 @@ docker compose --profile telegram up -d
 docker compose --profile observability up -d
 ----
 
-=== `.env` File Setup
+=== .env File Setup
 
 Create a `.env` file in the project root (never commit it):
 
@@ -124,7 +942,7 @@ POSTGRES_PASSWORD=emcip
 POSTGRES_DB=emcip
 ----
 
-== Port Reference
+=== Port Reference
 
 [cols="2,1,3"]
 |===
@@ -199,7 +1017,7 @@ POSTGRES_DB=emcip
 |React SPA for platform administration
 |===
 
-=== Port Conflict Check
+==== Port Conflict Check
 
 [source,bash]
 ----
@@ -210,562 +1028,3 @@ for port in 9080 9081 9082 9083 9084 9085 9086 9087 \
   fi
 done
 ----
-
-== Observability
-
-=== Grafana Dashboards
-
-Open http://localhost:14007 (credentials: `admin` / `admin`).
-
-Three pre-built dashboards are provisioned automatically on startup:
-
-[cols="1,3"]
-|===
-|Dashboard |Shows
-
-|*Service Health*
-|Actuator UP/DOWN status per service, JVM heap used, GC pause time.
-
-|*Kafka Consumer Lag*
-|Consumer group lag per topic. Alert threshold: > 1000 messages.
-
-|*Audit Throughput*
-|Audit events/minute and moderation flags/minute over time.
-|===
-
-=== Loki Log Queries
-
-Open http://localhost:14008 or use the Grafana → Explore → Loki datasource.
-
-[source]
-----
-# All ERROR logs across services
-{job="emcip"} |= "ERROR"
-
-# Errors from policy-engine only
-{job="emcip", service="emcip-policy-engine"} | json | level="ERROR"
-
-# Messages by trace ID
-{job="emcip"} | json | traceId="<trace-id>"
-
-# Kafka consumer errors
-{job="emcip"} |= "KafkaListenerErrorHandler"
-----
-
-=== Prometheus Metrics
-
-Key metrics to watch:
-
-[cols="2,1,2"]
-|===
-|Metric |Service |Meaning
-
-|`kafka_consumer_fetch_manager_records_lag_max`
-|all consumers
-|Maximum consumer lag — spike indicates backpressure
-
-|`hikaricp_connections_active`
-|JPA services
-|Active DB connections — saturation if near `maximum-pool-size` (20)
-
-|`jvm_memory_used_bytes`
-|all services
-|Heap usage — watch for growth trend
-
-|`http_server_requests_seconds_max`
-|admin-api
-|Worst-case request latency
-
-|`spring_kafka_listener_seconds_max`
-|all consumers
-|Worst-case consumer processing time
-|===
-
-=== Structured Log Fields
-
-All services emit JSON logs via Spring Boot 4 native structured logging (`logging.structured.format.console: logstash`). Key fields:
-
-[cols="1,2"]
-|===
-|Field |Example value
-
-|`@timestamp`
-|`2026-04-22T10:15:30.123Z`
-
-|`level`
-|`INFO`, `WARN`, `ERROR`
-
-|`logger_name`
-|`io.emcip.policyengine.PolicyEvaluationService`
-
-|`message`
-|`Policy decision: BLOCK for intent SPAM`
-
-|`traceId`
-|`4bf92f3577b34da6` (populated by Micrometer Tracing)
-
-|`spanId`
-|`00f067aa0ba902b7`
-|===
-
-== Backup & Restore
-
-=== Creating a Backup
-
-[source,bash]
-----
-# Uses defaults: localhost:14005, database emcip, user emcip
-./scripts/db/backup.sh
-
-# Custom connection
-DB_HOST=myhost DB_PORT=14005 DB_NAME=emcip DB_USER=emcip \
-  PGPASSWORD=secret ./scripts/db/backup.sh
-----
-
-Output: `backup_YYYYMMDD_HHMMSS.dump` in the current directory.
-
-=== Restore Procedure
-
-[source,bash]
-----
-# Step 1: Stop all application services
-docker compose stop tdlib-adapter conversation-context intent-classifier \
-  policy-engine llm-orchestrator moderation-service audit-service admin-api
-
-# Step 2: Restore from dump file
-./scripts/db/restore.sh backup_20260422_120000.dump
-
-# Step 3: Verify row counts
-docker exec -it $(docker compose ps -q postgres) \
-  psql -U emcip -d emcip -c "
-    SELECT schemaname, tablename, n_live_tup
-    FROM pg_stat_user_tables
-    ORDER BY n_live_tup DESC
-    LIMIT 10;
-  "
-
-# Step 4: Restart services
-docker compose --profile full up -d
-----
-
-=== Environment Variables for Scripts
-
-[cols="1,1,2"]
-|===
-|Variable |Default |Description
-
-|`DB_HOST`
-|`localhost`
-|PostgreSQL host
-
-|`DB_PORT`
-|`14005`
-|PostgreSQL port (EMCIP custom range)
-
-|`DB_NAME`
-|`emcip`
-|Database name
-
-|`DB_USER`
-|`emcip`
-|PostgreSQL username
-
-|`PGPASSWORD`
-|`emcip`
-|PostgreSQL password (read by pg_dump/pg_restore)
-|===
-
-== Performance Tuning
-
-=== SLOs
-
-[cols="2,1"]
-|===
-|Metric |Target
-
-|p95 intent classification latency
-|< 200ms
-
-|p95 policy evaluation latency
-|< 100ms
-
-|p99 end-to-end pipeline (ingest → audit)
-|< 2s
-
-|Kafka throughput (sustained)
-|500 msg/s
-|===
-
-=== HikariCP Connection Pool
-
-`emcip-policy-engine` is the most DB-intensive service. Current tuning in `application.yml`:
-
-[source,yaml]
-----
-spring:
-  datasource:
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
-      connection-timeout: 30000    # 30s
-      idle-timeout: 600000         # 10min
-----
-
-Monitor `hikaricp_connections_active`. If it saturates at 20 under load, increase `maximum-pool-size` and verify PostgreSQL `max_connections` (default 100).
-
-=== Kafka Consumer Tuning
-
-`emcip-intent-classifier` handles the highest message volume:
-
-[source,yaml]
-----
-spring:
-  kafka:
-    consumer:
-      max-poll-records: 500
-----
-
-Higher values increase throughput but require more heap. Monitor `jvm_memory_used_bytes` when increasing.
-
-=== Java Flight Recorder Profiling
-
-[source,bash]
-----
-# Start recording on a running service (replace PID)
-jcmd <pid> JFR.start duration=60s filename=/tmp/profile.jfr
-
-# Or at JVM startup (add to JAVA_OPTS in docker-compose.yml)
-# -XX:StartFlightRecording=duration=120s,filename=/tmp/profile.jfr,settings=profile
-----
-
-Open the `.jfr` file in IntelliJ or JDK Mission Control.
-
-=== Running Load Tests
-
-[source,bash]
-----
-cd gatling-tests
-mvn gatling:test
-# Review: gatling-tests/target/gatling/*/index.html
-----
-
-Simulations cover: Admin API auth + CRUD, Kafka publish throughput, policy evaluation endpoint.
-
-== Error Handling & DLQ
-
-[plantuml,seq-errors,png]
-----
-include::diagrams/sequence-error-handling.puml[]
-----
-
-=== Retry Configuration
-
-Configured in `CommonKafkaConfig` (emcip-core):
-
-* *Retries:* 3 attempts with exponential backoff (500ms, 1s, 2s).
-* *Retryable exceptions:* `RetryableException`, `TransientDataAccessException`, network errors.
-* *Non-retryable exceptions:* `DataIntegrityViolationException`, `IllegalArgumentException`, parse errors — sent directly to DLQ without retry.
-
-=== DLQ Naming Convention
-
-Each topic has a corresponding DLQ:
-
-[source]
-----
-telegram.raw.messages  ->  telegram.raw.messages.dlq
-messages.classified    ->  messages.classified.dlq
-policies.decisions     ->  policies.decisions.dlq
-----
-
-=== Monitoring DLQ
-
-[source,bash]
-----
-# View DLQ messages via Kafka UI (port 14004)
-open http://localhost:14004
-
-# Or via CLI
-docker exec -it $(docker compose ps -q kafka) \
-  kafka-console-consumer.sh \
-    --bootstrap-server localhost:14002 \
-    --topic telegram.raw.messages.dlq \
-    --from-beginning
-----
-
-The `DeadLetterQueueConsumer` in `emcip-audit-service` writes a DLQ event to the audit log with the original payload and failure reason.
-
-== Moderation Rules
-
-Rules are evaluated by `emcip-moderation-service` against every `policies.decisions` event.
-
-=== Rule Types
-
-[cols="1,3,2"]
-|===
-|Type |Behaviour |Example pattern
-
-|`KEYWORD`
-|Exact case-insensitive word match in message text
-|`spam`
-
-|`REGEX`
-|Full Java `Pattern.compile()` regex applied to message text
-|`\b(buy\|sell\|crypto)\b`
-
-|`LENGTH`
-|Fires when message character count exceeds the numeric pattern value
-|`500`
-|===
-
-=== Configuring Rules via Admin API
-
-[source,bash]
-----
-# Create a keyword rule
-curl -X POST http://localhost:9087/api/admin/moderation-rules \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ruleType": "KEYWORD",
-    "pattern": "scam",
-    "action": "FLAG",
-    "enabled": true
-  }'
-
-# List all rules
-curl http://localhost:9087/api/admin/moderation-rules \
-  -H "Authorization: Bearer <token>"
-
-# Delete a rule
-curl -X DELETE http://localhost:9087/api/admin/moderation-rules/<id> \
-  -H "Authorization: Bearer <token>"
-----
-
-=== Cache Refresh
-
-The moderation-service caches active rules with a 5-minute TTL. Changes made via the Admin API take effect within 5 minutes without a service restart.
-
-== Troubleshooting
-
-[cols="2,2,3"]
-|===
-|Symptom |Diagnosis command |Fix
-
-|Port already in use
-|`lsof -i :<port>`
-|Stop the process using that port, or remap in `docker-compose.yml`.
-
-|Kafka `Connection refused`
-|`docker compose ps kafka`
-|Ensure `KAFKA_BOOTSTRAP_SERVERS=localhost:14003` in `.env`. Internal services use `kafka:14002`.
-
-|PostgreSQL `Connection refused`
-|`docker compose ps postgres`
-|Wait for Liquibase migration to complete. Check `docker compose logs postgres`.
-
-|Liquibase migration fails on startup
-|`docker compose logs <service> \| grep Liquibase`
-|A changeset is locked or malformed. Run `mvn liquibase:releaseLocks -pl <module>` against the dev DB.
-
-|TDLib auth fails
-|`docker compose logs tdlib-adapter`
-|Add `TELEGRAM_PHONE_NUMBER=+<number>` to `.env` and restart.
-
-|Logback startup errors
-|`docker compose logs <service> \| grep logback`
-|Ensure `logstash-logback-encoder` is NOT on the classpath. Use `logging.structured.format.console: logstash` in `application.yml` instead.
-
-|Grafana shows no data
-|`curl http://localhost:14008/ready`
-|Loki not ready. Wait 30s and retry. Check `docker compose logs loki`.
-|===
-
-== Kubernetes Deployment
-
-EMCIP ships a Helm chart at `helm/emcip/`. Docker Compose remains the recommended local development environment; Kubernetes is for staging and production.
-
-=== Prerequisites
-
-The following must be installed and configured on the cluster **before** running `helm install`:
-
-[cols="2,3"]
-|===
-|Prerequisite |Setup command
-
-|microk8s addons
-|`microk8s enable dns ingress storage helm3`
-
-|NFS StorageClass
-a|
-[source,bash]
-----
-helm repo add nfs-subdir-external-provisioner \
-  https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
-helm install nfs-provisioner \
-  nfs-subdir-external-provisioner/nfs-subdir-external-provisioner \
-  --set nfs.server=<NAS_IP> \
-  --set nfs.path=/exports/emcip \
-  --set storageClass.name=nfs-client
-----
-
-|Strimzi operator
-a|
-[source,bash]
-----
-helm repo add strimzi https://strimzi.io/charts/
-helm install strimzi-operator strimzi/strimzi-kafka-operator \
-  -n strimzi-system --create-namespace
-----
-
-|Namespace
-|`kubectl create namespace emcip`
-|===
-
-=== Secrets — Create Before Installing
-
-Secrets are never stored in the chart. Create them manually once:
-
-[source,bash]
-----
-kubectl create secret generic emcip-secrets \
-  --from-literal=postgres-password=<password> \
-  --from-literal=postgres-user=emcip \
-  --from-literal=anthropic-api-key=<key> \
-  --from-literal=admin-jwt-secret=<min-32-char-secret> \
-  --from-literal=admin-service-token=<token> \
-  --from-literal=telegram-api-id=<id> \
-  --from-literal=telegram-api-hash=<hash> \
-  --from-literal=telegram-phone-number=<+4912345> \
-  --from-literal=grafana-admin-password=<password> \
-  -n emcip
-----
-
-NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` must be at least 32 characters.
-`anthropic-api-key` is required only if the LLM profile is active.
-`telegram-*` values are required only if the Telegram profile is active.
-
-=== Install
-
-[source,bash]
-----
-helm install emcip helm/emcip/ -n emcip
-----
-
-Watch rollout progress:
-
-[source,bash]
-----
-kubectl get pods -n emcip -w
-----
-
-All pods should reach `Running` state. Kafka and PostgreSQL may take 2-3 minutes on first start.
-
-=== Upgrade
-
-[source,bash]
-----
-helm upgrade emcip helm/emcip/ -n emcip
-----
-
-=== Rollback
-
-[source,bash]
-----
-helm rollback emcip -n emcip        # rolls back to previous release
-helm history emcip -n emcip         # list available revisions
-helm rollback emcip 2 -n emcip      # roll back to specific revision
-----
-
-=== Access Services
-
-With microk8s ingress enabled and `emcip.local` pointing to the cluster IP (add to `/etc/hosts`):
-
-[source,bash]
-----
-# Add to /etc/hosts (replace with your microk8s IP)
-echo "$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}') emcip.local" \
-  | sudo tee -a /etc/hosts
-----
-
-[cols="2,2,3"]
-|===
-|UI |URL |Notes
-
-|Admin UI
-|http://emcip.local/
-|React SPA
-
-|Admin API
-|http://emcip.local/api
-|REST endpoints
-
-|Grafana
-|http://emcip.local/grafana
-|admin / <grafana-admin-password>
-|===
-
-=== Namespace Strategy
-
-All EMCIP resources deploy to the `emcip` namespace. The Strimzi operator runs in `strimzi-system` (managed separately).
-
-=== Mixed-Cluster Deployment (x86_64 + arm64)
-
-Use this when your microk8s cluster contains both x86_64 and arm64 (Raspberry Pi 4) nodes.
-The base `values.yaml` works unchanged for homogeneous x86_64 clusters; the overlay only changes
-what differs.
-
-==== Why some services must run on amd64
-
-[cols="2,3"]
-|===
-|Service |Reason
-
-|`policy-engine`
-|GraalVM native image (`native-amd64` tag) — x86_64 binary
-
-|`conversation-context`
-|GraalVM native image (`native-amd64` tag) — x86_64 binary
-
-|`llm-orchestrator`
-|GraalVM native image (`native-amd64` tag) — x86_64 binary
-
-|`tdlib-adapter`
-|`libtdjni.so` compiled from source during Docker build (cmake, amd64-only)
-|===
-
-All other services use `eclipse-temurin:21-jdk` which publishes multi-arch manifests — they run
-on Pi 4 without changes.
-
-==== Build images
-
-Run from the project root on an x86_64 machine:
-
-[source,bash]
-----
-# Build native-amd64 images for the three GraalVM services + tdlib-adapter:latest
-scripts/build-images.sh --native amd64
-
-# Build JVM :latest images for all services (multi-arch via eclipse-temurin base)
-scripts/build-images.sh --jvm
-----
-
-==== Deploy
-
-[source,bash]
-----
-helm upgrade --install emcip helm/emcip/ \
-  -f helm/emcip/values-mixed-cluster.yaml \
-  -n emcip
-----
-
-==== Node placement
-
-After deployment, verify pods landed on the correct nodes:
-
-[source,bash]
-----
-microk8s kubectl get pods -n emcip -o wide
-----
-
-`policy-engine`, `conversation-context`, `llm-orchestrator`, and `tdlib-adapter` pods should show
-an x86_64 node in the `NODE` column. All other pods may run on any node.
