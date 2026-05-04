@@ -10,6 +10,10 @@ This guide covers two audiences:
 * *Part I — Admin UI*: Platform administrators using the browser-based interface at http://localhost:14009.
 * *Part II — REST API*: Developers and automation scripts calling the Admin API directly at http://localhost:9087.
 
+NOTE: EMCIP runs on microk8s in production.
+The Admin UI is available at `http://emcip.local/` and the Admin API at `http://emcip.local/api`.
+For local development (Docker Compose), use `http://localhost:14009` and `http://localhost:9087` respectively.
+
 NOTE: For JWT internals and the full security architecture, see the _Architecture Guide_.
 
 == Part I — Admin UI
