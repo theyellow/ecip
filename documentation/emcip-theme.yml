@@ -23,11 +23,11 @@ base:
   border_color: e2e8f0
 
 link:
-  font_color: c9a84c
+  font_color: 2563eb
 
 heading:
   font_family: Cinzel
-  font_color: c9a84c
+  font_color: 1e3a5f
   font_style: bold
   line_height: 1.2
   margin_top: 16
@@ -35,7 +35,7 @@ heading:
 
 heading_h1:
   font_size: 22
-  border_bottom_color: c9a84c
+  border_bottom_color: 3b82f6
   border_bottom_width: 1.5
   padding_bottom: 4
 
@@ -53,7 +53,7 @@ title_page:
   align: left
   title:
     font_family: Cinzel
-    font_color: c9a84c
+    font_color: 1e3a5f
     font_size: 28
     font_style: bold
     line_height: 1
@@ -70,9 +70,9 @@ title_page:
 
 # Inline code
 codespan:
-  font_color: c9a84c
+  font_color: 334155
   font_family: Source Code Pro
-  background_color: f8fafc
+  background_color: f1f5f9
   border_color: e2e8f0
   border_radius: 3
   border_width: 0.5
@@ -80,10 +80,10 @@ codespan:
 # Code blocks
 code:
   font_family: Source Code Pro
-  font_color: c7d2fe
+  font_color: 1e293b
   font_size: 9
-  background_color: 1e1b4b
-  border_left_color: c9a84c
+  background_color: f1f5f9
+  border_left_color: 3b82f6
   border_left_width: 3
   border_radius: 4
   padding: [8, 12, 8, 12]
@@ -95,8 +95,8 @@ table:
   border_color: e2e8f0
   border_width: 0.5
   head:
-    background_color: c9a84c
-    font_color: 0d0b24
+    background_color: e2e8f0
+    font_color: 1e293b
     font_family: Cinzel
     font_size: 8.5
     font_style: bold
@@ -108,18 +108,18 @@ table:
 # Admonition blocks (NOTE, TIP, WARNING, etc.)
 admonition:
   border_left_width: 3
-  border_color: c9a84c
+  border_color: 3b82f6
   background_color: f8fafc
   padding: [8, 16, 8, 16]
   label:
     font_family: Cinzel
-    font_color: c9a84c
+    font_color: 1e3a5f
     font_size: 8
     font_style: bold
 
 # Header / footer
 header:
-  border_bottom_color: c9a84c
+  border_bottom_color: 3b82f6
   border_bottom_width: 0.5
   font_family: Cinzel
   font_color: 64748b
