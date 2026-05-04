@@ -1,0 +1,118 @@
+/* EMCIP screen stylesheet — applied by asciidoctor HTML5 backend */
+/* Wired via pom.xml asciidoctor plugin attributes, not per-document headers */
+
+body {
+  font-family: Georgia, serif;
+  color: #1e293b;
+  background: #ffffff;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem;
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #1e3a5f;
+  font-family: Georgia, serif;
+  margin-top: 1.5em;
+}
+
+h2 {
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.3em;
+}
+
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+pre {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-left: 3px solid #3b82f6;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 4px;
+  line-height: 1.4;
+  font-size: 0.9em;
+}
+
+code {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1.5em;
+}
+
+table th, table td {
+  border: 1px solid #e2e8f0;
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+table thead {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.admonitionblock {
+  border-left: 3px solid #3b82f6;
+  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  margin: 1em 0;
+}
+
+.admonitionblock td.icon {
+  font-weight: bold;
+  color: #1e3a5f;
+  padding-right: 0.75rem;
+  white-space: nowrap;
+}
+
+.admonitionblock td.content {
+  width: 100%;
+}
+
+/* Table of contents */
+#toc {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 4px;
+}
+
+#toc ul {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+/* Source listing titles */
+.title {
+  font-style: italic;
+  color: #64748b;
+  margin-bottom: 0.25em;
+}
