@@ -20,6 +20,10 @@ spec:
         app.kubernetes.io/name: {{ .Values.tdlibAdapter.name }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      {{- if .Values.tdlibAdapter.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.tdlibAdapter.nodeSelector | nindent 8 }}
+      {{- end }}
       containers:
         - name: tdlib-adapter
           image: {{ .Values.image.registry }}{{ .Values.tdlibAdapter.image }}

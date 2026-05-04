@@ -21,6 +21,10 @@ spec:
         app.kubernetes.io/name: {{ $svc.name }}
         app.kubernetes.io/instance: {{ $.Release.Name }}
     spec:
+      {{- if $svc.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $svc.nodeSelector | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ $svc.name }}
           image: {{ $.Values.image.registry }}{{ $svc.image }}

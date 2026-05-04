@@ -43,9 +43,10 @@ ingress:
 services:
   conversationContext:
     name: conversation-context
-    image: emcip/conversation-context:latest
+    image: ghcr.io/theyellow/ecip/conversation-context:jvm-latest
     port: 9081
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
@@ -59,9 +60,10 @@ services:
 
   intentClassifier:
     name: intent-classifier
-    image: emcip/intent-classifier:latest
+    image: ghcr.io/theyellow/ecip/intent-classifier:latest
     port: 9082
     replicas: 1
+    nodeSelector: {}
     env:
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
     resources:
@@ -74,9 +76,10 @@ services:
 
   policyEngine:
     name: policy-engine
-    image: emcip/policy-engine:latest
+    image: ghcr.io/theyellow/ecip/policy-engine:jvm-latest
     port: 9083
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
@@ -90,9 +93,10 @@ services:
 
   llmOrchestrator:
     name: llm-orchestrator
-    image: emcip/llm-orchestrator:latest
+    image: ghcr.io/theyellow/ecip/llm-orchestrator:jvm-latest
     port: 9084
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
@@ -108,9 +112,10 @@ services:
 
   moderationService:
     name: moderation-service
-    image: emcip/moderation-service:latest
+    image: ghcr.io/theyellow/ecip/moderation-service:latest
     port: 9085
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
@@ -125,9 +130,10 @@ services:
 
   auditService:
     name: audit-service
-    image: emcip/audit-service:latest
+    image: ghcr.io/theyellow/ecip/audit-service:latest
     port: 9086
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
@@ -142,9 +148,10 @@ services:
 
   adminApi:
     name: admin-api
-    image: emcip/admin-api:latest
+    image: ghcr.io/theyellow/ecip/admin-api:latest
     port: 9087
     replicas: 1
+    nodeSelector: {}
     env:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
@@ -162,9 +169,10 @@ services:
 
   adminUi:
     name: admin-ui
-    image: emcip/admin-ui:latest
+    image: ghcr.io/theyellow/ecip/admin-ui:latest
     port: 14009
     replicas: 1
+    nodeSelector: {}
     env: {}
     resources:
       requests:
@@ -177,9 +185,10 @@ services:
 # tdlib-adapter is a StatefulSet (separate section — needs PVC for session state)
 tdlibAdapter:
   name: tdlib-adapter
-  image: emcip/tdlib-adapter:latest
+  image: ghcr.io/theyellow/ecip/tdlib-adapter:latest
   port: 9080
   replicas: 1
+  nodeSelector: {}
   env:
     KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
   secrets:
