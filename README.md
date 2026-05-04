@@ -21,7 +21,7 @@ The platform acts as a context-sensitive communication assistant with four opera
 - **Group ID:** `io.emcip`
 - **Artifact ID:** `community-intelligence-parent`
 - **Version:** `0.1.0-SNAPSHOT`
-- **Java Version:** 21 (development target; Java 25 planned for production once GA)
+- **Java Version:** 21 (JVM builds); GraalVM 25 required for native image builds (see developer guide)
 - **Spring Boot:** 4.x
 
 ## Module Structure
@@ -73,7 +73,7 @@ community-intelligence/
 
 ## Prerequisites
 
-- **Java:** JDK 21 or higher (target is Java 25, but 21+ works for development)
+- **Java:** JDK 21 (all JVM builds and daily development); GraalVM 25 for native image builds only (policy-engine, conversation-context, llm-orchestrator) — see developer guide. Note: Spotless is incompatible with JDK 25; always run `mvn spotless:apply` with JDK 21.
 - **Maven:** 3.8.0 or higher
 - **Docker:** For local development (Kafka, PostgreSQL)
 - **Telegram API credentials:** api_id and api_hash (for Phase 2)
