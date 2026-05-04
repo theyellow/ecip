@@ -4,6 +4,8 @@
 **Status:** Approved
 **Scope:** emcip-tdlib-adapter, emcip-admin-api, emcip-admin-ui
 
+> **Pre-implementation risk:** Multi-account authentication has only been tested with a single account. The first implementation task must verify that two accounts can authenticate and receive messages independently before building the group watching layer on top.
+
 ---
 
 ## Context
@@ -219,7 +221,11 @@ Each account row in the accounts table gains a **"Groups" button**. Clicking it 
 - Lists all groups the bot is a member of: Name, Member count, Type, Watch button
 - "Watch" button grayed out (label: "Watching") if the chat is already in the watched list
 - On "Watch" click: calls `POST /api/telegram/accounts/{id}/watch`, refreshes both the watched sub-table and the modal
+- "Refresh" button in the modal header — re-fetches the chat list (needed because TDLib takes a few seconds to sync chats after a fresh session; operator can retry if the list appears empty or incomplete)
 - Loading and error states on the fetch
+
+**Auto-open on authentication:**
+The auth wizard already polls `GET /api/telegram/accounts/{id}/status` every 2.5 seconds. When the poll detects `ACTIVE`, instead of only closing the wizard, it also automatically opens the discover modal for that account. No backend change needed — the UI drives this. The operator can close the modal if they don't want to configure groups immediately.
 
 **Invite link input (bottom of discover modal — if join endpoint is implemented):**
 - Text input: "Invite link (optional)" + "Join & Watch" button
@@ -244,7 +250,6 @@ Each account row in the accounts table gains a **"Groups" button**. Clicking it 
 
 ## Out of Scope
 
-- Automatic group discovery on account ACTIVE transition (push from tdlib-adapter)
 - Editing GroupProfile moderation settings from the Telegram accounts page (use existing Groups page)
 - Unwatch all groups when an account is deleted (deferred — FK cascade can handle orphan cleanup)
 - Per-group Kafka topic routing (all watched groups go to `telegram.raw.messages`)
