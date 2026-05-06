@@ -1,7 +1,7 @@
 # GraalVM Native Image Migration Design
 
 **Date:** 2026-04-29
-**Status:** Approved
+**Status:** Implemented — note: `Dockerfile.native` was upgraded to `ghcr.io/graalvm/native-image-community:25` during implementation (Spring Boot 4 AOT requires GraalVM 25); references to `:21` in this spec are superseded
 **Scope:** Migrate eligible JPA services to GraalVM native image; document R2DBC services as deferred; add Ubuntu LTS developer setup guide
 
 ---

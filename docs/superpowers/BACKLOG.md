@@ -102,13 +102,6 @@ Platform admins currently manage all Telegram accounts. Allow end-users to conne
 
 ---
 
-### Admin UI: live Telegram auth flow in UI
-**Source:** `specs/2026-04-24-admin-ui-phase2-design.md` — "Out of Scope"
-
-The phone → code → session auth flow for Telegram accounts is deferred to a Phase C+1 Admin UI feature.
-
----
-
 ### Admin UI: LLM cost analytics dashboard
 **Source:** `specs/2026-04-24-admin-ui-phase2-design.md` — "Out of Scope"
 
@@ -116,14 +109,3 @@ Usage/cost dashboard showing per-tenant LLM call counts and token expenditure. S
 
 ---
 
-## Documentation
-
-### Kubernetes-first documentation restructure
-**Source:** Discussed 2026-05-03 — agreed next spec after GitHub Actions CI/CD
-
-Restructure all AsciiDoc guides and PlantUML diagrams so that Kubernetes/microk8s is the primary operator path and Docker Compose is documented as developer/patch tooling. Includes:
-- New Kubernetes deployment diagram (PlantUML)
-- Reordered operations guide (Kubernetes first, Docker Compose second)
-- Clear CI/CD vs. operator responsibility boundary throughout docs
-- Developer guide updated to reflect Docker Compose as local-dev tool
-- Architecture guide updated to reference Kubernetes as production runtime
