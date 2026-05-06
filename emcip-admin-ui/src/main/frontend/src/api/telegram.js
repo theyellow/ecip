@@ -20,5 +20,14 @@ export function telegramApi(request) {
       }),
     logout: id =>
       request(`/api/telegram/accounts/${id}/logout`, { method: 'POST' }),
+    discoverChats: id => request(`/api/telegram/accounts/${id}/chats`),
+    listWatched: id => request(`/api/telegram/accounts/${id}/watched`),
+    watchGroup: (id, body) =>
+      request(`/api/telegram/accounts/${id}/watch`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    unwatchGroup: (id, chatId) =>
+      request(`/api/telegram/accounts/${id}/watch/${chatId}`, { method: 'DELETE' }),
   }
 }
