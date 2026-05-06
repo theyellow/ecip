@@ -237,4 +237,73 @@ public class TdApi {
         public String username;
         public String phoneNumber;
     }
+
+    // Chat type hierarchy
+    public abstract static class ChatType extends Object {}
+
+    public static class ChatTypeSupergroup extends ChatType {
+        public static final int CONSTRUCTOR = -1472570774;
+        public long supergroupId;
+        public boolean isChannel;
+    }
+
+    public static class ChatTypeBasicGroup extends ChatType {
+        public static final int CONSTRUCTOR = 1239182448;
+        public long basicGroupId;
+    }
+
+    public static class ChatTypePrivate extends ChatType {
+        public static final int CONSTRUCTOR = 1579934391;
+        public long userId;
+    }
+
+    public static class ChatTypeSecret extends ChatType {
+        public static final int CONSTRUCTOR = 862366513;
+        public int secretChatId;
+        public long userId;
+    }
+
+    // Chat
+    public static class Chat extends Object {
+        public static final int CONSTRUCTOR = -861487386;
+        public long id;
+        public ChatType type;
+        public String title;
+    }
+
+    // Chats (list of chat IDs)
+    public static class Chats extends Object {
+        public static final int CONSTRUCTOR = -1245016219;
+        public int totalCount;
+        public long[] chatIds;
+    }
+
+    // GetChats function
+    public static class GetChats extends Function<Chats> {
+        public static final int CONSTRUCTOR = -972768574;
+        public ChatList chatList;
+        public int limit;
+
+        public GetChats(ChatList chatList, int limit) {
+            this.chatList = chatList;
+            this.limit = limit;
+        }
+    }
+
+    // GetChat function
+    public static class GetChat extends Function<Chat> {
+        public static final int CONSTRUCTOR = 1866601536;
+        public long chatId;
+
+        public GetChat(long chatId) {
+            this.chatId = chatId;
+        }
+    }
+
+    // ChatList (abstract, null = main chat list)
+    public abstract static class ChatList extends Object {}
+
+    public static class ChatListMain extends ChatList {
+        public static final int CONSTRUCTOR = -400991316;
+    }
 }

@@ -4,8 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.entity.AccountWatchedGroup;
+import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
+import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
+import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import java.time.Instant;
 import java.util.UUID;
@@ -25,6 +29,8 @@ class TelegramAccountControllerTest {
     @Mock TelegramAccountRepository repository;
     @Mock R2dbcEntityTemplate r2dbcEntityTemplate;
     @Mock WebClient tdlibClient;
+    @Mock AccountWatchedGroupRepository watchedGroupRepository;
+    @Mock GroupProfileRepository groupProfileRepository;
 
     TelegramAccountController controller;
 
@@ -32,7 +38,13 @@ class TelegramAccountControllerTest {
     void setUp() {
         controller =
                 new TelegramAccountController(
-                        repository, r2dbcEntityTemplate, tdlibClient, 12345, "abc123");
+                        repository,
+                        r2dbcEntityTemplate,
+                        tdlibClient,
+                        watchedGroupRepository,
+                        groupProfileRepository,
+                        12345,
+                        "abc123");
     }
 
     @Test
@@ -82,6 +94,32 @@ class TelegramAccountControllerTest {
                             assertThat(map.get("phoneNumber")).isEqualTo("+49123456789");
                             assertThat(map).doesNotContainKey("apiHash");
                             assertThat(map).doesNotContainKey("sessionString");
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void listWatched_returnsWatchedGroupsForAccount() {
+        UUID accountId = UUID.randomUUID();
+        GroupProfile profile =
+                GroupProfile.builder()
+                        .id(1L)
+                        .telegramChatId(555L)
+                        .name("Test Group")
+                        .moderationLevel("MEDIUM")
+                        .build();
+        AccountWatchedGroup awg =
+                AccountWatchedGroup.builder().accountId(accountId).groupProfileId(1L).build();
+
+        when(watchedGroupRepository.findByAccountId(accountId)).thenReturn(Flux.just(awg));
+        when(groupProfileRepository.findById(1L)).thenReturn(Mono.just(profile));
+
+        StepVerifier.create(controller.listWatched(accountId))
+                .assertNext(
+                        list -> {
+                            assertThat(list).hasSize(1);
+                            assertThat(list.get(0).get("chatId")).isEqualTo(555L);
+                            assertThat(list.get(0).get("name")).isEqualTo("Test Group");
                         })
                 .verifyComplete();
     }

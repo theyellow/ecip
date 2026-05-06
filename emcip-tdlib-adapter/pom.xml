@@ -61,6 +61,12 @@
       <artifactId>jackson-datatype-jsr310</artifactId>
     </dependency>
 
+    <!-- Caffeine cache for message deduplication -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
     <!-- Observability -->
 
     <!-- Lombok -->

@@ -102,3 +102,30 @@
 .disabledSection { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 
 .disabledLabel { color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.5rem; }
+
+.groupsPanel { background: var(--bg-secondary, #f8f9fa); padding: 1rem 1.5rem; }
+
+.groupsPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.innerTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.innerTable th,
+.innerTable td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.discoverModal { display: flex; flex-direction: column; gap: 0.75rem; min-width: 480px; }
+
+.discoverHeader { display: flex; justify-content: flex-end; }

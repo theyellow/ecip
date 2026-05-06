@@ -1,7 +1,11 @@
 package io.emcip.admin.api.controller;
 
+import io.emcip.admin.api.entity.AccountWatchedGroup;
+import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
+import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
+import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -12,6 +16,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,6 +38,8 @@ public class TelegramAccountController {
     private final TelegramAccountRepository repository;
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
     private final WebClient tdlibClient;
+    private final AccountWatchedGroupRepository watchedGroupRepository;
+    private final GroupProfileRepository groupProfileRepository;
     private final int telegramApiId;
     private final String telegramApiHash;
 
@@ -40,11 +47,15 @@ public class TelegramAccountController {
             TelegramAccountRepository repository,
             R2dbcEntityTemplate r2dbcEntityTemplate,
             @Qualifier("tdlibWebClient") WebClient tdlibClient,
+            AccountWatchedGroupRepository watchedGroupRepository,
+            GroupProfileRepository groupProfileRepository,
             @Value("${telegram.api-id}") int telegramApiId,
             @Value("${telegram.api-hash}") String telegramApiHash) {
         this.repository = repository;
         this.r2dbcEntityTemplate = r2dbcEntityTemplate;
         this.tdlibClient = tdlibClient;
+        this.watchedGroupRepository = watchedGroupRepository;
+        this.groupProfileRepository = groupProfileRepository;
         this.telegramApiId = telegramApiId;
         this.telegramApiHash = telegramApiHash;
     }
@@ -211,6 +222,125 @@ public class TelegramAccountController {
                                 .then());
     }
 
+    @GetMapping("/{id}/chats")
+    public Mono<List<Map<String, Object>>> discoverChats(@PathVariable("id") UUID id) {
+        return tdlibClient
+                .get()
+                .uri("/internal/chats/{id}", id)
+                .retrieve()
+                .bodyToFlux(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .collectList()
+                .onErrorReturn(List.of());
+    }
+
+    @GetMapping("/{id}/watched")
+    public Mono<List<Map<String, Object>>> listWatched(@PathVariable("id") UUID id) {
+        return watchedGroupRepository
+                .findByAccountId(id)
+                .flatMap(
+                        awg ->
+                                groupProfileRepository
+                                        .findById(awg.getGroupProfileId())
+                                        .map(this::toWatchedMap))
+                .collectList();
+    }
+
+    @PostMapping("/{id}/watch")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<Map<String, Object>> watchGroup(
+            @PathVariable("id") UUID accountId, @RequestBody WatchRequest req) {
+        return groupProfileRepository
+                .findByTelegramChatId(req.chatId())
+                .switchIfEmpty(
+                        Mono.defer(
+                                () ->
+                                        r2dbcEntityTemplate.insert(
+                                                GroupProfile.builder()
+                                                        .telegramChatId(req.chatId())
+                                                        .name(
+                                                                req.title() != null
+                                                                        ? req.title()
+                                                                        : "Chat " + req.chatId())
+                                                        .rulesEnabled("[]")
+                                                        .autoRespond(false)
+                                                        .moderationLevel("MEDIUM")
+                                                        .createdAt(Instant.now())
+                                                        .updatedAt(Instant.now())
+                                                        .build())))
+                .flatMap(
+                        profile ->
+                                watchedGroupRepository
+                                        .existsByAccountIdAndGroupProfileId(
+                                                accountId, profile.getId())
+                                        .flatMap(
+                                                exists ->
+                                                        exists
+                                                                ? Mono.just(profile)
+                                                                : r2dbcEntityTemplate
+                                                                        .insert(
+                                                                                AccountWatchedGroup
+                                                                                        .builder()
+                                                                                        .accountId(
+                                                                                                accountId)
+                                                                                        .groupProfileId(
+                                                                                                profile
+                                                                                                        .getId())
+                                                                                        .createdAt(
+                                                                                                Instant
+                                                                                                        .now())
+                                                                                        .build())
+                                                                        .thenReturn(profile)))
+                .flatMap(profile -> pushWatchedGroups(accountId).thenReturn(profile))
+                .map(this::toWatchedMap);
+    }
+
+    @DeleteMapping("/{id}/watch/{chatId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> unwatchGroup(
+            @PathVariable("id") UUID accountId, @PathVariable("chatId") Long chatId) {
+        return groupProfileRepository
+                .findByTelegramChatId(chatId)
+                .flatMap(
+                        profile ->
+                                watchedGroupRepository.deleteByAccountIdAndGroupProfileId(
+                                        accountId, profile.getId()))
+                .then(pushWatchedGroups(accountId));
+    }
+
+    private Mono<Void> pushWatchedGroups(UUID accountId) {
+        return watchedGroupRepository
+                .findByAccountId(accountId)
+                .flatMap(awg -> groupProfileRepository.findById(awg.getGroupProfileId()))
+                .map(GroupProfile::getTelegramChatId)
+                .collectList()
+                .flatMap(
+                        chatIds ->
+                                tdlibClient
+                                        .post()
+                                        .uri("/internal/watched-groups/{id}", accountId)
+                                        .bodyValue(Map.of("chatIds", chatIds))
+                                        .retrieve()
+                                        .bodyToMono(Void.class)
+                                        .onErrorResume(
+                                                e -> {
+                                                    log.warn(
+                                                            "[{}] Failed to push watched groups:"
+                                                                    + " {}",
+                                                            accountId,
+                                                            e.getMessage());
+                                                    return Mono.empty();
+                                                }));
+    }
+
+    private Map<String, Object> toWatchedMap(GroupProfile profile) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("chatId", profile.getTelegramChatId());
+        m.put("groupProfileId", profile.getId());
+        m.put("name", profile.getName());
+        m.put("moderationLevel", profile.getModerationLevel());
+        return m;
+    }
+
     private static TelegramAccount update(
             TelegramAccount a, TelegramAccountStatus status, String lastError) {
         a.setStatus(status);
@@ -237,6 +367,8 @@ public class TelegramAccountController {
     public record CodeRequest(String code) {}
 
     public record PasswordRequest(String password) {}
+
+    public record WatchRequest(long chatId, String title) {}
 
     @Data
     public static class TdlibStatusResponse {
