@@ -140,6 +140,90 @@ Results are paginated (50 per page). Use *Previous* / *Next* to navigate.
 
 Click any row to expand the event payload. The raw JSON is displayed with syntax highlighting for inspection.
 
+=== Telegram Account Management
+
+EMCIP connects to Telegram as a full user-bot client (not a bot API). Each Telegram account
+authenticates interactively — the platform sends a code to the account's phone and requires
+entry via the Admin UI.
+
+==== Adding a Telegram Account
+
+. Navigate to *Telegram* in the sidebar.
+. Click *Add Account*.
+. Enter the phone number in international format (e.g., `+491234567890`).
+. Click *Send Code*. Telegram sends a verification code to the phone.
+. Enter the received code in the *Verification Code* field.
+. Click *Authenticate*. The account status changes to *ACTIVE* when the session is established.
+
+NOTE: The verification code arrives as a Telegram message from the Telegram service itself.
+Check the Telegram app on the registered phone to retrieve it.
+
+[WARNING]
+====
+Each Telegram account can only be active in one session at a time. Re-authenticating an
+account after session expiry requires removing and re-adding it.
+====
+
+==== Account Status Values
+
+[cols="1,3"]
+|===
+|Status |Meaning
+
+|`PENDING`
+|Account created; authentication not started.
+
+|`AWAITING_CODE`
+|Verification code sent to phone. Waiting for the operator to enter the code.
+
+|`ACTIVE`
+|Session established. The account is receiving Telegram updates.
+
+|`FAILED`
+|Authentication failed (wrong code, code expired, or session error).
+Remove and re-add the account to retry.
+|===
+
+==== Watching Groups
+
+Once an account is *ACTIVE*, you configure which Telegram groups it monitors.
+EMCIP only publishes messages from *watched* groups to the processing pipeline —
+unwatched groups are silently ignored.
+
+===== Discovering Groups
+
+. Find the account in the accounts table.
+. Click *Groups*. An inline panel expands showing the account's watched groups.
+. Click *Discover Groups*. The platform queries TDLib to list all groups the account
+  is currently a member of.
+. The discover modal shows: Name, Member Count, Type, and a *Watch* button per group.
+
+NOTE: If the list appears empty, click *Refresh* in the modal header. TDLib may take a few
+seconds to sync chats after a fresh session.
+
+===== Watching a Group
+
+In the Discover Groups modal, click *Watch* next to the group. The group moves to the watched
+sub-table immediately. The *Watch* button is replaced by *Watching* (grayed out).
+
+===== Unwatching a Group
+
+In the watched groups sub-table, click *Unwatch*. Messages from that group stop reaching the
+pipeline immediately.
+
+===== Joining by Invite Link
+
+At the bottom of the Discover Groups modal, enter a Telegram invite link
+(e.g., `https://t.me/+abc123`) in the *Invite link* field and click *Join & Watch*.
+The platform joins the group via TDLib and automatically adds it to the watch list.
+
+NOTE: The account must be able to join the group. Restricted groups return an inline error.
+
+==== Multi-Account Deduplication
+
+When multiple accounts watch the same group, EMCIP deduplicates messages — each message
+reaches the processing pipeline exactly once, regardless of how many accounts received it.
+
 ---
 
 == Part II — REST API Reference
@@ -375,6 +459,98 @@ curl "http://localhost:9087/api/audit/events?eventType=POLICY_DECISION&from=2026
 |Message character count exceeds the numeric value
 |`500`
 |===
+
+=== Telegram Accounts API
+
+The Telegram Accounts API manages user-bot account lifecycle and group watch configuration.
+All endpoints require `Authorization: Bearer <token>`.
+
+==== Account Management
+
+[cols="1,1,3"]
+|===
+|Method + Path |Description |Notes
+
+|`GET /api/telegram/accounts`
+|List accounts
+|Returns array of `{id, phoneNumber, status, createdAt}`
+
+|`POST /api/telegram/accounts`
+|Add account
+|Body: `{phoneNumber}`. Creates account in `PENDING` state.
+
+|`GET /api/telegram/accounts/{id}/status`
+|Get status
+|Returns `{id, status}`. Poll after code submission to detect `ACTIVE`.
+|===
+
+==== Group Watching
+
+[cols="1,1,3"]
+|===
+|Method + Path |Description |Notes
+
+|`GET /api/telegram/accounts/{id}/chats`
+|Discover groups
+|Returns groups the account is a member of: `[{chatId, title, memberCount, type}]`.
+Account must be ACTIVE.
+
+|`GET /api/telegram/accounts/{id}/watched`
+|List watched groups
+|Returns `[{chatId, groupProfileId, name, moderationLevel}]`.
+
+|`POST /api/telegram/accounts/{id}/watch`
+|Watch a group
+|Body: `{chatId, title, memberCount}`. Returns 201 with GroupProfile. Idempotent.
+
+|`DELETE /api/telegram/accounts/{id}/watch/{chatId}`
+|Unwatch a group
+|Returns 204. GroupProfile is not deleted (other accounts may reference it).
+
+|`POST /api/telegram/accounts/{id}/join`
+|Join & watch by invite link
+|Body: `{inviteLink}`. Joins via TDLib then adds to watch list. Returns 201 with GroupProfile.
+|===
+
+==== Watch a Group Example
+
+[source,bash]
+----
+curl -X POST http://localhost:9087/api/telegram/accounts/<account-id>/watch \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chatId": -1001234567890,
+    "title": "Community Alpha Chat",
+    "memberCount": 1500
+  }'
+----
+
+Response:
+
+[source,json]
+----
+HTTP/1.1 201 Created
+Content-Type: application/json
+
+{
+  "id": 42,
+  "telegramChatId": -1001234567890,
+  "name": "Community Alpha Chat",
+  "moderationLevel": "STANDARD"
+}
+----
+
+==== Unwatch a Group Example
+
+[source,bash]
+----
+curl -X DELETE \
+  "http://localhost:9087/api/telegram/accounts/<account-id>/watch/-1001234567890" \
+  -H "Authorization: Bearer <token>"
+----
+
+Response: `HTTP/1.1 204 No Content`
 
 === Health & Metrics
 
