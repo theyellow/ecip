@@ -155,6 +155,9 @@ entry via the Admin UI.
 . Enter the received code in the *Verification Code* field.
 . Click *Authenticate*. The account status changes to *ACTIVE* when the session is established.
 
+NOTE: New accounts start in `UNCONFIGURED` status. The status progresses through `AWAITING_CODE`
+(and optionally `AWAITING_PASSWORD` for 2FA-enabled accounts) before reaching `ACTIVE`.
+
 NOTE: The verification code arrives as a Telegram message from the Telegram service itself.
 Check the Telegram app on the registered phone to retrieve it.
 
@@ -170,18 +173,20 @@ account after session expiry requires removing and re-adding it.
 |===
 |Status |Meaning
 
-|`PENDING`
+|`UNCONFIGURED`
 |Account created; authentication not started.
 
 |`AWAITING_CODE`
 |Verification code sent to phone. Waiting for the operator to enter the code.
 
+|`AWAITING_PASSWORD`
+|Two-factor authentication (2FA) password required. Enter the cloud password.
+
 |`ACTIVE`
 |Session established. The account is receiving Telegram updates.
 
-|`FAILED`
-|Authentication failed (wrong code, code expired, or session error).
-Remove and re-add the account to retry.
+|`DISCONNECTED`
+|Session terminated or authentication failed. Remove and re-add the account to retry.
 |===
 
 ==== Watching Groups
@@ -578,7 +583,10 @@ curl -X DELETE \
   -H "Authorization: Bearer <token>"
 ----
 
-Response: `HTTP/1.1 204 No Content`
+[source,http]
+----
+HTTP/1.1 204 No Content
+----
 
 === Health & Metrics
 
