@@ -3,6 +3,7 @@ package io.emcip.tdlib.adapter.config;
 import io.emcip.tdlib.adapter.service.TelegramUpdateHandler;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -18,11 +19,15 @@ public class TdLibClientManager {
     private final TdLibProperties properties;
     private final TelegramUpdateHandler updateHandler;
     private final ConcurrentMap<UUID, TdLibClient> clients = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, Set<Long>> watchedChatIds;
 
     public TdLibClientManager(
-            TdLibProperties properties, @Lazy TelegramUpdateHandler updateHandler) {
+            TdLibProperties properties,
+            @Lazy TelegramUpdateHandler updateHandler,
+            ConcurrentMap<UUID, Set<Long>> watchedChatIds) {
         this.properties = properties;
         this.updateHandler = updateHandler;
+        this.watchedChatIds = watchedChatIds;
     }
 
     /**
@@ -84,6 +89,16 @@ public class TdLibClientManager {
                 log.warn("[{}] Error destroying client: {}", accountId, e.getMessage());
             }
         }
+        watchedChatIds.remove(accountId);
+    }
+
+    public void updateWatchedChats(UUID accountId, Set<Long> chatIds) {
+        watchedChatIds.put(accountId, chatIds);
+        log.debug("[{}] Watched chat IDs updated: {}", accountId, chatIds);
+    }
+
+    public Set<Long> getWatchedChatIds(UUID accountId) {
+        return watchedChatIds.getOrDefault(accountId, Set.of());
     }
 
     private void onAuthStateChange(UUID accountId, TdApi.AuthorizationState state) {

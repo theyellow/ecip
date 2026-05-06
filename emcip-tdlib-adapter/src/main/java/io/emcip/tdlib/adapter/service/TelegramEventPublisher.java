@@ -4,10 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.emcip.tdlib.adapter.model.TelegramMessageEvent;
 import io.emcip.tdlib.adapter.model.TelegramUpdateEvent;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.drinkless.tdlib.TdApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +29,12 @@ public class TelegramEventPublisher {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
+    private final Cache<String, Boolean> deduplicationCache =
+            Caffeine.newBuilder()
+                    .expireAfterWrite(60, TimeUnit.SECONDS)
+                    .maximumSize(10_000)
+                    .build();
+
     public TelegramEventPublisher(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper =
@@ -34,11 +44,26 @@ public class TelegramEventPublisher {
     }
 
     public Mono<Void> publishMessage(TdApi.Message message, TdApi.UpdateNewMessage update) {
+        String dedupKey = message.chatId + ":" + message.id;
+        AtomicBoolean shouldPublish = new AtomicBoolean(false);
+        deduplicationCache.get(
+                dedupKey,
+                k -> {
+                    shouldPublish.set(true);
+                    return Boolean.TRUE;
+                });
+        if (!shouldPublish.get()) {
+            log.debug(
+                    "Skipping duplicate message chatId={} messageId={}",
+                    message.chatId,
+                    message.id);
+            return Mono.empty();
+        }
+
         return Mono.fromCallable(
                         () -> {
                             TelegramMessageEvent event = convertToEvent(message, update);
                             String json = serialize(event);
-
                             return kafkaTemplate.send(
                                     TOPIC_TELEGRAM_RAW, String.valueOf(message.chatId), json);
                         })

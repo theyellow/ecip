@@ -2,10 +2,13 @@ package io.emcip.admin.api.config;
 
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
+import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
+import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -20,25 +23,31 @@ public class TelegramSessionResumeRunner {
 
     private final TelegramAccountRepository repository;
     private final WebClient tdlibClient;
+    private final AccountWatchedGroupRepository watchedGroupRepository;
+    private final GroupProfileRepository groupProfileRepository;
 
     public TelegramSessionResumeRunner(
             TelegramAccountRepository repository,
-            @Qualifier("tdlibWebClient") WebClient tdlibClient) {
+            @Qualifier("tdlibWebClient") WebClient tdlibClient,
+            AccountWatchedGroupRepository watchedGroupRepository,
+            GroupProfileRepository groupProfileRepository) {
         this.repository = repository;
         this.tdlibClient = tdlibClient;
+        this.watchedGroupRepository = watchedGroupRepository;
+        this.groupProfileRepository = groupProfileRepository;
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void resumeActiveSessions() {
         repository
                 .findByStatus(TelegramAccountStatus.ACTIVE)
-                .flatMap(this::initializeAccount)
-                .subscribe(
-                        id -> log.info("Session resume triggered for account {}", id),
-                        err -> log.warn("Session resume error: {}", err.getMessage()));
+                .flatMap(
+                        account ->
+                                initializeAccount(account).then(pushWatchedGroups(account.getId())))
+                .subscribe(null, err -> log.warn("Session resume error: {}", err.getMessage()));
     }
 
-    private Mono<String> initializeAccount(TelegramAccount account) {
+    private Mono<Void> initializeAccount(TelegramAccount account) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("phoneNumber", account.getPhoneNumber());
         payload.put("apiId", account.getApiId());
@@ -51,7 +60,6 @@ public class TelegramSessionResumeRunner {
                 .bodyValue(payload)
                 .retrieve()
                 .bodyToMono(Void.class)
-                .thenReturn(account.getId().toString())
                 .onErrorResume(
                         e -> {
                             log.warn(
@@ -61,7 +69,33 @@ public class TelegramSessionResumeRunner {
                             account.setStatus(TelegramAccountStatus.DISCONNECTED);
                             account.setLastError("Session resume failed: " + e.getMessage());
                             account.setUpdatedAt(Instant.now());
-                            return repository.save(account).thenReturn(account.getId().toString());
+                            return repository.save(account).then();
                         });
+    }
+
+    private Mono<Void> pushWatchedGroups(UUID accountId) {
+        return watchedGroupRepository
+                .findByAccountId(accountId)
+                .flatMap(awg -> groupProfileRepository.findById(awg.getGroupProfileId()))
+                .map(profile -> profile.getTelegramChatId())
+                .collectList()
+                .flatMap(
+                        chatIds ->
+                                tdlibClient
+                                        .post()
+                                        .uri("/internal/watched-groups/{id}", accountId)
+                                        .bodyValue(Map.of("chatIds", chatIds))
+                                        .retrieve()
+                                        .bodyToMono(Void.class)
+                                        .onErrorResume(
+                                                e -> {
+                                                    log.warn(
+                                                            "[{}] Failed to push watched groups on"
+                                                                    + " startup: {}",
+                                                            accountId,
+                                                            e.getMessage());
+                                                    return Mono.empty();
+                                                }))
+                .then();
     }
 }

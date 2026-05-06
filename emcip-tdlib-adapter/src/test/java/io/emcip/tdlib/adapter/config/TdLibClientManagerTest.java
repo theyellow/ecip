@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import io.emcip.tdlib.adapter.service.TelegramUpdateHandler;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -17,7 +19,9 @@ class TdLibClientManagerTest {
     @BeforeEach
     void setUp() {
         properties = new TdLibProperties("tdlib-test", true, true, true, false, 1);
-        manager = new TdLibClientManager(properties, mock(TelegramUpdateHandler.class));
+        manager =
+                new TdLibClientManager(
+                        properties, mock(TelegramUpdateHandler.class), new ConcurrentHashMap<>());
     }
 
     @Test
@@ -45,6 +49,35 @@ class TdLibClientManagerTest {
         manager.registerClient(id, stubClient(id));
         manager.removeClient(id);
         assertThat(manager.hasClient(id)).isFalse();
+    }
+
+    @Test
+    void updateWatchedChats_storesSetForAccount() {
+        UUID id = UUID.randomUUID();
+        manager.updateWatchedChats(id, Set.of(111L, 222L));
+        assertThat(manager.getWatchedChatIds(id)).containsExactlyInAnyOrder(111L, 222L);
+    }
+
+    @Test
+    void updateWatchedChats_replacesExistingSet() {
+        UUID id = UUID.randomUUID();
+        manager.updateWatchedChats(id, Set.of(111L));
+        manager.updateWatchedChats(id, Set.of(999L));
+        assertThat(manager.getWatchedChatIds(id)).containsExactly(999L);
+    }
+
+    @Test
+    void removeClient_clearsWatchedSet() {
+        UUID id = UUID.randomUUID();
+        manager.registerClient(id, stubClient(id));
+        manager.updateWatchedChats(id, Set.of(111L));
+        manager.removeClient(id);
+        assertThat(manager.getWatchedChatIds(id)).isEmpty();
+    }
+
+    @Test
+    void getWatchedChatIds_unknownAccount_returnsEmptySet() {
+        assertThat(manager.getWatchedChatIds(UUID.randomUUID())).isEmpty();
     }
 
     private TdLibClient stubClient(UUID id) {
