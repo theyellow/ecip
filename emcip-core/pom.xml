@@ -26,10 +26,19 @@
       <artifactId>jakarta.validation-api</artifactId>
     </dependency>
 
-    <!-- Jackson 3 for JSON (Spring Boot 4 uses tools.jackson) -->
+    <!-- Jackson 3 for JSON (Spring Boot 4 uses tools.jackson) - used by our code -->
     <dependency>
       <groupId>tools.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
+    </dependency>
+
+    <!-- Jackson 2 (runtime only) - Hibernate 7 JacksonJsonFormatMapper still uses
+         com.fasterxml.jackson.databind.ObjectMapper internally for @JdbcTypeCode(JSON) support.
+         Our code does NOT import from com.fasterxml.jackson. -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <!-- Kafka -->
