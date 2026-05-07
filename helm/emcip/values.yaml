@@ -10,9 +10,10 @@ image:
   registry: ""          # e.g. "registry.example.com/" — leave empty for Docker Hub
   pullPolicy: IfNotPresent
 
-# Storage — all PVCs use this StorageClass (points to NAS NFS provisioner)
+# Storage — all PVCs use this StorageClass
+# Using microk8s-hostpath for local single-node setup
 storage:
-  storageClassName: nfs-client
+  storageClassName: microk8s-hostpath
   postgres:
     size: 10Gi
   kafka:
