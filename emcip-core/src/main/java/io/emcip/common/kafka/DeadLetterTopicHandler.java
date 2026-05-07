@@ -1,6 +1,5 @@
 package io.emcip.common.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import java.time.Instant;
 import java.util.UUID;
@@ -9,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Handler for dead letter topic (DLQ) operations. Manages failed events by sending them to DLQ with

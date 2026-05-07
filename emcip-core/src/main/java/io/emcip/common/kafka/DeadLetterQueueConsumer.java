@@ -1,6 +1,5 @@
 package io.emcip.common.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.Counter;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -14,6 +13,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Consumer for the Dead Letter Queue (DLQ). Handles reprocessing of failed events and monitoring of

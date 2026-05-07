@@ -1,8 +1,5 @@
 package io.emcip.common.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -25,6 +22,7 @@ import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.util.backoff.ExponentialBackOff;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Common Kafka configuration for all EMCIP services. Provides enhanced error handling and retry
@@ -45,10 +43,7 @@ public class CommonKafkaConfig {
 
     @Bean
     public ObjectMapper kafkaObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        return mapper;
+        return new ObjectMapper();
     }
 
     @Bean
@@ -130,8 +125,7 @@ public class CommonKafkaConfig {
 
         // Configure non-retryable exceptions
         errorHandler.addNotRetryableExceptions(
-                com.fasterxml.jackson.core.JsonProcessingException.class,
-                IllegalArgumentException.class);
+                tools.jackson.core.JacksonException.class, IllegalArgumentException.class);
 
         return errorHandler;
     }

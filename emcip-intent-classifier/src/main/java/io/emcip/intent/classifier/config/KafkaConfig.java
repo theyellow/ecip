@@ -1,5 +1,6 @@
 package io.emcip.intent.classifier.config;
 
+import io.emcip.common.validation.EventValidator;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -14,6 +15,7 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.listener.ContainerProperties;
+import tools.jackson.databind.ObjectMapper;
 
 @EnableKafka
 @Configuration
@@ -24,6 +26,11 @@ public class KafkaConfig {
 
     @Value("${spring.kafka.consumer.group-id:intent-classifier}")
     private String groupId;
+
+    @Bean
+    public EventValidator eventValidator(ObjectMapper objectMapper) {
+        return new EventValidator(objectMapper);
+    }
 
     @Bean
     public KafkaAdmin kafkaAdmin() {
