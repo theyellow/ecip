@@ -1,5 +1,5 @@
 # Strimzi Kafka CR — KRaft mode, single broker
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
   name: emcip
