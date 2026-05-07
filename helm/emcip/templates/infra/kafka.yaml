@@ -11,7 +11,7 @@ metadata:
     {{- include "emcip.labels" . | nindent 4 }}
 spec:
   kafka:
-    version: 3.7.0
+    version: 4.1.0
     listeners:
       - name: plain
         port: 9092
