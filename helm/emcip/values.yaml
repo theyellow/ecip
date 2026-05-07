@@ -8,7 +8,7 @@
 # Global image settings
 image:
   registry: ""          # e.g. "registry.example.com/" — leave empty for Docker Hub
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 # Storage — all PVCs use this StorageClass
 # Using microk8s-hostpath for local single-node setup
