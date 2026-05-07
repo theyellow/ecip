@@ -1,6 +1,5 @@
 package io.emcip.intent.classifier.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.events.EventSchemas;
 import io.emcip.common.validation.EventValidator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -10,6 +9,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Kafka consumer for Telegram messages. Consumes from telegram.raw.messages topic and performs
