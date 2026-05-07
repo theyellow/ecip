@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: postgres
     spec:
+      securityContext:
+        fsGroup: 999
       containers:
         - name: postgres
           image: {{ .Values.infra.postgres.image }}
@@ -28,8 +30,6 @@ spec:
           env:
             - name: POSTGRES_DB
               value: emcip
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
