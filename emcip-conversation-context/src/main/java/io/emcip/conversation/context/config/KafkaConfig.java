@@ -1,6 +1,5 @@
 package io.emcip.conversation.context.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.validation.EventValidator;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +18,7 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Kafka configuration for conversation-context service. Consumes Telegram messages and intent

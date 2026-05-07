@@ -1,7 +1,5 @@
 package io.emcip.llm.orchestrator.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.events.EventSchemas;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import java.time.Instant;
@@ -14,6 +12,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Kafka consumer for policy decisions that trigger LLM orchestration. Implements US-3.2.4: Policy
@@ -168,7 +168,7 @@ public class PolicyDecisionConsumer {
                                             r.getRecordMetadata().partition());
                                 }
                             });
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error(
                     "Failed to serialize ResponseGeneratedEvent for {}: {}",
                     event.sourceEventId(),

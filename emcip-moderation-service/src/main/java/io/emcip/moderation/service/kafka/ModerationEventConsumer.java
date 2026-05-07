@@ -1,8 +1,5 @@
 package io.emcip.moderation.service.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.emcip.common.events.EventSchemas.ModerationFlagEvent;
 import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
 import io.emcip.moderation.service.service.RuleEvaluationService;
@@ -16,6 +13,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 @Slf4j
@@ -33,8 +31,6 @@ public class ModerationEventConsumer {
         this.ruleEvaluationService = ruleEvaluationService;
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = new ObjectMapper();
-        this.objectMapper.registerModule(new JavaTimeModule());
-        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @KafkaListener(

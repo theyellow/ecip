@@ -8,9 +8,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
 import io.emcip.moderation.service.service.RuleEvaluationService;
 import io.emcip.moderation.service.service.RuleEvaluationService.EvaluationResult;
@@ -24,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class ModerationEventConsumerTest {
@@ -39,8 +37,6 @@ class ModerationEventConsumerTest {
     void setUp() {
         consumer = new ModerationEventConsumer(ruleEvaluationService, kafkaTemplate);
         objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @Test

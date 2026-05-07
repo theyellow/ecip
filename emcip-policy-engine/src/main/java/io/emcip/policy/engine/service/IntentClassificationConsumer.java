@@ -1,6 +1,5 @@
 package io.emcip.policy.engine.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.events.EventSchemas;
 import io.emcip.common.validation.EventValidator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -8,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Kafka consumer for intent classification events. Consumes from messages.classified topic and

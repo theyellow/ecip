@@ -1,6 +1,5 @@
 package io.emcip.policy.engine.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.policy.engine.entity.PolicyDecision;
 import java.time.Instant;
 import java.util.Map;
@@ -9,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Service for executing policy decisions by publishing action events to appropriate topics. Handles
