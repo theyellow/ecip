@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.events.EventSchemas;
 import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
@@ -22,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 /** Unit tests for PolicyEvaluationService with mocked dependencies. */
 @ExtendWith(MockitoExtension.class)

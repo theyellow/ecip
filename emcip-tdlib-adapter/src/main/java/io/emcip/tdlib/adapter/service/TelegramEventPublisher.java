@@ -1,9 +1,5 @@
 package io.emcip.tdlib.adapter.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.emcip.tdlib.adapter.model.TelegramMessageEvent;
@@ -18,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 public class TelegramEventPublisher {
@@ -37,10 +35,7 @@ public class TelegramEventPublisher {
 
     public TelegramEventPublisher(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper =
-                new ObjectMapper()
-                        .registerModule(new JavaTimeModule())
-                        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        this.objectMapper = new ObjectMapper();
     }
 
     public Mono<Void> publishMessage(TdApi.Message message, TdApi.UpdateNewMessage update) {
@@ -183,7 +178,7 @@ public class TelegramEventPublisher {
         return metadata;
     }
 
-    private String serialize(Object event) throws JsonProcessingException {
+    private String serialize(Object event) throws JacksonException {
         return objectMapper.writeValueAsString(event);
     }
 }

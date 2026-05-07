@@ -1,6 +1,5 @@
 package io.emcip.audit.service.kafka;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.service.AuditService;
 import io.emcip.common.events.EventSchemas;
@@ -13,6 +12,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Kafka consumer that receives events from all major EMCIP topics and persists them as audit
@@ -64,7 +65,7 @@ public class AuditEventConsumer {
             auditService.save(entity).block();
             acknowledgment.acknowledge();
 
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error(
                     "Permanently malformed telegram.raw.messages record at offset {}, skipping: {}",
                     record.offset(),
@@ -115,7 +116,7 @@ public class AuditEventConsumer {
             auditService.save(entity).block();
             acknowledgment.acknowledge();
 
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error(
                     "Permanently malformed messages.classified record at offset {}, skipping: {}",
                     record.offset(),
@@ -166,7 +167,7 @@ public class AuditEventConsumer {
             auditService.save(entity).block();
             acknowledgment.acknowledge();
 
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error(
                     "Permanently malformed policies.decisions record at offset {}, skipping: {}",
                     record.offset(),
@@ -216,7 +217,7 @@ public class AuditEventConsumer {
             auditService.save(entity).block();
             acknowledgment.acknowledge();
 
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error(
                     "Permanently malformed responses.generated record at offset {}, skipping: {}",
                     record.offset(),
@@ -266,7 +267,7 @@ public class AuditEventConsumer {
             auditService.save(entity).block();
             acknowledgment.acknowledge();
 
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error(
                     "Permanently malformed moderation.flags record at offset {}, skipping: {}",
                     record.offset(),

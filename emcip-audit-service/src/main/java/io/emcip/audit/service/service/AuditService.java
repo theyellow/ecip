@@ -1,7 +1,5 @@
 package io.emcip.audit.service.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.repository.AuditEventRepository;
 import java.time.Instant;
@@ -11,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 @Slf4j
@@ -63,7 +63,7 @@ public class AuditService {
     public String serializeDetails(Map<String, Object> fields) {
         try {
             return objectMapper.writeValueAsString(fields);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("Failed to serialize details map: {}", e.getMessage());
             return null;
         }

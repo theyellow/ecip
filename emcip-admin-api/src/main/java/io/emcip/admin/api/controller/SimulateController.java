@@ -1,9 +1,5 @@
 package io.emcip.admin.api.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.emcip.common.events.EventSchemas;
 import java.time.Instant;
 import java.util.Map;
@@ -17,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/simulate")
@@ -30,8 +28,6 @@ public class SimulateController {
     public SimulateController(KafkaTemplate<String, String> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = new ObjectMapper();
-        this.objectMapper.registerModule(new JavaTimeModule());
-        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     @PostMapping("/message")
@@ -74,7 +70,7 @@ public class SimulateController {
                             req.getChatId(),
                             "status",
                             "published"));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return Mono.error(new RuntimeException("Failed to serialize event", e));
         }
     }
