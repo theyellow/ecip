@@ -1,6 +1,5 @@
 package io.emcip.intent.classifier.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.emcip.common.events.EventSchemas;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -13,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Rule-based intent classification service. Implements simple pattern matching for initial intent
