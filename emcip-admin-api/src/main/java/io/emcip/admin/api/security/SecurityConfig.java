@@ -31,11 +31,11 @@ public class SecurityConfig {
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(
                         auth ->
-                                auth.pathMatchers(HttpMethod.POST, "/api/auth/token")
+                                auth.pathMatchers(HttpMethod.POST, "/api/auth/token", "/auth/token")
                                         .permitAll()
                                         .pathMatchers("/actuator/**")
                                         .permitAll()
-                                        .pathMatchers("/api/policy-rules/**")
+                                        .pathMatchers("/api/policy-rules/**", "/policy-rules/**")
                                         .permitAll()
                                         .anyExchange()
                                         .authenticated())
@@ -55,6 +55,7 @@ public class SecurityConfig {
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 

@@ -157,6 +157,10 @@ services:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      ADMIN_CORS_ALLOWED_ORIGINS: "http://emcip.local"
+      SERVICE_TDLIB_URL: "http://emcip-tdlib-adapter:9080"
+      SERVICE_ORCHESTRATOR_URL: "http://emcip-llm-orchestrator:9084"
+      SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.security.autoconfigure.ReactiveUserDetailsServiceAutoConfiguration"
     secrets:
       ADMIN_JWT_SECRET: admin-jwt-secret
       ADMIN_SERVICE_TOKEN: admin-service-token
@@ -178,10 +182,10 @@ services:
     resources:
       requests:
         cpu: 50m
-        memory: 64Mi
+        memory: 128Mi
       limits:
         cpu: 200m
-        memory: 128Mi
+        memory: 384Mi
 
 # tdlib-adapter is a StatefulSet (separate section — needs PVC for session state)
 tdlibAdapter:
