@@ -72,5 +72,6 @@
     <include file="db/changelog/changes/006-telegram-config-and-group-tenant.xml"/>
     <include file="db/changelog/changes/007-telegram-accounts.xml"/>
     <include file="db/changelog/changes/008-account-watched-groups.xml"/>
+    <include file="db/changelog/changes/009-rules-enabled-jsonb-to-text.xml"/>
 
 </databaseChangeLog>
