@@ -10,10 +10,10 @@ import styles from './PolicyRules.module.css'
 
 function RuleModal({ rule, onClose, onSave, tenants }) {
   const [form, setForm] = useState({
-    ruleName: rule?.ruleName ?? '',
-    ruleType: rule?.ruleType ?? 'KEYWORD',
+    name: rule?.name ?? '',
+    targetIntent: rule?.targetIntent ?? 'KEYWORD',
     action: rule?.action ?? 'FLAG',
-    parameters: rule?.parameters ?? '',
+    description: rule?.description ?? '',
     effectiveFrom: rule?.effectiveFrom?.slice(0, 16) ?? '',
     effectiveTo: rule?.effectiveTo?.slice(0, 16) ?? '',
     tenantId: rule?.tenantId ?? '',
@@ -23,19 +23,19 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
   return (
     <Modal title={rule ? 'Edit Rule' : 'Create Rule'} onClose={onClose} onSubmit={() => onSave(form)}>
       <label>Rule Name *</label>
-      <input type="text" value={form.ruleName} onChange={e => set('ruleName', e.target.value)}
+      <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
         className={styles.input} required disabled={!!rule} />
       <label>Rule Type</label>
-      <select value={form.ruleType} onChange={e => set('ruleType', e.target.value)} className={styles.input}>
+      <select value={form.targetIntent} onChange={e => set('targetIntent', e.target.value)} className={styles.input}>
         {['KEYWORD', 'REGEX', 'SENTIMENT', 'INTENT', 'COMPOSITE'].map(t => <option key={t}>{t}</option>)}
       </select>
       <label>Action</label>
       <select value={form.action} onChange={e => set('action', e.target.value)} className={styles.input}>
         {['FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE'].map(a => <option key={a}>{a}</option>)}
       </select>
-      <label>Parameters (JSON)</label>
-      <textarea value={form.parameters} onChange={e => set('parameters', e.target.value)}
-        className={styles.input} rows={4} placeholder='{"keywords":["spam"]}' />
+      <label>Description</label>
+      <textarea value={form.description} onChange={e => set('description', e.target.value)}
+        className={styles.input} rows={4} placeholder='Optional rule description' />
       <label>Effective From</label>
       <input type="datetime-local" value={form.effectiveFrom}
         onChange={e => set('effectiveFrom', e.target.value)} className={styles.input} />
@@ -102,14 +102,14 @@ export function PolicyRules() {
   }
 
   const remove = async rule => {
-    if (!confirm(`Delete rule "${rule.ruleName}"?`)) return
+    if (!confirm(`Delete rule "${rule.name}"?`)) return
     try { await api.remove(rule.id); load() }
     catch (e) { setError(e.message) }
   }
 
   const showHistory = async rule => {
-    const h = await api.history(rule.ruleName).catch(() => [])
-    setHistory({ ruleName: rule.ruleName, items: h })
+    const h = await api.history(rule.name).catch(() => [])
+    setHistory({ ruleName: rule.name, items: h })
   }
 
   return (
@@ -126,8 +126,8 @@ export function PolicyRules() {
         <tbody>
           {rules.map(r => (
             <tr key={r.id}>
-              <td>{r.ruleName}</td>
-              <td><Badge variant="gray">{r.ruleType}</Badge></td>
+              <td>{r.name}</td>
+              <td><Badge variant="gray">{r.targetIntent}</Badge></td>
               <td><Badge variant={ACTION_VARIANT[r.action] ?? 'gray'}>{r.action}</Badge></td>
               <td className={styles.mono}>{r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString() : '\u2014'}</td>
               <td className={styles.mono}>{r.effectiveTo ? new Date(r.effectiveTo).toLocaleDateString() : '\u2014'}</td>
