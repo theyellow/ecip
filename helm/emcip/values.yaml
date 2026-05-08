@@ -164,6 +164,8 @@ services:
     secrets:
       ADMIN_JWT_SECRET: admin-jwt-secret
       ADMIN_SERVICE_TOKEN: admin-service-token
+      TELEGRAM_API_ID: telegram-api-id
+      TELEGRAM_API_HASH: telegram-api-hash
     resources:
       requests:
         cpu: 100m
