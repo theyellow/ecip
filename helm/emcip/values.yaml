@@ -167,9 +167,11 @@ services:
       ADMIN_SERVICE_TOKEN: admin-service-token
       TELEGRAM_API_ID: telegram-api-id
       TELEGRAM_API_HASH: telegram-api-hash
-    # JVM process starts ~35s before Spring context; Spring context init takes ~314s → total ~349s.
-    # initialDelay=300s waits past the bulk of startup. failureThreshold=12 (120s buffer) = 420s budget.
-    startupInitialDelay: 300
+    # Observed startup: JVM+Spring context = ~350-360s before Netty binds port 9087.
+    # After port binds, health endpoint can be slow (Netty busy) → need timeoutSeconds > 1s default.
+    # Budget: initialDelay=360s + failureThreshold=12 × (period=10 + timeout=5) = 540s total.
+    startupInitialDelay: 360
+    startupTimeoutSeconds: 5
     startupFailureThreshold: 12
     resources:
       requests:

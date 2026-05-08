@@ -75,6 +75,7 @@ spec:
               port: {{ $svc.port }}
             initialDelaySeconds: {{ $svc.startupInitialDelay | default 20 }}
             periodSeconds: 10
+            timeoutSeconds: {{ $svc.startupTimeoutSeconds | default 1 }}
             failureThreshold: {{ $svc.startupFailureThreshold | default 12 }}
           readinessProbe:
             httpGet:
