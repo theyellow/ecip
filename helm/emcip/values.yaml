@@ -161,16 +161,25 @@ services:
       SERVICE_TDLIB_URL: "http://emcip-tdlib-adapter:9080"
       SERVICE_ORCHESTRATOR_URL: "http://emcip-llm-orchestrator:9084"
       SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.security.autoconfigure.ReactiveUserDetailsServiceAutoConfiguration"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=25.0 -XX:+UseG1GC"
     secrets:
       ADMIN_JWT_SECRET: admin-jwt-secret
       ADMIN_SERVICE_TOKEN: admin-service-token
+      TELEGRAM_API_ID: telegram-api-id
+      TELEGRAM_API_HASH: telegram-api-hash
+    # Observed startup: JVM+Spring context = ~350-360s before Netty binds port 9087.
+    # After port binds, health endpoint can be slow (Netty busy) → need timeoutSeconds > 1s default.
+    # Budget: initialDelay=360s + failureThreshold=12 × (period=10 + timeout=5) = 540s total.
+    startupInitialDelay: 360
+    startupTimeoutSeconds: 5
+    startupFailureThreshold: 12
     resources:
       requests:
         cpu: 100m
-        memory: 128Mi
+        memory: 512Mi
       limits:
         cpu: 500m
-        memory: 512Mi
+        memory: 1Gi
 
   adminUi:
     name: admin-ui

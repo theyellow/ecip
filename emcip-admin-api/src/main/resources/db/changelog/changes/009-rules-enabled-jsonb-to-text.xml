@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="009-rules-enabled-jsonb-to-text" author="emcip-team">
+        <comment>
+            Change rules_enabled from jsonb to text.
+            The GroupProfile entity maps this field as a Java String.
+            R2DBC PostgreSQL driver rejects binding String to jsonb (error 42804:
+            "column is of type jsonb but expression is of type character varying").
+            Storing as text is equivalent since the values are JSON strings and no
+            jsonb-specific operators are used in queries.
+        </comment>
+        <sql>
+            ALTER TABLE group_profiles
+                ALTER COLUMN rules_enabled TYPE text USING rules_enabled::text,
+                ALTER COLUMN rules_enabled SET DEFAULT '[]'
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE group_profiles
+                    ALTER COLUMN rules_enabled TYPE jsonb USING rules_enabled::jsonb,
+                    ALTER COLUMN rules_enabled SET DEFAULT '{}'::jsonb
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
