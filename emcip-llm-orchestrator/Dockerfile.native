@@ -2,7 +2,21 @@
 # Build context must be the project root (context: .)
 
 # Stage 1: Native image build
-FROM ghcr.io/graalvm/native-image-community:25 AS builder
+#
+# GraalVM version is pinned to 25.0.1 — DO NOT change to a floating tag (e.g. :25).
+#
+# Why GraalVM 25 is required (cannot downgrade):
+#   - Netty 4.2 (transitive via Spring Boot 4) uses JDK Panama ScopedMemoryAccess API,
+#     which requires GraalVM 24+ native C library support (GraalVM 21 is missing the symbol).
+#   - Spring Boot 4 AOT records the JDK version at compile time and refuses to start on
+#     a lower JDK version at runtime, so the Docker builder must match the dev environment.
+#
+# Why not the latest :25 tag:
+#   GraalVM CE 25.0.2 introduced a JVM crash (SIGSEGV at SystemDictionary::resolve_or_fail)
+#   during native image initialization that kills this build.
+#   See: https://github.com/oracle/graal/issues (search SIGSEGV 25.0.2)
+#   Pinned to 25.0.1 (last known-good patch). Re-test before upgrading to a newer patch.
+FROM ghcr.io/graalvm/native-image-community:25.0.1 AS builder
 WORKDIR /build
 
 RUN microdnf install -y curl tar findutils && microdnf clean all && \
