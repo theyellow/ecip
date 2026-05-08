@@ -42,10 +42,8 @@ spec:
                   name: {{ $.Values.secretName }}
                   key: {{ $ref }}
             {{- end }}
-            - name: TDLIB_DB_DIR
+            - name: TDLIB_BASE_DIR
               value: /app/tdlib-db
-            - name: TDLIB_FILES_DIR
-              value: /app/tdlib-files
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness

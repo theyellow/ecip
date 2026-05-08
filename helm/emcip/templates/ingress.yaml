@@ -2,12 +2,12 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: emcip-ingress
+  name: emcip-ingress-api
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "emcip.labels" . | nindent 4 }}
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/rewrite-target: /api/$2
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
@@ -21,6 +21,22 @@ spec:
                 name: emcip-admin-api
                 port:
                   number: {{ (index .Values.services "adminApi").port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: emcip-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "emcip.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
           - path: /grafana(/|$)(.*)
             pathType: ImplementationSpecific
             backend:

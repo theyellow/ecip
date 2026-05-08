@@ -64,7 +64,6 @@ public class TdLibClient {
         client = Client.create(this::handleResponse, new DefaultExceptionHandler(accountId), null);
         initialized = true;
         log.info("[{}] TDLib client initialized", accountId);
-        sendInitialParameters();
     }
 
     private void sendInitialParameters() {
