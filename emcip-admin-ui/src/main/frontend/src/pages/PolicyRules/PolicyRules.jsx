@@ -13,6 +13,7 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
     name: rule?.name ?? '',
     targetIntent: rule?.targetIntent ?? 'KEYWORD',
     action: rule?.action ?? 'FLAG',
+    priority: rule?.priority ?? 0,
     description: rule?.description ?? '',
     effectiveFrom: rule?.effectiveFrom?.slice(0, 16) ?? '',
     effectiveTo: rule?.effectiveTo?.slice(0, 16) ?? '',
@@ -33,6 +34,9 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
       <select value={form.action} onChange={e => set('action', e.target.value)} className={styles.input}>
         {['FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE'].map(a => <option key={a}>{a}</option>)}
       </select>
+      <label>Priority</label>
+      <input type="number" value={form.priority} onChange={e => set('priority', parseInt(e.target.value) || 0)}
+        className={styles.input} min={0} />
       <label>Description</label>
       <textarea value={form.description} onChange={e => set('description', e.target.value)}
         className={styles.input} rows={4} placeholder='Optional rule description' />
@@ -121,7 +125,7 @@ export function PolicyRules() {
       {error && <p className={styles.error} role="alert">{error}</p>}
       <table className={styles.table}>
         <thead>
-          <tr><th>Rule Name</th><th>Type</th><th>Action</th><th>Effective From</th><th>Effective To</th><th></th></tr>
+          <tr><th>Rule Name</th><th>Type</th><th>Action</th><th>Priority</th><th>Effective From</th><th>Effective To</th><th></th></tr>
         </thead>
         <tbody>
           {rules.map(r => (
@@ -129,6 +133,7 @@ export function PolicyRules() {
               <td>{r.name}</td>
               <td><Badge variant="gray">{r.targetIntent}</Badge></td>
               <td><Badge variant={ACTION_VARIANT[r.action] ?? 'gray'}>{r.action}</Badge></td>
+              <td className={styles.mono}>{r.priority ?? 0}</td>
               <td className={styles.mono}>{r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString() : '\u2014'}</td>
               <td className={styles.mono}>{r.effectiveTo ? new Date(r.effectiveTo).toLocaleDateString() : '\u2014'}</td>
               <td className={styles.actions}>

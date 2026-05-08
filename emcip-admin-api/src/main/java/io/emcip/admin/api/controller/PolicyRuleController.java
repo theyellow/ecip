@@ -49,6 +49,9 @@ public class PolicyRuleController {
         if (rule.getMinConfidence() == null) {
             rule.setMinConfidence(0.0);
         }
+        if (rule.getPriority() == null) {
+            rule.setPriority(0);
+        }
         return r2dbcEntityTemplate.insert(rule);
     }
 

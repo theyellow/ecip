@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="010-policy-rules-priority-default" author="emcip-team">
+        <comment>
+            Add DEFAULT 0 to policy_rules.priority.
+            The column is NOT NULL but had no default, causing INSERT to fail when
+            the UI form does not supply a priority value.
+        </comment>
+        <sql>ALTER TABLE policy_rules ALTER COLUMN priority SET DEFAULT 0</sql>
+        <rollback>
+            <sql>ALTER TABLE policy_rules ALTER COLUMN priority DROP DEFAULT</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
