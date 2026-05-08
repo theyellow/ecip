@@ -82,12 +82,14 @@ spec:
               path: /actuator/health/readiness
               port: {{ $svc.port }}
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: {{ $svc.port }}
             periodSeconds: 15
+            timeoutSeconds: 5
             failureThreshold: 3
           resources:
             {{- toYaml $svc.resources | nindent 12 }}
