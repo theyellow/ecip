@@ -161,15 +161,16 @@ services:
       SERVICE_TDLIB_URL: "http://emcip-tdlib-adapter:9080"
       SERVICE_ORCHESTRATOR_URL: "http://emcip-llm-orchestrator:9084"
       SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.security.autoconfigure.ReactiveUserDetailsServiceAutoConfiguration"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=25.0 -XX:+UseG1GC"
     secrets:
       ADMIN_JWT_SECRET: admin-jwt-secret
       ADMIN_SERVICE_TOKEN: admin-service-token
       TELEGRAM_API_ID: telegram-api-id
       TELEGRAM_API_HASH: telegram-api-hash
-    # R2DBC repository scanning + Spring context init takes ~265s on this JVM image.
-    # initialDelay=270s waits past startup before probing. failureThreshold=6 (60s) as buffer.
-    startupInitialDelay: 270
-    startupFailureThreshold: 6
+    # JVM process starts ~35s before Spring context; Spring context init takes ~314s → total ~349s.
+    # initialDelay=300s waits past the bulk of startup. failureThreshold=12 (120s buffer) = 420s budget.
+    startupInitialDelay: 300
+    startupFailureThreshold: 12
     resources:
       requests:
         cpu: 100m
