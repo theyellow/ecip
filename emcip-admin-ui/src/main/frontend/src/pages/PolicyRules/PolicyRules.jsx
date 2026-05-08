@@ -26,10 +26,9 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
       <label>Rule Name *</label>
       <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
         className={styles.input} required disabled={!!rule} />
-      <label>Rule Type</label>
-      <select value={form.targetIntent} onChange={e => set('targetIntent', e.target.value)} className={styles.input}>
-        {['KEYWORD', 'REGEX', 'SENTIMENT', 'INTENT', 'COMPOSITE'].map(t => <option key={t}>{t}</option>)}
-      </select>
+      <label>Target Intent</label>
+      <input type="text" value={form.targetIntent} onChange={e => set('targetIntent', e.target.value)}
+        className={styles.input} placeholder='e.g. SPAM, GREETING, * (wildcard)' />
       <label>Action</label>
       <select value={form.action} onChange={e => set('action', e.target.value)} className={styles.input}>
         {['FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE'].map(a => <option key={a}>{a}</option>)}
@@ -125,7 +124,7 @@ export function PolicyRules() {
       {error && <p className={styles.error} role="alert">{error}</p>}
       <table className={styles.table}>
         <thead>
-          <tr><th>Rule Name</th><th>Type</th><th>Action</th><th>Priority</th><th>Effective From</th><th>Effective To</th><th></th></tr>
+          <tr><th>Rule Name</th><th>Target Intent</th><th>Action</th><th>Priority</th><th>Effective From</th><th>Effective To</th><th></th></tr>
         </thead>
         <tbody>
           {rules.map(r => (
