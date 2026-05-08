@@ -73,7 +73,7 @@ spec:
             httpGet:
               path: /actuator/health/liveness
               port: {{ $svc.port }}
-            initialDelaySeconds: 20
+            initialDelaySeconds: {{ $svc.startupInitialDelay | default 20 }}
             periodSeconds: 10
             failureThreshold: {{ $svc.startupFailureThreshold | default 12 }}
           readinessProbe:

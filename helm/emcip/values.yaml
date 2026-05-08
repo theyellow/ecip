@@ -166,9 +166,10 @@ services:
       ADMIN_SERVICE_TOKEN: admin-service-token
       TELEGRAM_API_ID: telegram-api-id
       TELEGRAM_API_HASH: telegram-api-hash
-    # R2DBC repository scanning + Spring context init takes ~90s on this JVM image.
-    # Default failureThreshold of 12 (140s total) is not enough — raise to 30 (320s).
-    startupFailureThreshold: 30
+    # R2DBC repository scanning + Spring context init takes ~265s on this JVM image.
+    # initialDelay=270s waits past startup before probing. failureThreshold=6 (60s) as buffer.
+    startupInitialDelay: 270
+    startupFailureThreshold: 6
     resources:
       requests:
         cpu: 100m
