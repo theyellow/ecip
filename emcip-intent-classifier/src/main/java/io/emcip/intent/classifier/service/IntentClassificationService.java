@@ -94,7 +94,15 @@ public class IntentClassificationService {
                                     message.eventId(),
                                     matchedIntent,
                                     highestConfidence,
-                                    Map.of("textLength", text.length(), "chatId", message.chatId()),
+                                    Map.of(
+                                            "textLength",
+                                            text.length(),
+                                            "chatId",
+                                            message.chatId(),
+                                            "senderId",
+                                            message.senderId() != null ? message.senderId() : "",
+                                            "messageText",
+                                            text),
                                     matchedRules);
 
                     // Publish to Kafka

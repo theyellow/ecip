@@ -11,6 +11,7 @@ import { Simulate } from './pages/Simulate/Simulate'
 import { Telegram } from './pages/Telegram/Telegram'
 import { AIConfig } from './pages/AIConfig/AIConfig'
 import { ModerationRules } from './pages/ModerationRules/ModerationRules'
+import { Flags } from './pages/Flags/Flags'
 
 function AuthGate() {
   const { token } = useAuth()
@@ -31,6 +32,7 @@ function AuthGate() {
         <Route path="telegram" element={<Telegram />} />
         <Route path="ai-config" element={<AIConfig />} />
         <Route path="moderation-rules" element={<ModerationRules />} />
+        <Route path="flags" element={<Flags />} />
       </Route>
     </Routes>
   )
