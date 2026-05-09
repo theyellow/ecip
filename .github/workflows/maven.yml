@@ -2,9 +2,21 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [ main, 'feature/**', 'ecip-**', 'chore/**' ]
+    branches: [ main, 'feature/**', 'fix/**', 'ecip-**', 'chore/**' ]
+    paths-ignore:
+      - 'docs/**'
+      - 'documentation/**'
+      - 'helm/**'
+      - '*.md'
+      - '.github/workflows/build-images.yml'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - 'documentation/**'
+      - 'helm/**'
+      - '*.md'
+      - '.github/workflows/build-images.yml'
 
 jobs:
   build:

@@ -7,6 +7,7 @@ const NAV = [
   { to: '/tenants',      label: 'Tenants',       icon: '⬡' },
   { to: '/policy-rules',     label: 'Policy Rules',     icon: '⚖' },
   { to: '/moderation-rules', label: 'Moderation Rules', icon: '⊘' },
+  { to: '/flags',            label: 'Flags',            icon: '⚑' },
   { to: '/groups',           label: 'Groups',           icon: '◈' },
   { to: '/audit-log',    label: 'Audit Log',      icon: '◎' },
   { to: '/simulate',     label: 'Simulate Event', icon: '▶' },

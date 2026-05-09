@@ -211,10 +211,15 @@ public class PolicyEvaluationService {
         policyDecision.setOriginalIntent(classification.intent());
         policyDecision.setConfidence(classification.confidence());
         policyDecision.setMatchedRules(Map.of("matchedRules", classification.matchedRules()));
-        policyDecision.setMetadata(
-                Map.of(
-                        "intent", classification.intent(),
-                        "confidence", classification.confidence()));
+        Map<String, Object> params =
+                classification.parameters() != null ? classification.parameters() : Map.of();
+        Map<String, Object> meta = new java.util.LinkedHashMap<>();
+        meta.put("intent", classification.intent());
+        meta.put("confidence", classification.confidence());
+        if (params.containsKey("messageText")) meta.put("messageText", params.get("messageText"));
+        if (params.containsKey("chatId")) meta.put("chatId", params.get("chatId"));
+        if (params.containsKey("senderId")) meta.put("senderId", params.get("senderId"));
+        policyDecision.setMetadata(meta);
         policyDecision.setTimestamp(Instant.now());
 
         return decisionRepository.save(policyDecision);

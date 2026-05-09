@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="006-add-signal-status" author="emcip-team">
+        <comment>Add signal_status to policy_decisions for Flags page review workflow</comment>
+        <addColumn tableName="policy_decisions">
+            <column name="signal_status" type="VARCHAR(16)" defaultValue="NEW">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_policy_decisions_signal_status" tableName="policy_decisions">
+            <column name="signal_status"/>
+        </createIndex>
+        <rollback>
+            <dropIndex indexName="idx_policy_decisions_signal_status" tableName="policy_decisions"/>
+            <dropColumn tableName="policy_decisions" columnName="signal_status"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
