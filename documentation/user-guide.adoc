@@ -140,6 +140,69 @@ Results are paginated (50 per page). Use *Previous* / *Next* to navigate.
 
 Click any row to expand the event payload. The raw JSON is displayed with syntax highlighting for inspection.
 
+=== Flags
+
+The *Flags* page shows every message that triggered a non-ALLOW policy decision — it is the primary human-review surface for automated moderation actions.
+
+NOTE: Only decisions where the Policy Engine applied an action (e.g., `FLAG`, `WARN`, `BAN`) appear here. `ALLOW` decisions are not shown.
+
+==== Columns
+
+[cols="1,3"]
+|===
+|Column |Description
+
+|*Timestamp*
+|When the policy decision was made.
+
+|*Decision*
+|The action the Policy Engine applied: `FLAG`, `WARN`, `MUTE`, `BAN`, `DELETE`, or `ESCALATE`.
+Color-coded: blue = FLAG, yellow = WARN/MUTE, red = BAN/DELETE, gray = ESCALATE.
+
+|*Intent*
+|The intent the classifier assigned to the message (e.g., `SPAM`, `UNKNOWN`).
+
+|*Confidence*
+|Classifier confidence as a percentage (0 %–100 %).
+
+|*Message*
+|The original Telegram message text (truncated). Hover to see the full text.
+Empty for decisions made before the metadata enrichment was deployed.
+
+|*Reason*
+|The rule reasoning string stored with the decision.
+
+|*Status*
+|Review state: `NEW` (blue), `REVIEWED` (gray), `ACTIONED` (green).
+|===
+
+==== Filtering
+
+Use the two dropdowns in the top-right corner:
+
+* *Decision* — filter to a specific action type, or leave as "All decisions".
+* *Size* — number of rows to show: 25, 50, 100, or 200.
+
+Results are always ordered newest-first.
+
+==== Marking a Flag as Reviewed
+
+Once you have inspected a flagged message, click *Mark reviewed* in the row. The status badge changes from `NEW` to `REVIEWED`. This action is recorded via `PATCH /api/flags/{id}/status` and is permanent (there is no undo in the UI, though the API accepts any status value).
+
+NOTE: The *Mark reviewed* button is hidden for rows already in `REVIEWED` or `ACTIONED` status.
+
+==== Understanding the Pipeline
+
+Each row in Flags corresponds to one complete pipeline run:
+
+. A Telegram message was received by the TDLib Adapter and published to `telegram.raw.messages`.
+. The Intent Classifier consumed the message, classified it, and published to `messages.classified`.
+. The Policy Engine evaluated the classification against active rules and, if a non-ALLOW rule matched, stored the decision in `policy_decisions` and published to `policies.decisions`.
+. The Audit Service consumed all three events and stored them in `audit_events`.
+
+The *Flags* page reads directly from `policy_decisions` (decisions where `decision != 'ALLOW'`).
+The *Audit Log* page reads from `audit_events` (all pipeline steps, regardless of decision).
+
 === Telegram Account Management
 
 EMCIP connects to Telegram as a full user-bot client (not a bot API). Each Telegram account
@@ -411,6 +474,67 @@ The previous version of `spam-block` (if any) is automatically deactivated.
 ----
 curl "http://localhost:9087/api/audit/events?eventType=POLICY_DECISION&from=2026-04-22T00:00:00Z&size=20&page=0" \
   -H "Authorization: Bearer <token>"
+----
+
+=== Flags API
+
+[cols="1,1,3"]
+|===
+|Method + Path |Description |Notes
+
+|`GET /api/flags`
+|List non-ALLOW decisions
+|Query params: `size` (default 50), `decision` (optional filter). Returns newest-first.
+
+|`PATCH /api/flags/{id}/status`
+|Update review status
+|Body: `{"status": "REVIEWED"}`. Valid values: `NEW`, `REVIEWED`, `ACTIONED`. Returns 204.
+|===
+
+==== List Flags Example
+
+[source,bash]
+----
+curl "http://localhost:9087/api/flags?size=25&decision=FLAG" \
+  -H "Authorization: Bearer <token>"
+----
+
+Response:
+
+[source,json]
+----
+[
+  {
+    "id": "23dcbc18-4a19-48c6-a6bd-259dcbfd76f8",
+    "decision": "FLAG",
+    "originalIntent": "SPAM",
+    "confidence": 0.95,
+    "reason": "Spam detected with high confidence",
+    "metadata": "{\"messageText\":\"buy now limited offer\",\"chatId\":-1001234567890,\"senderId\":\"42\"}",
+    "matchedRules": "{\"matchedRules\":[\"spam-block\"]}",
+    "timestamp": "2026-05-09T09:22:38Z",
+    "signalStatus": "NEW"
+  }
+]
+----
+
+NOTE: `metadata` and `matchedRules` are raw JSON strings, not nested objects.
+Parse them client-side if you need to access individual fields.
+
+==== Mark Reviewed Example
+
+[source,bash]
+----
+curl -X PATCH \
+  "http://localhost:9087/api/flags/23dcbc18-4a19-48c6-a6bd-259dcbfd76f8/status" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "REVIEWED"}'
+----
+
+[source,http]
+----
+HTTP/1.1 204 No Content
 ----
 
 === Moderation Rules API
