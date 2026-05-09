@@ -187,7 +187,7 @@ Results are always ordered newest-first.
 
 ==== Marking a Flag as Reviewed
 
-Once you have inspected a flagged message, click *Mark reviewed* in the row. The status badge changes from `NEW` to `REVIEWED`. This action is recorded via `PATCH /api/flags/{id}/status` and is permanent (there is no undo in the UI, though the API accepts any status value).
+Once you have inspected a flagged message, click *Mark reviewed* in the row. The status badge changes from `NEW` to `REVIEWED`. This action is recorded via `PATCH /api/flags/\{id}/status` and is permanent (there is no undo in the UI, though the API accepts any status value).
 
 NOTE: The *Mark reviewed* button is hidden for rows already in `REVIEWED` or `ACTIONED` status.
 
@@ -353,13 +353,13 @@ Tokens expire after the duration configured in `app.jwt.expiration` (default: 24
 
 |`GET /api/tenants`
 |List all tenants
-|Returns array of `{id, name, createdAt}`
+|Returns array of `\{id, name, createdAt}`
 
 |`POST /api/tenants`
 |Create tenant
-|Body: `{name}`. Returns created tenant with UUID.
+|Body: `\{name}`. Returns created tenant with UUID.
 
-|`DELETE /api/tenants/{id}`
+|`DELETE /api/tenants/\{id}`
 |Delete tenant
 |Cascades all tenant data. Irreversible.
 |===
@@ -399,7 +399,7 @@ Response:
 |Create new version
 |Auto-deactivates previous version with same `name`.
 
-|`GET /api/policy-rules/{name}/history`
+|`GET /api/policy-rules/\{name}/history`
 |Version history
 |All versions for the named rule, ordered by version DESC.
 |===
@@ -446,13 +446,13 @@ The previous version of `spam-block` (if any) is automatically deactivated.
 |Paginated event list
 |Query params: `size` (default 50), `page` (default 0), `eventType`, `from`, `to`
 
-|`GET /api/audit/events/{id}`
+|`GET /api/audit/events/\{id}`
 |Single event
 |Full payload JSON included
 
 |`GET /api/audit/summary`
 |Count by type
-|Returns `{eventType: count}` map
+|Returns `\{eventType: count}` map
 |===
 
 ==== Paginated Response Envelope
@@ -486,9 +486,9 @@ curl "http://localhost:9087/api/audit/events?eventType=POLICY_DECISION&from=2026
 |List non-ALLOW decisions
 |Query params: `size` (default 50), `decision` (optional filter). Returns newest-first.
 
-|`PATCH /api/flags/{id}/status`
+|`PATCH /api/flags/\{id}/status`
 |Update review status
-|Body: `{"status": "REVIEWED"}`. Valid values: `NEW`, `REVIEWED`, `ACTIONED`. Returns 204.
+|Body: `\{"status": "REVIEWED"}`. Valid values: `NEW`, `REVIEWED`, `ACTIONED`. Returns 204.
 |===
 
 ==== List Flags Example
@@ -549,9 +549,9 @@ HTTP/1.1 204 No Content
 
 |`POST /api/admin/moderation-rules`
 |Create rule
-|Body: `{ruleType, pattern, action, enabled}`
+|Body: `\{ruleType, pattern, action, enabled}`
 
-|`DELETE /api/admin/moderation-rules/{id}`
+|`DELETE /api/admin/moderation-rules/\{id}`
 |Delete rule
 |Permanent. Cache refreshes within 5 minutes.
 |===
@@ -602,36 +602,36 @@ All endpoints require `Authorization: Bearer <token>`.
 
 |`GET /api/telegram/accounts`
 |List accounts
-|Returns array of `{id, phoneNumber, status, createdAt}`
+|Returns array of `\{id, phoneNumber, status, createdAt}`
 
 |`POST /api/telegram/accounts`
 |Add account
-|Body: `{phoneNumber, displayName}`. Creates account in `UNCONFIGURED` state.
+|Body: `\{phoneNumber, displayName}`. Creates account in `UNCONFIGURED` state.
 
-|`DELETE /api/telegram/accounts/{id}`
+|`DELETE /api/telegram/accounts/\{id}`
 |Remove account
 |Permanent. Deletes the account record.
 
-|`GET /api/telegram/accounts/{id}/status`
+|`GET /api/telegram/accounts/\{id}/status`
 |Get status
-|Returns `{id, status, lastError}`. Poll after code submission to detect `ACTIVE`.
+|Returns `\{id, status, lastError}`. Poll after code submission to detect `ACTIVE`.
 
-|`POST /api/telegram/accounts/{id}/reconnect`
+|`POST /api/telegram/accounts/\{id}/reconnect`
 |Start authentication
 |Triggers TDLib to send a verification code to the account's phone number.
 Returns 202. Account transitions to `AWAITING_CODE`.
 
-|`POST /api/telegram/accounts/{id}/code`
+|`POST /api/telegram/accounts/\{id}/code`
 |Submit verification code
-|Body: `{code}`. Forwards the code to TDLib for verification. Returns 202.
+|Body: `\{code}`. Forwards the code to TDLib for verification. Returns 202.
 Poll `/status` to confirm transition to `ACTIVE`.
 
-|`POST /api/telegram/accounts/{id}/password`
+|`POST /api/telegram/accounts/\{id}/password`
 |Submit 2FA password
-|Body: `{password}`. Required only when the account has two-factor authentication enabled.
+|Body: `\{password}`. Required only when the account has two-factor authentication enabled.
 Returns 202.
 
-|`POST /api/telegram/accounts/{id}/logout`
+|`POST /api/telegram/accounts/\{id}/logout`
 |Log out account
 |Terminates the TDLib session. Account transitions to `DISCONNECTED`. Returns 202.
 |===
@@ -644,26 +644,26 @@ NOTE: All group discovery and watch endpoints require the account to be in `ACTI
 |===
 |Method + Path |Description |Notes
 
-|`GET /api/telegram/accounts/{id}/chats`
+|`GET /api/telegram/accounts/\{id}/chats`
 |Discover groups
-|Returns groups the account is a member of: `[{chatId, title, memberCount, type}]`.
+|Returns groups the account is a member of: `[\{chatId, title, memberCount, type}]`.
 Account must be ACTIVE.
 
-|`GET /api/telegram/accounts/{id}/watched`
+|`GET /api/telegram/accounts/\{id}/watched`
 |List watched groups
-|Returns `[{chatId, groupProfileId, name, moderationLevel}]`.
+|Returns `[\{chatId, groupProfileId, name, moderationLevel}]`.
 
-|`POST /api/telegram/accounts/{id}/watch`
+|`POST /api/telegram/accounts/\{id}/watch`
 |Watch a group
-|Body: `{chatId, title, memberCount}`. Returns 201 with GroupProfile. Idempotent.
+|Body: `\{chatId, title, memberCount}`. Returns 201 with GroupProfile. Idempotent.
 
-|`DELETE /api/telegram/accounts/{id}/watch/{chatId}`
+|`DELETE /api/telegram/accounts/\{id}/watch/\{chatId}`
 |Unwatch a group
 |Returns 204. GroupProfile is not deleted (other accounts may reference it).
 
-|`POST /api/telegram/accounts/{id}/join`
+|`POST /api/telegram/accounts/\{id}/join`
 |Join & watch by invite link
-|Body: `{inviteLink}`. Joins via TDLib then adds to watch list. Returns 201 with GroupProfile.
+|Body: `\{inviteLink}`. Joins via TDLib then adds to watch list. Returns 201 with GroupProfile.
 |===
 
 ==== Watch a Group Example
@@ -722,7 +722,7 @@ Every service exposes standard actuator endpoints. No authentication required.
 
 |`GET /actuator/health`
 |9080–9087
-|`{"status": "UP"}` or `{"status": "DOWN", "components": {...}}`
+|`\{"status": "UP"}` or `\{"status": "DOWN", "components": \{...}}`
 
 |`GET /actuator/prometheus`
 |9080–9087
