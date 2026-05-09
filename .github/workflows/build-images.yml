@@ -12,8 +12,104 @@ env:
 
 jobs:
 
+  detect-changes:
+    name: Detect changed modules
+    runs-on: ubuntu-latest
+    outputs:
+      jvm-only-matrix: ${{ steps.matrix.outputs.jvm-only }}
+      jvm-latest-matrix: ${{ steps.matrix.outputs.jvm-latest }}
+      native-matrix: ${{ steps.matrix.outputs.native }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Skip path detection on tag pushes — always rebuild everything
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          filters: |
+            core:
+              - 'emcip-core/**'
+              - 'pom.xml'
+            intent-classifier:
+              - 'emcip-intent-classifier/**'
+            moderation-service:
+              - 'emcip-moderation-service/**'
+            audit-service:
+              - 'emcip-audit-service/**'
+            admin-api:
+              - 'emcip-admin-api/**'
+            admin-ui:
+              - 'emcip-admin-ui/**'
+            tdlib-adapter:
+              - 'emcip-tdlib-adapter/**'
+            policy-engine:
+              - 'emcip-policy-engine/**'
+            conversation-context:
+              - 'emcip-conversation-context/**'
+            llm-orchestrator:
+              - 'emcip-llm-orchestrator/**'
+
+      - name: Build service matrices
+        id: matrix
+        env:
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+          FILTER_CORE: ${{ steps.filter.outputs.core }}
+          FILTER_INTENT_CLASSIFIER: ${{ steps.filter.outputs.intent-classifier }}
+          FILTER_MODERATION_SERVICE: ${{ steps.filter.outputs.moderation-service }}
+          FILTER_AUDIT_SERVICE: ${{ steps.filter.outputs.audit-service }}
+          FILTER_ADMIN_API: ${{ steps.filter.outputs.admin-api }}
+          FILTER_ADMIN_UI: ${{ steps.filter.outputs.admin-ui }}
+          FILTER_TDLIB_ADAPTER: ${{ steps.filter.outputs.tdlib-adapter }}
+          FILTER_POLICY_ENGINE: ${{ steps.filter.outputs.policy-engine }}
+          FILTER_CONVERSATION_CONTEXT: ${{ steps.filter.outputs.conversation-context }}
+          FILTER_LLM_ORCHESTRATOR: ${{ steps.filter.outputs.llm-orchestrator }}
+        run: |
+          # On tag push, rebuild everything
+          if [[ "$IS_TAG" == "true" ]]; then
+            CORE=true
+            INTENT_CLASSIFIER=true MODERATION_SERVICE=true AUDIT_SERVICE=true
+            ADMIN_API=true ADMIN_UI=true TDLIB_ADAPTER=true
+            POLICY_ENGINE=true CONVERSATION_CONTEXT=true LLM_ORCHESTRATOR=true
+          else
+            CORE="$FILTER_CORE"
+            INTENT_CLASSIFIER="$FILTER_INTENT_CLASSIFIER"
+            MODERATION_SERVICE="$FILTER_MODERATION_SERVICE"
+            AUDIT_SERVICE="$FILTER_AUDIT_SERVICE"
+            ADMIN_API="$FILTER_ADMIN_API"
+            ADMIN_UI="$FILTER_ADMIN_UI"
+            TDLIB_ADAPTER="$FILTER_TDLIB_ADAPTER"
+            POLICY_ENGINE="$FILTER_POLICY_ENGINE"
+            CONVERSATION_CONTEXT="$FILTER_CONVERSATION_CONTEXT"
+            LLM_ORCHESTRATOR="$FILTER_LLM_ORCHESTRATOR"
+          fi
+
+          # Returns true if this service or core changed
+          needs_build() { [[ "$CORE" == "true" || "$1" == "true" ]]; }
+
+          JVM_ONLY='[]'
+          needs_build "$INTENT_CLASSIFIER"    && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"intent-classifier","module":"emcip-intent-classifier"}]')
+          needs_build "$MODERATION_SERVICE"   && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"moderation-service","module":"emcip-moderation-service"}]')
+          needs_build "$AUDIT_SERVICE"        && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"audit-service","module":"emcip-audit-service"}]')
+          needs_build "$ADMIN_API"            && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"admin-api","module":"emcip-admin-api"}]')
+          needs_build "$ADMIN_UI"             && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"admin-ui","module":"emcip-admin-ui"}]')
+          needs_build "$TDLIB_ADAPTER"        && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"tdlib-adapter","module":"emcip-tdlib-adapter"}]')
+
+          JVM_LATEST='[]'
+          needs_build "$POLICY_ENGINE"        && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"policy-engine","module":"emcip-policy-engine"}]')
+          needs_build "$CONVERSATION_CONTEXT" && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"conversation-context","module":"emcip-conversation-context"}]')
+          needs_build "$LLM_ORCHESTRATOR"     && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"llm-orchestrator","module":"emcip-llm-orchestrator"}]')
+
+          echo "jvm-only=$(echo "$JVM_ONLY" | jq -c .)"     >> "$GITHUB_OUTPUT"
+          echo "jvm-latest=$(echo "$JVM_LATEST" | jq -c .)" >> "$GITHUB_OUTPUT"
+          echo "native=$(echo "$JVM_LATEST" | jq -c .)"     >> "$GITHUB_OUTPUT"
+
   build-jvm-only:
     name: Build JVM-only (${{ matrix.service }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.jvm-only-matrix != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -21,19 +117,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service: intent-classifier
-            module: emcip-intent-classifier
-          - service: moderation-service
-            module: emcip-moderation-service
-          - service: audit-service
-            module: emcip-audit-service
-          - service: admin-api
-            module: emcip-admin-api
-          - service: admin-ui
-            module: emcip-admin-ui
-          - service: tdlib-adapter
-            module: emcip-tdlib-adapter
+        include: ${{ fromJson(needs.detect-changes.outputs.jvm-only-matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,6 +148,8 @@ jobs:
 
   build-jvm-latest:
     name: Build JVM-latest (${{ matrix.service }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.jvm-latest-matrix != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,13 +157,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service: policy-engine
-            module: emcip-policy-engine
-          - service: conversation-context
-            module: emcip-conversation-context
-          - service: llm-orchestrator
-            module: emcip-llm-orchestrator
+        include: ${{ fromJson(needs.detect-changes.outputs.jvm-latest-matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -108,6 +188,8 @@ jobs:
 
   build-native-amd64:
     name: Build native-amd64 (${{ matrix.service }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.native-matrix != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -115,13 +197,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - service: policy-engine
-            module: emcip-policy-engine
-          - service: conversation-context
-            module: emcip-conversation-context
-          - service: llm-orchestrator
-            module: emcip-llm-orchestrator
+        include: ${{ fromJson(needs.detect-changes.outputs.native-matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
