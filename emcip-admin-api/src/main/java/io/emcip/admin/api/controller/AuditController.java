@@ -1,6 +1,6 @@
 package io.emcip.admin.api.controller;
 
-import io.emcip.admin.api.entity.AuditEvent;
+import io.emcip.admin.api.dto.AuditEventResponse;
 import io.emcip.admin.api.repository.AuditEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,12 +17,25 @@ public class AuditController {
     private final AuditEventRepository auditEventRepository;
 
     @GetMapping("/events")
-    public Flux<AuditEvent> getEvents(
+    public Flux<AuditEventResponse> getEvents(
             @RequestParam(name = "size", defaultValue = "50") int size,
             @RequestParam(name = "eventType", required = false) String eventType) {
-        if (eventType != null && !eventType.isBlank()) {
-            return auditEventRepository.findRecentByType(eventType, size);
-        }
-        return auditEventRepository.findRecent(size);
+        Flux<io.emcip.admin.api.entity.AuditEvent> events =
+                (eventType != null && !eventType.isBlank())
+                        ? auditEventRepository.findRecentByType(eventType, size)
+                        : auditEventRepository.findRecent(size);
+        return events.map(
+                e ->
+                        new AuditEventResponse(
+                                e.getEventId(),
+                                e.getEventType(),
+                                e.getSourceService(),
+                                e.getAction(),
+                                e.getActorType(),
+                                e.getActorId(),
+                                e.getResourceId(),
+                                e.getOutcome(),
+                                e.getDetails(),
+                                e.getCreatedAt()));
     }
 }

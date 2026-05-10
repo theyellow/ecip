@@ -44,6 +44,9 @@ public class AuditEvent {
     @Column("outcome")
     private String outcome;
 
+    @Column("details")
+    private String details;
+
     @Column("created_at")
     private Instant createdAt;
 }
