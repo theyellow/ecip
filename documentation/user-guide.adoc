@@ -7,12 +7,12 @@
 
 This guide covers two audiences:
 
-* *Part I — Admin UI*: Platform administrators using the browser-based interface at http://localhost:14009.
-* *Part II — REST API*: Developers and automation scripts calling the Admin API directly at http://localhost:9087.
+* *Part I — Admin UI*: Platform administrators using the browser-based interface at http://emcip.local/.
+* *Part II — REST API*: Developers and automation scripts calling the Admin API directly at http://emcip.local/api.
 
-NOTE: EMCIP runs on microk8s in production.
-The Admin UI is available at `http://emcip.local/` and the Admin API at `http://emcip.local/api`.
-For local development (Docker Compose), use `http://localhost:14009` and `http://localhost:9087` respectively.
+NOTE: EMCIP runs on microk8s. The Admin UI is at `http://emcip.local/` and the Admin API at `http://emcip.local/api`.
+For local Docker Compose development, substitute `http://localhost:14009` and `http://localhost:9087` respectively.
+See the _Docker Compose Guide_ for local setup.
 
 NOTE: For JWT internals and the full security architecture, see the _Architecture Guide_.
 
@@ -20,7 +20,7 @@ NOTE: For JWT internals and the full security architecture, see the _Architectur
 
 === Login
 
-Open http://localhost:14009.
+Open http://emcip.local/ in a browser.
 
 [plantuml,seq-admin-auth,png]
 ----
@@ -185,11 +185,18 @@ Use the two dropdowns in the top-right corner:
 
 Results are always ordered newest-first.
 
-==== Marking a Flag as Reviewed
+==== Inspecting and Reviewing a Flag
 
-Once you have inspected a flagged message, click *Mark reviewed* in the row. The status badge changes from `NEW` to `REVIEWED`. This action is recorded via `PATCH /api/flags/\{id}/status` and is permanent (there is no undo in the UI, though the API accepts any status value).
+Click any row to open the *Flag Detail* modal. The modal shows the full (untruncated) message text, metadata fields (Chat ID, Sender ID), the matched policy ID, event IDs, and the current review status.
 
-NOTE: The *Mark reviewed* button is hidden for rows already in `REVIEWED` or `ACTIONED` status.
+To change the status, click one of the status buttons in the modal (*New*, *Reviewed*, or *Actioned*). The change is saved immediately via `PATCH /api/flags/\{id}/status` and reflected in both the modal and the table row. There is no undo in the UI (the API accepts any value).
+
+Typical review workflow:
+
+. Row arrives as *NEW* (blue).
+. Operator clicks the row and reads the full message text in the modal.
+. Operator clicks *Reviewed* — status changes to *REVIEWED* (gray).
+. After taking action (e.g., banning the user manually), operator clicks *Actioned* — status changes to *ACTIONED* (green).
 
 ==== Understanding the Pipeline
 
@@ -202,6 +209,138 @@ Each row in Flags corresponds to one complete pipeline run:
 
 The *Flags* page reads directly from `policy_decisions` (decisions where `decision != 'ALLOW'`).
 The *Audit Log* page reads from `audit_events` (all pipeline steps, regardless of decision).
+
+=== Moderation Rules
+
+*Moderation Rules* define keyword- or pattern-based filters that the Moderation Service applies to every incoming message independently of the policy engine.
+
+==== Rule Types
+
+[cols="1,2,2"]
+|===
+|Type |Matches when |Pattern example
+
+|`KEYWORD`
+|Message contains the exact word (case-insensitive)
+|`scam`
+
+|`REGEX`
+|Message matches a Java regex pattern
+|`\b(buy\|sell\|crypto)\b`
+
+|`LENGTH`
+|Message character count exceeds the numeric value
+|`500`
+|===
+
+==== Actions
+
+`FLAG`, `WARN`, `MUTE`, `BAN`, `DELETE`, `ALLOW`. Matching rules emit a `MODERATION_FLAG` event which the Audit Service records.
+
+==== Managing Rules
+
+. Navigate to *Moderation Rules* in the sidebar.
+. Click *New Rule* to open the create form.
+. Fill in: *Type*, *Pattern*, *Action*, and optionally toggle *Enabled*.
+. Click *Save*. The rule is active within 5 minutes (the Moderation Service polls the database on a short cache TTL).
+. To delete a rule, click the trash icon in its row. Deletion is permanent.
+
+NOTE: Rules can be toggled on/off using the *Enabled* switch in the list without deleting them.
+
+=== Groups
+
+The *Groups* page manages *group profiles* — the metadata EMCIP stores for each Telegram group it watches. A group profile is created automatically when you watch a group via the Telegram Accounts page, and can be edited here.
+
+==== Group Profile Fields
+
+[cols="1,3"]
+|===
+|Field |Description
+
+|*Telegram Chat ID*
+|The numeric Telegram chat ID (negative for supergroups). Set at creation, read-only afterwards.
+
+|*Name*
+|Human-readable label for the group.
+
+|*Description*
+|Optional internal notes.
+
+|*Moderation Level*
+|`LOW`, `MEDIUM`, `HIGH`, or `STRICT`. Referenced by policy rules for level-gated actions. Color-coded: green / blue / yellow / red.
+
+|*Auto-respond*
+|If enabled, the LLM Orchestrator sends automated replies for matched messages.
+
+|*Welcome Message*
+|Text the bot sends to new group members (if auto-respond is enabled).
+
+|*Tenant*
+|Assigns the group to a tenant for data isolation.
+|===
+
+==== Editing a Group Profile
+
+. Navigate to *Groups* in the sidebar.
+. Click the pencil icon on a group row.
+. Edit the fields and click *Save*.
+
+NOTE: The Telegram Chat ID cannot be changed after creation. Remove and re-add the group if you need to correct it.
+
+=== Simulate
+
+The *Simulate* page publishes a synthetic Telegram message event directly into the processing pipeline. Use it to test rules and verify end-to-end behaviour without sending a real message.
+
+==== How to Use
+
+. Navigate to *Simulate* in the sidebar.
+. Fill in:
+** *Chat ID* — the numeric Telegram chat ID of a watched group (negative integer).
+** *Sender ID* — any string identifying the simulated sender (default: `sim-user`).
+** *Sender Type* — `USER` or `BOT`.
+** *Message Text* — the content to classify.
+. Click *Publish*. The event is injected into `telegram.raw.messages`.
+. Within a few seconds the message flows through Intent Classifier → Policy Engine → Audit Service.
+. Check the *Flags* page (for non-ALLOW decisions) and the *Audit Log* to confirm the pipeline ran.
+
+NOTE: Simulated messages are indistinguishable from real messages in the pipeline.
+They will appear in the Audit Log and may trigger policy actions.
+
+=== AI Config
+
+The *AI Config* page manages the model registry used by the LLM Orchestrator. Each entry maps a *model key* to a specific provider and model name, along with cost and performance metadata.
+
+==== Fields
+
+[cols="1,3"]
+|===
+|Field |Description
+
+|*Model Key*
+|Internal identifier used in prompt templates (e.g., `claude-default`).
+
+|*Provider*
+|LLM provider: `anthropic`, `openai`, `google`, etc.
+
+|*Model Name*
+|Exact model identifier sent to the provider API (e.g., `claude-sonnet-4-6`).
+
+|*Task Type*
+|`GENERAL`, `CLASSIFICATION`, `SUMMARIZATION`, etc. Used for routing.
+
+|*Priority*
+|Lower number = preferred when multiple models match a task type.
+
+|*Active*
+|Inactive models are excluded from routing.
+|===
+
+==== Managing Models
+
+. Navigate to *AI Config* in the sidebar.
+. Click *Add Model* to open the create form.
+. Fill in the required fields (*Model Key*, *Provider*, *Model Name*) and click *Save*.
+. Edit an existing model with the pencil icon; delete with the trash icon.
 
 === Telegram Account Management
 
@@ -296,7 +435,8 @@ reaches the processing pipeline exactly once, regardless of how many accounts re
 
 == Part II — REST API Reference
 
-All API requests require the `Authorization: Bearer <token>` header unless marked as public. Obtain a token from §5 Authentication.
+All API requests require the `Authorization: Bearer <token>` header unless marked as public. Obtain a token from §Authentication below.
+Base URL on microk8s: `http://emcip.local/api`. For Docker Compose: `http://localhost:9087`.
 
 === Authentication
 
@@ -340,7 +480,7 @@ Use the token value in all subsequent requests:
 [source,bash]
 ----
 curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..." \
-     http://localhost:9087/api/tenants
+     http://emcip.local/api/api/tenants
 ----
 
 Tokens expire after the duration configured in `app.jwt.expiration` (default: 24 hours). Re-authenticate to get a new token.
@@ -368,7 +508,7 @@ Tokens expire after the duration configured in `app.jwt.expiration` (default: 24
 
 [source,bash]
 ----
-curl -X POST http://localhost:9087/api/tenants \
+curl -X POST http://emcip.local/api/api/tenants \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "Community Alpha"}'
@@ -423,7 +563,7 @@ Response:
 
 [source,bash]
 ----
-curl -X POST http://localhost:9087/api/policy-rules \
+curl -X POST http://emcip.local/api/api/policy-rules \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -472,7 +612,7 @@ The previous version of `spam-block` (if any) is automatically deactivated.
 
 [source,bash]
 ----
-curl "http://localhost:9087/api/audit/events?eventType=POLICY_DECISION&from=2026-04-22T00:00:00Z&size=20&page=0" \
+curl "http://emcip.local/api/api/audit/events?eventType=POLICY_DECISION&from=2026-04-22T00:00:00Z&size=20&page=0" \
   -H "Authorization: Bearer <token>"
 ----
 
@@ -495,7 +635,7 @@ curl "http://localhost:9087/api/audit/events?eventType=POLICY_DECISION&from=2026
 
 [source,bash]
 ----
-curl "http://localhost:9087/api/flags?size=25&decision=FLAG" \
+curl "http://emcip.local/api/api/flags?size=25&decision=FLAG" \
   -H "Authorization: Bearer <token>"
 ----
 
@@ -526,7 +666,7 @@ Parse them client-side if you need to access individual fields.
 [source,bash]
 ----
 curl -X PATCH \
-  "http://localhost:9087/api/flags/23dcbc18-4a19-48c6-a6bd-259dcbfd76f8/status" \
+  "http://emcip.local/api/api/flags/23dcbc18-4a19-48c6-a6bd-259dcbfd76f8/status" \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"status": "REVIEWED"}'
@@ -670,7 +810,7 @@ Account must be ACTIVE.
 
 [source,bash]
 ----
-curl -X POST http://localhost:9087/api/telegram/accounts/<account-id>/watch \
+curl -X POST http://emcip.local/api/api/telegram/accounts/<account-id>/watch \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -703,7 +843,7 @@ Content-Type: application/json
 [source,bash]
 ----
 curl -X DELETE \
-  "http://localhost:9087/api/telegram/accounts/<account-id>/watch/-1001234567890" \
+  "http://emcip.local/api/api/telegram/accounts/<account-id>/watch/-1001234567890" \
   -H "Authorization: Bearer <token>"
 ----
 
@@ -714,11 +854,11 @@ HTTP/1.1 204 No Content
 
 === Health & Metrics
 
-Every service exposes standard actuator endpoints. No authentication required.
+Every service exposes standard Spring Boot Actuator endpoints. No authentication required.
 
 [cols="1,1,2"]
 |===
-|Endpoint |Port range |Response
+|Endpoint |Internal port |Response
 
 |`GET /actuator/health`
 |9080–9087
@@ -729,27 +869,71 @@ Every service exposes standard actuator endpoints. No authentication required.
 |Prometheus text format metrics scrape
 |===
 
-==== Health Check All Services
+==== Check Pod Status (microk8s)
+
+The quickest overview is the pod list — Kubernetes restarts unhealthy pods automatically, so `Running` with low restarts means all services are healthy:
 
 [source,bash]
 ----
-for port in 9080 9081 9082 9083 9084 9085 9086 9087; do
-  echo -n "Port $port: "
-  curl -s http://localhost:$port/actuator/health | \
-    python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))"
-done
+microk8s.kubectl get pods -n emcip 2>/dev/null | cat
 ----
 
-Expected output when all services are healthy:
+Expected output (all `1/1 Running`):
 
 [source]
 ----
-Port 9080: UP
-Port 9081: UP
-Port 9082: UP
-Port 9083: UP
-Port 9084: UP
-Port 9085: UP
-Port 9086: UP
-Port 9087: UP
+NAME                                          READY   STATUS    RESTARTS
+emcip-admin-api-xxx                           1/1     Running   0
+emcip-admin-ui-xxx                            1/1     Running   0
+emcip-audit-service-xxx                       1/1     Running   0
+emcip-intent-classifier-xxx                   1/1     Running   0
+emcip-policy-engine-xxx                       1/1     Running   0
+...
 ----
+
+==== Admin API Health via Ingress
+
+The Admin API health endpoint is accessible directly through the ingress:
+
+[source,bash]
+----
+curl -s http://emcip.local/api/actuator/health | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))"
+----
+
+==== Individual Service Health (port-forward)
+
+Internal services (policy-engine, audit-service, etc.) are not exposed through the ingress. Use `kubectl port-forward` to reach their actuator endpoints:
+
+[source,bash]
+----
+# Example: check policy-engine health
+microk8s.kubectl port-forward svc/emcip-policy-engine -n emcip 9083:9083 &
+curl -s http://localhost:9083/actuator/health | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))"
+kill %1
+----
+
+NOTE: For local Docker Compose development, all services are directly accessible on ports 9080–9087 and can be health-checked with a simple port loop.
+See the _Docker Compose Guide_ §Observability for details.
+
+==== Grafana & Loki
+
+Grafana is available at `http://emcip.local/grafana` (default credentials: admin / admin).
+Loki is the log aggregation backend — query it via Grafana → Explore → Loki datasource.
+
+Three pre-built dashboards are provisioned automatically:
+
+[cols="1,3"]
+|===
+|Dashboard |Shows
+
+|*Service Health*
+|Actuator UP/DOWN status per service, JVM heap used, GC pause time.
+
+|*Kafka Consumer Lag*
+|Consumer group lag per topic. Alert threshold: > 1000 messages.
+
+|*Audit Throughput*
+|Audit events/minute and moderation flags/minute over time.
+|===
