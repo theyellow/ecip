@@ -204,7 +204,6 @@ public class TdLibClient {
     @PreDestroy
     public void destroy() {
         log.info("[{}] Destroying TDLib client", accountId);
-        if (authorized) logout();
         if (client != null) client.send(new TdApi.Close(), null);
     }
 
