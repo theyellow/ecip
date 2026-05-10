@@ -5,6 +5,7 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -87,11 +88,29 @@ public class TelegramSessionResumeRunner {
                                         .bodyValue(Map.of("chatIds", chatIds))
                                         .retrieve()
                                         .bodyToMono(Void.class)
+                                        .retryWhen(
+                                                reactor.util.retry.Retry.backoff(
+                                                                5, Duration.ofSeconds(2))
+                                                        .maxBackoff(Duration.ofSeconds(30))
+                                                        .doBeforeRetry(
+                                                                signal ->
+                                                                        log.warn(
+                                                                                "[{}] Retrying"
+                                                                                    + " watched-groups"
+                                                                                    + " push"
+                                                                                    + " (attempt"
+                                                                                    + " {}): {}",
+                                                                                accountId,
+                                                                                signal
+                                                                                                .totalRetries()
+                                                                                        + 1,
+                                                                                signal.failure()
+                                                                                        .getMessage())))
                                         .onErrorResume(
                                                 e -> {
-                                                    log.warn(
+                                                    log.error(
                                                             "[{}] Failed to push watched groups on"
-                                                                    + " startup: {}",
+                                                                    + " startup after retries: {}",
                                                             accountId,
                                                             e.getMessage());
                                                     return Mono.empty();

@@ -154,6 +154,7 @@ public class TelegramAccountController {
                                     .bodyValue(payload)
                                     .retrieve()
                                     .bodyToMono(Void.class)
+                                    .then(pushWatchedGroups(id))
                                     .then(
                                             repository.save(
                                                     update(
@@ -220,6 +221,15 @@ public class TelegramAccountController {
                                                                 TelegramAccountStatus.DISCONNECTED,
                                                                 null)))
                                 .then());
+    }
+
+    @PostMapping("/sync")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> syncWatchedGroups() {
+        return repository
+                .findByStatus(TelegramAccountStatus.ACTIVE)
+                .flatMap(account -> pushWatchedGroups(account.getId()))
+                .then();
     }
 
     @GetMapping("/{id}/chats")
