@@ -212,6 +212,39 @@ docker exec -it $(docker compose ps -q postgres) \
   "UPDATE admin_users SET password_hash = '<hash>' WHERE username = 'admin';"
 ----
 
+== Health Checks
+
+=== Check All Services
+
+All application services expose a `/actuator/health` endpoint on their respective ports.
+Run this loop after startup to confirm all services are up:
+
+[source,bash]
+----
+for port in 9080 9081 9082 9083 9084 9085 9086 9087; do
+  echo -n "Port $port: "
+  curl -s http://localhost:$port/actuator/health | \
+    python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','?'))"
+done
+----
+
+Expected output when all services are healthy:
+
+[source]
+----
+Port 9080: UP
+Port 9081: UP
+Port 9082: UP
+Port 9083: UP
+Port 9084: UP
+Port 9085: UP
+Port 9086: UP
+Port 9087: UP
+----
+
+NOTE: Services start in parallel but depend on Kafka and PostgreSQL being ready.
+If a service shows `DOWN` immediately after startup, wait 30 seconds and re-run.
+
 == Observability
 
 === Grafana Dashboards

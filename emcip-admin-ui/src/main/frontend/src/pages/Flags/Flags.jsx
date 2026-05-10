@@ -7,6 +7,7 @@ import { Button } from '../../components/Button/Button'
 import styles from './Flags.module.css'
 
 const DECISIONS = ['', 'FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE']
+const STATUSES = ['NEW', 'REVIEWED', 'ACTIONED']
 
 const DECISION_VARIANT = {
   FLAG: 'blue',
@@ -27,6 +28,89 @@ function parseMeta(raw) {
   }
 }
 
+function FlagDetailModal({ flag, onClose, onStatusChange }) {
+  const meta = parseMeta(flag.metadata)
+  const [status, setStatus] = useState(flag.signalStatus ?? 'NEW')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleStatusChange = async newStatus => {
+    setSaving(true)
+    setError('')
+    try {
+      await onStatusChange(flag.id, newStatus)
+      setStatus(newStatus)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+        <div className={styles.modalHeader}>
+          <h3>Flag Detail</h3>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">&times;</button>
+        </div>
+
+        <div className={styles.modalBody}>
+          <div className={styles.detailGrid}>
+            <span className={styles.label}>Decision</span>
+            <span><Badge variant={DECISION_VARIANT[flag.decision] ?? 'gray'}>{flag.decision}</Badge></span>
+
+            <span className={styles.label}>Status</span>
+            <span className={styles.statusRow}>
+              <Badge variant={STATUS_VARIANT[status] ?? 'gray'}>{status}</Badge>
+              <span className={styles.statusButtons}>
+                {STATUSES.filter(s => s !== status).map(s => (
+                  <Button key={s} variant="secondary" disabled={saving} onClick={() => handleStatusChange(s)}>
+                    {s.charAt(0) + s.slice(1).toLowerCase()}
+                  </Button>
+                ))}
+              </span>
+            </span>
+
+            <span className={styles.label}>Timestamp</span>
+            <span className={styles.mono}>{flag.timestamp ? new Date(flag.timestamp).toLocaleString() : '\u2014'}</span>
+
+            <span className={styles.label}>Intent</span>
+            <span><Badge variant="gray">{flag.originalIntent}</Badge></span>
+
+            <span className={styles.label}>Confidence</span>
+            <span className={styles.mono}>{flag.confidence != null ? (flag.confidence * 100).toFixed(1) + '%' : '\u2014'}</span>
+
+            <span className={styles.label}>Reason</span>
+            <span>{flag.reason || '\u2014'}</span>
+
+            <span className={styles.label}>Message</span>
+            <span className={styles.messageText}>{meta.messageText || '\u2014'}</span>
+
+            {meta.chatId && <>
+              <span className={styles.label}>Chat ID</span>
+              <span className={styles.mono}>{meta.chatId}</span>
+            </>}
+
+            {meta.senderId && <>
+              <span className={styles.label}>Sender ID</span>
+              <span className={styles.mono}>{meta.senderId}</span>
+            </>}
+
+            <span className={styles.label}>Policy ID</span>
+            <span className={styles.mono}>{flag.policyId || '\u2014'}</span>
+
+            <span className={styles.label}>Event ID</span>
+            <span className={styles.mono}>{flag.id}</span>
+          </div>
+
+          {error && <p className={styles.error} role="alert">{error}</p>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Flags() {
   const { token } = useAuth()
   const api = flagsApi(makeRequest(token))
@@ -34,19 +118,17 @@ export function Flags() {
   const [size, setSize] = useState(50)
   const [decision, setDecision] = useState('')
   const [error, setError] = useState('')
+  const [selected, setSelected] = useState(null)
 
   const load = () =>
     api.list(size, decision).then(setFlags).catch(e => setError(e.message))
 
   useEffect(() => { load() }, [size, decision])
 
-  const markReviewed = async flag => {
-    try {
-      await api.updateStatus(flag.id, 'REVIEWED')
-      setFlags(prev => prev.map(f => f.id === flag.id ? { ...f, signalStatus: 'REVIEWED' } : f))
-    } catch (e) {
-      setError(e.message)
-    }
+  const updateStatus = async (id, status) => {
+    await api.updateStatus(id, status)
+    setFlags(prev => prev.map(f => f.id === id ? { ...f, signalStatus: status } : f))
+    setSelected(prev => prev?.id === id ? { ...prev, signalStatus: status } : prev)
   }
 
   return (
@@ -73,14 +155,13 @@ export function Flags() {
             <th>Message</th>
             <th>Reason</th>
             <th>Status</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
           {flags.map(f => {
             const meta = parseMeta(f.metadata)
             return (
-              <tr key={f.id}>
+              <tr key={f.id} className={styles.clickableRow} onClick={() => setSelected(f)}>
                 <td className={styles.mono}>
                   {f.timestamp ? new Date(f.timestamp).toLocaleString() : '\u2014'}
                 </td>
@@ -98,16 +179,19 @@ export function Flags() {
                     {f.signalStatus ?? 'NEW'}
                   </Badge>
                 </td>
-                <td className={styles.actions}>
-                  {f.signalStatus !== 'REVIEWED' && f.signalStatus !== 'ACTIONED' && (
-                    <Button variant="secondary" onClick={() => markReviewed(f)}>Mark reviewed</Button>
-                  )}
-                </td>
               </tr>
             )
           })}
         </tbody>
       </table>
+
+      {selected && (
+        <FlagDetailModal
+          flag={selected}
+          onClose={() => setSelected(null)}
+          onStatusChange={updateStatus}
+        />
+      )}
     </div>
   )
 }

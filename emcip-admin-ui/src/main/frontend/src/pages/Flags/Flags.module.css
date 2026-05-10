@@ -7,7 +7,21 @@
 .table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover td { background: var(--table-row-hover); }
+.clickableRow { cursor: pointer; }
 .mono { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); }
 .error { color: var(--badge-red-text); background: var(--badge-red-bg); padding: 0.5rem 0.75rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.85rem; }
 .message { color: var(--text-secondary); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.actions { display: flex; gap: 0.4rem; }
+
+/* Modal */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; width: 560px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.modalHeader { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+.modalHeader h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+.closeBtn { background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer; padding: 0 0.25rem; line-height: 1; }
+.closeBtn:hover { color: var(--text-primary); }
+.modalBody { padding: 1.25rem; overflow-y: auto; }
+.detailGrid { display: grid; grid-template-columns: 130px 1fr; gap: 0.75rem 1rem; align-items: start; }
+.label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding-top: 0.2rem; }
+.statusRow { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.statusButtons { display: flex; gap: 0.4rem; }
+.messageText { white-space: pre-wrap; word-break: break-word; font-size: 0.875rem; line-height: 1.5; }
