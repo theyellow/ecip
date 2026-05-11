@@ -22,7 +22,11 @@ public class RuleEvaluationService {
 
     @PostConstruct
     public void loadRules() {
-        refreshRules();
+        List<ModerationRule> rules = repository.findByEnabledTrue().collectList().block();
+        if (rules != null) {
+            cachedRules = rules;
+            log.info("Loaded {} moderation rules at startup", rules.size());
+        }
     }
 
     @Scheduled(fixedDelay = 300_000)
@@ -33,7 +37,7 @@ public class RuleEvaluationService {
                 .doOnNext(
                         rules -> {
                             cachedRules = rules;
-                            log.info("Loaded {} moderation rules", rules.size());
+                            log.info("Reloaded {} moderation rules", rules.size());
                         })
                 .subscribe();
     }
