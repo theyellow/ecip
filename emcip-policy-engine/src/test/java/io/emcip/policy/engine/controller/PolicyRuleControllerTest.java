@@ -65,12 +65,7 @@ class PolicyRuleControllerTest {
         PolicyRuleConfig update = rule("r1", "updated");
         when(repository.findById("r1")).thenReturn(Optional.of(existing));
         when(repository.save(any())).thenReturn(update);
-        client.put()
-                .uri("/api/policy-rules/r1")
-                .bodyValue(update)
-                .exchange()
-                .expectStatus()
-                .isOk();
+        client.put().uri("/api/policy-rules/r1").bodyValue(update).exchange().expectStatus().isOk();
     }
 
     @Test
@@ -81,10 +76,6 @@ class PolicyRuleControllerTest {
     @Test
     void history_returnsRulesByName() {
         when(repository.findAll()).thenReturn(List.of(rule("r1", "spam-rule")));
-        client.get()
-                .uri("/api/policy-rules/history/spam-rule")
-                .exchange()
-                .expectStatus()
-                .isOk();
+        client.get().uri("/api/policy-rules/history/spam-rule").exchange().expectStatus().isOk();
     }
 }

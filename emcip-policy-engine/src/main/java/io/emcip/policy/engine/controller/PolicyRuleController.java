@@ -76,9 +76,7 @@ public class PolicyRuleController {
                                                             rule.getEffectiveFrom());
                                                     existing.setEffectiveTo(rule.getEffectiveTo());
                                                     return Mono.fromCallable(
-                                                                    () ->
-                                                                            repository.save(
-                                                                                    existing))
+                                                                    () -> repository.save(existing))
                                                             .subscribeOn(
                                                                     Schedulers.boundedElastic());
                                                 })
