@@ -30,7 +30,7 @@
 
 | Status | Item |
 |--------|------|
-| ❌ | **US-4.3.3 (service-to-service auth)** — `ServiceTokenAuthenticationFilter` exists in admin-api but no other service sends the `X-Service-Token` header when calling admin-api. Inter-service auth is one-sided. |
+| ✅ | **US-4.3.3 (service-to-service auth)** — Full inter-service auth implemented. Domain services (moderation-service, policy-engine, audit-service) each have a `ServiceTokenFilter` protecting `/api/**`. admin-api has `WebClient` proxy clients (`ModerationServiceClient`, `PolicyEngineClient`, `AuditServiceClient`) that send `X-Service-Token` on every call. Foreign JPA entities/repos removed from admin-api. SecurityConfig `.permitAll()` workaround removed. *(Fixed 2026-05-13)* |
 | ❌ | **US-4.3.4** — No OpenAPI/Swagger documentation generated or exposed in any service. |
 | ❌ | **US-4.3.5** — Only 3 test files in admin-api (`JwtServiceTest`, `SecurityFilterChainTest`, `TelegramAccountControllerTest`). No test coverage for most controllers (AuditController, FlagController, GroupProfileController, ModerationRuleController, PolicyRuleController, SimulateController, TenantController, AIProxyController). |
 
