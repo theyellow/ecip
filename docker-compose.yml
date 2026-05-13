@@ -336,6 +336,8 @@ services:
     depends_on:
       loki:
         condition: service_healthy
+      prometheus:
+        condition: service_healthy
     ports:
       - "14007:3000"
     environment:
