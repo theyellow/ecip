@@ -9,6 +9,7 @@ import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -66,6 +67,17 @@ class PolicyRuleControllerTest {
         when(repository.findById("r1")).thenReturn(Optional.of(existing));
         when(repository.save(any())).thenReturn(update);
         client.put().uri("/api/policy-rules/r1").bodyValue(update).exchange().expectStatus().isOk();
+    }
+
+    @Test
+    void update_notFound_returns404() {
+        when(repository.findById(any())).thenReturn(Optional.empty());
+        client.put()
+                .uri("/api/policy-rules/" + UUID.randomUUID())
+                .bodyValue(rule(null, "ghost-rule"))
+                .exchange()
+                .expectStatus()
+                .isNotFound();
     }
 
     @Test

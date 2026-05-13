@@ -52,9 +52,9 @@ class PolicyDecisionControllerTest {
     @Test
     void updateStatus_returns204() {
         when(repository.updateSignalStatus(any(), any())).thenReturn(1);
-        client.patch()
-                .uri("/api/policy-decisions/d1/status")
-                .bodyValue(Map.of("status", "REVIEWED"))
+        client.put()
+                .uri("/api/policy-decisions/d1")
+                .bodyValue(Map.of("signalStatus", "REVIEWED"))
                 .exchange()
                 .expectStatus()
                 .isNoContent();

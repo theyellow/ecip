@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -80,7 +81,10 @@ public class PolicyRuleController {
                                                             .subscribeOn(
                                                                     Schedulers.boundedElastic());
                                                 })
-                                        .orElse(Mono.empty()));
+                                        .orElse(
+                                                Mono.error(
+                                                        new ResponseStatusException(
+                                                                HttpStatus.NOT_FOUND))));
     }
 
     @DeleteMapping("/{id}")
