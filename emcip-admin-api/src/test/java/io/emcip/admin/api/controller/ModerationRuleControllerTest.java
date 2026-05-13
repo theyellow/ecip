@@ -19,9 +19,9 @@ import tools.jackson.databind.node.JsonNodeFactory;
 @ExtendWith(MockitoExtension.class)
 class ModerationRuleControllerTest {
 
-    @Mock ModerationServiceClient client;
+    @Mock private ModerationServiceClient client;
 
-    WebTestClient webTestClient;
+    private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
