@@ -14,7 +14,7 @@
 | ❌ | **US-4.1.1** — No toxicity detection beyond simple keyword/regex/length rules. `RuleEvaluationService` is functional but primitive. No integration with OpenNLP, Perspective API, or ML-based scoring. |
 | ❌ | **US-4.1.4** — No documentation for moderation rules and escalation paths beyond the user story doc. |
 | ❌ | **US-4.1.5** — Only 2 test files (`RuleEvaluationServiceTest`, `ModerationEventConsumerTest`). No integration test with a real Kafka/DB. |
-| ❓ | **Missing REST controller** — `emcip-moderation-service` has no HTTP controller. Admin UI calls moderation rule CRUD via `emcip-admin-api`. Is this by design (admin-api is the gateway) or a gap? Needs decision. |
+| ✅ | **Missing REST controller** — By design. Both services share the same DB (`emcip`). `admin-api` owns rule CRUD; `moderation-service` reads the same table and refreshes its in-memory cache every 5 min via `@Scheduled`. No controller needed. *(Decided 2026-05-13)* |
 
 ### Epic 4.2: Observability
 
@@ -24,7 +24,7 @@
 | ✅ | **US-4.2.4** — Grafana JVM & HTTP metrics dashboard provisioned in both docker-compose and Helm. *(PR #37)* |
 | ❌ | **US-4.2.2 (OpenTelemetry tracing)** — `micrometer-tracing-bridge-otel` + `opentelemetry-exporter-logging` in 3 services only (admin-api, audit-service, moderation-service). All export to **logs only** — no OTLP/Jaeger/Tempo backend. No OTel collector in docker-compose or Helm. 6 services have no OTel dep at all. |
 | ❌ | **US-4.2.5** — No integration tests for logging or metrics. |
-| ❌ | **OTel gap in 6 services** — `conversation-context`, `intent-classifier`, `policy-engine`, `llm-orchestrator`, `tdlib-adapter`, `core` have no OTel dependency. |
+| ✅ | **OTel gap in 6 services** — Added `micrometer-tracing-bridge-otel` + `opentelemetry-exporter-logging` to all 5 runnable services (`conversation-context`, `intent-classifier`, `policy-engine`, `llm-orchestrator`, `tdlib-adapter`). `emcip-core` is a library and needs no OTel dep. *(Fixed 2026-05-13)* |
 
 ### Epic 4.3: Admin API Security
 
@@ -38,7 +38,7 @@
 
 | Status | Item |
 |--------|------|
-| ❌ | **US-4.4.2 (retention policies)** — `RetentionService` exists with `@Scheduled` but implementation depth is shallow. Needs review for correctness and coverage. |
+| ✅ | **US-4.4.2 (retention policies)** — Reviewed 2026-05-13. `RetentionService` is correct: `@EnableScheduling` present, `created_at` column matches entity, `retentionDays` configurable (default 90). Fire-and-forget `.subscribe()` with `.doOnError()` logging is adequate for a scheduled purge. No changes needed. |
 | ❌ | **US-4.4.4** — No schema documentation (ER diagrams, data dictionary) for audit/event log tables. |
 | ❌ | **US-4.4.5** — No integration tests for log persistence or retention. |
 
@@ -48,7 +48,7 @@
 
 | Status | Item |
 |--------|------|
-| ❌ | **Intent classifier — 0 tests** — `IntentClassificationService` (rule-based, ~60 lines) has no unit or integration test at all. |
+| ✅ | **Intent classifier — 0 tests** — Added `IntentClassificationServiceTest` (8 unit tests covering GREETING/QUESTION/COMMAND/SPAM/UNKNOWN/multi-match/Kafka publish/metadata). *(Fixed 2026-05-13)* |
 | ❌ | **LLM orchestrator — sparse tests** — Only 1 test file (`LlmCallServiceTest`). No test for prompt template versioning, model routing fallback, or cost tracking logic. |
 
 ---
@@ -89,7 +89,7 @@
 
 | Severity | Issue |
 |----------|-------|
-| Medium | **Jackson 2→3 migration gap in `emcip-policy-engine`** — `EventValidator` constructor still expects `com.fasterxml.jackson.databind.ObjectMapper` (Jackson 2) but `KafkaConfig` passes `tools.jackson.databind.ObjectMapper` (Jackson 3 / Spring Boot 4). Causes 11 test failures in `emcip-policy-engine`. Not a regression — predates current work. |
+| ✅ Fixed | **Jackson 2→3 migration gap in `emcip-policy-engine`** — Stale `emcip-core` JAR in local Maven repo (compiled before Jackson 3 migration). Fixed 2026-05-13 by reinstalling `emcip-core`. All 43 tests pass. |
 
 ---
 

@@ -31,7 +31,7 @@
             <column name="reason" type="VARCHAR(500)">
                 <constraints nullable="true"/>
             </column>
-            <column name="priority" type="INTEGER">
+            <column name="priority" type="INTEGER" defaultValueNumeric="0">
                 <constraints nullable="false"/>
             </column>
             <column name="active" type="BOOLEAN">
@@ -48,6 +48,9 @@
             </column>
             <column name="version" type="BIGINT">
                 <constraints nullable="true"/>
+            </column>
+            <column name="rule_version" type="INTEGER" defaultValueNumeric="1">
+                <constraints nullable="false"/>
             </column>
         </createTable>
 

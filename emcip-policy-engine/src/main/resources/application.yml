@@ -39,6 +39,9 @@ management:
     health:
       show-details: always
 
+admin:
+  service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
+
 logging:
   structured:
     format:

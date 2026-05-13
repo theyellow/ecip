@@ -7,9 +7,11 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Repository for PolicyDecision entities. */
 @Repository
@@ -46,4 +48,24 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
 
     /** Find decisions with confidence above threshold. */
     List<PolicyDecision> findByConfidenceGreaterThan(Double threshold);
+
+    /** Find top N decisions whose decision is not the given value, ordered by timestamp desc. */
+    @Query(
+            "SELECT p FROM PolicyDecision p WHERE p.decision != :decision ORDER BY p.timestamp"
+                    + " DESC LIMIT :limit")
+    List<PolicyDecision> findTopByDecisionNotOrderByTimestampDesc(
+            @Param("decision") String decision, @Param("limit") int limit);
+
+    /** Find top N decisions matching the given decision value, ordered by timestamp desc. */
+    @Query(
+            "SELECT p FROM PolicyDecision p WHERE p.decision = :decision ORDER BY p.timestamp"
+                    + " DESC LIMIT :limit")
+    List<PolicyDecision> findByDecisionOrderByTimestampDesc(
+            @Param("decision") String decision, @Param("limit") int limit);
+
+    /** Update the signal status of a decision by id. */
+    @Modifying
+    @Transactional
+    @Query("UPDATE PolicyDecision p SET p.signalStatus = :status WHERE p.id = :id")
+    int updateSignalStatus(@Param("id") String id, @Param("status") String status);
 }

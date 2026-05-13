@@ -58,6 +58,9 @@ public class PolicyDecision {
     @Column(nullable = false)
     private Instant timestamp;
 
+    @Column(name = "signal_status", length = 16)
+    private String signalStatus;
+
     @Version private Long version;
 
     @PrePersist
