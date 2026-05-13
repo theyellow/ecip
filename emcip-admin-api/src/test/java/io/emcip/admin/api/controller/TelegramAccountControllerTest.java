@@ -18,6 +18,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -122,5 +125,86 @@ class TelegramAccountControllerTest {
                             assertThat(list.get(0).get("name")).isEqualTo("Test Group");
                         })
                 .verifyComplete();
+    }
+
+    @Test
+    void deleteAccount_returns204() {
+        UUID id = UUID.randomUUID();
+        when(repository.deleteById(id)).thenReturn(Mono.empty());
+        StepVerifier.create(controller.deleteAccount(id)).verifyComplete();
+    }
+
+    @Test
+    void getStatus_accountNotFound_returnsError() {
+        UUID id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Mono.empty());
+        StepVerifier.create(controller.getStatus(id))
+                .expectError(IllegalArgumentException.class)
+                .verify();
+    }
+
+    @Test
+    void submitCode_delegatesToTdlib() {
+        UUID id = UUID.randomUUID();
+        ExchangeFunction exchangeFunction =
+                req -> Mono.just(ClientResponse.create(HttpStatus.NO_CONTENT).build());
+        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
+        StepVerifier.create(c.submitCode(id, new TelegramAccountController.CodeRequest("12345")))
+                .verifyComplete();
+    }
+
+    @Test
+    void submitPassword_delegatesToTdlib() {
+        UUID id = UUID.randomUUID();
+        ExchangeFunction exchangeFunction =
+                req -> Mono.just(ClientResponse.create(HttpStatus.NO_CONTENT).build());
+        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
+        StepVerifier.create(
+                        c.submitPassword(
+                                id, new TelegramAccountController.PasswordRequest("secret")))
+                .verifyComplete();
+    }
+
+    @Test
+    void logout_updatesStatusToDisconnected() {
+        UUID id = UUID.randomUUID();
+        TelegramAccount account =
+                TelegramAccount.builder()
+                        .id(id)
+                        .phoneNumber("+49123")
+                        .status(TelegramAccountStatus.ACTIVE)
+                        .createdAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build();
+
+        ExchangeFunction exchangeFunction =
+                req -> Mono.just(ClientResponse.create(HttpStatus.OK).build());
+        when(repository.findById(id)).thenReturn(Mono.just(account));
+        when(repository.save(any())).thenReturn(Mono.just(account));
+
+        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
+        StepVerifier.create(c.logout(id)).verifyComplete();
+    }
+
+    @Test
+    void discoverChats_returnsEmptyListOnError() {
+        UUID id = UUID.randomUUID();
+        ExchangeFunction exchangeFunction = req -> Mono.error(new RuntimeException("tdlib down"));
+        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
+        StepVerifier.create(c.discoverChats(id))
+                .assertNext(list -> assertThat(list).isEmpty())
+                .verifyComplete();
+    }
+
+    private TelegramAccountController controllerWithTdlib(ExchangeFunction exchangeFunction) {
+        WebClient tdlib = WebClient.builder().exchangeFunction(exchangeFunction).build();
+        return new TelegramAccountController(
+                repository,
+                r2dbcEntityTemplate,
+                tdlib,
+                watchedGroupRepository,
+                groupProfileRepository,
+                12345,
+                "abc123");
     }
 }
