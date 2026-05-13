@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'emcip-services'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - 'emcip-tdlib-adapter:9080'
+          - 'emcip-conversation-context:9081'
+          - 'emcip-intent-classifier:9082'
+          - 'emcip-policy-engine:9083'
+          - 'emcip-llm-orchestrator:9084'
+          - 'emcip-moderation-service:9085'
+          - 'emcip-audit-service:9086'
+          - 'emcip-admin-api:9087'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):\d+'
+        target_label: service
+        replacement: '${1}'
