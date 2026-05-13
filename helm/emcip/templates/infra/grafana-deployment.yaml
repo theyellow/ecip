@@ -44,6 +44,8 @@ spec:
               mountPath: /var/lib/grafana
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provider
+              mountPath: /etc/grafana/provisioning/dashboards
       volumes:
         - name: data
           persistentVolumeClaim:
@@ -51,3 +53,6 @@ spec:
         - name: datasources
           configMap:
             name: emcip-grafana-datasources
+        - name: dashboards-provider
+          configMap:
+            name: emcip-grafana-dashboards
