@@ -14,7 +14,7 @@
 | ❌ | **US-4.1.1** — No toxicity detection beyond simple keyword/regex/length rules. `RuleEvaluationService` is functional but primitive. No integration with OpenNLP, Perspective API, or ML-based scoring. |
 | ❌ | **US-4.1.4** — No documentation for moderation rules and escalation paths beyond the user story doc. |
 | ❌ | **US-4.1.5** — Only 2 test files (`RuleEvaluationServiceTest`, `ModerationEventConsumerTest`). No integration test with a real Kafka/DB. |
-| ✅ | **Missing REST controller** — By design. Both services share the same DB (`emcip`). `admin-api` owns rule CRUD; `moderation-service` reads the same table and refreshes its in-memory cache every 5 min via `@Scheduled`. No controller needed. *(Decided 2026-05-13)* |
+| ✅ | **Missing REST controller** — `ModerationRuleController` added to moderation-service at `/api/moderation-rules` (CRUD). admin-api proxies it via `ModerationServiceClient`. The shared-DB approach was incorrect; each service now owns its tables. *(Fixed 2026-05-13)* |
 
 ### Epic 4.2: Observability
 
