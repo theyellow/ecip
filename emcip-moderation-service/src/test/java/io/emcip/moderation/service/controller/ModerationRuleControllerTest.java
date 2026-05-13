@@ -78,6 +78,18 @@ class ModerationRuleControllerTest {
     }
 
     @Test
+    void update_notFound_returns404() {
+        when(repository.findById(any(Long.class))).thenReturn(Mono.empty());
+
+        client.put()
+                .uri("/api/moderation-rules/999")
+                .bodyValue(rule(null, "irrelevant"))
+                .exchange()
+                .expectStatus()
+                .isNotFound();
+    }
+
+    @Test
     void delete_returns204() {
         when(repository.deleteById(1L)).thenReturn(Mono.empty());
         client.delete().uri("/api/moderation-rules/1").exchange().expectStatus().isNoContent();
