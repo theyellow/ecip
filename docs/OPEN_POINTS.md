@@ -49,7 +49,7 @@
 | Status | Item |
 |--------|------|
 | ✅ | **Intent classifier — 0 tests** — Added `IntentClassificationServiceTest` (8 unit tests covering GREETING/QUESTION/COMMAND/SPAM/UNKNOWN/multi-match/Kafka publish/metadata). *(Fixed 2026-05-13)* |
-| ❌ | **LLM orchestrator — sparse tests** — Only 1 test file (`LlmCallServiceTest`). No test for prompt template versioning, model routing fallback, or cost tracking logic. |
+| ✅ | **LLM orchestrator — sparse tests** — Added `LlmOrchestratorServiceTest` (14 tests: model routing/priority, template versioning, renderPromptTemplate, deactivation) and `CostTrackingServiceTest` (11 tests: cost math, token totals, null-safety). *(Fixed 2026-05-13)* |
 
 ---
 
