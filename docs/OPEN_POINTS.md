@@ -32,7 +32,7 @@
 |--------|------|
 | ✅ | **US-4.3.3 (service-to-service auth)** — Full inter-service auth implemented. Domain services (moderation-service, policy-engine, audit-service) each have a `ServiceTokenFilter` protecting `/api/**`. admin-api has `WebClient` proxy clients (`ModerationServiceClient`, `PolicyEngineClient`, `AuditServiceClient`) that send `X-Service-Token` on every call. Foreign JPA entities/repos removed from admin-api. SecurityConfig `.permitAll()` workaround removed. *(Fixed 2026-05-13)* |
 | ❌ | **US-4.3.4** — No OpenAPI/Swagger documentation generated or exposed in any service. |
-| 🔄 | **US-4.3.5** — 42 tests now across 10 test files. Added: `AuthControllerTest`, `AuditControllerTest`, `FlagControllerTest`, `ModerationRuleControllerTest`, `PolicyRuleControllerTest`, `SimulateControllerTest`, `TenantControllerTest`. Still missing: `GroupProfileController`, `AIProxyController`, and extended `TelegramAccountController` endpoints. *(Partial fix 2026-05-13)* |
+| ✅ | **US-4.3.5** — 64 tests across 12 test files. Added: `AuthControllerTest`, `AuditControllerTest`, `FlagControllerTest`, `ModerationRuleControllerTest`, `PolicyRuleControllerTest`, `SimulateControllerTest`, `TenantControllerTest`, `GroupProfileControllerTest`, `AIProxyControllerTest`. Extended `TelegramAccountControllerTest` with 6 more tests (deleteAccount, getStatus, submitCode, submitPassword, logout, discoverChats). *(Fixed 2026-05-13)* |
 
 ### Epic 4.4: Audit / Event Log
 
