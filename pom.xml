@@ -84,6 +84,7 @@
 
     <!-- Lombok -->
     <lombok.version>1.18.40</lombok.version>
+
   </properties>
 
   <!-- Dependency Management -->

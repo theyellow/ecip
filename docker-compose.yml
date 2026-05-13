@@ -308,12 +308,35 @@ services:
     networks:
       - ecip-network
 
+  # Prometheus — metrics scraping (http://localhost:14010)
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: ecip-prometheus
+    ports:
+      - "14010:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+    networks:
+      - ecip-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   # Grafana — dashboards (http://localhost:14007, admin/admin)
   grafana:
     image: grafana/grafana-oss:11.0.0
     container_name: ecip-grafana
     depends_on:
       loki:
+        condition: service_healthy
+      prometheus:
         condition: service_healthy
     ports:
       - "14007:3000"
@@ -346,6 +369,7 @@ volumes:
   tdlib-files:
   loki-data:
   grafana-data:
+  prometheus-data:
 
 networks:
   ecip-network:

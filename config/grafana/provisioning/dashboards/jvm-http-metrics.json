@@ -1,0 +1,95 @@
+{
+  "annotations": { "list": [] },
+  "description": "EMCIP services — JVM heap, GC, HTTP request rate and error rate",
+  "editable": true,
+  "id": null,
+  "uid": "emcip-jvm-http",
+  "title": "EMCIP JVM & HTTP Metrics",
+  "tags": ["emcip", "prometheus"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "JVM Heap Used (bytes)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "expr": "jvm_memory_used_bytes{area=\"heap\"}",
+        "legendFormat": "{{service}} {{id}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      }
+    },
+    {
+      "id": 2,
+      "title": "HTTP Request Rate (req/s)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "expr": "sum by (service) (rate(http_server_requests_seconds_count[1m]))",
+        "legendFormat": "{{service}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "id": 3,
+      "title": "HTTP Error Rate (5xx req/s)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "expr": "sum by (service) (rate(http_server_requests_seconds_count{status=~\"5..\"}[1m]))",
+        "legendFormat": "{{service}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "color": { "fixedColor": "red", "mode": "fixed" } }
+      }
+    },
+    {
+      "id": 4,
+      "title": "GC Pause Time (seconds/s)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "expr": "sum by (service) (rate(jvm_gc_pause_seconds_sum[1m]))",
+        "legendFormat": "{{service}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Kafka Consumer Lag",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "targets": [{
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "expr": "kafka_consumer_fetch_manager_records_lag",
+        "legendFormat": "{{service}} topic={{topic}} partition={{partition}}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    }
+  ],
+  "time": { "from": "now-1h", "to": "now" }
+}

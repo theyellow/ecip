@@ -22,6 +22,8 @@ storage:
     size: 10Gi
   grafana:
     size: 1Gi
+  prometheus:
+    size: 10Gi
   tdlibDb:
     size: 1Gi
   tdlibFiles:
@@ -228,3 +230,6 @@ infra:
   grafana:
     image: grafana/grafana-oss:11.0.0
     port: 3000
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    port: 9090
