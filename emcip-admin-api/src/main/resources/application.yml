@@ -55,6 +55,14 @@ service:
   orchestrator:
     url: ${SERVICE_ORCHESTRATOR_URL:http://localhost:9084}
 
+services:
+  moderation-service:
+    url: ${MODERATION_SERVICE_URL:http://localhost:9085}
+  policy-engine:
+    url: ${POLICY_ENGINE_URL:http://localhost:9083}
+  audit-service:
+    url: ${AUDIT_SERVICE_URL:http://localhost:9086}
+
 telegram:
   api-id: ${TELEGRAM_API_ID:0}
   api-hash: ${TELEGRAM_API_HASH:}

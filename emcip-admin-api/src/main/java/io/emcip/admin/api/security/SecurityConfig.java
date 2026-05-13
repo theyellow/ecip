@@ -35,8 +35,6 @@ public class SecurityConfig {
                                         .permitAll()
                                         .pathMatchers("/actuator/**")
                                         .permitAll()
-                                        .pathMatchers("/api/policy-rules/**", "/policy-rules/**")
-                                        .permitAll()
                                         .anyExchange()
                                         .authenticated())
                 .addFilterAt(serviceTokenFilter, SecurityWebFiltersOrder.HTTP_BASIC)
