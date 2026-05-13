@@ -85,8 +85,6 @@
     <!-- Lombok -->
     <lombok.version>1.18.40</lombok.version>
 
-    <!-- Micrometer (aligned with Spring Boot BOM 4.0.5) -->
-    <micrometer.version>1.16.4</micrometer.version>
   </properties>
 
   <!-- Dependency Management -->
@@ -99,13 +97,6 @@
         <version>${spring-boot.version}</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-
-      <!-- Micrometer Prometheus Registry (version managed by Spring Boot BOM) -->
-      <dependency>
-        <groupId>io.micrometer</groupId>
-        <artifactId>micrometer-registry-prometheus</artifactId>
-        <version>${micrometer.version}</version>
       </dependency>
 
       <!-- Internal Module Dependencies -->
