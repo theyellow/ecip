@@ -107,11 +107,29 @@ tempo:
   command: -config.file=/etc/tempo/config.yml
   networks:
     - ecip-network
+  healthcheck:
+    test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
 ```
 
 Add `tempo-data:` to the top-level `volumes:` block.
 
-**Each of the 8 app services** gets one env var added under `environment:`:
+**Grafana `depends_on`** — add Tempo alongside existing Loki + Prometheus:
+
+```yaml
+grafana:
+  depends_on:
+    loki:
+      condition: service_healthy
+    prometheus:
+      condition: service_healthy
+    tempo:
+      condition: service_healthy
+```
+
+**Each of the 8 instrumented app services** gets one env var added under `environment:` (excludes `admin-ui` which has no OTel deps):
 
 ```yaml
 - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
@@ -300,7 +318,7 @@ Scenario: publish a `content.moderation.requested` Kafka event → assert the co
 ```
 
 Note: WireMock is needed only for `TraceContextPropagationIT` (fake Tempo endpoint). Check if already present before adding.
-```
+
 
 ---
 
@@ -333,21 +351,53 @@ Tempo OTLP ingestion (4318) is internal only — not exposed to the host.
 
 ---
 
+## Documentation Updates
+
+Four existing adoc guides need updates to reflect the new tracing stack.
+
+### docker-compose-guide.adoc
+
+- Add Tempo row to the port reference table: `14011 | Tempo | Distributed trace query UI (via Grafana)`
+- Add `14011` to the port conflict check script
+- Add a _Distributed Tracing_ subsection under _Observability_: how to open Grafana → Explore → Tempo, search by service name, follow a trace
+
+### operations-guide.adoc
+
+- Add a _Distributed Tracing_ subsection under the existing `== Observability` section:
+  - Tempo query URL: `http://emcip.local/grafana` → Explore → Tempo datasource
+  - How to search by `service.name`, by trace ID, by time range
+  - How to follow a `traceId` from a Loki log line to the matching Tempo trace (derived field)
+  - Add `14011` to port table (Tempo query API, K8s: ClusterIP `emcip-tempo:3200`)
+
+### architecture-guide.adoc
+
+- Extend the observability architecture description to include distributed tracing:
+  - Micrometer Tracing → OTel bridge → OTLP/HTTP → Tempo
+  - W3C `traceparent` header propagates across all HTTP and Kafka boundaries
+  - Trace-log correlation: `traceId` field in structured JSON logs links to Tempo spans
+
+### developer-guide.adoc
+
+- Add a note in the local dev / observability section: trace IDs appear in JSON logs (`"traceId"` field) when Tempo is running; open `http://localhost:14011` for direct Tempo API access or use Grafana at `http://localhost:14007`
+- Note that OTLP export fails silently when Tempo is not running — does not affect service startup
+
+---
+
 ## Files Changed / Created
 
 | File | Action |
 |---|---|
 | `config/tempo-config.yml` | Create |
 | `config/grafana/provisioning/datasources/datasources.yml` | Update |
-| `docker-compose.yml` | Update (Tempo service + env on 8 services) |
+| `docker-compose.yml` | Update (Tempo service + healthcheck + Grafana depends_on + env on 8 instrumented services) |
 | `helm/emcip/values.yaml` | Update |
 | `helm/emcip/templates/infra/tempo-pvc.yaml` | Create |
 | `helm/emcip/templates/infra/tempo-configmap.yaml` | Create |
 | `helm/emcip/templates/infra/tempo-deployment.yaml` | Create |
 | `helm/emcip/templates/infra/tempo-service.yaml` | Create |
 | `helm/emcip/templates/infra/grafana-configmap.yaml` | Update |
-| `*/pom.xml` (8 services) | Update (swap exporter dep) |
-| `*/application.yml` (8 services) | Update (add otlp endpoint + sampling) |
+| `*/pom.xml` (8 instrumented services, excl. admin-ui) | Update (swap exporter dep) |
+| `*/application.yml` (8 instrumented services, excl. admin-ui) | Update (add otlp endpoint + sampling) |
 | `emcip-moderation-service/.../PrometheusScrapingIT.java` | Create |
 | `emcip-moderation-service/.../TraceContextPropagationIT.java` | Create |
 | `emcip-moderation-service/.../AbstractModerationIntegrationTest.java` | Create |
@@ -356,3 +406,7 @@ Tempo OTLP ingestion (4318) is internal only — not exposed to the host.
 | `emcip-audit-service/.../AuditEventPersistenceIT.java` | Create |
 | `emcip-audit-service/.../RetentionServiceIT.java` | Create |
 | `docs/operations/observability-verification.md` | Create |
+| `documentation/docker-compose-guide.adoc` | Update |
+| `documentation/operations-guide.adoc` | Update |
+| `documentation/architecture-guide.adoc` | Update |
+| `documentation/developer-guide.adoc` | Update |
