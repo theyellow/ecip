@@ -6,6 +6,8 @@ import io.emcip.llm.orchestrator.repository.ModelConfigRepository;
 import io.emcip.llm.orchestrator.repository.PromptTemplateRepository;
 import io.emcip.llm.orchestrator.service.CostTrackingService;
 import io.emcip.llm.orchestrator.service.LlmOrchestratorService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /** REST API for model configuration, prompt templates, and cost analytics. */
+@Tag(
+        name = "LLM Orchestrator",
+        description = "Manage AI models, prompt templates, and query cost summaries")
 @RestController
 @RequestMapping("/api")
 @Slf4j
@@ -41,11 +46,13 @@ public class OrchestratorController {
 
     // --- Models ---
 
+    @Operation(summary = "List all model configurations")
     @GetMapping("/models")
     public List<ModelConfig> listModels() {
         return modelConfigRepository.findByActiveTrueOrderByPriorityAsc();
     }
 
+    @Operation(summary = "Create a new model configuration")
     @PostMapping("/models")
     public ResponseEntity<ModelConfig> createModel(@RequestBody ModelConfig modelConfig) {
         ModelConfig saved = orchestratorService.saveModelConfig(modelConfig);
@@ -53,6 +60,7 @@ public class OrchestratorController {
         return ResponseEntity.status(201).body(saved);
     }
 
+    @Operation(summary = "Update an existing model configuration")
     @PutMapping("/models/{id}")
     public ResponseEntity<ModelConfig> updateModel(
             @PathVariable UUID id, @RequestBody ModelConfig update) {
@@ -79,6 +87,7 @@ public class OrchestratorController {
         return ResponseEntity.ok(modelConfigRepository.save(existing));
     }
 
+    @Operation(summary = "Delete a model configuration")
     @DeleteMapping("/models/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteModel(@PathVariable UUID id) {
@@ -90,11 +99,13 @@ public class OrchestratorController {
 
     // --- Templates ---
 
+    @Operation(summary = "List all prompt templates")
     @GetMapping("/templates")
     public List<PromptTemplate> listTemplates() {
         return orchestratorService.getAllActivePromptTemplates();
     }
 
+    @Operation(summary = "Create a new prompt template")
     @PostMapping("/templates")
     public ResponseEntity<PromptTemplate> createTemplate(@RequestBody PromptTemplate template) {
         PromptTemplate saved = orchestratorService.savePromptTemplate(template);
@@ -102,6 +113,7 @@ public class OrchestratorController {
         return ResponseEntity.status(201).body(saved);
     }
 
+    @Operation(summary = "Update an existing prompt template")
     @PutMapping("/templates/{id}")
     public ResponseEntity<PromptTemplate> updateTemplate(
             @PathVariable UUID id, @RequestBody PromptTemplate update) {
@@ -126,6 +138,7 @@ public class OrchestratorController {
         return ResponseEntity.ok(promptTemplateRepository.save(existing));
     }
 
+    @Operation(summary = "Delete a prompt template")
     @DeleteMapping("/templates/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTemplate(@PathVariable UUID id) {
@@ -137,6 +150,7 @@ public class OrchestratorController {
 
     // --- Costs ---
 
+    @Operation(summary = "Get LLM cost summary for a time range")
     @GetMapping("/costs/summary")
     public Map<String, Object> costSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
