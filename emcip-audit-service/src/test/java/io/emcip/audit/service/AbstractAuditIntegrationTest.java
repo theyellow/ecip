@@ -18,8 +18,7 @@ public abstract class AbstractAuditIntegrationTest {
 
     @Container
     static final KafkaContainer KAFKA =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"))
-                    .withEnv("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "true");
+            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"));
 
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
@@ -32,7 +31,6 @@ public abstract class AbstractAuditIntegrationTest {
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("spring.kafka.bootstrap-servers", KAFKA::getBootstrapServers);
-        registry.add("spring.kafka.listener.auto-startup", () -> "true");
         // Suppress OTLP connection errors during tests — no Tempo running
         registry.add("management.otlp.tracing.endpoint", () -> "http://localhost:1/v1/traces");
     }
