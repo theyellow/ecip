@@ -331,6 +331,20 @@ NOTE: All R2DBC services still include `spring-boot-starter-jdbc` as `runtime` s
 * Changeset IDs follow `YYYY-MM-DD-N-description` format.
 * Never use `<dropTable>` or destructive operations without a migration ticket.
 
+== Observability Architecture
+
+=== Distributed Tracing
+
+All 8 services use *Micrometer Tracing* with the OpenTelemetry bridge (`micrometer-tracing-bridge-otel`).
+Traces are exported via OTLP/HTTP to *Grafana Tempo* on port 4318. Tempo stores spans with a 14-day
+retention window.
+
+W3C `traceparent` headers propagate trace context across HTTP calls and Kafka message headers,
+enabling end-to-end trace correlation across service boundaries.
+
+Trace IDs appear in structured JSON logs as the `traceId` field. Grafana's Loki datasource
+is configured with a derived field that links any `traceId` value directly to the matching Tempo trace.
+
 == Security Architecture
 
 === JWT Authentication Chain

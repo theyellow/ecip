@@ -661,3 +661,16 @@ scripts/build-images.sh --native amd64 --registry ghcr.io/theyellow/ecip
 ----
 
 See `scripts/build-images.sh --help` for full options.
+
+== Local Observability
+
+=== Distributed Tracing in Local Dev
+
+When Tempo is running (`docker compose up -d tempo`), all services export traces to
+`http://ecip-tempo:4318`. Open http://localhost:14007 → Explore → Tempo to browse spans.
+
+Trace IDs appear in application logs as `"traceId":"<32-hex-chars>"`. Use the Loki derived
+field to jump from a log line directly to its trace.
+
+If Tempo is *not* running, OTLP export fails silently — services start and function normally.
+There is no fallback: traces are simply not stored.
