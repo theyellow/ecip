@@ -40,6 +40,12 @@ management:
     health:
       show-details: always
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
 logging:
   structured:
     format:
