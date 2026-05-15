@@ -24,6 +24,8 @@ storage:
     size: 1Gi
   prometheus:
     size: 10Gi
+  tempo:
+    size: 10Gi
   tdlibDb:
     size: 1Gi
   tdlibFiles:
@@ -53,6 +55,7 @@ services:
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
     resources:
       requests:
         cpu: 100m
@@ -69,6 +72,7 @@ services:
     nodeSelector: {}
     env:
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
     resources:
       requests:
         cpu: 100m
@@ -86,6 +90,7 @@ services:
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
     resources:
       requests:
         cpu: 100m
@@ -103,6 +108,7 @@ services:
     env:
       SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
     secrets:
       ANTHROPIC_API_KEY: anthropic-api-key
     resources:
@@ -123,6 +129,7 @@ services:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
     resources:
       requests:
         cpu: 100m
@@ -141,6 +148,7 @@ services:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
     resources:
       requests:
         cpu: 100m
@@ -159,6 +167,7 @@ services:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
       ADMIN_CORS_ALLOWED_ORIGINS: "http://emcip.local"
       SERVICE_TDLIB_URL: "http://emcip-tdlib-adapter:9080"
       SERVICE_ORCHESTRATOR_URL: "http://emcip-llm-orchestrator:9084"
@@ -207,6 +216,7 @@ tdlibAdapter:
   nodeSelector: {}
   env:
     KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
   secrets:
     TELEGRAM_API_ID: telegram-api-id
     TELEGRAM_API_HASH: telegram-api-hash
@@ -233,3 +243,6 @@ infra:
   prometheus:
     image: prom/prometheus:v2.52.0
     port: 9090
+  tempo:
+    image: grafana/tempo:2.4.0
+    port: 3200
