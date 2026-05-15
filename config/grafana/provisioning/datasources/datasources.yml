@@ -8,6 +8,11 @@ datasources:
     isDefault: false
     jsonData:
       maxLines: 1000
+      derivedFields:
+        - name: TraceID
+          matcherRegex: '"traceId":"(\w+)"'
+          url: '${__value.raw}'
+          datasourceUid: Tempo
 
   - name: Prometheus
     type: prometheus
@@ -16,3 +21,10 @@ datasources:
     isDefault: true
     jsonData:
       timeInterval: 15s
+
+  - name: Tempo
+    type: tempo
+    uid: Tempo
+    access: proxy
+    url: http://tempo:3200
+    isDefault: false
