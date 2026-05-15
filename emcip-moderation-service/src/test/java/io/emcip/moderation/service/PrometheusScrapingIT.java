@@ -16,8 +16,9 @@ class PrometheusScrapingIT extends AbstractModerationIntegrationTest {
         WebTestClient client =
                 WebTestClient.bindToServer().baseUrl("http://localhost:" + port).build();
 
-        // Warmup: trigger an HTTP request so http_server_requests_seconds_count gets recorded
-        client.get().uri("/actuator/health").exchange().expectStatus().isOk();
+        // Warmup: trigger an HTTP request so http_server_requests_seconds_count gets recorded.
+        // Use /actuator/metrics instead of /actuator/health to avoid R2DBC health-check dependency.
+        client.get().uri("/actuator/metrics").exchange().expectStatus().isOk();
 
         String body =
                 client.get()
