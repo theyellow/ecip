@@ -2,6 +2,7 @@ package io.emcip.audit.service.service;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.repository.AuditEventRepository;
+import io.r2dbc.postgresql.codec.Json;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -55,14 +56,14 @@ public class AuditService {
     }
 
     /**
-     * Serialize a map of event fields to a JSON string suitable for the JSONB details column.
+     * Serialize a map of event fields to a {@link Json} value for the JSONB details column.
      *
      * @param fields key/value pairs to serialize
-     * @return JSON string, or null if serialization fails
+     * @return Json wrapping the serialized JSON, or null if serialization fails
      */
-    public String serializeDetails(Map<String, Object> fields) {
+    public Json serializeDetails(Map<String, Object> fields) {
         try {
-            return objectMapper.writeValueAsString(fields);
+            return Json.of(objectMapper.writeValueAsString(fields));
         } catch (JacksonException e) {
             log.warn("Failed to serialize details map: {}", e.getMessage());
             return null;

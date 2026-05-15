@@ -1,5 +1,6 @@
 package io.emcip.audit.service.entity;
 
+import io.r2dbc.postgresql.codec.Json;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -50,9 +51,9 @@ public class AuditEventEntity {
     @Column("outcome")
     private String outcome;
 
-    /** JSON string stored in the JSONB details column. */
+    /** JSONB details column — serialized as embedded JSON by R2dbcJsonModule. */
     @Column("details")
-    private String details;
+    private Json details;
 
     @Column("processing_time_ms")
     private Integer processingTimeMs;

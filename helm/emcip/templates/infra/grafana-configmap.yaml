@@ -16,6 +16,12 @@ data:
         isDefault: false
         version: 1
         editable: false
+        jsonData:
+          derivedFields:
+            - name: TraceID
+              matcherRegex: '"traceId":"(\w+)"'
+              url: '${__value.raw}'
+              datasourceUid: Tempo
       - name: Prometheus
         type: prometheus
         access: proxy
@@ -25,6 +31,14 @@ data:
         editable: false
         jsonData:
           timeInterval: 15s
+      - name: Tempo
+        type: tempo
+        uid: Tempo
+        access: proxy
+        url: http://emcip-tempo:{{ .Values.infra.tempo.port }}
+        isDefault: false
+        version: 1
+        editable: false
 ---
 apiVersion: v1
 kind: ConfigMap

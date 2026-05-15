@@ -21,6 +21,9 @@ management:
   tracing:
     sampling:
       probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
   endpoints:
     web:
       exposure:
@@ -54,6 +57,14 @@ service:
     url: ${SERVICE_TDLIB_URL:http://localhost:9080}
   orchestrator:
     url: ${SERVICE_ORCHESTRATOR_URL:http://localhost:9084}
+
+services:
+  moderation-service:
+    url: ${MODERATION_SERVICE_URL:http://localhost:9085}
+  policy-engine:
+    url: ${POLICY_ENGINE_URL:http://localhost:9083}
+  audit-service:
+    url: ${AUDIT_SERVICE_URL:http://localhost:9086}
 
 telegram:
   api-id: ${TELEGRAM_API_ID:0}

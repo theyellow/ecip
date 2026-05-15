@@ -102,6 +102,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/emcip
       - SPRING_DATASOURCE_USERNAME=emcip
       - SPRING_DATASOURCE_PASSWORD=emcip
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - ecip-network
     profiles:
@@ -120,6 +121,7 @@ services:
       - "9082:9082"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - ecip-network
     profiles:
@@ -143,6 +145,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/emcip
       - SPRING_DATASOURCE_USERNAME=emcip
       - SPRING_DATASOURCE_PASSWORD=emcip
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - ecip-network
     profiles:
@@ -168,6 +171,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/emcip
       - SPRING_DATASOURCE_USERNAME=emcip
       - SPRING_DATASOURCE_PASSWORD=emcip
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - ecip-network
     profiles:
@@ -194,6 +198,7 @@ services:
       - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgres:5432/emcip
       - SPRING_DATASOURCE_USERNAME=emcip
       - SPRING_DATASOURCE_PASSWORD=emcip
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - ecip-network
 
@@ -218,6 +223,7 @@ services:
       - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgres:5432/emcip
       - SPRING_DATASOURCE_USERNAME=emcip
       - SPRING_DATASOURCE_PASSWORD=emcip
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - ecip-network
 
@@ -244,6 +250,7 @@ services:
       - SERVICE_TDLIB_URL=http://ecip-tdlib-adapter:9080
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - ecip-network
 
@@ -267,6 +274,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - TDLIB_DB_DIR=/app/tdlib-db
       - TDLIB_FILES_DIR=/app/tdlib-files
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     volumes:
       - tdlib-data:/app/tdlib-db
       - tdlib-files:/app/tdlib-files
@@ -338,6 +346,8 @@ services:
         condition: service_healthy
       prometheus:
         condition: service_healthy
+      tempo:
+        condition: service_healthy
     ports:
       - "14007:3000"
     environment:
@@ -363,6 +373,24 @@ services:
     networks:
       - ecip-network
 
+  # Tempo — distributed trace backend (http://localhost:14011)
+  tempo:
+    image: grafana/tempo:2.4.0
+    container_name: ecip-tempo
+    ports:
+      - "14011:3200"
+    volumes:
+      - ./config/tempo-config.yml:/etc/tempo/config.yml
+      - tempo-data:/var/tempo
+    command: -config.file=/etc/tempo/config.yml
+    networks:
+      - ecip-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres-data:
   tdlib-data:
@@ -370,6 +398,7 @@ volumes:
   loki-data:
   grafana-data:
   prometheus-data:
+  tempo-data:
 
 networks:
   ecip-network:

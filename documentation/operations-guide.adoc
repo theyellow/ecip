@@ -406,6 +406,36 @@ Key metrics to watch:
 |Worst-case consumer processing time
 |===
 
+=== Distributed Tracing
+
+Traces are collected by Grafana Tempo. The Tempo query API is exposed as `emcip-tempo:3200` (ClusterIP).
+
+Open Grafana → Explore → **Tempo** datasource (http://emcip.local/grafana).
+
+[cols="1,3"]
+|===
+|Query type |Usage
+
+|Service name search
+|Set *Service Name* = `emcip-<service>` → lists recent traces
+
+|Trace ID lookup
+|Paste a trace ID directly to open the span tree
+
+|Loki link
+|Click the *TraceID* field in any Loki log line → jumps to the matching trace
+|===
+
+.Useful LogQL to find traces:
+[source]
+----
+# All log lines with a traceId (structured JSON logs)
+{job="emcip"} | json | traceId != ""
+
+# Find logs for a specific trace
+{job="emcip"} | json | traceId="<paste-trace-id-here>"
+----
+
 === Structured Log Fields
 
 All services emit JSON logs via Spring Boot 4 native structured logging (`logging.structured.format.console: logstash`). Key fields:
@@ -432,6 +462,23 @@ All services emit JSON logs via Spring Boot 4 native structured logging (`loggin
 |`spanId`
 |`00f067aa0ba902b7`
 |===
+
+== Service Data Isolation
+
+Each microservice owns its own database tables. No service reads or writes another service's tables — not in local Docker Compose and not in Kubernetes.
+
+[cols="1,3"]
+|===
+|Pattern |When to use
+
+|Kafka topic
+|Pipeline events: fire-and-forget, at-least-once, replayable. Use for all data that flows downstream (classified messages, moderation flags, audit events, etc.).
+
+|REST via admin-api
+|Management operations: synchronous queries from operators or the Admin UI. `emcip-admin-api` holds typed `WebClient` proxy clients for each domain service and authenticates with `X-Service-Token`.
+|===
+
+If you are debugging a data discrepancy, always query the *owning service's* tables — never join across service boundaries in a single query. If you need cross-service data in a report, fetch each service's API individually.
 
 == Operations Reference
 

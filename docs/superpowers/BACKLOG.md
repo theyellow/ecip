@@ -1,111 +1,52 @@
-# EMCIP Implementation Backlog
+# EMCIP Backlog
 
-Deferred and out-of-scope items from completed specs. Each entry links to its source spec for context.
+> Last updated: 2026-05-15
+> Single source of truth for all open work.
+> Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
----
-
-## Infrastructure & Deployment
-
-### GraalVM native images for R2DBC services
-**Source:** `specs/2026-04-29-graalvm-native-migration-design.md` — "Out of Scope / Deferred"
-
-Four services use R2DBC with Netty codec registries, which require complex reflection hints that were deferred:
-- `emcip-moderation-service` — R2DBC with Netty codec registries
-- `emcip-audit-service` — R2DBC Netty bindings
-- `emcip-admin-api` — R2DBC + JJWT reflection + Security proxies
-- `emcip-intent-classifier` — R2DBC codec/netty conflict
-
-`emcip-tdlib-adapter` and `emcip-admin-ui` are permanently excluded (JNI native lib / SPA wrapper — no benefit).
-
-**Prerequisite:** Dedicated R2DBC + GraalVM investigation epic.
+Items are ordered by priority. Phase 4 (current) items come first.
 
 ---
 
-### Kubernetes: HA / multi-replica configuration
-**Source:** `specs/2026-04-29-kubernetes-helm-deployment-design.md` — "Out of Scope"
+## Now — Phase 4 Completion
 
-All services currently deploy with `replicas: 1`. When horizontal scaling is needed:
-- Add `HorizontalPodAutoscaler` templates to the Helm chart
-- Tune `replicas` defaults per service tier
-- Add pod disruption budgets for critical services
-
----
-
-### Kubernetes: TLS via cert-manager
-**Source:** `specs/2026-04-29-kubernetes-helm-deployment-design.md` — "Out of Scope"
-
-Currently Ingress has no TLS. Add:
-- cert-manager ClusterIssuer (Let's Encrypt or self-signed)
-- TLS stanza in `helm/emcip/templates/ingress.yaml`
-- `values.yaml` `ingress.tls` section
+| # | Item | Size | Notes |
+|---|------|------|-------|
+| 1 | ~~**US-4.2.2 — OTel tracing backend**~~ | ~~M~~ | ✅ Done 2026-05-15. All 8 services export OTLP/HTTP to Grafana Tempo. W3C `traceparent` propagated via Kafka headers. Tempo in docker-compose (port 14011) + Helm. |
+| 2 | ~~**US-4.2.5 — Observability tests**~~ | ~~S~~ | ✅ Done 2026-05-15. `PrometheusScrapingIT` + `TraceContextPropagationIT` added to moderation-service. |
+| 3 | ~~**US-4.1.5 — Moderation integration tests**~~ | ~~S~~ | ✅ Done 2026-05-15. `ModerationFlowIT`: Testcontainers Kafka + PostgreSQL, publishes `policies.decisions`, asserts flag persisted. |
+| 4 | ~~**US-4.4.5 — Audit integration tests**~~ | ~~S~~ | ✅ Done 2026-05-15. `AuditEventPersistenceIT` + `RetentionServiceIT`. Fixed `AuditEventEntity.details` String→`Json` (JSONB binding bug). |
+| 5 | **US-4.3.4 — OpenAPI / Swagger** | M | Add `springdoc-openapi` to all services, expose `/swagger-ui.html`. |
+| 6 | **US-4.1.4 — Moderation operator docs** | S | Rule type descriptions, escalation path runbook, no-code. |
+| 7 | **US-4.4.4 — Audit schema docs** | S | ER diagram + data dictionary for audit/event log tables. |
 
 ---
 
-### Mixed-cluster: `buildx` arm64 native images
-**Source:** `specs/2026-05-02-mixed-cluster-helm-values-design.md` — "Out of Scope"
+## Next — Phase 5 Feature Work
 
-Cross-compiling GraalVM native images for `linux/arm64` (Pi 4). Requires:
-- `buildx` setup with QEMU emulation or an arm64 build runner
-- A third tag variant (e.g., `:native-arm64`)
-- `values-mixed-cluster.yaml` updated to use arm64 images on Pi nodes
-
----
-
-### Mixed-cluster: node taints and tolerations
-**Source:** `specs/2026-05-02-mixed-cluster-helm-values-design.md` — "Out of Scope"
-
-`nodeSelector` is sufficient for the current cluster size. If more fine-grained scheduling is needed (e.g., dedicated node pools), add `tolerations` and `taints` support to the Helm chart alongside the existing `nodeSelector` fields.
+| # | Item | Size | Notes |
+|---|------|------|-------|
+| 8 | **Test coverage to 80% (JaCoCo gate)** | L | Gate not yet enforced. Weakest services: `moderation-service` (2 files), `audit-service` (3 files). Phase 4 DoD requirement. |
+| 9 | **Multi-tenancy enforcement at JPA level** | L | `tenant_id` columns + `TenantContextFilter` exist but no query-level isolation. Cross-tenant data leak is currently possible. |
+| 10 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not implemented. |
+| 11 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
+| 12 | **US-4.1.1 — ML toxicity detection** | XL | Replace keyword/regex rules with OpenNLP or Perspective API scoring. Architecture decision needed before implementation. |
+| 13 | **Telegram: self-service account connection** | L | Allow end-users (not just admins) to link Telegram accounts via phone → OTP flow. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
+| 14 | **Telegram: concurrent multi-account sessions** | XL | Only one Telegram account active at a time. True concurrency needs `tdlib-adapter` architectural rework. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
 
 ---
 
-### CI/CD: multi-arch JVM images (`buildx` linux/arm64)
-**Source:** `specs/2026-05-03-github-actions-image-publishing-design.md` — "Out of Scope"
+## Infrastructure
 
-JVM images currently build as amd64 only. `eclipse-temurin:21-jdk` is multi-arch, so a `docker buildx build --platform linux/amd64,linux/arm64` step in the workflow would produce true multi-arch manifests for the JVM-only services.
-
----
-
-### CI/CD: image vulnerability scanning
-**Source:** `specs/2026-05-03-github-actions-image-publishing-design.md` — "Out of Scope"
-
-Add a scan step (e.g., `anchore/scan-action` or `aquasecurity/trivy-action`) to the `build-images.yml` workflow after each `build-push-action`.
-
----
-
-### CI/CD: GraalVM build caching
-**Source:** `specs/2026-05-03-github-actions-image-publishing-design.md` — "Out of Scope"
-
-Native image builds take ~15-20 min each. Add Docker layer caching (`cache-from`/`cache-to` in `docker/build-push-action`) using `ghcr.io` or GitHub Actions cache backend to speed up repeat builds.
-
----
-
-### CI/CD: staging vs. production image tags
-**Source:** `specs/2026-05-03-github-actions-image-publishing-design.md` — "Out of Scope"
-
-Currently all builds go to the same tags. A future environments strategy might push `:staging` on merge to `main` and promote to `:latest` / `:native-amd64` only on approval or release tag.
-
----
-
-## Application Features
-
-### Telegram: concurrent multi-account sessions
-**Source:** `specs/2026-04-26-telegram-multi-account-auth-design.md` — "Out of Scope"
-
-Currently only one Telegram account can be active at a time. True concurrent sessions (multiple accounts active simultaneously) requires architectural work in `tdlib-adapter`.
-
----
-
-### Telegram: self-service account connection by end-users
-**Source:** `specs/2026-04-26-telegram-multi-account-auth-design.md` — "Out of Scope"
-
-Platform admins currently manage all Telegram accounts. Allow end-users to connect their own accounts via a self-service UI flow (phone → OTP → session).
-
----
-
-### Admin UI: LLM cost analytics dashboard
-**Source:** `specs/2026-04-24-admin-ui-phase2-design.md` — "Out of Scope"
-
-Usage/cost dashboard showing per-tenant LLM call counts and token expenditure. Separate phase.
-
----
-
+| # | Item | Size | Notes |
+|---|------|------|-------|
+| 15 | **Kubernetes TLS (cert-manager)** | S | cert-manager `ClusterIssuer` + TLS stanza in `helm/emcip/templates/ingress.yaml`. Ref: `specs/2026-04-29-kubernetes-helm-deployment-design.md`. |
+| 16 | **Kubernetes HA / multi-replica** | M | HPA templates, tuned `replicas` per service tier, PodDisruptionBudgets for critical services. Ref: `specs/2026-04-29-kubernetes-helm-deployment-design.md`. |
+| 17 | **GraalVM native — R2DBC services** | XL | 4 services JVM-only: `moderation-service`, `audit-service`, `admin-api`, `intent-classifier`. Blocked on R2DBC + GraalVM reflection hints investigation. Ref: `specs/2026-04-29-graalvm-native-migration-design.md`. |
+| 18 | **Gatling load tests in CI** | S | 3 simulations exist (`IntentClassifierSimulation`, `AdminApiSimulation`, `PolicyEngineSimulation`). No CI integration, no regression gate. |
+| 19 | **CI/CD: image vulnerability scanning** | S | Trivy or Anchore scan step after each `build-push-action` in `build-images.yml`. Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
+| 20 | **CI/CD: GraalVM build caching** | S | `cache-from`/`cache-to` in `build-push-action`. Saves ~15–20 min per native build. Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
+| 21 | **CI/CD: staging vs. production image tags** | S | Push `:staging` on merge to `main`, promote to `:latest` on release tag. Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
+| 22 | **Multi-arch JVM images (linux/arm64)** | S | `docker buildx` with `eclipse-temurin:21-jdk` (already a multi-arch base image). Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
+| 23 | **Mixed-cluster: arm64 native images** | L | Cross-compile GraalVM native for Pi 4 nodes. Needs QEMU emulation or a dedicated arm64 runner. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
+| 24 | **Mixed-cluster: node taints + tolerations** | S | Fine-grained pod scheduling if node pools grow. Currently `nodeSelector` is sufficient. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
