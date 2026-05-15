@@ -1,6 +1,6 @@
 # EMCIP Open Points
 
-> Last updated: 2026-05-13
+> Last updated: 2026-05-15
 > Current phase: **Phase 4 — Observability, Moderation & Audit**
 
 ---
@@ -13,7 +13,7 @@
 |--------|------|
 | ❌ | **US-4.1.1** — No toxicity detection beyond simple keyword/regex/length rules. `RuleEvaluationService` is functional but primitive. No integration with OpenNLP, Perspective API, or ML-based scoring. |
 | ❌ | **US-4.1.4** — No documentation for moderation rules and escalation paths beyond the user story doc. |
-| ❌ | **US-4.1.5** — Only 2 test files (`RuleEvaluationServiceTest`, `ModerationEventConsumerTest`). No integration test with a real Kafka/DB. |
+| ✅ | **US-4.1.5** — `ModerationFlowIT` added: publishes a `policies.decisions` Kafka event, asserts `ModerationEventConsumer` persists a flag record in the DB. Uses Testcontainers (Kafka + PostgreSQL). *(Fixed this session)* |
 | ✅ | **Missing REST controller** — `ModerationRuleController` added to moderation-service at `/api/moderation-rules` (CRUD). admin-api proxies it via `ModerationServiceClient`. The shared-DB approach was incorrect; each service now owns its tables. *(Fixed 2026-05-13)* |
 
 ### Epic 4.2: Observability
@@ -22,8 +22,8 @@
 |--------|------|
 | ✅ | **US-4.2.3** — Prometheus added to docker-compose (port 14010) + Helm. All 8 services expose `/actuator/prometheus`. *(PR #37)* |
 | ✅ | **US-4.2.4** — Grafana JVM & HTTP metrics dashboard provisioned in both docker-compose and Helm. *(PR #37)* |
-| ❌ | **US-4.2.2 (OpenTelemetry tracing)** — `micrometer-tracing-bridge-otel` + `opentelemetry-exporter-logging` in 3 services only (admin-api, audit-service, moderation-service). All export to **logs only** — no OTLP/Jaeger/Tempo backend. No OTel collector in docker-compose or Helm. 6 services have no OTel dep at all. |
-| ❌ | **US-4.2.5** — No integration tests for logging or metrics. |
+| ✅ | **US-4.2.2 (OpenTelemetry tracing)** — All 8 services export traces via OTLP/HTTP to Grafana Tempo (port 4318). W3C `traceparent` propagated across Kafka headers. Tempo added to docker-compose (port 14011) and Helm. Grafana Loki datasource wired with `derivedFields` for trace-log correlation. *(Fixed this session)* |
+| ✅ | **US-4.2.5** — `PrometheusScrapingIT` (verifies `/actuator/prometheus` on moderation-service) and `TraceContextPropagationIT` (verifies `traceparent` header propagation via Kafka) added. *(Fixed this session)* |
 | ✅ | **OTel gap in 6 services** — Added `micrometer-tracing-bridge-otel` + `opentelemetry-exporter-logging` to all 5 runnable services (`conversation-context`, `intent-classifier`, `policy-engine`, `llm-orchestrator`, `tdlib-adapter`). `emcip-core` is a library and needs no OTel dep. *(Fixed 2026-05-13)* |
 
 ### Epic 4.3: Admin API Security
@@ -40,7 +40,7 @@
 |--------|------|
 | ✅ | **US-4.4.2 (retention policies)** — Reviewed 2026-05-13. `RetentionService` is correct: `@EnableScheduling` present, `created_at` column matches entity, `retentionDays` configurable (default 90). Fire-and-forget `.subscribe()` with `.doOnError()` logging is adequate for a scheduled purge. No changes needed. |
 | ❌ | **US-4.4.4** — No schema documentation (ER diagrams, data dictionary) for audit/event log tables. |
-| ❌ | **US-4.4.5** — No integration tests for log persistence or retention. |
+| ✅ | **US-4.4.5** — `AuditEventPersistenceIT` (Kafka → `AuditEventConsumer` → `audit_events` table) and `RetentionServiceIT` (purge deletes records older than 90 days, retains recent). Root-cause fix: `AuditEventEntity.details` changed from `String` to `io.r2dbc.postgresql.codec.Json` to correctly bind JSONB column. *(Fixed this session)* |
 
 ---
 
@@ -68,7 +68,6 @@
 
 | Priority | Project | Notes |
 |----------|---------|-------|
-| **High** | **OpenTelemetry distributed tracing** | Instrument all 8 services consistently. Wire to a real backend (Tempo in Grafana stack, or Jaeger). Currently only logging exporter, 3 services only. |
 | **High** | **Test coverage uplift** | `intent-classifier` (0 tests), `admin-api` (sparse), `audit-service` (3 files), `moderation-service` (2 files). Phase 4 DoD requires 80% JaCoCo. |
 | **Medium** | **Policy versioning (Epic 5.3)** | DB schema exists (`005-policy-rule-versioning.xml`) but complex rule logic (time-based, context-aware rules) not implemented. |
 | **Medium** | **Multi-tenancy hardening (Epic 5.1)** | `tenant_id` columns added to all tables, `TenantContextFilter` exists in core, but no tenant isolation enforcement at the JPA query level. |

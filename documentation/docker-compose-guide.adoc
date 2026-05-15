@@ -81,6 +81,11 @@ POSTGRES_PASSWORD=emcip
 POSTGRES_DB=emcip
 ----
 
+NOTE: All services connect to the same PostgreSQL instance but each service owns its own tables.
+No service accesses another service's tables. Cross-service data access uses Kafka (pipeline) or
+REST via `emcip-admin-api` (management). Liquibase migrations in each service create and manage
+only that service's tables.
+
 == Port Reference
 
 [cols="2,1,3"]

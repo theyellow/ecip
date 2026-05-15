@@ -143,7 +143,9 @@ include::diagrams/c3-llm-orchestrator.puml[]
 include::diagrams/c3-admin-api.puml[]
 ----
 
-The Admin API uses Spring WebFlux with two filter chains: `JwtAuthenticationFilter` for human operators and `ServiceTokenAuthenticationFilter` for internal service-to-service calls. All four controllers (`AuthController`, `TenantController`, `PolicyRuleController`, `AuditController`) share `TenantWebFilter` which binds the `X-Tenant-Id` header to the Reactor subscriber context.
+The Admin API (`emcip-admin-api`) is the single management entry point for operators and the Admin UI. It uses Spring WebFlux with two filter chains: `JwtAuthenticationFilter` for human operators and `ServiceTokenAuthenticationFilter` for internal service calls. Controllers (`AuthController`, `TenantController`, `PolicyRuleController`, `AuditController`, and others) share `TenantWebFilter` which binds the `X-Tenant-Id` header to the Reactor subscriber context.
+
+Domain data (moderation rules, audit events, policy decisions) is accessed via REST proxy clients (`ModerationServiceClient`, `PolicyEngineClient`, `AuditServiceClient`) that call each domain service's own REST API with an `X-Service-Token` header. The admin-api does not share or directly access the database tables of other services.
 
 == Domain & Code Model (C4)
 
@@ -159,7 +161,9 @@ include::diagrams/c4-policy-domain.puml[]
 
 == Event Architecture
 
-The pipeline is fully event-driven. Services communicate via Kafka topics only — no synchronous HTTP calls between core pipeline services.
+The pipeline is fully event-driven. Core pipeline services communicate via Kafka topics — no synchronous HTTP calls between them. Management and configuration operations are exposed by each service as REST endpoints and accessed by `emcip-admin-api` via internal proxy clients (`ModerationServiceClient`, `PolicyEngineClient`, `AuditServiceClient`).
+
+IMPORTANT: No service may access another service's database tables directly. Cross-service data access uses Kafka (pipeline events) or REST (management queries via admin-api). The `emcip-admin-api` module is the only "controller" in this sense — it aggregates management APIs but delegates storage to each domain service.
 
 === Message Flow Introduction
 
@@ -273,7 +277,7 @@ include::diagrams/dataflow-context-enrichment.puml[]
 |Maven 3.x, multi-module parent POM (`community-intelligence-parent:0.1.0-SNAPSHOT`).
 
 |Database
-|PostgreSQL 16 (port 14005). Schema migrations: Liquibase only — never Flyway.
+|PostgreSQL 16 (port 14005). Single shared instance for local development; services are isolated by table ownership — no service reads or writes another service's tables. Schema migrations: Liquibase only — never Flyway.
 
 |Messaging
 |Apache Kafka (external port 14003). All producers use `CommonKafkaConfig` from `emcip-core`.
@@ -290,36 +294,45 @@ include::diagrams/dataflow-context-enrichment.puml[]
 
 === JPA vs R2DBC Split
 
-[cols="1,1,2"]
+Each service owns its own tables. No cross-service table access is permitted.
+
+[cols="1,1,2,2"]
 |===
-|Service |Persistence |Reason
+|Service |Persistence |Owns tables |Reason
 
 |conversation-context
 |JPA
+|`chats`, `users`, `messages`, `thread_summaries`
 |Rich domain: Chat, User, Message with FK associations and JPQL queries.
 
 |intent-classifier
 |JPA
+|`intent_classifications`
 |`@CreatedDate`, `@Version` optimistic locking; benefits from Hibernate caching.
 
 |policy-engine
 |JPA
+|`policy_rules`, `policy_rule_versions`
 |Policy versioning, complex rule queries, transaction management.
 
 |llm-orchestrator
 |JPA
+|`llm_requests`, `cost_records`
 |LLM cost tracking coordination requires JPA transaction management.
 
 |moderation-service
 |R2DBC
+|`moderation_rules`, `moderation_flags`
 |Event-driven, flat tables, fully reactive Kafka consumer loop.
 
 |audit-service
 |R2DBC
+|`audit_events`
 |High-throughput append-only writes; non-blocking inserts maximise throughput.
 
 |admin-api
 |R2DBC
+|`tenants`, `users` (auth), `telegram_accounts`
 |Simple CRUD, interactive requests; non-blocking keeps latency low.
 |===
 

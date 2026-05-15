@@ -463,6 +463,23 @@ All services emit JSON logs via Spring Boot 4 native structured logging (`loggin
 |`00f067aa0ba902b7`
 |===
 
+== Service Data Isolation
+
+Each microservice owns its own database tables. No service reads or writes another service's tables — not in local Docker Compose and not in Kubernetes.
+
+[cols="1,3"]
+|===
+|Pattern |When to use
+
+|Kafka topic
+|Pipeline events: fire-and-forget, at-least-once, replayable. Use for all data that flows downstream (classified messages, moderation flags, audit events, etc.).
+
+|REST via admin-api
+|Management operations: synchronous queries from operators or the Admin UI. `emcip-admin-api` holds typed `WebClient` proxy clients for each domain service and authenticates with `X-Service-Token`.
+|===
+
+If you are debugging a data discrepancy, always query the *owning service's* tables — never join across service boundaries in a single query. If you need cross-service data in a report, fetch each service's API individually.
+
 == Operations Reference
 
 === Default Credentials
