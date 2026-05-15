@@ -11,6 +11,7 @@ import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.service.AuditService;
 import io.emcip.common.events.EventSchemas.ModerationFlagEvent;
 import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
+import io.r2dbc.postgresql.codec.Json;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,7 +65,7 @@ class AuditEventConsumerTest {
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("telegram.messages", 0, 0L, "key", json);
 
-        when(auditService.serializeDetails(any())).thenReturn("{\"detail\":\"value\"}");
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         when(auditService.save(any(AuditEventEntity.class)))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(1L).build()));
 
@@ -109,7 +110,7 @@ class AuditEventConsumerTest {
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("telegram.messages", 0, 2L, "key", json);
 
-        when(auditService.serializeDetails(any())).thenReturn("{}");
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         when(auditService.save(any(AuditEventEntity.class)))
                 .thenReturn(Mono.error(new RuntimeException("DB unavailable")));
 
@@ -138,7 +139,7 @@ class AuditEventConsumerTest {
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("moderation.flags", 0, 0L, "key", json);
 
-        when(auditService.serializeDetails(any())).thenReturn("{\"detail\":\"value\"}");
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
         when(auditService.save(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(2L).build()));
