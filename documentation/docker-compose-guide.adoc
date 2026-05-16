@@ -48,7 +48,7 @@ by default — they are managed per-profile.
 # All application services
 docker compose --profile full up -d
 
-# LLM Orchestrator (requires ANTHROPIC_API_KEY)
+# LLM Orchestrator (provider URL configured via Admin UI after startup)
 docker compose --profile llm up -d
 
 # TDLib Adapter (requires Telegram credentials)
@@ -69,8 +69,7 @@ TELEGRAM_API_ID=12345678
 TELEGRAM_API_HASH=abcdef1234567890abcdef1234567890
 TELEGRAM_PHONE_NUMBER=+491234567890
 
-# LLM (profile: llm)
-ANTHROPIC_API_KEY=sk-ant-...
+# LLM provider URL is configured at runtime via Admin UI -> AI Config -> LLM Provider
 
 # Admin API JWT secret
 ADMIN_JWT_SECRET=change-me-in-production-minimum-32-chars

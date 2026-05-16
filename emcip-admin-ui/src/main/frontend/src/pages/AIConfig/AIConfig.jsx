@@ -2,10 +2,47 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthContext'
 import { makeRequest } from '../../api/client'
 import { aiConfigApi } from '../../api/aiConfig'
+import { providerConfigApi } from '../../api/providerConfig'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
 import styles from './AIConfig.module.css'
+
+function ProxyModelPicker({ onPick }) {
+  const { token } = useAuth()
+  const api = providerConfigApi(makeRequest(token))
+  const [models, setModels] = useState([])
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const load = async () => {
+    if (open) { setOpen(false); return }
+    setLoading(true)
+    try {
+      const data = await api.getProxyModels()
+      setModels(data.models ?? [])
+      setOpen(true)
+    } catch {
+      setModels([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className={styles.proxyPicker}>
+      <Button variant="secondary" onClick={load} disabled={loading}>
+        {loading ? '…' : 'Pick from proxy'}
+      </Button>
+      {open && models.length > 0 && (
+        <select className={styles.input} size={Math.min(models.length, 6)}
+          onChange={e => { onPick(e.target.value); setOpen(false) }}>
+          {models.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
+      )}
+    </div>
+  )
+}
 
 function ModelModal({ model, onClose, onSave }) {
   const [form, setForm] = useState({
@@ -34,8 +71,11 @@ function ModelModal({ model, onClose, onSave }) {
       <input type="text" className={styles.input} value={form.provider}
         onChange={e => set('provider', e.target.value)} placeholder="openai / anthropic / google" required />
       <label>Model Name *</label>
-      <input type="text" className={styles.input} value={form.modelName}
-        onChange={e => set('modelName', e.target.value)} required />
+      <div className={styles.modelNameRow}>
+        <input type="text" className={styles.input} value={form.modelName}
+          onChange={e => set('modelName', e.target.value)} required />
+        <ProxyModelPicker onPick={name => set('modelName', name)} />
+      </div>
       <label>Description</label>
       <input type="text" className={styles.input} value={form.description}
         onChange={e => set('description', e.target.value)} />
@@ -124,6 +164,122 @@ function TemplateModal({ template, onClose, onSave }) {
           onChange={e => set('active', e.target.checked)} /> Active
       </label>
     </Modal>
+  )
+}
+
+function ProviderModal({ provider, onClose, onSave }) {
+  const [form, setForm] = useState({
+    name: provider?.name ?? '',
+    baseUrl: provider?.baseUrl ?? '',
+    apiKey: '',
+    active: provider?.active ?? false,
+  })
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  return (
+    <Modal title={provider ? 'Edit Provider' : 'Add Provider'} onClose={onClose} onSubmit={() => onSave(form)}>
+      <label>Name *</label>
+      <input type="text" className={styles.input} value={form.name}
+        onChange={e => set('name', e.target.value)} placeholder="local-litellm" required />
+      <label>Base URL *</label>
+      <input type="text" className={styles.input} value={form.baseUrl}
+        onChange={e => set('baseUrl', e.target.value)} placeholder="http://192.168.1.50:4000" required />
+      <label>API Key (optional — leave blank to keep existing)</label>
+      <input type="password" className={styles.input} value={form.apiKey}
+        onChange={e => set('apiKey', e.target.value)} placeholder="Leave blank if not required" />
+      <label>
+        <input type="checkbox" checked={form.active}
+          onChange={e => set('active', e.target.checked)} /> Active
+      </label>
+    </Modal>
+  )
+}
+
+function ProviderConfigSection({ token }) {
+  const api = providerConfigApi(makeRequest(token))
+  const [providers, setProviders] = useState([])
+  const [modal, setModal] = useState(null)
+  const [status, setStatus] = useState(null)
+  const [error, setError] = useState('')
+
+  const load = () =>
+    api.listProviderConfigs().then(setProviders).catch(e => setError(e.message))
+
+  useEffect(() => { load() }, [])
+
+  const save = async form => {
+    try {
+      if (modal === 'add') await api.createProviderConfig(form)
+      else await api.updateProviderConfig(modal.id, form)
+      setModal(null)
+      load()
+    } catch (e) { setError(e.message) }
+  }
+
+  const remove = async p => {
+    if (!confirm(`Delete provider "${p.name}"?`)) return
+    try { await api.deleteProviderConfig(p.id); load() }
+    catch (e) { setError(e.message) }
+  }
+
+  const testConnection = async () => {
+    setStatus(null)
+    try {
+      const data = await api.getProxyModels()
+      setStatus({ ok: data.reachable, models: data.models ?? [] })
+    } catch {
+      setStatus({ ok: false, models: [] })
+    }
+  }
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>LLM Provider</h3>
+        <Button onClick={() => setModal('add')}>+ Add Provider</Button>
+      </div>
+      {error && <p className={styles.error} role="alert">{error}</p>}
+      <table className={styles.table}>
+        <thead>
+          <tr><th>Name</th><th>Base URL</th><th>Active</th><th></th></tr>
+        </thead>
+        <tbody>
+          {providers.map(p => (
+            <tr key={p.id}>
+              <td className={styles.mono}>{p.name}</td>
+              <td>{p.baseUrl}</td>
+              <td><Badge variant={p.active ? 'green' : 'red'}>{p.active ? 'Yes' : 'No'}</Badge></td>
+              <td className={styles.actions}>
+                <Button variant="secondary" onClick={() => setModal(p)}>Edit</Button>
+                {p.active && (
+                  <Button variant="secondary" onClick={testConnection}>Test</Button>
+                )}
+                <Button variant="danger" onClick={() => remove(p)}>Delete</Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {status && (
+        <div className={styles.connectionStatus}>
+          <Badge variant={status.ok ? 'green' : 'red'}>
+            {status.ok ? 'Reachable' : 'Unreachable'}
+          </Badge>
+          {status.ok && status.models.length > 0 && (
+            <ul className={styles.modelList}>
+              {status.models.map(m => <li key={m} className={styles.mono}>{m}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+      {modal && (
+        <ProviderModal
+          provider={modal === 'add' ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={save}
+        />
+      )}
+    </div>
   )
 }
 
@@ -251,6 +407,9 @@ export function AIConfig() {
           </tbody>
         </table>
       </div>
+
+      {/* LLM Provider */}
+      <ProviderConfigSection token={token} />
 
       {modelModal && (
         <ModelModal

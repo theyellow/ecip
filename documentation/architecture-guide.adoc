@@ -51,7 +51,7 @@ include::diagrams/c1-context.puml[]
 *External systems:*
 
 * *Telegram API (TDLib)* — EMCIP connects as a real account using `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`.
-* *LLM Providers* — Claude (Anthropic), OpenAI, and local Ollama models are supported via the LLM Orchestrator.
+* *LiteLLM Proxy* — EMCIP calls local models via a LiteLLM proxy using the OpenAI-compatible `/v1/chat/completions` API. The proxy URL is runtime-configurable via Admin UI → AI Config → LLM Provider.
 
 *Production deployment:* EMCIP runs on microk8s managed by Helm.
 Images are built by GitHub Actions and pulled from `ghcr.io/theyellow/ecip`.
@@ -135,6 +135,10 @@ include::diagrams/c3-policy-engine.puml[]
 ----
 include::diagrams/c3-llm-orchestrator.puml[]
 ----
+
+The LLM Orchestrator (`emcip-llm-orchestrator`) generates AI responses for `RESPOND` policy decisions. `PolicyDecisionConsumer` listens on `policies.decisions` and delegates to `LlmCallService`, which: selects a `ModelConfig` for the task type, renders a `PromptTemplate` with message variables, reads the active `LlmProviderConfig` (base URL + optional API key) from the database, and calls `OpenAiCompatibleLlmClient` which POSTs to `{baseUrl}/v1/chat/completions`. Cost is logged via `CostTrackingService` after each successful call.
+
+The LLM provider URL is not an environment variable — it is stored in the `llm_provider_configs` table and managed at runtime via Admin UI → AI Config → LLM Provider. The `OrchestratorController` exposes REST endpoints for provider-config CRUD, a connectivity test (`GET /v1/models`), model config management, prompt template management, and cost queries.
 
 === Admin API
 

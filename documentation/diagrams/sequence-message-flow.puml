@@ -44,7 +44,7 @@ Policy -> Audit: AuditEvent (async)
 == LLM Response (if needed) ==
 alt Decision requires response
   Topic3 -> LLM: Consume event
-  LLM -> LLM: Route to MiniMax/Claude
+  LLM -> LLM: Call via LiteLLM proxy (URL from DB)
   LLM -> DB: Store response metadata
   LLM -> Topic4: ResponseGeneratedEvent
   LLM -> Audit: AuditEvent (async)

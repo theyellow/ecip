@@ -65,7 +65,7 @@ The project is a Maven multi-module build with a single parent POM (`community-i
 
 |`emcip-llm-orchestrator`
 |Service
-|LLM provider routing (Claude, OpenAI, Ollama), `responses.generated` producer.
+|LLM provider routing via LiteLLM proxy (OpenAI-compatible); provider URL runtime-configurable via Admin UI, `responses.generated` producer.
 
 |`emcip-moderation-service`
 |Service

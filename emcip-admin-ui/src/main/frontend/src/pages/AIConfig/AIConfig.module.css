@@ -71,3 +71,29 @@
 }
 
 .error { color: #ef4444; font-size: 0.85rem; }
+
+.connectionStatus {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.modelList {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.85rem;
+}
+
+.modelNameRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.proxyPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}

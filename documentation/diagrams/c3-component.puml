@@ -23,7 +23,8 @@ Container_Boundary(policy, "Policy Engine") {
 }
 
 Container_Boundary(llm, "LLM Orchestrator") {
-  Component(llm_router, "Model Router", "Java", "Routes requests to models")
+  Component(llm_call, "LlmCallService", "Java", "Orchestrates model config -> template -> LLM call -> cost log")
+  Component(llm_provider_config, "LlmProviderConfigService", "Java", "Active provider lookup; runtime URL from DB")
   Component(llm_templates, "Prompt Templates", "Java", "Manages prompt templates")
 }
 

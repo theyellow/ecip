@@ -134,8 +134,7 @@ class ResponseGeneratedEvent {
 }
 
 enum ModelType {
-    MINIMAX_2_7
-    CLAUDE
+    LITELLM
     OTHER
 }
 
