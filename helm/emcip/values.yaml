@@ -39,6 +39,15 @@ ingress:
   enabled: true
   className: nginx
   host: emcip.local
+  tls:
+    # Set enabled: true and provide an email to activate cert-manager TLS.
+    # Requires cert-manager to be installed in the cluster.
+    enabled: false
+    # issuer: letsencrypt-staging  (use staging first to avoid rate limits)
+    # issuer: letsencrypt-prod     (switch once staging cert is confirmed working)
+    issuer: letsencrypt-prod
+    # Contact email for Let's Encrypt ACME registration
+    email: ""
 
 # ============================================================
 # Application services
