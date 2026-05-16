@@ -139,7 +139,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=staging,enable={{is_default_branch}}
+            type=raw,value=latest,enable={{is_tag}}
             type=semver,pattern={{version}}
 
       - name: Build and push
@@ -202,7 +203,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
           tags: |
-            type=raw,value=jvm-latest,enable={{is_default_branch}}
+            type=raw,value=jvm-staging,enable={{is_default_branch}}
+            type=raw,value=jvm-latest,enable={{is_tag}}
             type=semver,pattern={{version}}-jvm
 
       - name: Build and push
@@ -265,7 +267,8 @@ jobs:
         with:
           images: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
           tags: |
-            type=raw,value=native-amd64,enable={{is_default_branch}}
+            type=raw,value=native-amd64-staging,enable={{is_default_branch}}
+            type=raw,value=native-amd64,enable={{is_tag}}
             type=semver,pattern={{version}}-native-amd64
 
       - name: Build and push
