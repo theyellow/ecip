@@ -193,7 +193,6 @@ Secrets are never stored in the chart. Create them manually once:
 kubectl create secret generic emcip-secrets \
   --from-literal=postgres-password=<password> \
   --from-literal=postgres-user=emcip \
-  --from-literal=anthropic-api-key=<key> \
   --from-literal=admin-jwt-secret=<min-32-char-secret> \
   --from-literal=admin-service-token=<token> \
   --from-literal=telegram-api-id=<id> \
@@ -204,8 +203,8 @@ kubectl create secret generic emcip-secrets \
 ----
 
 NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` must be at least 32 characters.
-`anthropic-api-key` is required only if the LLM profile is active.
 `telegram-*` values are required only if the Telegram profile is active.
+LLM provider URL is not a Kubernetes secret — configure it at runtime via Admin UI → AI Config → LLM Provider.
 
 === Install
 
