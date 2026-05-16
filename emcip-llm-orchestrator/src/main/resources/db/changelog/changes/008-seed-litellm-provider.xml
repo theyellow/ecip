@@ -12,7 +12,6 @@
             <column name="id" valueComputed="gen_random_uuid()"/>
             <column name="name" value="local-litellm"/>
             <column name="base_url" value="http://localhost:4000"/>
-            <column name="api_key" value=""/>
             <column name="active" valueBoolean="false"/>
             <column name="created_at" valueComputed="now()"/>
             <column name="updated_at" valueComputed="now()"/>
