@@ -11,5 +11,8 @@
     <include file="classpath:db/changelog/changes/004-seed-initial-model-configs.xml"/>
     <include file="classpath:db/changelog/changes/005-seed-sonnet-model-configs.xml"/>
     <include file="classpath:db/changelog/changes/006-add-tenant-id.xml"/>
+    <include file="classpath:db/changelog/changes/007-create-llm-provider-config.xml"/>
+    <include file="classpath:db/changelog/changes/008-seed-litellm-provider.xml"/>
+    <include file="classpath:db/changelog/changes/009-update-model-seeds-for-litellm.xml"/>
 
 </databaseChangeLog>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="008-seed-litellm-provider" author="ecip">
+        <comment>Seed local LiteLLM provider configuration</comment>
+
+        <insert tableName="llm_provider_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="local-litellm"/>
+            <column name="base_url" value="http://localhost:4000"/>
+            <column name="api_key" value=""/>
+            <column name="active" valueBoolean="false"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

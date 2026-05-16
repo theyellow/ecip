@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Update response model: Qwen3-30B-A3B for quality tasks -->
+    <changeSet id="009-update-model-response-to-litellm" author="ecip">
+        <update tableName="model_configs">
+            <column name="provider" value="litellm"/>
+            <column name="model_name" value="qwen3-30b-a3b"/>
+            <column name="description" value="Qwen3-30B-A3B via LiteLLM for automated response generation"/>
+            <column name="updated_at" valueComputed="now()"/>
+        </update>
+        <where>model_key = 'claude-haiku-response'</where>
+    </changeSet>
+
+    <!-- Update summary model: Qwen3-30B-A3B for quality tasks -->
+    <changeSet id="009-update-model-summary-to-litellm" author="ecip">
+        <update tableName="model_configs">
+            <column name="provider" value="litellm"/>
+            <column name="model_name" value="qwen3-30b-a3b"/>
+            <column name="description" value="Qwen3-30B-A3B via LiteLLM for escalation summaries"/>
+            <column name="updated_at" valueComputed="now()"/>
+        </update>
+        <where>model_key = 'claude-haiku-summary'</where>
+    </changeSet>
+
+    <!-- Update command_validation model: Qwen3-14B for speed tasks -->
+    <changeSet id="009-update-model-command-to-litellm" author="ecip">
+        <update tableName="model_configs">
+            <column name="provider" value="litellm"/>
+            <column name="model_name" value="qwen3-14b"/>
+            <column name="description" value="Qwen3-14B via LiteLLM for command validation"/>
+            <column name="updated_at" valueComputed="now()"/>
+        </update>
+        <where>model_key = 'claude-haiku-command'</where>
+    </changeSet>
+
+    <!-- Add new MODERATION task type entry -->
+    <changeSet id="009-seed-model-moderation" author="ecip">
+        <insert tableName="model_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="model_key" value="qwen3-14b-moderation"/>
+            <column name="provider" value="litellm"/>
+            <column name="model_name" value="qwen3-14b"/>
+            <column name="description" value="Qwen3-14B via LiteLLM for content moderation and toxicity detection"/>
+            <column name="task_type" value="MODERATION"/>
+            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="context_window" valueNumeric="40000"/>
+            <column name="max_output_tokens" valueNumeric="256"/>
+            <column name="avg_latency_ms" valueNumeric="400.0"/>
+            <column name="supports_streaming" valueBoolean="false"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <!-- Add seed prompt template for moderation -->
+    <changeSet id="009-seed-prompt-template-moderation" author="ecip">
+        <insert tableName="prompt_templates">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="moderation_check"/>
+            <column name="version" value="1.0.0"/>
+            <column name="description" value="Toxicity and content moderation check (German + English)"/>
+            <column name="model_provider" value="litellm"/>
+            <column name="model_name" value="qwen3-14b"/>
+            <column name="system_prompt" value="Du bist ein Inhaltsmoderationsassistent. Bewerte die folgende Nachricht auf Toxizität, Beleidigungen, Hassrede oder unangemessene Inhalte. Antworte ausschließlich mit JSON in diesem Format: {&quot;verdict&quot;: &quot;SAFE&quot; | &quot;FLAGGED&quot;, &quot;reason&quot;: &quot;kurze Begründung auf Deutsch&quot;, &quot;score&quot;: 0.0-1.0}"/>
+            <column name="user_prompt_template" value="Prüfe diese Nachricht: {{content}}"/>
+            <column name="temperature" valueNumeric="0.1"/>
+            <column name="max_tokens" valueNumeric="128"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
