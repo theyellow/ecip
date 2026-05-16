@@ -39,6 +39,11 @@ ingress:
   enabled: true
   className: nginx
   host: emcip.local
+  tls:
+    # Set enabled: true to activate cert-manager TLS (self-signed, works offline).
+    # Requires cert-manager to be installed in the cluster.
+    enabled: false
+    issuer: emcip-selfsigned
 
 # ============================================================
 # Application services

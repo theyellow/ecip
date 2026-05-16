@@ -1,0 +1,10 @@
+{{- if .Values.ingress.tls.enabled }}
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: emcip-selfsigned
+  labels:
+    {{- include "emcip.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+{{- end }}
