@@ -90,17 +90,18 @@ jobs:
           needs_build() { [[ "$CORE" == "true" || "$1" == "true" ]]; }
 
           JVM_ONLY='[]'
-          needs_build "$INTENT_CLASSIFIER"    && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"intent-classifier","module":"emcip-intent-classifier"}]')
-          needs_build "$MODERATION_SERVICE"   && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"moderation-service","module":"emcip-moderation-service"}]')
-          needs_build "$AUDIT_SERVICE"        && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"audit-service","module":"emcip-audit-service"}]')
-          needs_build "$ADMIN_API"            && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"admin-api","module":"emcip-admin-api"}]')
-          needs_build "$ADMIN_UI"             && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"admin-ui","module":"emcip-admin-ui"}]')
-          needs_build "$TDLIB_ADAPTER"        && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"tdlib-adapter","module":"emcip-tdlib-adapter"}]')
+          needs_build "$INTENT_CLASSIFIER"    && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"intent-classifier","module":"emcip-intent-classifier","multiarch":true}]')
+          needs_build "$MODERATION_SERVICE"   && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"moderation-service","module":"emcip-moderation-service","multiarch":true}]')
+          needs_build "$AUDIT_SERVICE"        && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"audit-service","module":"emcip-audit-service","multiarch":true}]')
+          needs_build "$ADMIN_API"            && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"admin-api","module":"emcip-admin-api","multiarch":true}]')
+          needs_build "$ADMIN_UI"             && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"admin-ui","module":"emcip-admin-ui","multiarch":true}]')
+          # tdlib-adapter compiles TDLib C++ from source — cross-compiling for arm64 is not feasible
+          needs_build "$TDLIB_ADAPTER"        && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"tdlib-adapter","module":"emcip-tdlib-adapter","multiarch":false}]')
 
           JVM_LATEST='[]'
-          needs_build "$POLICY_ENGINE"        && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"policy-engine","module":"emcip-policy-engine"}]')
-          needs_build "$CONVERSATION_CONTEXT" && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"conversation-context","module":"emcip-conversation-context"}]')
-          needs_build "$LLM_ORCHESTRATOR"     && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"llm-orchestrator","module":"emcip-llm-orchestrator"}]')
+          needs_build "$POLICY_ENGINE"        && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"policy-engine","module":"emcip-policy-engine","multiarch":true}]')
+          needs_build "$CONVERSATION_CONTEXT" && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"conversation-context","module":"emcip-conversation-context","multiarch":true}]')
+          needs_build "$LLM_ORCHESTRATOR"     && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"llm-orchestrator","module":"emcip-llm-orchestrator","multiarch":true}]')
 
           echo "jvm-only=$(echo "$JVM_ONLY" | jq -c .)"     >> "$GITHUB_OUTPUT"
           echo "jvm-latest=$(echo "$JVM_LATEST" | jq -c .)" >> "$GITHUB_OUTPUT"
@@ -150,7 +151,7 @@ jobs:
           context: .
           file: ${{ matrix.module }}/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.multiarch && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}-jvm
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-jvm
@@ -215,7 +216,7 @@ jobs:
           context: .
           file: ${{ matrix.module }}/Dockerfile
           push: true
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.multiarch && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.service }}-jvm-latest
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-jvm-latest
