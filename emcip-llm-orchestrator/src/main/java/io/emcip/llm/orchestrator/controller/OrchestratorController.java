@@ -1,11 +1,14 @@
 package io.emcip.llm.orchestrator.controller;
 
+import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.PromptTemplate;
+import io.emcip.llm.orchestrator.repository.LlmProviderConfigRepository;
 import io.emcip.llm.orchestrator.repository.ModelConfigRepository;
 import io.emcip.llm.orchestrator.repository.PromptTemplateRepository;
 import io.emcip.llm.orchestrator.service.CostTrackingService;
 import io.emcip.llm.orchestrator.service.LlmOrchestratorService;
+import io.emcip.llm.orchestrator.service.LlmProviderConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
@@ -43,6 +46,8 @@ public class OrchestratorController {
     private final CostTrackingService costTrackingService;
     private final ModelConfigRepository modelConfigRepository;
     private final PromptTemplateRepository promptTemplateRepository;
+    private final LlmProviderConfigService providerConfigService;
+    private final LlmProviderConfigRepository providerConfigRepository;
 
     // --- Models ---
 
@@ -161,5 +166,86 @@ public class OrchestratorController {
                 "from", from.toString(),
                 "to", to.toString(),
                 "totalCostUsd", totalCost);
+    }
+
+    // --- Provider Config ---
+
+    private Map<String, Object> maskConfig(LlmProviderConfig p) {
+        return Map.of(
+                "id", p.getId().toString(),
+                "name", p.getName(),
+                "baseUrl", p.getBaseUrl(),
+                "apiKey", p.getApiKey() != null && !p.getApiKey().isBlank() ? "***" : "",
+                "active", p.getActive());
+    }
+
+    @Operation(summary = "List all LLM provider configurations (api_key masked)")
+    @GetMapping("/provider-config")
+    public List<Map<String, Object>> listProviderConfigs() {
+        return providerConfigRepository.findAll().stream().map(this::maskConfig).toList();
+    }
+
+    @Operation(summary = "Create a new LLM provider configuration")
+    @PostMapping("/provider-config")
+    public ResponseEntity<Map<String, Object>> createProviderConfig(
+            @RequestBody LlmProviderConfig config) {
+        LlmProviderConfig saved = providerConfigService.saveProvider(config);
+        log.info("Created provider config: name={}, active={}", saved.getName(), saved.getActive());
+        return ResponseEntity.status(201).body(maskConfig(saved));
+    }
+
+    @Operation(summary = "Update an existing LLM provider configuration")
+    @PutMapping("/provider-config/{id}")
+    public ResponseEntity<Map<String, Object>> updateProviderConfig(
+            @PathVariable UUID id, @RequestBody LlmProviderConfig update) {
+        LlmProviderConfig existing =
+                providerConfigRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND,
+                                                "Provider config not found: " + id));
+        existing.setName(update.getName());
+        existing.setBaseUrl(update.getBaseUrl());
+        if (update.getApiKey() != null
+                && !update.getApiKey().isBlank()
+                && !"***".equals(update.getApiKey())) {
+            existing.setApiKey(update.getApiKey());
+        }
+        existing.setActive(update.getActive());
+        LlmProviderConfig saved = providerConfigService.saveProvider(existing);
+        log.info("Updated provider config: id={}, active={}", id, saved.getActive());
+        return ResponseEntity.ok(maskConfig(saved));
+    }
+
+    @Operation(summary = "Delete a LLM provider configuration")
+    @DeleteMapping("/provider-config/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteProviderConfig(@PathVariable UUID id) {
+        if (!providerConfigRepository.existsById(id)) {
+            throw new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Provider config not found: " + id);
+        }
+        providerConfigRepository.deleteById(id);
+    }
+
+    @Operation(summary = "List models available on the active LLM provider proxy")
+    @GetMapping("/provider-config/models")
+    public ResponseEntity<Map<String, Object>> listProxyModels() {
+        return providerConfigService
+                .getActiveProvider()
+                .map(
+                        p -> {
+                            List<String> models =
+                                    providerConfigService.fetchAvailableModels(
+                                            p.getBaseUrl(), p.getApiKey());
+                            return ResponseEntity.ok(
+                                    Map.<String, Object>of(
+                                            "baseUrl", p.getBaseUrl(),
+                                            "models", models,
+                                            "reachable", !models.isEmpty()));
+                        })
+                .orElse(ResponseEntity.notFound().build());
     }
 }

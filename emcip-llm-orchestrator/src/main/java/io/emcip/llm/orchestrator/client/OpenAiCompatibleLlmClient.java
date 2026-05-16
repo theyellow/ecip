@@ -86,8 +86,7 @@ public class OpenAiCompatibleLlmClient {
                             .body(String.class);
 
             JsonNode root = objectMapper.readTree(responseJson);
-            String content =
-                    root.path("choices").get(0).path("message").path("content").asText();
+            String content = root.path("choices").get(0).path("message").path("content").asText();
             int inputTokens = root.path("usage").path("prompt_tokens").asInt();
             int outputTokens = root.path("usage").path("completion_tokens").asInt();
             String modelUsed = root.path("model").asText(model);

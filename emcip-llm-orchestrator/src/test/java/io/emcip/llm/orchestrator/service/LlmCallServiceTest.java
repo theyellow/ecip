@@ -10,9 +10,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import io.emcip.llm.orchestrator.client.LlmResponse;
+import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.PromptTemplate;
 import java.util.HashMap;
