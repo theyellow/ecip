@@ -1,0 +1,374 @@
+= Audit Service — Schema Reference
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+
+== Overview
+
+The audit service is a passive observer — it consumes events from all five pipeline Kafka topics and persists them to PostgreSQL for compliance, debugging, and cost tracking.
+No other service reads from the audit tables; they are an append-only record of everything that happened.
+
+Two tables exist:
+
+* `audit_events` — one row per pipeline event, covering the full processing lifecycle.
+* `metrics_snapshots` — periodic snapshots of service-level metrics (counters, latencies, costs).
+
+There is no foreign key relationship between them.
+
+== ER Diagram
+
+[plantuml, audit-er, svg]
+----
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity "**audit_events**" as ae {
+  * id : BIGSERIAL <<PK>>
+  --
+  * event_id : VARCHAR(100) <<UNIQUE>>
+  * event_type : VARCHAR(50)
+  correlation_id : VARCHAR(100)
+  * source_service : VARCHAR(100)
+  * action : VARCHAR(50)
+  * actor_type : VARCHAR(20)
+  actor_id : VARCHAR(100)
+  resource_type : VARCHAR(50)
+  resource_id : VARCHAR(100)
+  * outcome : VARCHAR(20)
+  details : JSONB
+  processing_time_ms : INTEGER
+  * created_at : TIMESTAMP
+  * tenant_id : UUID
+}
+
+entity "**metrics_snapshots**" as ms {
+  * id : BIGSERIAL <<PK>>
+  --
+  * service_name : VARCHAR(100)
+  * metric_name : VARCHAR(100)
+  * metric_value : DECIMAL(20,6)
+  tags : JSONB
+  * recorded_at : TIMESTAMP
+}
+
+note bottom of ae
+  Populated by AuditEventConsumer
+  consuming 5 Kafka topics.
+  Append-only — never updated.
+end note
+
+note bottom of ms
+  Populated by MetricsCollector
+  on a scheduled interval.
+  Append-only — never updated.
+end note
+@enduml
+----
+
+== Table: audit_events
+
+=== Data Dictionary
+
+[cols="2,2,1,4", options="header"]
+|===
+| Column | Type | Nullable | Description
+
+| `id`
+| BIGSERIAL
+| No
+| Surrogate primary key. Auto-incremented by PostgreSQL.
+
+| `event_id`
+| VARCHAR(100)
+| No
+| Business key from the originating event (UUID string). Unique constraint prevents duplicate ingestion.
+
+| `event_type`
+| VARCHAR(50)
+| No
+| Identifies the pipeline stage. See <<_known_event_types>>.
+
+| `correlation_id`
+| VARCHAR(100)
+| Yes
+| Distributed trace ID propagated from the originating service. Use this to reconstruct the full lifecycle of a single Telegram message across all services.
+
+| `source_service`
+| VARCHAR(100)
+| No
+| The service that emitted the event (e.g. `emcip-moderation-service`).
+
+| `action`
+| VARCHAR(50)
+| No
+| Currently mirrors `event_type`. Reserved for a more granular action description in future phases.
+
+| `actor_type`
+| VARCHAR(20)
+| No
+| Who triggered the action. Currently always `SYSTEM` (all events are machine-generated). Human actor types (`USER`, `ADMIN`) are reserved for future use.
+
+| `actor_id`
+| VARCHAR(100)
+| Yes
+| Identifier of the specific actor. Not populated for `SYSTEM` actors.
+
+| `resource_type`
+| VARCHAR(50)
+| Yes
+| The kind of resource the event relates to (e.g. `Message`, `Policy`, `ModerationFlag`).
+
+| `resource_id`
+| VARCHAR(100)
+| Yes
+| The identifier of the specific resource instance.
+
+| `outcome`
+| VARCHAR(20)
+| No
+| Result of processing. Currently always `PROCESSED`. See <<_known_outcome_values>>.
+
+| `details`
+| JSONB
+| Yes
+| Full serialised event payload. Schema varies by `event_type`. Queryable via PostgreSQL JSONB operators.
+
+| `processing_time_ms`
+| INTEGER
+| Yes
+| Wall-clock duration of processing in milliseconds, as reported by the source service.
+
+| `created_at`
+| TIMESTAMP
+| No
+| Insertion timestamp. Set by PostgreSQL default (`NOW()`). Always UTC.
+
+| `tenant_id`
+| UUID
+| No
+| Tenant the event belongs to. Added in migration `002-add-tenant-id`. All queries should filter by this column first.
+|===
+
+=== Known Event Types
+
+[cols="1,2,2", options="header"]
+|===
+| event_type | Emitted by | Meaning
+
+| `TelegramMessage`
+| `emcip-tdlib-adapter`
+| A raw message was received from a Telegram group.
+
+| `IntentClassified`
+| `emcip-intent-classifier`
+| The message intent was classified (topic, sentiment).
+
+| `PolicyDecision`
+| `emcip-policy-engine`
+| The policy engine reached a decision (allow / escalate / block).
+
+| `ResponseGenerated`
+| `emcip-llm-orchestrator`
+| The LLM produced a response for the message.
+
+| `ModerationFlag`
+| `emcip-moderation-service`
+| A moderation rule matched; a flag was raised.
+
+| `Audit`
+| Internal
+| Reserved for direct audit writes (not yet used in production).
+|===
+
+=== Known Outcome Values
+
+[cols="1,4", options="header"]
+|===
+| outcome | Meaning
+
+| `PROCESSED`
+| The event was consumed and persisted successfully. The only value in use today.
+
+| `FAILED`
+| Reserved for future use when error-path events are captured.
+
+| `SKIPPED`
+| Reserved for future use (e.g. deduplication or tenant filtering).
+|===
+
+=== Index Reference
+
+[cols="2,2,2", options="header"]
+|===
+| Index name | Columns | Purpose
+
+| _(primary key)_
+| `id`
+| Row lookup by surrogate key.
+
+| `uk_audit_events_event_id`
+| `event_id`
+| Unique constraint — prevents duplicate event ingestion.
+
+| `idx_audit_events_type`
+| `event_type`
+| Filter by pipeline stage.
+
+| `idx_audit_events_correlation`
+| `correlation_id`
+| Reconstruct the full trace of a single message.
+
+| `idx_audit_events_created`
+| `created_at`
+| Time-range queries, retention sweeps.
+
+| `idx_audit_events_type_created_at`
+| `event_type`, `created_at`
+| Compound — efficient for "events of type X in window Y".
+
+| `idx_audit_events_source_service`
+| `source_service`
+| Filter by emitting service.
+
+| `idx_audit_events_tenant`
+| `tenant_id`
+| Tenant isolation — always include in WHERE clauses.
+|===
+
+== Table: metrics_snapshots
+
+=== Data Dictionary
+
+[cols="2,2,1,4", options="header"]
+|===
+| Column | Type | Nullable | Description
+
+| `id`
+| BIGSERIAL
+| No
+| Surrogate primary key.
+
+| `service_name`
+| VARCHAR(100)
+| No
+| The service that recorded the metric (e.g. `emcip-llm-orchestrator`).
+
+| `metric_name`
+| VARCHAR(100)
+| No
+| Metric identifier (e.g. `llm.tokens.used`, `kafka.lag`).
+
+| `metric_value`
+| DECIMAL(20,6)
+| No
+| Numeric value of the metric at the time of the snapshot.
+
+| `tags`
+| JSONB
+| Yes
+| Optional key/value labels for further breakdown (e.g. `{"model": "gpt-4o", "tenant": "..."}`).
+
+| `recorded_at`
+| TIMESTAMP
+| No
+| When the snapshot was taken. Set by PostgreSQL default (`NOW()`). Always UTC.
+|===
+
+=== Index Reference
+
+[cols="2,2,2", options="header"]
+|===
+| Index name | Columns | Purpose
+
+| _(primary key)_
+| `id`
+| Row lookup.
+
+| `idx_metrics_service`
+| `service_name`, `recorded_at`
+| Efficient time-series queries per service.
+|===
+
+== Common Query Patterns
+
+All queries assume direct PostgreSQL access.
+Connect via the `postgres` pod (no `psql` on the host):
+
+[source,bash]
+----
+microk8s.kubectl exec -n emcip -it deploy/postgres -- \
+  psql -U emcip -d emcip | cat
+----
+
+=== Recent events for a tenant
+
+[source,sql]
+----
+SELECT event_type, source_service, outcome, created_at
+FROM audit_events
+WHERE tenant_id = '<tenant-uuid>'
+ORDER BY created_at DESC
+LIMIT 50;
+----
+
+=== Full lifecycle of a single message
+
+Use `correlation_id` to stitch together all pipeline stages for one message:
+
+[source,sql]
+----
+SELECT event_type, source_service, action, outcome, processing_time_ms, created_at
+FROM audit_events
+WHERE correlation_id = '<trace-id>'
+ORDER BY created_at ASC;
+----
+
+=== All moderation flags in the last hour
+
+[source,sql]
+----
+SELECT event_id, resource_id, details, created_at
+FROM audit_events
+WHERE event_type = 'ModerationFlag'
+  AND tenant_id  = '<tenant-uuid>'
+  AND created_at >= NOW() - INTERVAL '1 hour'
+ORDER BY created_at DESC;
+----
+
+=== Events from a specific service
+
+[source,sql]
+----
+SELECT event_type, outcome, COUNT(*) AS total
+FROM audit_events
+WHERE source_service = 'emcip-moderation-service'
+  AND tenant_id      = '<tenant-uuid>'
+  AND created_at     >= NOW() - INTERVAL '24 hours'
+GROUP BY event_type, outcome
+ORDER BY total DESC;
+----
+
+=== Slow processing events (p95 debugging)
+
+[source,sql]
+----
+SELECT event_type, source_service, processing_time_ms, created_at
+FROM audit_events
+WHERE tenant_id         = '<tenant-uuid>'
+  AND processing_time_ms > 1000
+ORDER BY processing_time_ms DESC
+LIMIT 20;
+----
+
+=== Recent metric snapshots for a service
+
+[source,sql]
+----
+SELECT metric_name, metric_value, tags, recorded_at
+FROM metrics_snapshots
+WHERE service_name = 'emcip-llm-orchestrator'
+  AND recorded_at  >= NOW() - INTERVAL '1 hour'
+ORDER BY recorded_at DESC;
+----
