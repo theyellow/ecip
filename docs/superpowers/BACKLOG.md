@@ -38,3 +38,22 @@ Items are ordered by priority. Phase 5 items come next.
 | 18 | **Multi-arch JVM images (linux/arm64)** | S | `docker buildx` with `eclipse-temurin:21-jdk` (already a multi-arch base image). Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
 | 19 | **Mixed-cluster: arm64 native images** | L | Cross-compile GraalVM native for Pi 4 nodes. Needs QEMU emulation or a dedicated arm64 runner. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
 | 20 | **Mixed-cluster: node taints + tolerations** | S | Fine-grained pod scheduling if node pools grow. Currently `nodeSelector` is sufficient. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
+
+---
+
+## Documentation Audit (2026-05-16)
+
+### Diagrams confirmed current — no update needed
+
+Audited during the LiteLLM integration documentation pass. These diagrams accurately reflect the implemented state and require no changes at this time:
+
+| Diagram | Covers |
+|---|---|
+| `c3-policy-engine.puml` | Policy Engine component view |
+| `c3-tdlib-adapter.puml` | TDLib Adapter component view |
+| `c4-policy-domain.puml` | Policy domain model |
+| `sequence-error-handling.puml` | Retry, DLQ, and circuit breaker flow |
+| `sequence-admin-auth.puml` | Admin UI JWT authentication flow |
+| `sequence-policy-evaluation.puml` | Policy evaluation detail flow |
+| `sequence-tenant-propagation.puml` | X-Tenant-Id HTTP and Kafka propagation |
+| `dataflow-context-enrichment.puml` | Conversation context enrichment data flow |
