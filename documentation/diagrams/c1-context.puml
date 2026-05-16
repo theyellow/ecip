@@ -15,14 +15,14 @@ System(ecip, "EMCIP Platform", "Enterprise Messenger Community Intelligence Plat
 
 ' External Systems
 System_Ext(telegram_api, "Telegram API", "Telegram Messenger Platform<br/>TDLib protocol for real user connection")
-System_Ext(llm_provider, "LLM Providers", "MiniMax-2.7, Claude, etc.<br/>AI model APIs for response generation")
+System_Ext(llm_provider, "LiteLLM Proxy", "OpenAI-compatible proxy (local)<br/>Provider URL configured via Admin UI")
 
 ' Relationships
 Rel(admin, ecip, "Manages via Admin API", "HTTPS/JWT")
 Rel(telegram_user, telegram_api, "Uses", "Mobile/Desktop App")
 Rel(ecip, telegram_api, "Connects as real user", "TDLib")
 Rel(ecip, telegram_user, "Observes, assists, moderates", "In groups/channels")
-Rel(ecip, llm_provider, "Routes requests", "HTTPS/API")
+Rel(ecip, llm_provider, "Calls via OpenAI-compatible API", "HTTPS/REST")
 
 ' Annotations
 note right of ecip

@@ -12,7 +12,7 @@ System_Boundary(ecip_platform, "EMCIP Platform") {
     Container(tdlib_adapter, "TDLib Adapter", "Java 21 / Spring Boot 4 / Port 9080", "Telegram client integration<br/>Event normalization<br/>TDLib JNI bridge")
     Container(intent_classifier, "Intent Classifier", "Java 21 / Spring Boot 4 / Port 9082", "Rule-based intent classification<br/>GREETING, QUESTION, COMMAND, SPAM, MENTION, REPORT")
     Container(policy_engine, "Policy Engine", "Java 21 / Spring Boot 4 / Port 9083", "Deterministic policy decisions<br/>ALLOW, BLOCK, FLAG, RESPOND, ESCALATE")
-    Container(llm_orchestrator, "LLM Orchestrator", "Java 21 / Spring Boot 4 / Port 9084", "Model routing (MiniMax/Claude)<br/>Cost tracking<br/>Prompt templates")
+    Container(llm_orchestrator, "LLM Orchestrator", "Java 21 / Spring Boot 4 / Port 9084", "OpenAI-compatible LLM calls via LiteLLM proxy<br/>Runtime-configurable provider URL<br/>Cost tracking + prompt templates")
     Container(moderation_service, "Moderation Service", "Java 21 / Spring Boot 4 / Port 9085", "Toxicity filtering<br/>Content violation detection")
 
     ' Support Services (middle row)
@@ -27,7 +27,7 @@ System_Boundary(ecip_platform, "EMCIP Platform") {
 
 ' External Systems
 System_Ext(telegram, "Telegram", "Telegram Messenger<br/>TDLib protocol")
-System_Ext(llm_providers, "LLM Providers", "MiniMax-2.7 API<br/>Claude API")
+System_Ext(llm_providers, "LiteLLM Proxy", "OpenAI-compatible proxy (local)<br/>Provider URL set via Admin UI")
 
 ' External Actor
 Person(admin, "Platform Admin", "Administers policies<br/>Monitors platform")
@@ -68,7 +68,7 @@ Rel(admin_api, audit_service, "Query logs", "REST/Internal")
 Rel(tdlib_adapter, postgres, "Store messages", "R2DBC")
 Rel(intent_classifier, postgres, "Store classifications", "R2DBC")
 Rel(policy_engine, postgres, "Store decisions", "R2DBC")
-Rel(llm_orchestrator, postgres, "Store costs/responses", "R2DBC")
+Rel(llm_orchestrator, postgres, "Store costs/responses", "JPA")
 Rel(moderation_service, postgres, "Store flags", "R2DBC")
 Rel(conversation_context, postgres, "Store context", "R2DBC")
 Rel(audit_service, postgres, "Store audit logs", "R2DBC")

@@ -33,8 +33,6 @@ queue "policies.\ndecisions" as DecisionTopic
 database "PostgreSQL" as DB
 box "LLM Orchestrator" #LightCoral
     participant "Kafka\nConsumer" as LConsumer
-    participant "Model\nRouter" as LRouter
-    participant "Prompt\nBuilder" as PBuilder
     participant "LLM\nClient" as LLMClient
     participant "Kafka\nProducer" as LProducer
 end box
@@ -151,22 +149,13 @@ deactivate PConsumer
 
 DecisionTopic -> LConsumer: Consume RESPOND event
 activate LConsumer
-LConsumer -> LRouter: Route to model
-activate LRouter
-LRouter -> LRouter: Select MiniMax or Claude
-LRouter --> LConsumer: Selected model
-
-LConsumer -> PBuilder: Build prompt
-activate PBuilder
-PBuilder -> PBuilder: Load template
-PBuilder -> PBuilder: Inject context
-PBuilder --> LConsumer: Complete prompt
-
-deactivate PBuilder
+LConsumer -> LConsumer: Select model config for task type
+LConsumer -> LConsumer: Render prompt template with variables
+LConsumer -> LConsumer: Look up active provider config (URL from DB)
 
 LConsumer -> LLMClient: Send request
 activate LLMClient
-LLMClient -> LLMClient: Call external API
+LLMClient -> LLMClient: POST {baseUrl}/v1/chat/completions
 LLMClient --> LConsumer: LLM response
 
 LConsumer -> DB: Store response & cost

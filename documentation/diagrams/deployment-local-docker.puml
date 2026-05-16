@@ -44,7 +44,7 @@ Deployment_Node(docker_host, "Docker Host", "Linux/Windows/Mac") {
         }
 
         Deployment_Node(llm_service, "LLM Service (profile: llm)", $tags="llm") {
-            Container(llm_orchestrator, "llm-orchestrator", "Java 21 / Spring Boot 4", "Port 9084<br/>Model routing<br/>Requires ANTHROPIC_API_KEY")
+            Container(llm_orchestrator, "llm-orchestrator", "Java 21 / Spring Boot 4", "Port 9084<br/>LLM calls via LiteLLM proxy<br/>Provider URL set via Admin UI")
         }
 
         Deployment_Node(tdlib_service, "Telegram Service (profile: telegram)", $tags="telegram") {
@@ -67,8 +67,7 @@ Deployment_Node(docker_host, "Docker Host", "Linux/Windows/Mac") {
 
 ' External Systems
 System_Ext(telegram_api, "Telegram API", "Telegram servers<br/>api.telegram.org")
-System_Ext(minimax_api, "MiniMax API", "llm.minimaxi.com")
-System_Ext(claude_api, "Claude API", "api.anthropic.com")
+System_Ext(litellm_proxy, "LiteLLM Proxy", "Optional external proxy<br/>URL configured via Admin UI")
 System_Ext(browser, "Developer Browser", "Access admin UIs")
 
 ' Relationships - Infrastructure
@@ -89,8 +88,7 @@ Rel(admin_api, postgres, "JDBC/R2DBC", "Port 5432")
 
 Rel(llm_orchestrator, postgres, "R2DBC", "Port 5432")
 Rel(llm_orchestrator, kafka, "Produce/Consume", "Port 14002")
-Rel(llm_orchestrator, minimax_api, "HTTPS API", "External")
-Rel(llm_orchestrator, claude_api, "HTTPS API", "External")
+Rel(llm_orchestrator, litellm_proxy, "HTTPS API (OpenAI-compatible)", "External/Optional")
 
 Rel(tdlib_adapter, kafka, "Produce/Consume", "Port 14002")
 Rel(tdlib_adapter, telegram_api, "TDLib Protocol", "Port 443")
@@ -119,7 +117,7 @@ end note
 note right of llm_service
   <b>Profile: llm</b>
   Start with: docker-compose --profile llm up
-  Requires ANTHROPIC_API_KEY in .env
+  Provider URL is configured at runtime via Admin UI
   Enables AI response generation
 end note
 
@@ -135,12 +133,12 @@ end note
 ' Environment Variables Note
 note bottom
   <b>Required Environment Variables:</b>
-  • ANTHROPIC_API_KEY - For LLM orchestrator
   • TELEGRAM_API_ID - Get from my.telegram.org
   • TELEGRAM_API_HASH - Get from my.telegram.org
   • TELEGRAM_PHONE_NUMBER - With country code
   • ADMIN_JWT_SECRET - For admin API security
   • ADMIN_SERVICE_TOKEN - For inter-service auth
+  LLM provider URL is set via Admin UI -> AI Config -> LLM Provider
 end note
 
 SHOW_LEGEND()

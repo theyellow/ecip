@@ -166,15 +166,5 @@ note right
   Query: GET /audit/trace/{correlationId} -> returns complete processing chain
 end note
 
-' === COMPLIANCE NOTES ===
-note right
-  Audit Compliance:
-  • Immutability: Audit logs WORM (Write Once Read Many)
-  • Integrity: Cryptographic hash chain for tamper detection
-  • Retention: 7 years (configurable tiers)
-  • Access: Role-based query access (admin, auditor, system)
-  • Export: CSV/JSON/PDF formats for regulatory requests
-  • Real-time: Stream to SIEM (Splunk, ELK, etc.)
-end note
 
 @enduml
