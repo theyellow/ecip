@@ -8,6 +8,7 @@ import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -390,17 +391,45 @@ public class TelegramAccountController {
         return m;
     }
 
-    public record CreateAccountRequest(String phoneNumber, String displayName) {}
+    @Schema(description = "Request to register a new Telegram account")
+    public record CreateAccountRequest(
+            @Schema(description = "Phone number in international format", example = "+491234567890")
+                    String phoneNumber,
+            @Schema(description = "Human-readable label for this account", example = "Main bot")
+                    String displayName) {}
 
-    public record CodeRequest(String code) {}
+    @Schema(description = "Telegram authentication code sent to the phone")
+    public record CodeRequest(
+            @Schema(description = "Verification code received via Telegram", example = "12345")
+                    String code) {}
 
-    public record PasswordRequest(String password) {}
+    @Schema(description = "Two-factor authentication password")
+    public record PasswordRequest(
+            @Schema(description = "2FA password for the Telegram account") String password) {}
 
-    public record WatchRequest(long chatId, String title) {}
+    @Schema(description = "Request to start watching a Telegram group")
+    public record WatchRequest(
+            @Schema(description = "Telegram chat ID to watch", example = "-1001234567890")
+                    long chatId,
+            @Schema(description = "Display title for the group", example = "My Community")
+                    String title) {}
 
+    @Schema(description = "Connection status from the TDLib adapter")
     @Data
     public static class TdlibStatusResponse {
+        @Schema(
+                description = "Account status",
+                example = "ACTIVE",
+                allowableValues = {
+                    "UNCONFIGURED",
+                    "AWAITING_CODE",
+                    "AWAITING_PASSWORD",
+                    "ACTIVE",
+                    "DISCONNECTED"
+                })
         private String status;
+
+        @Schema(description = "Last error message, if any")
         private String lastError;
     }
 }

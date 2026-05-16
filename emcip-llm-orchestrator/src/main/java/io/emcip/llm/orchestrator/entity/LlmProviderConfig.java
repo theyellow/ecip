@@ -1,5 +1,6 @@
 package io.emcip.llm.orchestrator.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -18,6 +19,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /** JPA entity for LLM provider configuration. Stores LiteLLM proxy URL and credentials. */
+@Schema(description = "LLM provider configuration pointing to a LiteLLM proxy instance")
 @Entity
 @Table(name = "llm_provider_configs")
 @Getter
@@ -27,30 +29,41 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Builder
 public class LlmProviderConfig {
 
+    @Schema(description = "Unique provider config ID")
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Schema(description = "Display name for this provider config", example = "LiteLLM Local")
     @Column(nullable = false, unique = true, length = 255)
     private String name;
 
+    @Schema(description = "Base URL of the LiteLLM proxy", example = "http://litellm:4000")
     @Column(nullable = false, length = 512)
     private String baseUrl;
 
+    @Schema(
+            description = "API key for the LiteLLM proxy (write-only, never returned in responses)",
+            accessMode = Schema.AccessMode.WRITE_ONLY)
     @Column(length = 512)
     private String apiKey;
 
+    @Schema(description = "Whether this provider is the active one used for LLM calls")
     @Column(nullable = false)
     @Builder.Default
     private Boolean active = false;
 
+    @Schema(description = "Creation timestamp (UTC)")
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Schema(description = "Last update timestamp (UTC)")
     @UpdateTimestamp
     @Column(nullable = false)
     private Instant updatedAt;
 
-    @Version private Long versionLock;
+    @Schema(hidden = true)
+    @Version
+    private Long versionLock;
 }
