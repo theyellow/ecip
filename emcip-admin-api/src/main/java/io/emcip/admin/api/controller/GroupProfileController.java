@@ -24,7 +24,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/groups")
 @RequiredArgsConstructor
-@Tag(name = "Group Profiles", description = "Manage Telegram group moderation profiles")
+@Tag(name = "Group Profiles", description = "Manage Telegram group configuration profiles")
 public class GroupProfileController {
 
     private final GroupProfileRepository repository;
@@ -35,7 +35,7 @@ public class GroupProfileController {
         return repository.findAll();
     }
 
-    @Operation(summary = "Get a group profile by Telegram chat ID")
+    @Operation(summary = "Get a group profile by chat ID")
     @GetMapping("/{chatId}")
     public Mono<ResponseEntity<GroupProfile>> getByChatId(@PathVariable("chatId") Long chatId) {
         return repository
@@ -44,7 +44,7 @@ public class GroupProfileController {
                 .defaultIfEmpty(ResponseEntity.notFound().<GroupProfile>build());
     }
 
-    @Operation(summary = "Create a new group profile")
+    @Operation(summary = "Create a group profile")
     @PostMapping
     public Mono<ResponseEntity<GroupProfile>> create(@RequestBody GroupProfile profile) {
         profile.setCreatedAt(Instant.now());
@@ -54,7 +54,7 @@ public class GroupProfileController {
                 .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved));
     }
 
-    @Operation(summary = "Update an existing group profile")
+    @Operation(summary = "Update a group profile")
     @PutMapping("/{chatId}")
     public Mono<ResponseEntity<GroupProfile>> update(
             @PathVariable("chatId") Long chatId, @RequestBody GroupProfile update) {
@@ -74,7 +74,7 @@ public class GroupProfileController {
                 .defaultIfEmpty(ResponseEntity.notFound().<GroupProfile>build());
     }
 
-    @Operation(summary = "Delete a group profile by Telegram chat ID")
+    @Operation(summary = "Delete a group profile")
     @DeleteMapping("/{chatId}")
     public Mono<ResponseEntity<Void>> delete(@PathVariable("chatId") Long chatId) {
         return repository

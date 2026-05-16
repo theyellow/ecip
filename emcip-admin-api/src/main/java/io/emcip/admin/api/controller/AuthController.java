@@ -20,14 +20,14 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
-@Tag(name = "Authentication", description = "Obtain JWT tokens for admin API access")
+@Tag(name = "Authentication", description = "Obtain JWT tokens for API access")
 public class AuthController {
 
     private final AdminUserRepository adminUserRepository;
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
 
-    @Operation(summary = "Authenticate and retrieve a JWT token")
+    @Operation(summary = "Authenticate and receive a JWT token")
     @PostMapping("/token")
     public Mono<ResponseEntity<TokenResponse>> authenticate(@RequestBody AuthRequest request) {
         return adminUserRepository

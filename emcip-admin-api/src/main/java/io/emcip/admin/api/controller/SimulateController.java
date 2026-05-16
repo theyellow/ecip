@@ -1,6 +1,8 @@
 package io.emcip.admin.api.controller;
 
 import io.emcip.common.events.EventSchemas;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -18,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/simulate")
+@Tag(name = "Simulation", description = "Inject test messages through the full pipeline")
 public class SimulateController {
 
     private static final String TOPIC = "telegram.raw.messages";
@@ -30,6 +33,7 @@ public class SimulateController {
         this.objectMapper = new ObjectMapper();
     }
 
+    @Operation(summary = "Simulate a Telegram message through the processing pipeline")
     @PostMapping("/message")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Map<String, Object>> simulateMessage(@RequestBody SimulateMessageRequest req) {
