@@ -1,6 +1,6 @@
 package io.emcip.llm.orchestrator.service;
 
-import io.emcip.llm.orchestrator.client.AnthropicLlmClient;
+import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import io.emcip.llm.orchestrator.client.LlmResponse;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 public class LlmCallService {
 
     private final LlmOrchestratorService orchestratorService;
-    private final AnthropicLlmClient anthropicClient;
+    private final OpenAiCompatibleLlmClient llmClient;
     private final CostTrackingService costTrackingService;
 
     /**
@@ -100,7 +100,7 @@ public class LlmCallService {
                             : renderedUser.replace("{{content}}", userContent);
 
             LlmResponse response =
-                    anthropicClient.call(
+                    llmClient.call(
                             modelConfig.getModelName(),
                             template.getSystemPrompt(),
                             finalContent,

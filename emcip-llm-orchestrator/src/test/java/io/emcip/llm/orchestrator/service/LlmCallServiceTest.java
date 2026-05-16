@@ -10,7 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.emcip.llm.orchestrator.client.AnthropicLlmClient;
+import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import io.emcip.llm.orchestrator.client.LlmResponse;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
@@ -34,7 +34,7 @@ class LlmCallServiceTest {
 
     @Mock private LlmOrchestratorService orchestratorService;
 
-    @Mock private AnthropicLlmClient anthropicClient;
+    @Mock private OpenAiCompatibleLlmClient llmClient;
 
     @Mock private CostTrackingService costTrackingService;
 
@@ -104,7 +104,7 @@ class LlmCallServiceTest {
 
         // then
         assertThat(result).isEmpty();
-        verify(anthropicClient, never())
+        verify(llmClient, never())
                 .call(anyString(), anyString(), anyString(), anyInt(), anyDouble());
     }
 
@@ -128,7 +128,7 @@ class LlmCallServiceTest {
 
         // then
         assertThat(result).isEmpty();
-        verify(anthropicClient, never())
+        verify(llmClient, never())
                 .call(anyString(), anyString(), anyString(), anyInt(), anyDouble());
     }
 
@@ -149,7 +149,7 @@ class LlmCallServiceTest {
         when(orchestratorService.getPromptTemplate(templateName)).thenReturn(Optional.of(template));
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn("Please respond to the following: {{content}}");
-        when(anthropicClient.call(
+        when(llmClient.call(
                         "claude-haiku-4-5-20251001",
                         "You are a helpful AI assistant.",
                         "Please respond to the following: Hello",
@@ -206,7 +206,7 @@ class LlmCallServiceTest {
 
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn("Please respond to the following: {{content}}");
-        when(anthropicClient.call(
+        when(llmClient.call(
                         "claude-haiku-4-5-20251001",
                         "You are a helpful AI assistant.",
                         "Please respond to the following: Hello",
@@ -259,7 +259,7 @@ class LlmCallServiceTest {
 
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn("Please respond to the following: {{content}}");
-        when(anthropicClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+        when(llmClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
                 .thenThrow(new RuntimeException("API call failed"));
 
         // when
@@ -307,7 +307,7 @@ class LlmCallServiceTest {
 
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn(renderedTemplate);
-        when(anthropicClient.call(
+        when(llmClient.call(
                         "claude-haiku-4-5-20251001",
                         "You are a helpful AI assistant.",
                         "Please respond to the following: What is 2+2?",
@@ -324,7 +324,7 @@ class LlmCallServiceTest {
         assertThat(result.content()).isEqualTo("4");
 
         // Verify the client was called with the correct substituted content
-        verify(anthropicClient)
+        verify(llmClient)
                 .call(
                         "claude-haiku-4-5-20251001",
                         "You are a helpful AI assistant.",
@@ -346,7 +346,7 @@ class LlmCallServiceTest {
         // Empty rendered template means use userContent directly
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn("");
-        when(anthropicClient.call(
+        when(llmClient.call(
                         "claude-haiku-4-5-20251001",
                         "You are a helpful AI assistant.",
                         "Hello",
@@ -362,7 +362,7 @@ class LlmCallServiceTest {
         assertThat(result.success()).isTrue();
         assertThat(result.content()).isEqualTo("Hi there");
 
-        verify(anthropicClient)
+        verify(llmClient)
                 .call(
                         "claude-haiku-4-5-20251001",
                         "You are a helpful AI assistant.",
@@ -388,7 +388,7 @@ class LlmCallServiceTest {
 
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn(renderedTemplate);
-        when(anthropicClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+        when(llmClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
                 .thenReturn(response);
 
         // when
@@ -399,7 +399,7 @@ class LlmCallServiceTest {
         assertThat(result.success()).isTrue();
         assertThat(result.content()).isEqualTo("Formal response");
 
-        verify(anthropicClient)
+        verify(llmClient)
                 .call(
                         "claude-haiku-4-5-20251001",
                         "You are a helpful AI assistant.",
@@ -423,7 +423,7 @@ class LlmCallServiceTest {
 
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn("Please respond to the following: {{content}}");
-        when(anthropicClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+        when(llmClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
                 .thenReturn(response);
 
         // when
@@ -455,7 +455,7 @@ class LlmCallServiceTest {
 
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn("Please respond to the following: {{content}}");
-        when(anthropicClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+        when(llmClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
                 .thenReturn(response);
 
         // when
@@ -493,7 +493,7 @@ class LlmCallServiceTest {
         when(orchestratorService.getPromptTemplate(templateName)).thenReturn(Optional.of(template));
         when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
                 .thenReturn("Please respond to the following: {{content}}");
-        when(anthropicClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+        when(llmClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
                 .thenThrow(new RuntimeException("Network error"));
 
         // when
