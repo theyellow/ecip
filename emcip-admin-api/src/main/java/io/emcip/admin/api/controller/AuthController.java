@@ -3,6 +3,7 @@ package io.emcip.admin.api.controller;
 import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.security.JwtService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +49,13 @@ public class AuthController {
                         ResponseEntity.status(HttpStatus.UNAUTHORIZED).<TokenResponse>build());
     }
 
-    public record AuthRequest(String username, String password) {}
+    @Schema(description = "Credentials for obtaining a JWT token")
+    public record AuthRequest(
+            @Schema(description = "Admin username", example = "admin") String username,
+            @Schema(description = "Admin password", example = "secret") String password) {}
 
-    public record TokenResponse(String token, Instant expiresAt) {}
+    @Schema(description = "JWT token response")
+    public record TokenResponse(
+            @Schema(description = "Signed JWT token") String token,
+            @Schema(description = "Token expiry timestamp (UTC)") Instant expiresAt) {}
 }

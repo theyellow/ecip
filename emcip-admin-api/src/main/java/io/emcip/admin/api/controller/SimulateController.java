@@ -2,6 +2,7 @@ package io.emcip.admin.api.controller;
 
 import io.emcip.common.events.EventSchemas;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.Map;
@@ -79,12 +80,25 @@ public class SimulateController {
         }
     }
 
+    @Schema(description = "Request to inject a simulated Telegram message into the pipeline")
     @Data
     public static class SimulateMessageRequest {
+        @Schema(description = "Telegram chat ID", example = "-1001234567890")
         private Long chatId;
+
+        @Schema(description = "Sender identifier", example = "user-42")
         private String senderId;
+
+        @Schema(
+                description = "Sender type",
+                example = "USER",
+                allowableValues = {"USER", "BOT"})
         private String senderType;
+
+        @Schema(description = "Message text to classify and process", example = "Hello everyone!")
         private String text;
+
+        @Schema(description = "Optional Telegram message ID override")
         private Long telegramMessageId;
     }
 }
