@@ -19,7 +19,7 @@ Container_Boundary(policy_engine, "policy-engine") {
 }
 
 Container_Boundary(llm_orchestrator, "llm-orchestrator") {
-    Component(ModelRouter, "ModelRouter", "Routes requests to models")
+    Component(LlmCallService, "LlmCallService", "Orchestrates model selection, template render, LLM call, cost log")
 }
 
 Container_Boundary(moderation_service, "moderation-service") {

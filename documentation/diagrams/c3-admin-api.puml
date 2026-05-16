@@ -26,6 +26,8 @@ Container_Boundary(admin_api, "Admin API - Port 9087") {
 
     Component(audit_ctrl, "AuditController", "Java / Spring REST", "GET /api/audit/events<br/>GET /api/audit/events/{id}<br/>GET /api/audit/summary")
 
+    Component(ai_proxy_ctrl, "AIProxyController", "Java / Spring REST", "GET/POST/PUT/DELETE /api/ai/provider-config<br/>GET /api/ai/provider-config/models<br/>Proxies requests to LLM Orchestrator via WebClient")
+
     ' Repositories (R2DBC)
     Component(admin_user_repo, "AdminUserRepository", "Spring Data R2DBC", "Loads admin users<br/>bcrypt password column<br/>Role assignment")
 
@@ -37,6 +39,7 @@ Container_Boundary(admin_api, "Admin API - Port 9087") {
 }
 
 ContainerDb(postgres, "PostgreSQL", "Database", "admin_users, tenants, policy_rules, audit_events")
+Container(llm_orchestrator, "LLM Orchestrator", "Java / Port 9084", "Provider config CRUD + models endpoint")
 
 ' Request path
 Rel(jwt_filter, security_config, "Feeds authentication", "SecurityContext")
@@ -55,6 +58,9 @@ Rel(admin_user_repo, postgres, "Queries", "R2DBC")
 Rel(tenant_repo, postgres, "Queries", "R2DBC")
 Rel(policy_repo, postgres, "Queries", "R2DBC")
 Rel(audit_repo, postgres, "Queries", "R2DBC")
+
+Rel(tenant_filter, ai_proxy_ctrl, "Provides tenant context", "TenantContext")
+Rel(ai_proxy_ctrl, llm_orchestrator, "Proxy: provider-config CRUD + models", "REST/WebClient")
 
 SHOW_LEGEND()
 @enduml

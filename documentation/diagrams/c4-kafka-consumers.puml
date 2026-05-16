@@ -106,9 +106,8 @@ class PolicyEvaluationService {
 }
 
 class LlmOrchestrationService {
-    - ModelRouter modelRouter
-    - PromptBuilder promptBuilder
-    - ResponseValidator validator
+    - LlmCallService llmCallService
+    - LlmProviderConfigService providerConfigService
     + orchestrate(Decision decision): GeneratedResponse
 }
 
