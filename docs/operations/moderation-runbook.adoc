@@ -1,0 +1,212 @@
+= Moderation Service — Operator Runbook
+:toc: left
+:toclevels: 3
+:sectnums:
+:icons: font
+
+== Overview
+
+The moderation service evaluates every incoming Telegram message against a set of configurable rules.
+When a rule matches, it publishes a flag event to a downstream Kafka topic for further processing (e.g. admin review, automated action).
+
+This runbook covers rule configuration, operational behaviour, and manual recovery steps.
+
+== Rule Reference
+
+=== Rule Types
+
+[cols="1,3,2", options="header"]
+|===
+| Type | How it matches | Example pattern
+
+| `KEYWORD`
+| Case-insensitive substring search — matches if the pattern appears anywhere in the message text.
+| `spam`
+
+| `REGEX`
+| Full Java regex evaluated against the message text. Supports capture groups and flags.
+| `\b(buy\|sell)\s+crypto\b`
+
+| `LENGTH`
+| Matches when the message character count exceeds the integer threshold given as the pattern.
+| `2000`
+|===
+
+=== Severity Levels
+
+[cols="1,4", options="header"]
+|===
+| Severity | Operational meaning
+
+| `HIGH`
+| Immediate operator attention required. Typically maps to hard policy violations (hate speech, spam campaigns).
+
+| `MEDIUM` _(default)_
+| Review within the next moderation cycle. Maps to borderline or ambiguous content.
+
+| `LOW`
+| Informational. Logged and flagged but no urgent action expected (e.g. unusually long messages).
+|===
+
+=== Actions
+
+Only one action is implemented today:
+
+[cols="1,4", options="header"]
+|===
+| Action | Effect
+
+| `FLAG` _(default)_
+| Publishes a `ModerationFlagEvent` to the `moderation.flags` Kafka topic. No automatic deletion or mute occurs — downstream consumers decide what to do.
+|===
+
+=== Seed Rules
+
+Two rules are seeded by Liquibase on first startup:
+
+[cols="1,1,1,1,1", options="header"]
+|===
+| Name | Type | Pattern | Severity | Action
+
+| `profanity-block`
+| `KEYWORD`
+| `spam`
+| `HIGH`
+| `FLAG`
+
+| `excessive-length`
+| `LENGTH`
+| `2000`
+| `LOW`
+| `FLAG`
+|===
+
+Additional rules can be managed via the Admin API (`emcip-admin-api`, port 9087).
+
+== Rule Lifecycle
+
+Rules are held in an in-memory cache inside the service:
+
+. On startup (`@PostConstruct`) all enabled rules are loaded from PostgreSQL into a `volatile` list.
+. Every *5 minutes* a `@Scheduled` job re-fetches the full list of enabled rules from the database.
+. Any change made via the Admin API takes effect at the next scheduled refresh — there is no instant push.
+
+[NOTE]
+====
+If you add or modify a rule and need it active immediately, restart the moderation service pod:
+
+[source,bash]
+----
+microk8s.kubectl rollout restart deployment/moderation-service -n emcip
+----
+====
+
+== Current Escalation Path
+
+=== Happy Path
+
+[source]
+----
+telegram.raw.messages (Kafka, port 14003)
+  └─► ModerationEventConsumer
+        └─► RuleEvaluationService  (checks all enabled rules)
+              ├─► no match → message discarded (no event published)
+              └─► match   → ModerationFlagEvent → moderation.flags (Kafka)
+----
+
+Downstream consumers of `moderation.flags` are responsible for acting on flags (e.g. admin notification, auto-mute).
+
+=== Error Path (Current Behaviour)
+
+[WARNING]
+====
+There is no dead-letter queue (DLQ) or automatic retry today.
+====
+
+If an exception is thrown during rule evaluation or Kafka publishing:
+
+. The error is logged at `ERROR` level with the full stack trace.
+. The exception is rethrown as a `RuntimeException`.
+. Kafka's default listener error handler takes over — the message offset is *not* committed, causing a redelivery loop until the service restarts or the message expires.
+. The original message is effectively *lost* once the Kafka retention window passes.
+
+=== Manual Operator Steps
+
+==== 1. Identify the failure
+
+[source,bash]
+----
+# Tail moderation-service logs (replace <pod> with actual pod name)
+microk8s.kubectl logs -n emcip -l app=moderation-service --tail=200 | cat
+
+# Or filter for errors only
+microk8s.kubectl logs -n emcip -l app=moderation-service | grep ERROR | cat
+----
+
+Key things to look for:
+
+* `DeserializationException` — malformed message on the input topic
+* `KafkaProducerException` — cannot publish to `moderation.flags`
+* `PSQLException` — database connection issue during rule refresh
+
+==== 2. Check Kafka topic offsets
+
+[source,bash]
+----
+# List consumer group lag for the moderation consumer group
+microk8s.kubectl exec -n emcip deploy/kafka -- \
+  kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+  --group moderation-service --describe | cat
+----
+
+If `LAG` is growing, the consumer is stuck.
+
+==== 3. Replay messages (last resort)
+
+If messages were lost before being processed, reset the consumer group offset to re-process:
+
+[source,bash]
+----
+# CAUTION: this replays ALL messages from the given offset
+microk8s.kubectl exec -n emcip deploy/kafka -- \
+  kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
+  --group moderation-service --topic telegram.raw.messages \
+  --reset-offsets --to-earliest --execute | cat
+----
+
+Then restart the service:
+
+[source,bash]
+----
+microk8s.kubectl rollout restart deployment/moderation-service -n emcip
+----
+
+==== 4. Verify recovery
+
+[source,bash]
+----
+microk8s.kubectl logs -n emcip -l app=moderation-service --tail=50 | cat
+----
+
+Look for `Rules loaded: N` and no `ERROR` lines.
+
+== Future Escalation (Planned)
+
+The following capabilities are *not yet implemented* but are intended for a future phase:
+
+[cols="1,3", options="header"]
+|===
+| Capability | Description
+
+| Dead-Letter Queue (DLQ)
+| A dedicated `moderation.flags.dlq` topic to capture messages that fail processing, enabling offline inspection and replay without data loss.
+
+| Alerting thresholds
+| Prometheus alert rule firing when flag rate exceeds a configurable threshold (e.g. > 100 flags/min per tenant) or when consumer lag exceeds a threshold.
+
+| Auto-retry
+| Configurable retry policy (e.g. 3 attempts with exponential backoff) before sending to DLQ.
+
+| Instant rule reload
+| Admin API endpoint triggering an immediate cache refresh without waiting for the 5-minute schedule.
+|===

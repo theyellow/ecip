@@ -89,6 +89,12 @@
       <artifactId>hibernate-graalvm</artifactId>
     </dependency>
 
+    <!-- OpenAPI / Swagger UI -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+    </dependency>
+
     <!-- Observability -->
 
     <!-- Lombok -->

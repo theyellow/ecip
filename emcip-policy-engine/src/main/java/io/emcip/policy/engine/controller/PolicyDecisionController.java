@@ -2,6 +2,8 @@ package io.emcip.policy.engine.controller;
 
 import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+@Tag(name = "Policy Decisions", description = "Query and update policy decision records")
 @RestController
 @RequestMapping("/api/policy-decisions")
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ public class PolicyDecisionController {
 
     private final PolicyDecisionRepository repository;
 
+    @Operation(summary = "List recent policy decisions")
     @GetMapping
     public Flux<PolicyDecision> list(
             @RequestParam(defaultValue = "50") int size,
@@ -41,6 +45,7 @@ public class PolicyDecisionController {
                 .flatMapMany(Flux::fromIterable);
     }
 
+    @Operation(summary = "Update decision signal status")
     @PutMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {

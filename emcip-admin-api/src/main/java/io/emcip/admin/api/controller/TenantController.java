@@ -2,6 +2,8 @@ package io.emcip.admin.api.controller;
 
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.repository.TenantRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -21,16 +23,19 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/tenants")
 @RequiredArgsConstructor
+@Tag(name = "Tenants", description = "Manage EMCIP tenants")
 public class TenantController {
 
     private final TenantRepository tenantRepository;
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
 
+    @Operation(summary = "List all tenants")
     @GetMapping
     public Flux<Tenant> listTenants() {
         return tenantRepository.findAll();
     }
 
+    @Operation(summary = "Create a new tenant")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Tenant> createTenant(@RequestBody Tenant tenant) {
@@ -39,6 +44,7 @@ public class TenantController {
         return r2dbcEntityTemplate.insert(tenant);
     }
 
+    @Operation(summary = "Delete a tenant")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteTenant(@PathVariable("id") UUID id) {

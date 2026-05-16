@@ -56,6 +56,12 @@
       <artifactId>spring-kafka</artifactId>
     </dependency>
 
+    <!-- OpenAPI/Swagger -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+    </dependency>
+
     <!-- PostgreSQL R2DBC -->
     <dependency>
       <groupId>org.postgresql</groupId>

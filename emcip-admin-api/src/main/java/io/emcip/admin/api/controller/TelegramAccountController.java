@@ -7,6 +7,8 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,6 +35,9 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @RestController
 @RequestMapping("/api/telegram/accounts")
+@Tag(
+        name = "Telegram Accounts",
+        description = "Manage Telegram account connections, authentication, and group watching")
 public class TelegramAccountController {
 
     private final TelegramAccountRepository repository;
@@ -60,11 +65,13 @@ public class TelegramAccountController {
         this.telegramApiHash = telegramApiHash;
     }
 
+    @Operation(summary = "List all Telegram accounts")
     @GetMapping
     public Mono<List<Map<String, Object>>> listAccounts() {
         return repository.findAll().map(TelegramAccountController::toSafeMap).collectList();
     }
 
+    @Operation(summary = "Create and connect a new Telegram account")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Map<String, Object>> createAccount(@RequestBody CreateAccountRequest req) {
@@ -82,12 +89,14 @@ public class TelegramAccountController {
         return r2dbcEntityTemplate.insert(account).map(TelegramAccountController::toSafeMap);
     }
 
+    @Operation(summary = "Delete a Telegram account")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteAccount(@PathVariable("id") UUID id) {
         return repository.deleteById(id);
     }
 
+    @Operation(summary = "Get connection status of a Telegram account")
     @GetMapping("/{id}/status")
     public Mono<Map<String, Object>> getStatus(@PathVariable("id") UUID id) {
         return repository
@@ -136,6 +145,7 @@ public class TelegramAccountController {
                         Mono.error(new IllegalArgumentException("Account not found: " + id)));
     }
 
+    @Operation(summary = "Reconnect a disconnected Telegram account")
     @PostMapping("/{id}/reconnect")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Map<String, Object>> reconnect(@PathVariable("id") UUID id) {
@@ -179,6 +189,7 @@ public class TelegramAccountController {
                 .switchIfEmpty(Mono.just(Map.of("accepted", false, "reason", "Account not found")));
     }
 
+    @Operation(summary = "Submit authentication code for a Telegram account")
     @PostMapping("/{id}/code")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Void> submitCode(@PathVariable("id") UUID id, @RequestBody CodeRequest req) {
@@ -190,6 +201,7 @@ public class TelegramAccountController {
                 .bodyToMono(Void.class);
     }
 
+    @Operation(summary = "Submit 2FA password for a Telegram account")
     @PostMapping("/{id}/password")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Void> submitPassword(
@@ -202,6 +214,7 @@ public class TelegramAccountController {
                 .bodyToMono(Void.class);
     }
 
+    @Operation(summary = "Log out a Telegram account")
     @PostMapping("/{id}/logout")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Void> logout(@PathVariable("id") UUID id) {
@@ -223,6 +236,7 @@ public class TelegramAccountController {
                                 .then());
     }
 
+    @Operation(summary = "Sync watched groups across all accounts")
     @PostMapping("/sync")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> syncWatchedGroups() {
@@ -232,6 +246,7 @@ public class TelegramAccountController {
                 .then();
     }
 
+    @Operation(summary = "Discover available Telegram chats for an account")
     @GetMapping("/{id}/chats")
     public Mono<List<Map<String, Object>>> discoverChats(@PathVariable("id") UUID id) {
         return tdlibClient
@@ -243,6 +258,7 @@ public class TelegramAccountController {
                 .onErrorReturn(List.of());
     }
 
+    @Operation(summary = "List watched groups for an account")
     @GetMapping("/{id}/watched")
     public Mono<List<Map<String, Object>>> listWatched(@PathVariable("id") UUID id) {
         return watchedGroupRepository
@@ -255,6 +271,7 @@ public class TelegramAccountController {
                 .collectList();
     }
 
+    @Operation(summary = "Start watching a Telegram group")
     @PostMapping("/{id}/watch")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Map<String, Object>> watchGroup(
@@ -304,6 +321,7 @@ public class TelegramAccountController {
                 .map(this::toWatchedMap);
     }
 
+    @Operation(summary = "Stop watching a Telegram group")
     @DeleteMapping("/{id}/watch/{chatId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> unwatchGroup(

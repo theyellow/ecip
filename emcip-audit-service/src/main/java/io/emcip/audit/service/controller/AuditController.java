@@ -2,6 +2,8 @@ package io.emcip.audit.service.controller;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.service.AuditService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
@@ -20,6 +22,7 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/api/audit")
 @Slf4j
 @RequiredArgsConstructor
+@Tag(name = "Audit Events", description = "Query audit events and pipeline summaries")
 public class AuditController {
 
     private final AuditService auditService;
@@ -31,6 +34,7 @@ public class AuditController {
      * @param from optional ISO-8601 start timestamp; defaults to 24 hours ago
      * @param to optional ISO-8601 end timestamp; defaults to now
      */
+    @Operation(summary = "List audit events filtered by type and time range")
     @GetMapping("/events")
     public Flux<AuditEventEntity> getEvents(
             @RequestParam(required = false) String eventType,
@@ -52,6 +56,7 @@ public class AuditController {
      *
      * @param eventId the unique event identifier
      */
+    @Operation(summary = "Get a single audit event by event ID")
     @GetMapping("/events/{eventId}")
     public Mono<ResponseEntity<AuditEventEntity>> getEvent(@PathVariable String eventId) {
         return auditService
@@ -66,6 +71,7 @@ public class AuditController {
      * @param from optional ISO-8601 start timestamp; defaults to 24 hours ago
      * @param to optional ISO-8601 end timestamp; defaults to now
      */
+    @Operation(summary = "Get event-type counts for a time range")
     @GetMapping("/summary")
     public Mono<Map<String, Long>> getSummary(
             @RequestParam(required = false) String from,
