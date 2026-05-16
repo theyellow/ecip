@@ -8,14 +8,6 @@ Items are ordered by priority. Phase 4 (current) items come first.
 
 ---
 
-## Now — Phase 4 Completion
-
-| # | Item | Size | Notes |
-|---|------|------|-------|
-| 1 | **US-4.3.4 — OpenAPI / Swagger** | M | Add `springdoc-openapi` to all services, expose `/swagger-ui.html`. |
-| 2 | **US-4.1.4 — Moderation operator docs** | S | Rule type descriptions, escalation path runbook, no-code. |
-| 3 | **US-4.4.4 — Audit schema docs** | S | ER diagram + data dictionary for audit/event log tables. |
-
 ---
 
 ## Next — Phase 5 Feature Work
@@ -23,6 +15,8 @@ Items are ordered by priority. Phase 4 (current) items come first.
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | 4 | **Test coverage to 80% (JaCoCo gate)** | L | Gate not yet enforced. Weakest services: `moderation-service` (2 files), `audit-service` (3 files). Phase 4 DoD requirement. |
+| 4a | **OpenAPI: `@Schema` annotations on DTOs** | S | Richer API docs — annotate request/response types across all services. Deferred from US-4.3.4. |
+| 4b | **OpenAPI: security scheme documentation** | XS | Document bearer token auth in springdoc `@SecurityScheme`. Deferred from US-4.3.4. |
 | 5 | **Multi-tenancy enforcement at JPA level** | L | `tenant_id` columns + `TenantContextFilter` exist but no query-level isolation. Cross-tenant data leak is currently possible. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not implemented. |
 | 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
