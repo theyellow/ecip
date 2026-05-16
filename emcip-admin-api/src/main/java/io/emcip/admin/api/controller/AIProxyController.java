@@ -208,4 +208,105 @@ public class AIProxyController {
                                                                         respBody))))
                 .bodyToMono(Void.class);
     }
+
+    // ---- Provider Config ----
+
+    @GetMapping("/provider-config")
+    public Mono<String> listProviderConfigs() {
+        return orchestratorClient
+                .get()
+                .uri("/api/provider-config")
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                body ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(), body))))
+                .bodyToMono(String.class);
+    }
+
+    @PostMapping(value = "/provider-config", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public Mono<String> createProviderConfig(@RequestBody String body) {
+        return orchestratorClient
+                .post()
+                .uri("/api/provider-config")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
+                .bodyToMono(String.class);
+    }
+
+    @PutMapping(value = "/provider-config/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<String> updateProviderConfig(@PathVariable String id, @RequestBody String body) {
+        return orchestratorClient
+                .put()
+                .uri("/api/provider-config/{id}", id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
+                .bodyToMono(String.class);
+    }
+
+    @DeleteMapping("/provider-config/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> deleteProviderConfig(@PathVariable String id) {
+        return orchestratorClient
+                .delete()
+                .uri("/api/provider-config/{id}", id)
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
+                .bodyToMono(Void.class);
+    }
+
+    @GetMapping("/provider-config/models")
+    public Mono<String> listProxyModels() {
+        return orchestratorClient
+                .get()
+                .uri("/api/provider-config/models")
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                body ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(), body))))
+                .bodyToMono(String.class);
+    }
 }
