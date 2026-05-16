@@ -4,9 +4,7 @@
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
-Items are ordered by priority. Phase 4 (current) items come first.
-
----
+Items are ordered by priority. Phase 5 items come next.
 
 ---
 
