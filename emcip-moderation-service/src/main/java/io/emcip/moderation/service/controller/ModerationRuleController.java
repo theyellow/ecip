@@ -2,6 +2,8 @@ package io.emcip.moderation.service.controller;
 
 import io.emcip.moderation.service.entity.ModerationRule;
 import io.emcip.moderation.service.repository.ModerationRuleRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,17 +23,20 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/moderation-rules")
 @RequiredArgsConstructor
+@Tag(name = "Moderation Rules", description = "Create, read, update, and delete moderation rules")
 public class ModerationRuleController {
 
     private final ModerationRuleRepository repository;
 
     @GetMapping
+    @Operation(summary = "List all moderation rules")
     public Flux<ModerationRule> list() {
         return repository.findAllOrdered();
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a new moderation rule")
     public Mono<ModerationRule> create(@RequestBody ModerationRule rule) {
         rule.setId(null);
         rule.setCreatedAt(Instant.now());
@@ -47,6 +52,7 @@ public class ModerationRuleController {
     }
 
     @PutMapping("/{id}")
+    @Operation(summary = "Update an existing moderation rule")
     public Mono<ModerationRule> update(@PathVariable Long id, @RequestBody ModerationRule rule) {
         return repository
                 .findById(id)
@@ -66,6 +72,7 @@ public class ModerationRuleController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete a moderation rule")
     public Mono<Void> delete(@PathVariable Long id) {
         return repository.deleteById(id);
     }

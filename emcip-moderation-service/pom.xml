@@ -66,6 +66,12 @@
       <artifactId>spring-kafka</artifactId>
     </dependency>
 
+    <!-- OpenAPI -->
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+    </dependency>
+
     <!-- Observability -->
     <dependency>
       <groupId>io.micrometer</groupId>
