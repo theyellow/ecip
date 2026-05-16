@@ -60,9 +60,10 @@ Rel(llm_orchestrator, llm_providers, "Route requests", "HTTPS/REST")
 ' Admin API Connections
 Rel(admin, admin_api, "Manage platform", "HTTPS/JWT")
 Rel(admin_api, postgres, "Read/Write", "JDBC/R2DBC")
-Rel(admin_api, policy_engine, "Configure policies", "REST/Internal")
-Rel(admin_api, moderation_service, "Configure rules", "REST/Internal")
-Rel(admin_api, audit_service, "Query logs", "REST/Internal")
+Rel(admin_api, policy_engine, "Configure policies", "REST")
+Rel(admin_api, moderation_service, "Configure rules", "REST")
+Rel(admin_api, audit_service, "Query logs", "REST")
+Rel(admin_api, llm_orchestrator, "Provider config + model management", "REST")
 
 ' Database connections
 Rel(tdlib_adapter, postgres, "Store messages", "R2DBC")
