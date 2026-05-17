@@ -11,8 +11,10 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.emcip.common.tenant.TenantContext;
 import java.time.Instant;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -39,6 +41,7 @@ class TelegramAccountControllerTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
+        TenantContext.setAdminMode(true);
         controller =
                 new TelegramAccountController(
                         repository,
@@ -48,6 +51,11 @@ class TelegramAccountControllerTest {
                         groupProfileRepository,
                         12345,
                         "abc123");
+    }
+
+    @AfterEach
+    void clearTenantContext() {
+        TenantContext.clear();
     }
 
     @Test
