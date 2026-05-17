@@ -12,6 +12,7 @@ import io.emcip.conversation.context.entity.User;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +51,7 @@ class MessageRepositoryTest {
 
         // Create test user
         testUser = new User();
+        testUser.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         testUser.setTelegramId(123456789L);
         testUser.setUsername("testuser");
         testUser.setFirstName("Test");
@@ -58,6 +60,7 @@ class MessageRepositoryTest {
 
         // Create test thread
         testThread = new MessageThread();
+        testThread.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         testThread.setTelegramChatId(987654321L);
         testThread.setTitle("Test Thread");
         testThread.setThreadType(ThreadType.PRIVATE);
@@ -70,6 +73,7 @@ class MessageRepositoryTest {
     void shouldSaveAndFindByEventId() {
         // Given
         Message message = new Message();
+        message.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         message.setEventId("evt-123456");
         message.setTelegramMessageId(1L);
         message.setThread(testThread);
@@ -99,6 +103,7 @@ class MessageRepositoryTest {
         Instant now = Instant.now();
 
         Message msg1 = new Message();
+        msg1.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         msg1.setEventId("evt-1");
         msg1.setTelegramMessageId(1L);
         msg1.setThread(testThread);
@@ -109,6 +114,7 @@ class MessageRepositoryTest {
         msg1.setIsDeleted(false);
 
         Message msg2 = new Message();
+        msg2.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         msg2.setEventId("evt-2");
         msg2.setTelegramMessageId(2L);
         msg2.setThread(testThread);
@@ -137,6 +143,7 @@ class MessageRepositoryTest {
     void shouldFindBySender() {
         // Given
         Message message = new Message();
+        message.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         message.setEventId("evt-sender");
         message.setTelegramMessageId(10L);
         message.setThread(testThread);
@@ -166,6 +173,7 @@ class MessageRepositoryTest {
 
         for (int i = 1; i <= 25; i++) {
             Message msg = new Message();
+            msg.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
             msg.setEventId("evt-page-" + i);
             msg.setTelegramMessageId((long) i);
             msg.setThread(testThread);
@@ -199,6 +207,7 @@ class MessageRepositoryTest {
     void shouldCheckIfExistsByEventId() {
         // Given
         Message message = new Message();
+        message.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         message.setEventId("evt-exists");
         message.setTelegramMessageId(100L);
         message.setThread(testThread);
@@ -222,6 +231,7 @@ class MessageRepositoryTest {
         Instant now = Instant.now();
 
         Message oldMsg = new Message();
+        oldMsg.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         oldMsg.setEventId("evt-old");
         oldMsg.setTelegramMessageId(1L);
         oldMsg.setThread(testThread);
@@ -232,6 +242,7 @@ class MessageRepositoryTest {
         oldMsg.setIsDeleted(false);
 
         Message recentMsg = new Message();
+        recentMsg.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         recentMsg.setEventId("evt-recent");
         recentMsg.setTelegramMessageId(2L);
         recentMsg.setThread(testThread);
@@ -263,6 +274,7 @@ class MessageRepositoryTest {
 
         for (int i = 1; i <= 5; i++) {
             Message msg = new Message();
+            msg.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
             msg.setEventId("evt-count-" + i);
             msg.setTelegramMessageId((long) i);
             msg.setThread(testThread);

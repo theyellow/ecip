@@ -7,6 +7,7 @@ import io.emcip.conversation.context.IntegrationTest;
 import io.emcip.conversation.context.entity.User;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,6 +38,7 @@ class UserRepositoryTest {
     void shouldSaveAndFindUserByTelegramId() {
         // Given
         User user = new User();
+        user.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user.setTelegramId(123456789L);
         user.setUsername("testuser");
         user.setFirstName("Test");
@@ -60,6 +62,7 @@ class UserRepositoryTest {
     void shouldFindUserByUsername() {
         // Given
         User user = new User();
+        user.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user.setTelegramId(987654321L);
         user.setUsername("johndoe");
         user.setFirstName("John");
@@ -80,6 +83,7 @@ class UserRepositoryTest {
     void shouldCheckIfUserExistsByTelegramId() {
         // Given
         User user = new User();
+        user.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user.setTelegramId(111222333L);
         user.setUsername("existinguser");
         user.setIsBot(false);
@@ -96,6 +100,7 @@ class UserRepositoryTest {
     void shouldUpdateLastSeenAt() {
         // Given
         User user = new User();
+        user.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user.setTelegramId(444555666L);
         user.setUsername("activeuser");
         user.setIsBot(false);
@@ -119,11 +124,13 @@ class UserRepositoryTest {
     void shouldFindAllByIds() {
         // Given
         User user1 = new User();
+        user1.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user1.setTelegramId(100L);
         user1.setUsername("user1");
         user1.setIsBot(false);
 
         User user2 = new User();
+        user2.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         user2.setTelegramId(200L);
         user2.setUsername("user2");
         user2.setIsBot(false);
