@@ -15,7 +15,7 @@ Container_Boundary(admin_api, "Admin API - Port 9087") {
 
     Component(security_config, "SecurityConfig", "Java / Spring Security", "WebFlux security chain<br/>Route-level access rules<br/>CORS configuration")
 
-    Component(tenant_filter, "TenantWebFilter", "Java / Spring WebFlux WebFilter", "Extracts X-Tenant-Id header<br/>Binds to TenantContext<br/>Clears after request")
+    Component(tenant_filter, "AdminTenantContextFilter", "Java / Spring WebFlux WebFilter", "Extracts X-Tenant-Id header<br/>Binds to TenantContext (ThreadLocal)<br/>ROLE_ADMIN JWT activates admin mode<br/>Clears after request")
 
     ' Controllers
     Component(auth_ctrl, "AuthController", "Java / Spring REST", "POST /api/auth/token<br/>Verifies credentials via bcrypt<br/>Issues signed JWT")

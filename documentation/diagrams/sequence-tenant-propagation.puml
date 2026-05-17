@@ -8,28 +8,53 @@ skinparam responseMessageBelowArrow true
 
 title X-Tenant-Id Propagation — HTTP and Kafka Paths
 
-== HTTP Path ==
+== HTTP Path (Servlet Services) ==
 
 participant "HTTP Client" as Client
-participant "TenantWebFilter" as TWF
-participant "TenantContext\n(Reactor Context)" as TC
-participant "Service Method" as Svc
-participant "R2DBC Repository" as Repo
-database "PostgreSQL\n(tenant_id column)" as DB
+participant "TenantContextFilter\n(OncePerRequestFilter)" as TCF
+participant "TenantContext\n(ThreadLocal)" as TC
+participant "TenantFilterAspect\n(Spring AOP @Before)" as TFA
+participant "JPA Repository\n(@Repository)" as Repo
+database "PostgreSQL\n(Hibernate @Filter)" as DB
 
-Client -> TWF : HTTP request\nX-Tenant-Id: <uuid>
-activate TWF
-TWF -> TC : subscriberContext()\n.put("tenantId", uuid)
-TWF -> Svc : Mono / Flux with tenantId in context
-activate Svc
-Svc -> Repo : findAll() — query filtered\nby tenantId from context
-Repo -> DB : SELECT * FROM ... WHERE tenant_id = ?
+Client -> TCF : HTTP request\nX-Tenant-Id: <uuid>
+activate TCF
+TCF -> TC : setTenantId(uuid)
+TCF -> TFA : (request continues)
+TFA -> TFA : enableFilter("tenantFilter")\nsetParameter("tenantId", uuid)
+TFA -> Repo : findAll()
+Repo -> DB : SELECT * FROM ...\nWHERE tenant_id = ?
 DB --> Repo : rows for this tenant only
-Repo --> Svc : reactive result
-Svc --> TWF : response
-deactivate Svc
-TWF --> Client : HTTP response
-deactivate TWF
+Repo --> TFA : result
+TFA --> TCF : response
+TCF -> TC : clear()
+TCF --> Client : HTTP response
+deactivate TCF
+
+== HTTP Path (Admin API — Reactive) ==
+
+participant "HTTP Client" as AdminClient
+participant "AdminTenantContextFilter\n(WebFilter)" as ATCF
+participant "TenantContext\n(ThreadLocal)" as TC2
+participant "Controller" as Ctrl
+participant "Repository\n(R2DBC, scoped methods)" as R2Repo
+
+AdminClient -> ATCF : HTTP request\nX-Tenant-Id: <uuid>\n[or ROLE_ADMIN JWT]
+activate ATCF
+alt Normal tenant call
+    ATCF -> TC2 : setTenantId(uuid)
+    ATCF -> Ctrl : request
+    Ctrl -> R2Repo : findByIdAndTenantId(id, uuid)
+else ROLE_ADMIN JWT
+    ATCF -> TC2 : setAdminMode(true)
+    ATCF -> Ctrl : request
+    Ctrl -> R2Repo : findById(id) [unscoped]
+end
+R2Repo --> Ctrl : result
+Ctrl --> ATCF : response
+ATCF -> TC2 : clear()
+ATCF --> AdminClient : HTTP response
+deactivate ATCF
 
 == Kafka Path ==
 
@@ -37,16 +62,20 @@ participant "Kafka Producer\n(any service)" as Prod
 participant "TenantAwareKafkaSupport" as TAKS
 queue "Kafka Topic" as Topic
 participant "Kafka Consumer" as Cons
-participant "Downstream\nService Method" as DSvc
+participant "TenantContext\n(ThreadLocal)" as TC3
+participant "Service Method\n(+ TenantFilterAspect)" as DSvc
+database "PostgreSQL" as DB2
 
-Prod -> TAKS : send(event)
+Prod -> TAKS : addTenantHeader(record)
 TAKS -> TAKS : read tenantId\nfrom TenantContext
 TAKS -> Topic : ProducerRecord with\nheader tenant_id=<uuid>
 
 Topic -> Cons : ConsumerRecord
-Cons -> TAKS : extractTenantId(headers)
-TAKS -> TC : bind tenantId\nto subscriber context
-TAKS -> DSvc : invoke with\ntenantId in context
-DSvc -> DB : filtered query\nWHERE tenant_id = ?
+Cons -> TAKS : bindTenantFromRecord(record)
+TAKS -> TC3 : setTenantId(uuid)
+Cons -> DSvc : invoke service method
+DSvc -> DB2 : filtered query\nWHERE tenant_id = ?
+DSvc --> Cons : result
+Cons -> TC3 : clear() [finally]
 
 @enduml

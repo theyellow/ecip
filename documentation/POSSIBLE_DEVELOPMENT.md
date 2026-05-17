@@ -46,7 +46,7 @@ Sort into a proper backlog in a later step.
 
 ## Multi-Tenancy
 
-- Row-level security at the PostgreSQL level (redundant given application-level enforcement in #5, but provides defence-in-depth for direct DB access)
+- Row-level security at the PostgreSQL level (redundant given Hibernate `@Filter` + scoped R2DBC enforcement already in place, but provides defence-in-depth for direct DB access)
 
 ## Moderation
 
