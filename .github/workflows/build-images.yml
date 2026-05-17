@@ -6,6 +6,12 @@ on:
       - main
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      force_rebuild_all:
+        description: 'Rebuild all services regardless of file changes'
+        type: boolean
+        default: false
 
 env:
   IMAGE_PREFIX: ghcr.io/theyellow/ecip
@@ -56,6 +62,7 @@ jobs:
         id: matrix
         env:
           IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+          FORCE_ALL: ${{ inputs.force_rebuild_all }}
           FILTER_CORE: ${{ steps.filter.outputs.core }}
           FILTER_INTENT_CLASSIFIER: ${{ steps.filter.outputs.intent-classifier }}
           FILTER_MODERATION_SERVICE: ${{ steps.filter.outputs.moderation-service }}
@@ -67,8 +74,8 @@ jobs:
           FILTER_CONVERSATION_CONTEXT: ${{ steps.filter.outputs.conversation-context }}
           FILTER_LLM_ORCHESTRATOR: ${{ steps.filter.outputs.llm-orchestrator }}
         run: |
-          # On tag push, rebuild everything
-          if [[ "$IS_TAG" == "true" ]]; then
+          # On tag push or manual force, rebuild everything
+          if [[ "$IS_TAG" == "true" || "$FORCE_ALL" == "true" ]]; then
             CORE=true
             INTENT_CLASSIFIER=true MODERATION_SERVICE=true AUDIT_SERVICE=true
             ADMIN_API=true ADMIN_UI=true TDLIB_ADAPTER=true
@@ -157,7 +164,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-jvm
 
       - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
           format: sarif
@@ -222,7 +229,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-jvm-latest
 
       - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
           format: sarif
@@ -287,7 +294,7 @@ jobs:
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:buildcache-native,mode=max
 
       - name: Scan for vulnerabilities
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
           format: sarif
