@@ -78,6 +78,10 @@ public class ModerationRuleController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete a moderation rule")
     public Mono<Void> delete(@PathVariable Long id) {
-        return repository.deleteById(id);
+        return repository
+                .findByIdAndTenantId(
+                        id, UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                .flatMap(rule -> repository.deleteById(id));
     }
 }
