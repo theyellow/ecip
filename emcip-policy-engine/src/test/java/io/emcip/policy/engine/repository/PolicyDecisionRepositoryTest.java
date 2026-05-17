@@ -156,6 +156,7 @@ class PolicyDecisionRepositoryTest {
         d.setMatchedRules(Map.of("rule1", "value1"));
         d.setMetadata(Map.of("key", "value"));
         d.setTimestamp(Instant.now());
+        d.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         return d;
     }
 }
