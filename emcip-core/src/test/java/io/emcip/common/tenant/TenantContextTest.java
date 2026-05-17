@@ -29,4 +29,22 @@ class TenantContextTest {
     void defaultIsNull() {
         assertThat(TenantContext.getTenantId()).isNull();
     }
+
+    @Test
+    void setAndGetAdminMode() {
+        TenantContext.setAdminMode(true);
+        assertThat(TenantContext.isAdminMode()).isTrue();
+    }
+
+    @Test
+    void defaultAdminModeIsFalse() {
+        assertThat(TenantContext.isAdminMode()).isFalse();
+    }
+
+    @Test
+    void clearResetsAdminMode() {
+        TenantContext.setAdminMode(true);
+        TenantContext.clear();
+        assertThat(TenantContext.isAdminMode()).isFalse();
+    }
 }
