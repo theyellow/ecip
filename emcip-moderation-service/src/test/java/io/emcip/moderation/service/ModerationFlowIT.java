@@ -6,12 +6,12 @@ import static org.awaitility.Awaitility.await;
 import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
 import io.emcip.moderation.service.entity.ModerationRule;
 import io.emcip.moderation.service.repository.ModerationRuleRepository;
-import io.emcip.moderation.service.service.RuleEvaluationService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -30,8 +30,6 @@ class ModerationFlowIT extends AbstractModerationIntegrationTest {
 
     @Autowired private ModerationRuleRepository ruleRepository;
 
-    @Autowired private RuleEvaluationService ruleEvaluationService;
-
     @Test
     void telegramMessage_matchingKeywordRule_producesModerationFlagEvent() throws Exception {
         // Arrange: insert an enabled keyword rule with retry for flaky DB connections
@@ -45,6 +43,7 @@ class ModerationFlowIT extends AbstractModerationIntegrationTest {
                         .enabled(true)
                         .createdAt(Instant.now())
                         .updatedAt(Instant.now())
+                        .tenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
                         .build();
 
         await().atMost(Duration.ofSeconds(30))
@@ -60,9 +59,6 @@ class ModerationFlowIT extends AbstractModerationIntegrationTest {
                                 return false;
                             }
                         });
-
-        // Force rule cache refresh so the new rule is available
-        ruleEvaluationService.loadRules();
 
         // Arrange: build input event
         TelegramMessageEvent event =

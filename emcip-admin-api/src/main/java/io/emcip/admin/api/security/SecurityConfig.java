@@ -26,7 +26,8 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityWebFilterChain(
             ServerHttpSecurity http,
             JwtAuthenticationFilter jwtFilter,
-            ServiceTokenAuthenticationFilter serviceTokenFilter) {
+            ServiceTokenAuthenticationFilter serviceTokenFilter,
+            AdminTenantContextFilter adminTenantContextFilter) {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(
@@ -39,9 +40,15 @@ public class SecurityConfig {
                                         .authenticated())
                 .addFilterAt(serviceTokenFilter, SecurityWebFiltersOrder.HTTP_BASIC)
                 .addFilterAt(jwtFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+                .addFilterAfter(adminTenantContextFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .build();
+    }
+
+    @Bean
+    public AdminTenantContextFilter adminTenantContextFilter() {
+        return new AdminTenantContextFilter();
     }
 
     @Bean

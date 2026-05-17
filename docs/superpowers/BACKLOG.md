@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-16 (reordered — small items first, security gap prioritised)
+> Last updated: 2026-05-17 (multi-tenancy enforcement #5 complete; #21 and #22 now unblocked)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -27,12 +27,13 @@ Items are ordered by priority.
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already exists in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
-| 5 | **Multi-tenancy enforcement at JPA level** | L | `tenant_id` columns + `TenantContextFilter` exist but no query-level isolation. **Cross-tenant data leak is currently possible.** |
 | 4 | **Test coverage to 80% (JaCoCo gate)** | L | Split by service — each piece is S/XS. Weakest: `moderation-service` (2 files), `audit-service` (3 files), `llm-orchestrator` (new code). Phase 4 DoD requirement. |
 | 14 | **Gatling load tests in CI** | S | 3 simulations exist (`IntentClassifierSimulation`, `AdminApiSimulation`, `PolicyEngineSimulation`). No CI integration, no regression gate. |
 | 12 | **Kubernetes HA / multi-replica** | M | HPA templates, tuned `replicas` per service tier, PodDisruptionBudgets for critical services. Ref: `specs/2026-04-29-kubernetes-helm-deployment-design.md`. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not implemented. |
 | 9 | **Telegram: self-service account connection** | L | Allow end-users (not just admins) to link Telegram accounts via phone → OTP flow. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
+| 21 | **Tenant provisioning / onboarding flow** | M | No way to create a tenant without direct DB access. Needs admin-api endpoint + Liquibase-safe seed flow. |
+| 22 | **Admin UI: cross-tenant views** | M | Admin users should be able to browse data across all tenants. Requires admin-api ADMIN-mode bypass (built in #5) + UI pages. |
 
 ---
 
@@ -62,5 +63,4 @@ Audited during the LiteLLM integration documentation pass. These diagrams accura
 | `sequence-error-handling.puml` | Retry, DLQ, and circuit breaker flow |
 | `sequence-admin-auth.puml` | Admin UI JWT authentication flow |
 | `sequence-policy-evaluation.puml` | Policy evaluation detail flow |
-| `sequence-tenant-propagation.puml` | X-Tenant-Id HTTP and Kafka propagation |
 | `dataflow-context-enrichment.puml` | Conversation context enrichment data flow |

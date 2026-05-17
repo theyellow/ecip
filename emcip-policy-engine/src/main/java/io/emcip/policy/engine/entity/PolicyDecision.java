@@ -3,14 +3,20 @@ package io.emcip.policy.engine.entity;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import lombok.Data;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.type.SqlTypes;
 
 /**
  * Entity for storing policy evaluation decisions. Each decision represents the outcome of
  * evaluating a policy against an intent classification.
  */
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Entity
 @Table(
         name = "policy_decisions",
@@ -25,6 +31,9 @@ public class PolicyDecision {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
+
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 
     @Column(nullable = false)
     private String eventId;

@@ -2,53 +2,39 @@ package io.emcip.moderation.service.service;
 
 import io.emcip.moderation.service.entity.ModerationRule;
 import io.emcip.moderation.service.repository.ModerationRuleRepository;
-import jakarta.annotation.PostConstruct;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.DependsOn;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@DependsOn("liquibase")
 public class RuleEvaluationService {
 
     private final ModerationRuleRepository repository;
 
-    private volatile List<ModerationRule> cachedRules = Collections.emptyList();
-
-    @PostConstruct
-    public void loadRules() {
-        List<ModerationRule> rules = repository.findByEnabledTrue().collectList().block();
-        if (rules != null) {
-            cachedRules = rules;
-            log.info("Loaded {} moderation rules at startup", rules.size());
-        }
-    }
-
-    @Scheduled(fixedDelay = 300_000)
-    public void refreshRules() {
-        repository
-                .findByEnabledTrue()
-                .collectList()
-                .doOnNext(
-                        rules -> {
-                            cachedRules = rules;
-                            log.info("Reloaded {} moderation rules", rules.size());
-                        })
-                .subscribe();
-    }
-
-    public Optional<EvaluationResult> evaluate(String text) {
+    public Optional<EvaluationResult> evaluate(String text, String tenantId) {
         if (text == null || text.isBlank()) {
             return Optional.empty();
         }
-        for (ModerationRule rule : cachedRules) {
+        if (tenantId == null || tenantId.isBlank()) {
+            return Optional.empty();
+        }
+
+        List<ModerationRule> rules =
+                repository
+                        .findByEnabledTrueAndTenantId(UUID.fromString(tenantId))
+                        .collectList()
+                        .block();
+
+        if (rules == null) {
+            return Optional.empty();
+        }
+
+        for (ModerationRule rule : rules) {
             boolean matched =
                     switch (rule.getRuleType()) {
                         case "KEYWORD" ->

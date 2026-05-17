@@ -16,6 +16,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
@@ -23,6 +26,8 @@ import org.hibernate.annotations.UpdateTimestamp;
  * rollback capabilities.
  */
 @Schema(description = "Versioned prompt template for LLM interactions")
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Entity
 @Table(name = "prompt_templates")
 @Getter
@@ -36,6 +41,10 @@ public class PromptTemplate {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Schema(description = "Tenant this template belongs to")
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 
     @Schema(description = "Unique template name", example = "intent-classifier-v2")
     @Column(nullable = false, unique = true, length = 100)

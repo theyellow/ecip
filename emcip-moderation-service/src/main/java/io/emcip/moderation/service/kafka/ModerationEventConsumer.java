@@ -2,6 +2,8 @@ package io.emcip.moderation.service.kafka;
 
 import io.emcip.common.events.EventSchemas.ModerationFlagEvent;
 import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
+import io.emcip.common.tenant.TenantContext;
 import io.emcip.moderation.service.service.RuleEvaluationService;
 import io.emcip.moderation.service.service.RuleEvaluationService.EvaluationResult;
 import java.time.Instant;
@@ -9,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.Acknowledgment;
@@ -36,13 +39,16 @@ public class ModerationEventConsumer {
     @KafkaListener(
             topics = "telegram.raw.messages",
             containerFactory = "kafkaListenerContainerFactory")
-    public void consume(String message, Acknowledgment acknowledgment) {
+    public void consume(ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
+            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            String tenantId = TenantContext.getTenantId();
+
             TelegramMessageEvent event =
-                    objectMapper.readValue(message, TelegramMessageEvent.class);
+                    objectMapper.readValue(record.value(), TelegramMessageEvent.class);
 
             String text = event.text();
-            Optional<EvaluationResult> result = ruleEvaluationService.evaluate(text);
+            Optional<EvaluationResult> result = ruleEvaluationService.evaluate(text, tenantId);
 
             if (result.isPresent()) {
                 EvaluationResult match = result.get();
@@ -66,7 +72,11 @@ public class ModerationEventConsumer {
                                 Map.of("action", match.action(), "ruleName", match.ruleName()));
 
                 String flagJson = objectMapper.writeValueAsString(flagEvent);
-                kafkaTemplate.send(MODERATION_FLAGS_TOPIC, event.eventId(), flagJson);
+                org.apache.kafka.clients.producer.ProducerRecord<String, String> kafkaRecord =
+                        new org.apache.kafka.clients.producer.ProducerRecord<>(
+                                MODERATION_FLAGS_TOPIC, event.eventId(), flagJson);
+                TenantAwareKafkaSupport.addTenantHeader(kafkaRecord);
+                kafkaTemplate.send(kafkaRecord);
                 log.debug(
                         "Published ModerationFlagEvent to {} for source event {}",
                         MODERATION_FLAGS_TOPIC,
@@ -75,8 +85,10 @@ public class ModerationEventConsumer {
 
             acknowledgment.acknowledge();
         } catch (Exception e) {
-            log.error("Failed to process telegram message: {}", message, e);
+            log.error("Failed to process telegram message: {}", record.value(), e);
             throw new RuntimeException(e);
+        } finally {
+            TenantContext.clear();
         }
     }
 }

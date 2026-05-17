@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.drinkless.tdlib.TdApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -26,6 +27,9 @@ public class TelegramEventPublisher {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+
+    @Value("${app.tenant-id:}")
+    private String configuredTenantId;
 
     private final Cache<String, Boolean> deduplicationCache =
             Caffeine.newBuilder()
@@ -59,8 +63,21 @@ public class TelegramEventPublisher {
                         () -> {
                             TelegramMessageEvent event = convertToEvent(message, update);
                             String json = serialize(event);
-                            return kafkaTemplate.send(
-                                    TOPIC_TELEGRAM_RAW, String.valueOf(message.chatId), json);
+                            org.apache.kafka.clients.producer.ProducerRecord<String, String>
+                                    kafkaRecord =
+                                            new org.apache.kafka.clients.producer.ProducerRecord<>(
+                                                    TOPIC_TELEGRAM_RAW,
+                                                    String.valueOf(message.chatId),
+                                                    json);
+                            if (configuredTenantId != null && !configuredTenantId.isBlank()) {
+                                kafkaRecord
+                                        .headers()
+                                        .add(
+                                                io.emcip.common.tenant.TenantContext.KAFKA_HEADER,
+                                                configuredTenantId.getBytes(
+                                                        java.nio.charset.StandardCharsets.UTF_8));
+                            }
+                            return kafkaTemplate.send(kafkaRecord);
                         })
                 .flatMap(future -> Mono.fromFuture(future.toCompletableFuture()))
                 .doOnSuccess(result -> log.debug("Published message {} to Kafka", message.id))

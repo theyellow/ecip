@@ -15,9 +15,12 @@ public class TenantContextFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         try {
             String tenantId = request.getHeader(TenantContext.HEADER_NAME);
-            if (tenantId != null && !tenantId.isBlank()) {
-                TenantContext.setTenantId(tenantId);
+            if (tenantId == null || tenantId.isBlank()) {
+                response.sendError(
+                        HttpServletResponse.SC_BAD_REQUEST, "X-Tenant-Id header is required");
+                return;
             }
+            TenantContext.setTenantId(tenantId);
             filterChain.doFilter(request, response);
         } finally {
             TenantContext.clear();

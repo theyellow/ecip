@@ -13,15 +13,21 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 
 /**
  * JPA entity representing a message in a conversation. Stores the full message content and metadata
  * for context.
  */
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Entity
 @Getter
 @Setter
@@ -96,4 +102,7 @@ public class Message {
 
     @Column(name = "metadata", length = 2000)
     private String metadata;
+
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 }

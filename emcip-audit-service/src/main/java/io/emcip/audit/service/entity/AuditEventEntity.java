@@ -3,6 +3,7 @@ package io.emcip.audit.service.entity;
 import io.r2dbc.postgresql.codec.Json;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -88,6 +89,10 @@ public class AuditEventEntity {
     @Schema(description = "Time taken to process the event in milliseconds", example = "42")
     @Column("processing_time_ms")
     private Integer processingTimeMs;
+
+    @Schema(description = "Tenant this audit event belongs to")
+    @Column("tenant_id")
+    private UUID tenantId;
 
     @Schema(description = "Event creation timestamp (UTC)")
     @Column("created_at")

@@ -47,4 +47,7 @@ public class TelegramAccount {
 
     @Column("updated_at")
     private Instant updatedAt;
+
+    @Column("tenant_id")
+    private UUID tenantId;
 }

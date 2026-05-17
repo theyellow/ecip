@@ -46,7 +46,7 @@ Sort into a proper backlog in a later step.
 
 ## Multi-Tenancy
 
-- Query-level tenant isolation (cross-tenant data leak currently possible — see Backlog item #5)
+- Row-level security at the PostgreSQL level (redundant given Hibernate `@Filter` + scoped R2DBC enforcement already in place, but provides defence-in-depth for direct DB access)
 
 ## Moderation
 

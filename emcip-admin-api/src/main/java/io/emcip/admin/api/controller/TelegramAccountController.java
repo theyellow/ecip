@@ -7,6 +7,7 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.emcip.common.tenant.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -69,7 +70,13 @@ public class TelegramAccountController {
     @Operation(summary = "List all Telegram accounts")
     @GetMapping
     public Mono<List<Map<String, Object>>> listAccounts() {
-        return repository.findAll().map(TelegramAccountController::toSafeMap).collectList();
+        if (TenantContext.isAdminMode()) {
+            return repository.findAll().map(TelegramAccountController::toSafeMap).collectList();
+        }
+        return repository
+                .findAllByTenantId(UUID.fromString(TenantContext.getTenantId()))
+                .map(TelegramAccountController::toSafeMap)
+                .collectList();
     }
 
     @Operation(summary = "Create and connect a new Telegram account")
@@ -87,6 +94,9 @@ public class TelegramAccountController {
                         .createdAt(Instant.now())
                         .updatedAt(Instant.now())
                         .build();
+        if (!TenantContext.isAdminMode()) {
+            account.setTenantId(UUID.fromString(TenantContext.getTenantId()));
+        }
         return r2dbcEntityTemplate.insert(account).map(TelegramAccountController::toSafeMap);
     }
 
@@ -94,7 +104,16 @@ public class TelegramAccountController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteAccount(@PathVariable("id") UUID id) {
-        return repository.deleteById(id);
+        if (TenantContext.isAdminMode()) {
+            return repository.deleteById(id);
+        }
+        return repository
+                .findByIdAndTenantId(id, UUID.fromString(TenantContext.getTenantId()))
+                .switchIfEmpty(
+                        Mono.error(
+                                new org.springframework.web.server.ResponseStatusException(
+                                        org.springframework.http.HttpStatus.NOT_FOUND)))
+                .flatMap(account -> repository.deleteById(id));
     }
 
     @Operation(summary = "Get connection status of a Telegram account")

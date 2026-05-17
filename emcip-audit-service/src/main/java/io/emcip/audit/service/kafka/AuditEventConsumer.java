@@ -3,9 +3,12 @@ package io.emcip.audit.service.kafka;
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.service.AuditService;
 import io.emcip.common.events.EventSchemas;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
+import io.emcip.common.tenant.TenantContext;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -34,6 +37,17 @@ public class AuditEventConsumer {
     public void handleTelegramMessage(
             ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
+            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            String tenantIdStr = TenantContext.getTenantId();
+            UUID tenantUuid = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
+            if (tenantUuid == null) {
+                log.warn(
+                        "No tenant_id header on record offset {} topic {} — saving with null"
+                                + " tenant",
+                        record.offset(),
+                        record.topic());
+            }
+
             EventSchemas.TelegramMessageEvent event =
                     objectMapper.readValue(record.value(), EventSchemas.TelegramMessageEvent.class);
 
@@ -59,6 +73,7 @@ public class AuditEventConsumer {
                                             : null)
                             .outcome("PROCESSED")
                             .details(auditService.serializeDetails(details))
+                            .tenantId(tenantUuid)
                             .createdAt(Instant.now())
                             .build();
 
@@ -78,6 +93,8 @@ public class AuditEventConsumer {
                     e.getMessage(),
                     e);
             throw new RuntimeException(e);
+        } finally {
+            TenantContext.clear();
         }
     }
 
@@ -88,6 +105,17 @@ public class AuditEventConsumer {
     public void handleIntentClassified(
             ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
+            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            String tenantIdStr = TenantContext.getTenantId();
+            UUID tenantUuid = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
+            if (tenantUuid == null) {
+                log.warn(
+                        "No tenant_id header on record offset {} topic {} — saving with null"
+                                + " tenant",
+                        record.offset(),
+                        record.topic());
+            }
+
             EventSchemas.IntentClassifiedEvent event =
                     objectMapper.readValue(
                             record.value(), EventSchemas.IntentClassifiedEvent.class);
@@ -110,6 +138,7 @@ public class AuditEventConsumer {
                             .resourceId(event.sourceEventId())
                             .outcome("PROCESSED")
                             .details(auditService.serializeDetails(details))
+                            .tenantId(tenantUuid)
                             .createdAt(Instant.now())
                             .build();
 
@@ -129,6 +158,8 @@ public class AuditEventConsumer {
                     e.getMessage(),
                     e);
             throw new RuntimeException(e);
+        } finally {
+            TenantContext.clear();
         }
     }
 
@@ -139,6 +170,17 @@ public class AuditEventConsumer {
     public void handlePolicyDecision(
             ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
+            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            String tenantIdStr = TenantContext.getTenantId();
+            UUID tenantUuid = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
+            if (tenantUuid == null) {
+                log.warn(
+                        "No tenant_id header on record offset {} topic {} — saving with null"
+                                + " tenant",
+                        record.offset(),
+                        record.topic());
+            }
+
             EventSchemas.PolicyDecisionEvent event =
                     objectMapper.readValue(record.value(), EventSchemas.PolicyDecisionEvent.class);
 
@@ -161,6 +203,7 @@ public class AuditEventConsumer {
                             .resourceId(event.policyId())
                             .outcome("PROCESSED")
                             .details(auditService.serializeDetails(details))
+                            .tenantId(tenantUuid)
                             .createdAt(Instant.now())
                             .build();
 
@@ -180,6 +223,8 @@ public class AuditEventConsumer {
                     e.getMessage(),
                     e);
             throw new RuntimeException(e);
+        } finally {
+            TenantContext.clear();
         }
     }
 
@@ -190,6 +235,17 @@ public class AuditEventConsumer {
     public void handleResponseGenerated(
             ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
+            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            String tenantIdStr = TenantContext.getTenantId();
+            UUID tenantUuid = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
+            if (tenantUuid == null) {
+                log.warn(
+                        "No tenant_id header on record offset {} topic {} — saving with null"
+                                + " tenant",
+                        record.offset(),
+                        record.topic());
+            }
+
             EventSchemas.ResponseGeneratedEvent event =
                     objectMapper.readValue(
                             record.value(), EventSchemas.ResponseGeneratedEvent.class);
@@ -211,6 +267,7 @@ public class AuditEventConsumer {
                             .resourceId(event.sourceEventId())
                             .outcome("PROCESSED")
                             .details(auditService.serializeDetails(details))
+                            .tenantId(tenantUuid)
                             .createdAt(Instant.now())
                             .build();
 
@@ -230,6 +287,8 @@ public class AuditEventConsumer {
                     e.getMessage(),
                     e);
             throw new RuntimeException(e);
+        } finally {
+            TenantContext.clear();
         }
     }
 
@@ -240,6 +299,17 @@ public class AuditEventConsumer {
     public void handleModerationFlag(
             ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
+            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            String tenantIdStr = TenantContext.getTenantId();
+            UUID tenantUuid = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
+            if (tenantUuid == null) {
+                log.warn(
+                        "No tenant_id header on record offset {} topic {} — saving with null"
+                                + " tenant",
+                        record.offset(),
+                        record.topic());
+            }
+
             EventSchemas.ModerationFlagEvent event =
                     objectMapper.readValue(record.value(), EventSchemas.ModerationFlagEvent.class);
 
@@ -261,6 +331,7 @@ public class AuditEventConsumer {
                             .resourceId(event.sourceEventId())
                             .outcome("PROCESSED")
                             .details(auditService.serializeDetails(details))
+                            .tenantId(tenantUuid)
                             .createdAt(Instant.now())
                             .build();
 
@@ -280,6 +351,8 @@ public class AuditEventConsumer {
                     e.getMessage(),
                     e);
             throw new RuntimeException(e);
+        } finally {
+            TenantContext.clear();
         }
     }
 }

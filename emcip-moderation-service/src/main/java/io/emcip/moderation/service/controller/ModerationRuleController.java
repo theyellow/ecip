@@ -5,6 +5,7 @@ import io.emcip.moderation.service.repository.ModerationRuleRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -31,7 +32,8 @@ public class ModerationRuleController {
     @GetMapping
     @Operation(summary = "List all moderation rules")
     public Flux<ModerationRule> list() {
-        return repository.findAllOrdered();
+        return repository.findAllOrderedByTenantId(
+                UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()));
     }
 
     @PostMapping
@@ -48,6 +50,7 @@ public class ModerationRuleController {
             rule.setAction("FLAG");
         }
         rule.setEnabled(true);
+        rule.setTenantId(UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()));
         return repository.save(rule);
     }
 
@@ -55,7 +58,8 @@ public class ModerationRuleController {
     @Operation(summary = "Update an existing moderation rule")
     public Mono<ModerationRule> update(@PathVariable Long id, @RequestBody ModerationRule rule) {
         return repository
-                .findById(id)
+                .findByIdAndTenantId(
+                        id, UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()))
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
                 .flatMap(
                         existing -> {
@@ -74,6 +78,10 @@ public class ModerationRuleController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete a moderation rule")
     public Mono<Void> delete(@PathVariable Long id) {
-        return repository.deleteById(id);
+        return repository
+                .findByIdAndTenantId(
+                        id, UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                .flatMap(rule -> repository.deleteById(id));
     }
 }

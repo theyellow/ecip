@@ -9,6 +9,7 @@ import io.emcip.conversation.context.entity.MessageThread.ThreadType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +40,7 @@ class MessageThreadRepositoryTest {
     void shouldSaveAndFindThreadByTelegramChatId() {
         // Given
         MessageThread thread = new MessageThread();
+        thread.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         thread.setTelegramChatId(-1001234567890L);
         thread.setTitle("Test Group");
         thread.setThreadType(ThreadType.GROUP);
@@ -61,18 +63,21 @@ class MessageThreadRepositoryTest {
     void shouldFindAllActiveThreads() {
         // Given
         MessageThread active1 = new MessageThread();
+        active1.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         active1.setTelegramChatId(1L);
         active1.setTitle("Active 1");
         active1.setThreadType(ThreadType.PRIVATE);
         active1.setIsActive(true);
 
         MessageThread active2 = new MessageThread();
+        active2.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         active2.setTelegramChatId(2L);
         active2.setTitle("Active 2");
         active2.setThreadType(ThreadType.GROUP);
         active2.setIsActive(true);
 
         MessageThread inactive = new MessageThread();
+        inactive.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         inactive.setTelegramChatId(3L);
         inactive.setTitle("Inactive");
         inactive.setThreadType(ThreadType.CHANNEL);
@@ -93,12 +98,14 @@ class MessageThreadRepositoryTest {
     void shouldFindThreadsByType() {
         // Given
         MessageThread privateChat = new MessageThread();
+        privateChat.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         privateChat.setTelegramChatId(10L);
         privateChat.setTitle("Private");
         privateChat.setThreadType(ThreadType.PRIVATE);
         privateChat.setIsActive(true);
 
         MessageThread group = new MessageThread();
+        group.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         group.setTelegramChatId(20L);
         group.setTitle("Group");
         group.setThreadType(ThreadType.GROUP);
@@ -121,6 +128,7 @@ class MessageThreadRepositoryTest {
     void shouldCheckIfThreadExists() {
         // Given
         MessageThread thread = new MessageThread();
+        thread.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         thread.setTelegramChatId(999L);
         thread.setTitle("Existing");
         thread.setThreadType(ThreadType.CHANNEL);
@@ -138,6 +146,7 @@ class MessageThreadRepositoryTest {
     void shouldUpdateLastMessageAt() {
         // Given
         MessageThread thread = new MessageThread();
+        thread.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         thread.setTelegramChatId(777L);
         thread.setTitle("Active Chat");
         thread.setThreadType(ThreadType.PRIVATE);
@@ -162,6 +171,7 @@ class MessageThreadRepositoryTest {
     void shouldDeactivateThread() {
         // Given
         MessageThread thread = new MessageThread();
+        thread.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         thread.setTelegramChatId(555L);
         thread.setTitle("To Deactivate");
         thread.setThreadType(ThreadType.GROUP);
@@ -184,18 +194,21 @@ class MessageThreadRepositoryTest {
     void shouldCountThreadsByType() {
         // Given
         MessageThread group1 = new MessageThread();
+        group1.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         group1.setTelegramChatId(100L);
         group1.setTitle("Group 1");
         group1.setThreadType(ThreadType.GROUP);
         group1.setIsActive(true);
 
         MessageThread group2 = new MessageThread();
+        group2.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         group2.setTelegramChatId(200L);
         group2.setTitle("Group 2");
         group2.setThreadType(ThreadType.GROUP);
         group2.setIsActive(true);
 
         MessageThread privateChat = new MessageThread();
+        privateChat.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         privateChat.setTelegramChatId(300L);
         privateChat.setTitle("Private");
         privateChat.setThreadType(ThreadType.PRIVATE);

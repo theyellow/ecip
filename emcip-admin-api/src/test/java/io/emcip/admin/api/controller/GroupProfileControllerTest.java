@@ -6,12 +6,15 @@ import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.repository.GroupProfileRepository;
+import io.emcip.common.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -24,10 +27,23 @@ class GroupProfileControllerTest {
     private GroupProfileController controller;
     private WebTestClient webTestClient;
 
+    private static final WebFilter ADMIN_MODE_FILTER =
+            (exchange, chain) -> {
+                TenantContext.setAdminMode(true);
+                return chain.filter(exchange).doFinally(s -> TenantContext.clear());
+            };
+
     @BeforeEach
     void setUp() {
+        TenantContext.setAdminMode(true);
         controller = new GroupProfileController(repository);
-        webTestClient = WebTestClient.bindToController(controller).build();
+        webTestClient =
+                WebTestClient.bindToController(controller).webFilter(ADMIN_MODE_FILTER).build();
+    }
+
+    @AfterEach
+    void clearTenantContext() {
+        TenantContext.clear();
     }
 
     private GroupProfile profile(Long chatId) {

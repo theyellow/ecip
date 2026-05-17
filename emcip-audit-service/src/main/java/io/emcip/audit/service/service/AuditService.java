@@ -2,9 +2,11 @@ package io.emcip.audit.service.service;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.repository.AuditEventRepository;
+import io.emcip.common.tenant.TenantContext;
 import io.r2dbc.postgresql.codec.Json;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,19 +41,37 @@ public class AuditService {
     }
 
     public Flux<AuditEventEntity> findByEventType(String eventType) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            return repository.findByEventTypeAndTenantId(eventType, UUID.fromString(tenantId));
+        }
         return repository.findByEventType(eventType);
     }
 
     public Flux<AuditEventEntity> findByDateRange(Instant from, Instant to) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            return repository.findByCreatedAtBetweenAndTenantId(
+                    from, to, UUID.fromString(tenantId));
+        }
         return repository.findByCreatedAtBetween(from, to);
     }
 
     public Flux<AuditEventEntity> findByEventTypeAndDateRange(
             String eventType, Instant from, Instant to) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            return repository.findByEventTypeAndCreatedAtBetweenAndTenantId(
+                    eventType, from, to, UUID.fromString(tenantId));
+        }
         return repository.findByEventTypeAndCreatedAtBetween(eventType, from, to);
     }
 
     public Mono<AuditEventEntity> findByEventId(String eventId) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId != null) {
+            return repository.findByEventIdAndTenantId(eventId, UUID.fromString(tenantId));
+        }
         return repository.findByEventId(eventId);
     }
 

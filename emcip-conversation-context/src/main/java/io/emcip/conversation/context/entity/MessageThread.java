@@ -7,15 +7,21 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /**
  * JPA entity representing a conversation thread. A thread can be a private chat, group, or channel.
  */
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Entity
 @Table(name = "message_threads")
 @Getter
@@ -60,4 +66,7 @@ public class MessageThread {
 
     @Column(name = "metadata", length = 4000)
     private String metadata;
+
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 }

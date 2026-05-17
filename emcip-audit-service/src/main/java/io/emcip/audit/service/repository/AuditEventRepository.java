@@ -2,6 +2,7 @@ package io.emcip.audit.service.repository;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import java.time.Instant;
+import java.util.UUID;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
@@ -18,4 +19,14 @@ public interface AuditEventRepository extends ReactiveCrudRepository<AuditEventE
             String eventType, Instant from, Instant to);
 
     Mono<AuditEventEntity> findByEventId(String eventId);
+
+    Flux<AuditEventEntity> findByEventTypeAndTenantId(String eventType, UUID tenantId);
+
+    Flux<AuditEventEntity> findByCreatedAtBetweenAndTenantId(
+            Instant from, Instant to, UUID tenantId);
+
+    Flux<AuditEventEntity> findByEventTypeAndCreatedAtBetweenAndTenantId(
+            String eventType, Instant from, Instant to, UUID tenantId);
+
+    Mono<AuditEventEntity> findByEventIdAndTenantId(String eventId, UUID tenantId);
 }

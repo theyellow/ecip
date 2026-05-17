@@ -375,14 +375,18 @@ Tokens are signed with `ADMIN_JWT_SECRET` (HS256). Expiry is configurable via `a
 
 === Tenant Isolation
 
-Every entity table contains a `tenant_id UUID NOT NULL` column. The `TenantWebFilter` extracts the `X-Tenant-Id` HTTP header and binds it to the Reactor subscriber context. All repository queries include a tenant filter derived from this context.
+Every entity table contains a `tenant_id UUID NOT NULL` column. Isolation is enforced at the data-access layer across two execution models:
+
+*Servlet services* (policy-engine, moderation-service, conversation-context, llm-orchestrator): `TenantContextFilter` (`OncePerRequestFilter`) extracts the `X-Tenant-Id` HTTP header and stores it in `TenantContext` (ThreadLocal). `TenantFilterAspect` (Spring AOP `@Before` pointcut on `@Repository` beans) then enables the Hibernate named filter `tenantFilter` on the current session before every query. Hibernate automatically appends `AND tenant_id = :tenantId` to all annotated entity queries.
+
+*Admin API* (reactive / WebFlux): `AdminTenantContextFilter` (`WebFilter`) either binds the tenant ID for normal tenant callers or activates admin mode for `ROLE_ADMIN` JWT holders. Repositories use scoped Spring Data R2DBC methods (e.g. `findByIdAndTenantId`) — Hibernate filters are not available in the reactive stack.
 
 [plantuml,seq-tenant,png]
 ----
 include::diagrams/sequence-tenant-propagation.puml[]
 ----
 
-Kafka messages carry `tenant_id` as a record header. `TenantAwareKafkaSupport` in `emcip-core` reads this header on the consumer side and binds it to the subscriber context before invoking the service method.
+Kafka messages carry `tenant_id` as a record header. Producers call `TenantAwareKafkaSupport.addTenantHeader(record)` to copy the current `TenantContext` value into the record header. Consumers call `TenantAwareKafkaSupport.bindTenantFromRecord(record)` to restore it, and call `TenantContext.clear()` in a `finally` block after processing.
 
 NOTE: For deployment configuration and port assignments, see the _Operations Guide_.
 

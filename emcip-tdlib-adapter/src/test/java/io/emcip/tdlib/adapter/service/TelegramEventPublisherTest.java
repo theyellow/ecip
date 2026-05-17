@@ -1,12 +1,12 @@
 package io.emcip.tdlib.adapter.service;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CompletableFuture;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.drinkless.tdlib.TdApi;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,7 +30,7 @@ class TelegramEventPublisherTest {
         publisher = new TelegramEventPublisher(kafkaTemplate);
         SendResult<String, String> sendResult =
                 new SendResult<>(null, new RecordMetadata(null, 0, 0, 0, 0, 0));
-        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+        when(kafkaTemplate.send(any(ProducerRecord.class)))
                 .thenReturn(CompletableFuture.completedFuture(sendResult));
     }
 
@@ -42,7 +42,7 @@ class TelegramEventPublisherTest {
         StepVerifier.create(publisher.publishMessage(update1.message, update1)).verifyComplete();
         StepVerifier.create(publisher.publishMessage(update2.message, update2)).verifyComplete();
 
-        verify(kafkaTemplate, times(1)).send(eq("telegram.raw.messages"), anyString(), anyString());
+        verify(kafkaTemplate, times(1)).send(any(ProducerRecord.class));
     }
 
     @Test
@@ -53,7 +53,7 @@ class TelegramEventPublisherTest {
         StepVerifier.create(publisher.publishMessage(update1.message, update1)).verifyComplete();
         StepVerifier.create(publisher.publishMessage(update2.message, update2)).verifyComplete();
 
-        verify(kafkaTemplate, times(2)).send(eq("telegram.raw.messages"), anyString(), anyString());
+        verify(kafkaTemplate, times(2)).send(any(ProducerRecord.class));
     }
 
     private TdApi.UpdateNewMessage makeUpdate(long chatId, long messageId, String text) {

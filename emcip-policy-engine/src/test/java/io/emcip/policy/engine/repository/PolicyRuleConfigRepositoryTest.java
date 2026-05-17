@@ -142,6 +142,7 @@ class PolicyRuleConfigRepositoryTest {
         rule.setPriority(100);
         rule.setActive(true);
         rule.setCreatedAt(Instant.now());
+        rule.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         return rule;
     }
 }

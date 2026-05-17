@@ -53,34 +53,25 @@ class TenantContextFilterTest {
     }
 
     @Test
-    void noHeader_doesNotSetTenantId() throws Exception {
+    void noHeader_returns400() throws Exception {
         when(request.getHeader(TenantContext.HEADER_NAME)).thenReturn(null);
 
-        doAnswer(
-                        invocation -> {
-                            assertThat(TenantContext.getTenantId()).isNull();
-                            return null;
-                        })
-                .when(filterChain)
-                .doFilter(request, response);
-
         filter.doFilterInternal(request, response, filterChain);
-        assertThat(TenantContext.getTenantId()).isNull();
+
+        verify(response)
+                .sendError(HttpServletResponse.SC_BAD_REQUEST, "X-Tenant-Id header is required");
+        verify(filterChain, never()).doFilter(request, response);
     }
 
     @Test
-    void blankHeader_doesNotSetTenantId() throws Exception {
+    void blankHeader_returns400() throws Exception {
         when(request.getHeader(TenantContext.HEADER_NAME)).thenReturn("   ");
 
-        doAnswer(
-                        invocation -> {
-                            assertThat(TenantContext.getTenantId()).isNull();
-                            return null;
-                        })
-                .when(filterChain)
-                .doFilter(request, response);
-
         filter.doFilterInternal(request, response, filterChain);
+
+        verify(response)
+                .sendError(HttpServletResponse.SC_BAD_REQUEST, "X-Tenant-Id header is required");
+        verify(filterChain, never()).doFilter(request, response);
     }
 
     @Test
