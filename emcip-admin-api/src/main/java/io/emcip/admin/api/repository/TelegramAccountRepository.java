@@ -5,6 +5,7 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import java.util.UUID;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface TelegramAccountRepository extends ReactiveCrudRepository<TelegramAccount, UUID> {
 
@@ -13,4 +14,6 @@ public interface TelegramAccountRepository extends ReactiveCrudRepository<Telegr
     Flux<TelegramAccount> findAllByTenantId(UUID tenantId);
 
     Flux<TelegramAccount> findByStatusAndTenantId(TelegramAccountStatus status, UUID tenantId);
+
+    Mono<TelegramAccount> findByIdAndTenantId(UUID id, UUID tenantId);
 }

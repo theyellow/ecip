@@ -72,7 +72,11 @@ public class ModerationEventConsumer {
                                 Map.of("action", match.action(), "ruleName", match.ruleName()));
 
                 String flagJson = objectMapper.writeValueAsString(flagEvent);
-                kafkaTemplate.send(MODERATION_FLAGS_TOPIC, event.eventId(), flagJson);
+                org.apache.kafka.clients.producer.ProducerRecord<String, String> kafkaRecord =
+                        new org.apache.kafka.clients.producer.ProducerRecord<>(
+                                MODERATION_FLAGS_TOPIC, event.eventId(), flagJson);
+                TenantAwareKafkaSupport.addTenantHeader(kafkaRecord);
+                kafkaTemplate.send(kafkaRecord);
                 log.debug(
                         "Published ModerationFlagEvent to {} for source event {}",
                         MODERATION_FLAGS_TOPIC,

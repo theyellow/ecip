@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -77,15 +78,14 @@ class ModerationEventConsumerTest {
 
         consumer.consume(toRecord("evt-001", message), acknowledgment);
 
-        ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> valueCaptor = ArgumentCaptor.forClass(String.class);
-        verify(kafkaTemplate)
-                .send(topicCaptor.capture(), keyCaptor.capture(), valueCaptor.capture());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<ProducerRecord<String, String>> recordCaptor =
+                ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaTemplate).send(recordCaptor.capture());
 
-        assertThat(topicCaptor.getValue()).isEqualTo("moderation.flags");
-        assertThat(keyCaptor.getValue()).isEqualTo("evt-001");
-        assertThat(valueCaptor.getValue()).contains("ModerationFlag");
+        assertThat(recordCaptor.getValue().topic()).isEqualTo("moderation.flags");
+        assertThat(recordCaptor.getValue().key()).isEqualTo("evt-001");
+        assertThat(recordCaptor.getValue().value()).contains("ModerationFlag");
         verify(acknowledgment).acknowledge();
     }
 
@@ -116,7 +116,7 @@ class ModerationEventConsumerTest {
 
         consumer.consume(toRecord("evt-002", message), acknowledgment);
 
-        verify(kafkaTemplate, never()).send(any(), any(), any());
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
         verify(acknowledgment).acknowledge();
     }
 
@@ -127,7 +127,7 @@ class ModerationEventConsumerTest {
         assertThatThrownBy(() -> consumer.consume(toRecord("bad-key", badMessage), acknowledgment))
                 .isInstanceOf(RuntimeException.class);
 
-        verify(kafkaTemplate, never()).send(any(), any(), any());
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
         verify(acknowledgment, never()).acknowledge();
     }
 
@@ -157,7 +157,7 @@ class ModerationEventConsumerTest {
                 new EvaluationResult("keyword-spam", "HIGH", "FLAG", "KEYWORD");
         when(ruleEvaluationService.evaluate(eq("spam content here"), any()))
                 .thenReturn(Optional.of(matchResult));
-        when(kafkaTemplate.send(eq("moderation.flags"), any(), any()))
+        when(kafkaTemplate.send(any(ProducerRecord.class)))
                 .thenThrow(new RuntimeException("Kafka unavailable"));
 
         assertThatThrownBy(() -> consumer.consume(toRecord("evt-003", message), acknowledgment))

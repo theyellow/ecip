@@ -104,7 +104,16 @@ public class TelegramAccountController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteAccount(@PathVariable("id") UUID id) {
-        return repository.deleteById(id);
+        if (TenantContext.isAdminMode()) {
+            return repository.deleteById(id);
+        }
+        return repository
+                .findByIdAndTenantId(id, UUID.fromString(TenantContext.getTenantId()))
+                .switchIfEmpty(
+                        Mono.error(
+                                new org.springframework.web.server.ResponseStatusException(
+                                        org.springframework.http.HttpStatus.NOT_FOUND)))
+                .flatMap(account -> repository.deleteById(id));
     }
 
     @Operation(summary = "Get connection status of a Telegram account")
