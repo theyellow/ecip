@@ -222,6 +222,7 @@ tdlibAdapter:
   env:
     KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
+    APP_TENANT_ID: ""      # Set to the tenant UUID this adapter serves
   secrets:
     TELEGRAM_API_ID: telegram-api-id
     TELEGRAM_API_HASH: telegram-api-hash

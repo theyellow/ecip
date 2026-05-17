@@ -1,6 +1,8 @@
 package io.emcip.llm.orchestrator.service;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
+import io.emcip.common.tenant.TenantContext;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import java.time.Instant;
 import java.util.Map;
@@ -43,6 +45,8 @@ public class PolicyDecisionConsumer {
                 record.offset());
 
         try {
+            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+
             var decisionEvent =
                     objectMapper.readValue(record.value(), EventSchemas.PolicyDecisionEvent.class);
 
@@ -74,6 +78,8 @@ public class PolicyDecisionConsumer {
 
         } catch (Exception e) {
             log.error("Error processing policy decision: {}", e.getMessage(), e);
+        } finally {
+            TenantContext.clear();
         }
     }
 
