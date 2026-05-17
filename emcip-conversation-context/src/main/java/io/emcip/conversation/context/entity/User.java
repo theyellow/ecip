@@ -57,6 +57,9 @@ public class User {
     @Column(name = "last_seen_at")
     private Instant lastSeenAt;
 
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
+
     /** Custom method to generate display name. */
     public String getDisplayName() {
         if (firstName != null && lastName != null) {
@@ -76,7 +79,4 @@ public class User {
     public void setIsBot(Boolean isBot) {
         this.isBot = isBot;
     }
-
-    @Column(name = "tenant_id", nullable = false)
-    private UUID tenantId;
 }
