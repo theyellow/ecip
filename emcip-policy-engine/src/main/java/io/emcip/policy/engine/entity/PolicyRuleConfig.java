@@ -4,8 +4,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import lombok.Data;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.type.SqlTypes;
 
 /**
@@ -13,6 +17,8 @@ import org.hibernate.type.SqlTypes;
  * intent, confidence, and metadata.
  */
 @Schema(description = "Configurable policy rule that maps an intent to a decision action")
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Entity
 @Table(
         name = "policy_rules",
@@ -26,6 +32,10 @@ public class PolicyRuleConfig {
     @Schema(description = "Unique rule identifier", example = "spam-block-v1")
     @Id
     private String id;
+
+    @Schema(description = "Tenant this rule belongs to")
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 
     @Schema(description = "Rule name", example = "Block spam messages")
     @Column(nullable = false, length = 64)
