@@ -5,14 +5,20 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 import org.hibernate.annotations.UpdateTimestamp;
 
 /** JPA entity representing a Telegram user. Tracks user information across all conversations. */
+@FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
+@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 @Entity
 @Table(name = "users")
 @Getter
@@ -70,4 +76,7 @@ public class User {
     public void setIsBot(Boolean isBot) {
         this.isBot = isBot;
     }
+
+    @Column(name = "tenant_id", nullable = false)
+    private UUID tenantId;
 }
