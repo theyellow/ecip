@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-16 (reordered — small items first, security gap prioritised)
+> Last updated: 2026-05-17 (added #21 tenant provisioning, #22 cross-tenant admin views from multi-tenancy spec)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -33,6 +33,8 @@ Items are ordered by priority.
 | 12 | **Kubernetes HA / multi-replica** | M | HPA templates, tuned `replicas` per service tier, PodDisruptionBudgets for critical services. Ref: `specs/2026-04-29-kubernetes-helm-deployment-design.md`. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not implemented. |
 | 9 | **Telegram: self-service account connection** | L | Allow end-users (not just admins) to link Telegram accounts via phone → OTP flow. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
+| 21 | **Tenant provisioning / onboarding flow** | M | No way to create a tenant without direct DB access. Needs admin-api endpoint + Liquibase-safe seed flow. Depends on #5. |
+| 22 | **Admin UI: cross-tenant views** | M | Admin users should be able to browse data across all tenants. Requires admin-api bypass (built in #5) + UI pages. Depends on #5. |
 
 ---
 
