@@ -13,6 +13,8 @@ import io.emcip.moderation.service.service.RuleEvaluationService;
 import io.emcip.moderation.service.service.RuleEvaluationService.EvaluationResult;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,10 +35,16 @@ class ModerationEventConsumerTest {
     private ModerationEventConsumer consumer;
     private ObjectMapper objectMapper;
 
+    private static final String TENANT_ID = UUID.randomUUID().toString();
+
     @BeforeEach
     void setUp() {
         consumer = new ModerationEventConsumer(ruleEvaluationService, kafkaTemplate);
         objectMapper = new ObjectMapper();
+    }
+
+    private ConsumerRecord<String, String> toRecord(String key, String value) {
+        return new ConsumerRecord<>("telegram.raw.messages", 0, 0L, key, value);
     }
 
     @Test
@@ -64,10 +72,10 @@ class ModerationEventConsumerTest {
 
         EvaluationResult matchResult =
                 new EvaluationResult("keyword-spam", "HIGH", "FLAG", "KEYWORD");
-        when(ruleEvaluationService.evaluate("this message contains spam"))
+        when(ruleEvaluationService.evaluate(eq("this message contains spam"), any()))
                 .thenReturn(Optional.of(matchResult));
 
-        consumer.consume(message, acknowledgment);
+        consumer.consume(toRecord("evt-001", message), acknowledgment);
 
         ArgumentCaptor<String> topicCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
@@ -103,10 +111,10 @@ class ModerationEventConsumerTest {
                         null);
         String message = objectMapper.writeValueAsString(event);
 
-        when(ruleEvaluationService.evaluate("a perfectly clean message"))
+        when(ruleEvaluationService.evaluate(eq("a perfectly clean message"), any()))
                 .thenReturn(Optional.empty());
 
-        consumer.consume(message, acknowledgment);
+        consumer.consume(toRecord("evt-002", message), acknowledgment);
 
         verify(kafkaTemplate, never()).send(any(), any(), any());
         verify(acknowledgment).acknowledge();
@@ -116,7 +124,7 @@ class ModerationEventConsumerTest {
     void consume_malformedJson_propagatesException() {
         String badMessage = "{ not valid json %%% }";
 
-        assertThatThrownBy(() -> consumer.consume(badMessage, acknowledgment))
+        assertThatThrownBy(() -> consumer.consume(toRecord("bad-key", badMessage), acknowledgment))
                 .isInstanceOf(RuntimeException.class);
 
         verify(kafkaTemplate, never()).send(any(), any(), any());
@@ -147,12 +155,12 @@ class ModerationEventConsumerTest {
 
         EvaluationResult matchResult =
                 new EvaluationResult("keyword-spam", "HIGH", "FLAG", "KEYWORD");
-        when(ruleEvaluationService.evaluate("spam content here"))
+        when(ruleEvaluationService.evaluate(eq("spam content here"), any()))
                 .thenReturn(Optional.of(matchResult));
         when(kafkaTemplate.send(eq("moderation.flags"), any(), any()))
                 .thenThrow(new RuntimeException("Kafka unavailable"));
 
-        assertThatThrownBy(() -> consumer.consume(message, acknowledgment))
+        assertThatThrownBy(() -> consumer.consume(toRecord("evt-003", message), acknowledgment))
                 .isInstanceOf(RuntimeException.class);
 
         verify(acknowledgment, never()).acknowledge();

@@ -2,6 +2,7 @@ package io.emcip.moderation.service.entity;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -59,4 +60,8 @@ public class ModerationRule {
     @Schema(description = "Last update timestamp (UTC)")
     @Column("updated_at")
     private Instant updatedAt;
+
+    @Schema(description = "Tenant this rule belongs to")
+    @Column("tenant_id")
+    private UUID tenantId;
 }
