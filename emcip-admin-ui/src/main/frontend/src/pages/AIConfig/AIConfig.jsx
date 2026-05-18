@@ -168,13 +168,31 @@ function TemplateModal({ template, onClose, onSave }) {
 }
 
 function ProviderModal({ provider, onClose, onSave }) {
+  const { token } = useAuth()
+  const api = providerConfigApi(makeRequest(token))
   const [form, setForm] = useState({
     name: provider?.name ?? '',
     baseUrl: provider?.baseUrl ?? '',
     apiKey: '',
     active: provider?.active ?? false,
   })
+  const [testResult, setTestResult] = useState(null)
+  const [testing, setTesting] = useState(false)
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const testConnection = async () => {
+    if (!form.baseUrl) return
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const data = await api.getProxyModels({ baseUrl: form.baseUrl, apiKey: form.apiKey || undefined })
+      setTestResult({ ok: data.reachable, models: data.models ?? [] })
+    } catch {
+      setTestResult({ ok: false, models: [] })
+    } finally {
+      setTesting(false)
+    }
+  }
 
   return (
     <Modal title={provider ? 'Edit Provider' : 'Add Provider'} onClose={onClose} onSubmit={() => onSave(form)}>
@@ -183,10 +201,28 @@ function ProviderModal({ provider, onClose, onSave }) {
         onChange={e => set('name', e.target.value)} placeholder="local-litellm" required />
       <label>Base URL *</label>
       <input type="text" className={styles.input} value={form.baseUrl}
-        onChange={e => set('baseUrl', e.target.value)} placeholder="http://192.168.1.50:4000" required />
+        onChange={e => { set('baseUrl', e.target.value); setTestResult(null) }}
+        placeholder="http://192.168.1.50:4000" required />
       <label>API Key (optional — leave blank to keep existing)</label>
       <input type="password" className={styles.input} value={form.apiKey}
-        onChange={e => set('apiKey', e.target.value)} placeholder="Leave blank if not required" />
+        onChange={e => { set('apiKey', e.target.value); setTestResult(null) }}
+        placeholder="Leave blank if not required" />
+      <div className={styles.proxyPicker}>
+        <Button type="button" variant="secondary" onClick={testConnection}
+          disabled={testing || !form.baseUrl}>
+          {testing ? '…' : 'Test & list models'}
+        </Button>
+        {testResult && (
+          <Badge variant={testResult.ok ? 'green' : 'red'}>
+            {testResult.ok ? `Reachable — ${testResult.models.length} model(s)` : 'Unreachable'}
+          </Badge>
+        )}
+      </div>
+      {testResult?.ok && testResult.models.length > 0 && (
+        <ul className={styles.modelList}>
+          {testResult.models.map(m => <li key={m} className={styles.mono}>{m}</li>)}
+        </ul>
+      )}
       <label>
         <input type="checkbox" checked={form.active}
           onChange={e => set('active', e.target.checked)} /> Active
