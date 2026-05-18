@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthContext'
 import { Logo } from '../../logo/Logo'
 import { useTheme } from '../../theme/ThemeContext'
 import styles from './Sidebar.module.css'
@@ -17,6 +18,7 @@ const NAV = [
 
 export function Sidebar() {
   const { theme, toggleTheme } = useTheme()
+  const { logout } = useAuth()
 
   return (
     <aside className={styles.sidebar}>
@@ -48,6 +50,13 @@ export function Sidebar() {
           title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
         >
           {theme === 'light' ? '☽' : '☀'}
+        </button>
+        <button
+          className={styles.logoutBtn}
+          onClick={logout}
+          aria-label="Logout"
+        >
+          ⏻ Logout
         </button>
       </div>
     </aside>

@@ -112,7 +112,9 @@ export function Telegram() {
         } else if (s.status === 'AWAITING_PASSWORD' && wizard.step !== 'password') {
           setWizard(w => ({ ...w, step: 'password', error: null }))
         }
-      } catch (_) {}
+      } catch (e) {
+      console.warn('Telegram status poll error:', e.message)
+    }
     }, 2500)
     return () => clearInterval(interval)
   }, [wizard, api, loadAccounts, loadWatched, openDiscover])

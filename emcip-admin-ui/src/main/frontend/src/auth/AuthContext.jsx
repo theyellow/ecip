@@ -4,7 +4,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(null)
+  const [token, setToken] = useState(() => sessionStorage.getItem('emcip-token'))
 
   const login = async (username, password) => {
     const res = await fetch(`${API_BASE}/api/auth/token`, {
@@ -14,10 +14,14 @@ export function AuthProvider({ children }) {
     })
     if (!res.ok) throw new Error('Invalid credentials')
     const data = await res.json()
+    sessionStorage.setItem('emcip-token', data.token)
     setToken(data.token)
   }
 
-  const logout = () => setToken(null)
+  const logout = () => {
+    sessionStorage.removeItem('emcip-token')
+    setToken(null)
+  }
 
   return (
     <AuthContext.Provider value={{ token, login, logout }}>
