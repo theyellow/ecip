@@ -671,6 +671,14 @@ Docker images are published to `ghcr.io/theyellow/ecip` automatically by GitHub 
 |`:native-amd64`
 |===
 
+After images are pushed, restart the cluster pods to pick them up — see
+<<image-rollout,Rolling Out New Images>> in the Operations Guide, or the quick
+reference at `docs/operations/rollout.md`.
+
+NOTE: `emcip-tdlib-adapter` is a StatefulSet and must be restarted separately
+with `rollout restart statefulset/emcip-tdlib-adapter`. It is skipped by
+`rollout restart deployment`.
+
 To build and push images locally with a registry prefix (for testing):
 
 [source,bash]

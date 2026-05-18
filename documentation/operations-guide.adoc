@@ -238,6 +238,46 @@ helm history emcip -n emcip         # list available revisions
 helm rollback emcip 2 -n emcip      # roll back to specific revision
 ----
 
+[[image-rollout]]
+=== Rolling Out New Images
+
+After CI builds and pushes new images to `ghcr.io/theyellow/ecip` (on every
+merge to `main`), restart the pods to pick them up. All images use
+`pullPolicy: Always`.
+
+[IMPORTANT]
+====
+`emcip-tdlib-adapter` is a **StatefulSet**, not a Deployment. It is skipped by
+`rollout restart deployment -n emcip`. Always restart it explicitly.
+
+Infrastructure pods (`emcip-postgres`, `emcip-emcip` Kafka, `emcip-entity-operator`,
+Grafana, Loki, Prometheus) run upstream images — never restart them as part of an
+application rollout.
+====
+
+[source,bash]
+----
+# Restart all application Deployments
+microk8s.kubectl rollout restart deployment \
+  emcip-admin-api emcip-admin-ui emcip-audit-service \
+  emcip-intent-classifier emcip-moderation-service \
+  emcip-conversation-context emcip-llm-orchestrator \
+  emcip-policy-engine \
+  -n emcip
+
+# Restart tdlib-adapter StatefulSet separately
+microk8s.kubectl rollout restart statefulset/emcip-tdlib-adapter -n emcip
+
+# Watch progress
+microk8s.kubectl get pods -n emcip -w
+----
+
+To trigger a full rebuild without a code change: GitHub → Actions →
+"Build and Push Docker Images" → Run workflow → `force_rebuild_all: true`.
+
+For the full pod inventory and Liquibase troubleshooting, see
+`docs/operations/rollout.md`.
+
 [[mixed-cluster-deployment]]
 === Mixed-Cluster Deployment (x86_64 + arm64)
 
