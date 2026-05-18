@@ -1,39 +1,36 @@
 package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.concurrent.CompletableFuture;
-import org.apache.kafka.clients.producer.RecordMetadata;
+import io.emcip.admin.api.service.SimulationService;
+import io.emcip.admin.api.service.SimulationService.SimulateResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 class SimulateControllerTest {
 
-    @Mock private KafkaTemplate<String, String> kafkaTemplate;
+    @Mock private SimulationService simulationService;
 
     private SimulateController controller;
     private WebTestClient webTestClient;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
-        controller = new SimulateController(kafkaTemplate);
+        controller = new SimulateController(simulationService);
         webTestClient = WebTestClient.bindToController(controller).build();
-        SendResult<String, String> sendResult =
-                new SendResult<>(null, new RecordMetadata(null, 0, 0, 0, 0, 0));
-        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
-                .thenReturn(CompletableFuture.completedFuture(sendResult));
+        when(simulationService.simulate(any()))
+                .thenReturn(
+                        Mono.just(new SimulateResult("test-event-id", SimulationService.TOPIC)));
     }
 
     private SimulateController.SimulateMessageRequest request(long chatId) {
@@ -61,7 +58,7 @@ class SimulateControllerTest {
     void simulateMessage_publishesToKafka() {
         controller.simulateMessage(request(99L)).block();
 
-        verify(kafkaTemplate).send(anyString(), anyString(), anyString());
+        verify(simulationService).simulate(any());
     }
 
     @Test
