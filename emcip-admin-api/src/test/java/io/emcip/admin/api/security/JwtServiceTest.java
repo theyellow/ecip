@@ -90,4 +90,14 @@ class JwtServiceTest {
         assertThatThrownBy(() -> jwtService.validateToken(tokenWithWrongSignature))
                 .isInstanceOf(SignatureException.class);
     }
+
+    @Test
+    void validateSecret_throwsOnDefaultSecret() {
+        JwtService service = new JwtService();
+        ReflectionTestUtils.setField(service, "secret", "changeme-in-production-32chars-secret");
+
+        assertThatThrownBy(service::validateSecret)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ADMIN_JWT_SECRET must be set to a strong random value");
+    }
 }

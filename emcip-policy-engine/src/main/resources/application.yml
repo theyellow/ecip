@@ -22,7 +22,11 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
   liquibase:
-    enabled: false
+    # Schema is owned by this service: policy_rules and policy_decisions tables.
+    # Migrations: 001-create-policy-decisions, 002-create-policy-rules,
+    #   003-add-performance-indexes, 004-add-tenant-id,
+    #   005-policy-rule-versioning, 006-add-signal-status.
+    change-log: classpath:db/changelog/db.changelog-master.xml
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
     consumer:
@@ -43,7 +47,7 @@ management:
         include: health,info,metrics,prometheus
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 admin:
   service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
