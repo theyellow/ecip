@@ -2,27 +2,30 @@ package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.entity.GroupProfile;
-import io.emcip.admin.api.repository.GroupProfileRepository;
+import io.emcip.admin.api.service.GroupProfileService;
 import io.emcip.common.tenant.TenantContext;
+import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.WebFilter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 class GroupProfileControllerTest {
 
-    @Mock private GroupProfileRepository repository;
+    @Mock private GroupProfileService service;
 
     private GroupProfileController controller;
     private WebTestClient webTestClient;
@@ -36,7 +39,7 @@ class GroupProfileControllerTest {
     @BeforeEach
     void setUp() {
         TenantContext.setAdminMode(true);
-        controller = new GroupProfileController(repository);
+        controller = new GroupProfileController(service);
         webTestClient =
                 WebTestClient.bindToController(controller).webFilter(ADMIN_MODE_FILTER).build();
     }
@@ -52,7 +55,7 @@ class GroupProfileControllerTest {
 
     @Test
     void listAll_returns200() {
-        when(repository.findAll()).thenReturn(Flux.just(profile(123L)));
+        when(service.findAll()).thenReturn(Flux.just(profile(123L)));
 
         webTestClient
                 .get()
@@ -66,7 +69,7 @@ class GroupProfileControllerTest {
 
     @Test
     void getByChatId_found_returns200() {
-        when(repository.findByTelegramChatId(123L)).thenReturn(Mono.just(profile(123L)));
+        when(service.findByChatId(123L)).thenReturn(Mono.just(profile(123L)));
 
         webTestClient
                 .get()
@@ -80,43 +83,57 @@ class GroupProfileControllerTest {
 
     @Test
     void getByChatId_notFound_returns404() {
-        when(repository.findByTelegramChatId(999L)).thenReturn(Mono.empty());
+        when(service.findByChatId(999L))
+                .thenReturn(
+                        Mono.error(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "Group not found: 999")));
 
         webTestClient.get().uri("/api/groups/999").exchange().expectStatus().isNotFound();
     }
 
     @Test
     void create_setsTimestampsAndReturns201() {
-        when(repository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
-
-        GroupProfile request = profile(123L);
+        GroupProfile saved =
+                GroupProfile.builder()
+                        .id(1L)
+                        .telegramChatId(123L)
+                        .name("Test Group")
+                        .createdAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build();
+        when(service.create(any())).thenReturn(Mono.just(saved));
 
         webTestClient
                 .post()
                 .uri("/api/groups")
-                .bodyValue(request)
+                .bodyValue(profile(123L))
                 .exchange()
                 .expectStatus()
-                .isCreated();
-
-        StepVerifier.create(controller.create(profile(123L)))
-                .assertNext(
-                        response -> {
-                            GroupProfile saved = response.getBody();
-                            assertThat(saved).isNotNull();
-                            assertThat(saved.getCreatedAt()).isNotNull();
-                            assertThat(saved.getUpdatedAt()).isNotNull();
-                        })
-                .verifyComplete();
+                .isCreated()
+                .expectBody(GroupProfile.class)
+                .value(
+                        p -> {
+                            assertThat(p.getCreatedAt()).isNotNull();
+                            assertThat(p.getUpdatedAt()).isNotNull();
+                        });
     }
 
     @Test
     void update_found_returns200() {
-        GroupProfile existing = profile(123L);
-        when(repository.findByTelegramChatId(123L)).thenReturn(Mono.just(existing));
-        when(repository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+        GroupProfile updated =
+                GroupProfile.builder()
+                        .id(1L)
+                        .telegramChatId(123L)
+                        .name("Updated Group")
+                        .description("New description")
+                        .moderationLevel("HIGH")
+                        .autoRespond(true)
+                        .welcomeMessage("Welcome!")
+                        .build();
+        when(service.update(eq(123L), any())).thenReturn(Mono.just(updated));
 
-        GroupProfile update =
+        GroupProfile patch =
                 GroupProfile.builder()
                         .name("Updated Group")
                         .description("New description")
@@ -128,7 +145,7 @@ class GroupProfileControllerTest {
         webTestClient
                 .put()
                 .uri("/api/groups/123")
-                .bodyValue(update)
+                .bodyValue(patch)
                 .exchange()
                 .expectStatus()
                 .isOk();
@@ -136,14 +153,18 @@ class GroupProfileControllerTest {
 
     @Test
     void update_notFound_returns404() {
-        when(repository.findByTelegramChatId(999L)).thenReturn(Mono.empty());
+        when(service.update(eq(999L), any()))
+                .thenReturn(
+                        Mono.error(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "Group not found: 999")));
 
-        GroupProfile update = GroupProfile.builder().name("Updated Group").build();
+        GroupProfile patch = GroupProfile.builder().name("Updated Group").build();
 
         webTestClient
                 .put()
                 .uri("/api/groups/999")
-                .bodyValue(update)
+                .bodyValue(patch)
                 .exchange()
                 .expectStatus()
                 .isNotFound();
@@ -151,15 +172,18 @@ class GroupProfileControllerTest {
 
     @Test
     void delete_found_returns204() {
-        when(repository.findByTelegramChatId(123L)).thenReturn(Mono.just(profile(123L)));
-        when(repository.delete(any())).thenReturn(Mono.empty());
+        when(service.delete(123L)).thenReturn(Mono.empty());
 
         webTestClient.delete().uri("/api/groups/123").exchange().expectStatus().isNoContent();
     }
 
     @Test
     void delete_notFound_returns404() {
-        when(repository.findByTelegramChatId(999L)).thenReturn(Mono.empty());
+        when(service.delete(999L))
+                .thenReturn(
+                        Mono.error(
+                                new ResponseStatusException(
+                                        HttpStatus.NOT_FOUND, "Group not found: 999")));
 
         webTestClient.delete().uri("/api/groups/999").exchange().expectStatus().isNotFound();
     }

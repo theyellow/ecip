@@ -1,12 +1,9 @@
 package io.emcip.admin.api.controller;
 
 import io.emcip.admin.api.entity.GroupProfile;
-import io.emcip.admin.api.repository.GroupProfileRepository;
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.admin.api.service.GroupProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.time.Instant;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -29,43 +26,24 @@ import reactor.core.publisher.Mono;
 @Tag(name = "Group Profiles", description = "Manage Telegram group configuration profiles")
 public class GroupProfileController {
 
-    private final GroupProfileRepository repository;
+    private final GroupProfileService service;
 
     @Operation(summary = "List all group profiles")
     @GetMapping
     public Flux<GroupProfile> listAll() {
-        if (TenantContext.isAdminMode()) {
-            return repository.findAll();
-        }
-        return repository.findAllByTenantId(UUID.fromString(TenantContext.getTenantId()));
+        return service.findAll();
     }
 
     @Operation(summary = "Get a group profile by chat ID")
     @GetMapping("/{chatId}")
     public Mono<ResponseEntity<GroupProfile>> getByChatId(@PathVariable("chatId") Long chatId) {
-        if (TenantContext.isAdminMode()) {
-            return repository
-                    .findByTelegramChatId(chatId)
-                    .map(ResponseEntity::ok)
-                    .defaultIfEmpty(ResponseEntity.notFound().<GroupProfile>build());
-        }
-        UUID tenantId = UUID.fromString(TenantContext.getTenantId());
-        return repository
-                .findByTelegramChatIdAndTenantId(chatId, tenantId)
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().<GroupProfile>build());
+        return service.findByChatId(chatId).map(ResponseEntity::ok);
     }
 
     @Operation(summary = "Create a group profile")
     @PostMapping
     public Mono<ResponseEntity<GroupProfile>> create(@RequestBody GroupProfile profile) {
-        profile.setCreatedAt(Instant.now());
-        profile.setUpdatedAt(Instant.now());
-        if (!TenantContext.isAdminMode()) {
-            profile.setTenantId(UUID.fromString(TenantContext.getTenantId()));
-        }
-        return repository
-                .save(profile)
+        return service.create(profile)
                 .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved));
     }
 
@@ -73,38 +51,12 @@ public class GroupProfileController {
     @PutMapping("/{chatId}")
     public Mono<ResponseEntity<GroupProfile>> update(
             @PathVariable("chatId") Long chatId, @RequestBody GroupProfile update) {
-        Mono<GroupProfile> finder =
-                TenantContext.isAdminMode()
-                        ? repository.findByTelegramChatId(chatId)
-                        : repository.findByTelegramChatIdAndTenantId(
-                                chatId, UUID.fromString(TenantContext.getTenantId()));
-        return finder.flatMap(
-                        existing -> {
-                            existing.setName(update.getName());
-                            existing.setDescription(update.getDescription());
-                            existing.setModerationLevel(update.getModerationLevel());
-                            existing.setAutoRespond(update.isAutoRespond());
-                            existing.setWelcomeMessage(update.getWelcomeMessage());
-                            existing.setUpdatedAt(Instant.now());
-                            return repository.save(existing);
-                        })
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().<GroupProfile>build());
+        return service.update(chatId, update).map(ResponseEntity::ok);
     }
 
     @Operation(summary = "Delete a group profile")
     @DeleteMapping("/{chatId}")
     public Mono<ResponseEntity<Void>> delete(@PathVariable("chatId") Long chatId) {
-        Mono<GroupProfile> finder =
-                TenantContext.isAdminMode()
-                        ? repository.findByTelegramChatId(chatId)
-                        : repository.findByTelegramChatIdAndTenantId(
-                                chatId, UUID.fromString(TenantContext.getTenantId()));
-        return finder.flatMap(
-                        existing ->
-                                repository
-                                        .delete(existing)
-                                        .thenReturn(ResponseEntity.<Void>noContent().<Void>build()))
-                .defaultIfEmpty(ResponseEntity.notFound().<Void>build());
+        return service.delete(chatId).thenReturn(ResponseEntity.<Void>noContent().<Void>build());
     }
 }
