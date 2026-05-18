@@ -275,6 +275,7 @@ services:
       - TDLIB_DB_DIR=/app/tdlib-db
       - TDLIB_FILES_DIR=/app/tdlib-files
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
+      - ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN}
     volumes:
       - tdlib-data:/app/tdlib-db
       - tdlib-files:/app/tdlib-files

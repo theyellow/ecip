@@ -39,3 +39,6 @@ logging:
   level:
     io.emcip: INFO
     io.emcip.tdlib.adapter: DEBUG
+
+admin:
+  service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
