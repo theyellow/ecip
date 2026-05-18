@@ -1,5 +1,6 @@
 package io.emcip.tdlib.adapter.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,15 @@ public class ServiceTokenFilter implements WebFilter {
 
     @Value("${admin.service-token:internal-service-token}")
     private String configuredToken;
+
+    @PostConstruct
+    void validateToken() {
+        if (configuredToken.equals("internal-service-token")) {
+            throw new IllegalStateException(
+                    "Service token must be overridden via ADMIN_SERVICE_TOKEN environment"
+                            + " variable");
+        }
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {

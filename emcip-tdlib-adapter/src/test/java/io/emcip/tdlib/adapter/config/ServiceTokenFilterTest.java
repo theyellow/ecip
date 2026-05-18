@@ -1,6 +1,7 @@
 package io.emcip.tdlib.adapter.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -69,6 +70,18 @@ class ServiceTokenFilterTest {
         StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
+    void validateToken_throwsOnDefaultToken() throws Exception {
+        var insecureFilter = new ServiceTokenFilter();
+        var field = ServiceTokenFilter.class.getDeclaredField("configuredToken");
+        field.setAccessible(true);
+        field.set(insecureFilter, "internal-service-token");
+
+        assertThatThrownBy(insecureFilter::validateToken)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ADMIN_SERVICE_TOKEN");
     }
 
     @Test
