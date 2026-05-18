@@ -1,3 +1,4 @@
+import { Component } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeContext'
 import { AuthProvider, useAuth } from './auth/AuthContext'
@@ -13,6 +14,25 @@ import { AIConfig } from './pages/AIConfig/AIConfig'
 import { ModerationRules } from './pages/ModerationRules/ModerationRules'
 import { Flags } from './pages/Flags/Flags'
 
+class PageErrorBoundary extends Component {
+  state = { error: null }
+  static getDerivedStateFromError(error) { return { error } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: '2rem', color: 'var(--color-error, red)' }}>
+          <strong>Page error:</strong> {this.state.error.message}
+          <br />
+          <button onClick={() => this.setState({ error: null })} style={{ marginTop: '1rem' }}>
+            Retry
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
 function AuthGate() {
   const { token } = useAuth()
 
@@ -27,7 +47,7 @@ function AuthGate() {
         <Route path="tenants" element={<Tenants />} />
         <Route path="policy-rules" element={<PolicyRules />} />
         <Route path="groups" element={<Groups />} />
-        <Route path="audit-log" element={<AuditLog />} />
+        <Route path="audit-log" element={<PageErrorBoundary><AuditLog /></PageErrorBoundary>} />
         <Route path="simulate" element={<Simulate />} />
         <Route path="telegram" element={<Telegram />} />
         <Route path="ai-config" element={<AIConfig />} />
