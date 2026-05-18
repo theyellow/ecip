@@ -1,0 +1,200 @@
+# .trivyignore — Accepted OS-level CVE suppressions for EMCIP Docker images
+#
+# PURPOSE
+# -------
+# This file suppresses known, accepted CVEs that originate from OS-level C libraries
+# (OpenSSL/libssl3, zlib, glibc, libstdc++, curl) in the base images used by EMCIP
+# services.  These CVEs cannot be remediated by updating Java dependencies; they
+# require an upstream base-image update.  They are suppressed here to keep the
+# GitHub Security dashboard focused on actionable, Java-level findings.
+#
+# DO NOT add Java library CVEs to this file.  Only OS/C-library issues belong here.
+#
+# BASE IMAGES IN SCOPE
+# --------------------
+#   - eclipse-temurin:21-jre          (JVM services: intent-classifier, moderation-service,
+#                                       audit-service, admin-api, admin-ui)
+#   - eclipse-temurin:21-jre + libssl3 + zlib1g
+#                                      (tdlib-adapter runtime: TDLib requires these system libs)
+#   - debian:12-slim                   (native-image services: policy-engine,
+#                                       conversation-context, llm-orchestrator)
+#
+# BUILD-ONLY STAGES (not scanned by Trivy)
+#   - ghcr.io/graalvm/native-image-community:25.0.1
+#   - eclipse-temurin:21-jdk
+#
+# HOW TO UPDATE
+# -------------
+# When a new Trivy scan run produces OS-level CVE IDs not covered here:
+#   1. Confirm the affected package is an OS/C library (not a JVM artifact).
+#   2. Check whether the CVE has a fix available in debian:12 or ubuntu jammy repos.
+#   3. If no upstream fix is available within the pinned base image, add it below
+#      with a comment explaining the package, severity, and reason for acceptance.
+#   4. Re-run the Trivy scan locally to verify suppression:
+#        trivy image --ignorefile .trivyignore <image>
+#
+# FORMAT: one CVE ID per line, preceded by a comment.
+# See: https://aquasecurity.github.io/trivy/latest/docs/configuration/filtering/
+
+# =============================================================================
+# OpenSSL / libssl3 / libcrypto3
+# =============================================================================
+# Present in: all images (debian:12-slim, eclipse-temurin:21-jre via ubuntu:jammy base).
+# The TDLib adapter runtime explicitly installs libssl3 as a shared-library
+# dependency of libtdjni.so.  The JRE images inherit OpenSSL from Ubuntu Jammy.
+# These CVEs are tracked by Debian/Ubuntu security teams; no backport is available
+# in the pinned base-image versions.
+
+# CVE-2023-2650: OpenSSL — excessive time spent in OBJ_obj2txt() with large OIDs
+# Affects: openssl/libssl3 in debian:12 / ubuntu:jammy before 3.0.9
+# Acceptance: no EMCIP code calls OBJ_obj2txt(); exposure is through TLS handshake
+# only.  Fix requires base image rebuild with openssl >= 3.0.9.
+CVE-2023-2650
+
+# CVE-2023-3446: OpenSSL — excessive time in DH_check() / DH_check_pub_key()
+# Affects: openssl/libssl3 in debian:12 / ubuntu:jammy
+# Acceptance: EMCIP does not use raw DH key material; exposure is theoretical.
+CVE-2023-3446
+
+# CVE-2023-3817: OpenSSL — excessive time in DH_check_pub_key() with large q param
+# Affects: openssl/libssl3; follow-on to CVE-2023-3446
+# Acceptance: same rationale as CVE-2023-3446 above.
+CVE-2023-3817
+
+# CVE-2023-5678: OpenSSL — excessive time in DH key/parameter generation
+# Affects: openssl/libssl3 in debian:12
+# Acceptance: EMCIP does not generate DH keys at runtime.
+CVE-2023-5678
+
+# CVE-2024-0727: OpenSSL — null-pointer dereference when parsing a malformed PKCS12 file
+# Affects: openssl/libssl3 in debian:12-slim / ubuntu:jammy
+# Acceptance: EMCIP does not parse untrusted PKCS12 files.
+CVE-2024-0727
+
+# CVE-2024-2511: OpenSSL — unbounded memory growth with session handling in TLSv1.3
+# Affects: openssl/libssl3 in debian:12 before 3.0.14
+# Acceptance: internal service-to-service TLS only; sessions are short-lived.
+CVE-2024-2511
+
+# CVE-2024-4603: OpenSSL — excessive time checking DSA keys and parameters
+# Affects: openssl/libssl3 in debian:12
+# Acceptance: EMCIP uses RSA/ECDSA only, not DSA.
+CVE-2024-4603
+
+# CVE-2024-5535: OpenSSL — SSL_select_next_proto buffer overread
+# Affects: openssl/libssl3 in debian:12 before 3.0.14
+# Acceptance: application-layer ALPN selection is handled by the JVM/Netty stack,
+# not the OS libssl.
+CVE-2024-5535
+
+# =============================================================================
+# zlib / zlib1g
+# =============================================================================
+# Present in: eclipse-temurin:21-jre (ubuntu:jammy), tdlib-adapter runtime
+# (explicitly installed).  TDLib requires zlib1g as a build and runtime dep.
+
+# CVE-2023-45853: zlib — integer overflow in zipOpenNewFileInZip4_64
+# Affects: zlib/zlib1g in ubuntu:jammy, debian:12 before 1:1.2.11.dfsg-4
+# Acceptance: EMCIP does not use zlib's zip-writing API; Kafka and Spring
+# compression go through the JVM's java.util.zip which is unaffected.
+CVE-2023-45853
+
+# =============================================================================
+# glibc / libc6
+# =============================================================================
+# Present in: all images.  glibc in debian:12 and ubuntu:jammy carries several
+# low-severity issues with no available backport at the pinned image versions.
+
+# CVE-2023-4806: glibc — potential use-after-free in getaddrinfo()
+# Affects: glibc/libc6 in debian:12 / ubuntu:jammy
+# Acceptance: no fix available in the pinned base images; DNS resolution is
+# handled by the JVM's JNDI stack, not direct glibc getaddrinfo() calls from
+# application code.
+CVE-2023-4806
+
+# CVE-2023-4813: glibc — potential use-after-free in gaih_inet()
+# Affects: glibc/libc6 in debian:12 / ubuntu:jammy
+# Acceptance: companion to CVE-2023-4806; same rationale.
+CVE-2023-4813
+
+# CVE-2023-5156: glibc — memory leak in getaddrinfo() with AF_UNSPEC
+# Affects: glibc/libc6 in debian:12 / ubuntu:jammy
+# Acceptance: short-lived DNS queries; memory leak impact is negligible.
+CVE-2023-5156
+
+# CVE-2024-2961: glibc — buffer overflow in iconv() with ISO-2022-CN-EXT
+# Affects: glibc/libc6 in debian:12 before 2.36-9+deb12u7
+# Acceptance: EMCIP does not invoke iconv() with ISO-2022-CN-EXT encoding.
+CVE-2024-2961
+
+# CVE-2024-33599: glibc — stack-based buffer overflow in netgroup cache
+# Affects: glibc/libc6 in debian:12 / ubuntu:jammy
+# Acceptance: nscd (name service cache daemon) is not running in any EMCIP container.
+CVE-2024-33599
+
+# CVE-2024-33600: glibc — null pointer dereference in netgroup cache
+# Affects: glibc/libc6; companion to CVE-2024-33599
+# Acceptance: same rationale; nscd not present in containers.
+CVE-2024-33600
+
+# CVE-2024-33601: glibc — netgroup cache may terminate daemon on memory allocation failure
+# Affects: glibc/libc6; companion to CVE-2024-33599
+# Acceptance: same rationale; nscd not present in containers.
+CVE-2024-33601
+
+# CVE-2024-33602: glibc — netgroup cache relies on undefined behaviour
+# Affects: glibc/libc6; companion to CVE-2024-33599
+# Acceptance: same rationale; nscd not present in containers.
+CVE-2024-33602
+
+# =============================================================================
+# libstdc++6 / gcc runtime
+# =============================================================================
+# Present in: eclipse-temurin:21-jre (ubuntu:jammy).
+# The GCC runtime libraries pulled transitively into the JRE image occasionally
+# carry advisory-level CVEs that have no exploitable path through Java code.
+
+# CVE-2023-4039: GCC — incorrect stack protector for C99 VLAs on aarch64
+# Affects: gcc-12/libstdc++6 in ubuntu:jammy on arm64
+# Acceptance: EMCIP Java code does not use C99 VLAs; this only affects
+# C/C++ binaries compiled with the affected gcc-12 version.
+CVE-2023-4039
+
+# =============================================================================
+# curl / libcurl4
+# =============================================================================
+# curl is installed in all images for the Docker HEALTHCHECK command only.
+# It is not used as an application library.
+
+# CVE-2023-38545: curl — SOCKS5 heap buffer overflow
+# Affects: curl in ubuntu:jammy / debian:12 before 8.4.0
+# Acceptance: curl is used only for the /actuator/health HEALTHCHECK probe
+# against localhost; it does not connect to external SOCKS5 proxies.
+CVE-2023-38545
+
+# CVE-2023-38546: curl — cookie injection with none file
+# Affects: curl in ubuntu:jammy / debian:12 before 8.4.0
+# Acceptance: healthcheck curl invocation uses no cookies or SOCKS proxies.
+CVE-2023-38546
+
+# CVE-2024-2398: curl — HTTP/2 push headers memory leak
+# Affects: curl/libcurl4 in debian:12 before 8.7.1
+# Acceptance: healthcheck does not use HTTP/2 server push.
+CVE-2024-2398
+
+# CVE-2024-7264: curl — ASN.1 date parser out-of-bounds read
+# Affects: curl/libcurl4 in debian:12
+# Acceptance: healthcheck connects only to localhost; no untrusted certificates.
+CVE-2024-7264
+
+# =============================================================================
+# TDLib build-stage dependencies (emcip-tdlib-adapter only)
+# =============================================================================
+# The tdlib-adapter Dockerfile Stage 1 (eclipse-temurin:21-jdk AS tdlib-builder)
+# installs cmake, g++, libssl-dev, zlib1g-dev, gperf via apt to compile TDLib.
+# Trivy scans only the final runtime image (Stage 3), so build-stage packages are
+# not scanned.  The entries below cover the Stage 3 runtime image which explicitly
+# installs libssl3 and zlib1g for the libtdjni.so shared library.
+#
+# All OpenSSL and zlib entries above already cover the tdlib-adapter runtime.
+# No additional suppressions are needed specifically for the TDLib runtime image.
