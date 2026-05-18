@@ -70,4 +70,23 @@ class RuleEvaluationServiceTest {
         assertThat(result).isEmpty();
         verifyNoInteractions(repository);
     }
+
+    @Test
+    void evaluateMatchesRegexRule() {
+        UUID tenantId = UUID.randomUUID();
+        ModerationRule rule = new ModerationRule();
+        rule.setName("block-email");
+        rule.setRuleType("REGEX");
+        rule.setPattern("[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}");
+        rule.setSeverity("MEDIUM");
+        rule.setAction("FLAG");
+        rule.setEnabled(true);
+
+        when(repository.findByEnabledTrueAndTenantId(tenantId)).thenReturn(Flux.just(rule));
+
+        var result = service.evaluate("contact me at user@example.com please", tenantId.toString());
+
+        assertThat(result).isPresent();
+        assertThat(result.get().ruleName()).isEqualTo("block-email");
+    }
 }
