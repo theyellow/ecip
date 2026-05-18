@@ -162,6 +162,7 @@ jobs:
           push: true
           platforms: ${{ matrix.multiarch && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: ${{ steps.meta.outputs.tags }}
+          no-cache: ${{ inputs.force_rebuild_all == true }}
           cache-from: type=gha,scope=${{ matrix.service }}-jvm
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-jvm
 
@@ -227,6 +228,7 @@ jobs:
           push: true
           platforms: ${{ matrix.multiarch && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: ${{ steps.meta.outputs.tags }}
+          no-cache: ${{ inputs.force_rebuild_all == true }}
           cache-from: type=gha,scope=${{ matrix.service }}-jvm-latest
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-jvm-latest
 
@@ -291,6 +293,7 @@ jobs:
           file: ${{ matrix.module }}/Dockerfile.native
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          no-cache: ${{ inputs.force_rebuild_all == true }}
           # Registry cache for native builds: persists across runs, avoids GHA 10 GB cache limit
           cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:buildcache-native
           cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:buildcache-native,mode=max
