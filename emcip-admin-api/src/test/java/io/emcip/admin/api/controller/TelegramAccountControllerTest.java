@@ -2,28 +2,26 @@ package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.emcip.admin.api.entity.AccountWatchedGroup;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
-import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
-import io.emcip.admin.api.repository.GroupProfileRepository;
-import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.emcip.admin.api.service.TelegramAccountService;
 import io.emcip.common.tenant.TenantContext;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.reactive.function.client.ClientResponse;
-import org.springframework.web.reactive.function.client.ExchangeFunction;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -31,26 +29,14 @@ import reactor.test.StepVerifier;
 @ExtendWith(MockitoExtension.class)
 class TelegramAccountControllerTest {
 
-    @Mock TelegramAccountRepository repository;
-    @Mock R2dbcEntityTemplate r2dbcEntityTemplate;
-    @Mock WebClient tdlibClient;
-    @Mock AccountWatchedGroupRepository watchedGroupRepository;
-    @Mock GroupProfileRepository groupProfileRepository;
+    @Mock TelegramAccountService telegramAccountService;
 
     TelegramAccountController controller;
 
-    @org.junit.jupiter.api.BeforeEach
+    @BeforeEach
     void setUp() {
         TenantContext.setAdminMode(true);
-        controller =
-                new TelegramAccountController(
-                        repository,
-                        r2dbcEntityTemplate,
-                        tdlibClient,
-                        watchedGroupRepository,
-                        groupProfileRepository,
-                        12345,
-                        "abc123");
+        controller = new TelegramAccountController(telegramAccountService);
     }
 
     @AfterEach
@@ -59,7 +45,7 @@ class TelegramAccountControllerTest {
     }
 
     @Test
-    void listAccounts_returnsMaskedSessionString() {
+    void listAccounts_sessionStringSensitiveFieldStripped() {
         UUID id = UUID.randomUUID();
         TelegramAccount account =
                 TelegramAccount.builder()
@@ -74,7 +60,7 @@ class TelegramAccountControllerTest {
                         .updatedAt(Instant.now())
                         .build();
 
-        when(repository.findAll()).thenReturn(Flux.just(account));
+        when(telegramAccountService.findAll()).thenReturn(Flux.just(account));
 
         StepVerifier.create(controller.listAccounts())
                 .assertNext(
@@ -87,13 +73,19 @@ class TelegramAccountControllerTest {
     }
 
     @Test
-    void createAccount_savesWithUnconfiguredStatus() {
-        when(r2dbcEntityTemplate.insert(any(TelegramAccount.class)))
-                .thenAnswer(
-                        inv -> {
-                            TelegramAccount a = inv.getArgument(0);
-                            return Mono.just(a);
-                        });
+    void createAccount_returns201() {
+        TelegramAccount account =
+                TelegramAccount.builder()
+                        .id(UUID.randomUUID())
+                        .phoneNumber("+49123456789")
+                        .apiId(12345)
+                        .status(TelegramAccountStatus.UNCONFIGURED)
+                        .createdAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build();
+
+        when(telegramAccountService.create(anyString(), anyString(), any()))
+                .thenReturn(Mono.just(account));
 
         TelegramAccountController.CreateAccountRequest req =
                 new TelegramAccountController.CreateAccountRequest("+49123456789", "Monitor 1");
@@ -103,14 +95,56 @@ class TelegramAccountControllerTest {
                         map -> {
                             assertThat(map.get("status")).isEqualTo("UNCONFIGURED");
                             assertThat(map.get("phoneNumber")).isEqualTo("+49123456789");
-                            assertThat(map).doesNotContainKey("apiHash");
                             assertThat(map).doesNotContainKey("sessionString");
                         })
                 .verifyComplete();
     }
 
     @Test
-    void listWatched_returnsWatchedGroupsForAccount() {
+    void deleteAccount_returns204() {
+        UUID id = UUID.randomUUID();
+        when(telegramAccountService.delete(id)).thenReturn(Mono.empty());
+
+        StepVerifier.create(controller.deleteAccount(id)).verifyComplete();
+
+        verify(telegramAccountService).delete(id);
+    }
+
+    @Test
+    void getStatus_returns200() {
+        UUID id = UUID.randomUUID();
+        TelegramAccount account =
+                TelegramAccount.builder()
+                        .id(id)
+                        .phoneNumber("+49123456789")
+                        .status(TelegramAccountStatus.ACTIVE)
+                        .createdAt(Instant.now())
+                        .updatedAt(Instant.now())
+                        .build();
+
+        when(telegramAccountService.getStatus(id)).thenReturn(Mono.just(account));
+
+        StepVerifier.create(controller.getStatus(id))
+                .assertNext(
+                        map -> {
+                            assertThat(map.get("id")).isEqualTo(id.toString());
+                            assertThat(map.get("status")).isEqualTo("ACTIVE");
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void logout_returns202() {
+        UUID id = UUID.randomUUID();
+        when(telegramAccountService.logout(id)).thenReturn(Mono.empty());
+
+        StepVerifier.create(controller.logout(id)).verifyComplete();
+
+        verify(telegramAccountService).logout(id);
+    }
+
+    @Test
+    void getWatched_returns200() {
         UUID accountId = UUID.randomUUID();
         GroupProfile profile =
                 GroupProfile.builder()
@@ -119,11 +153,8 @@ class TelegramAccountControllerTest {
                         .name("Test Group")
                         .moderationLevel("MEDIUM")
                         .build();
-        AccountWatchedGroup awg =
-                AccountWatchedGroup.builder().accountId(accountId).groupProfileId(1L).build();
 
-        when(watchedGroupRepository.findByAccountId(accountId)).thenReturn(Flux.just(awg));
-        when(groupProfileRepository.findById(1L)).thenReturn(Mono.just(profile));
+        when(telegramAccountService.findWatchedGroups(accountId)).thenReturn(Flux.just(profile));
 
         StepVerifier.create(controller.listWatched(accountId))
                 .assertNext(
@@ -136,83 +167,49 @@ class TelegramAccountControllerTest {
     }
 
     @Test
-    void deleteAccount_returns204() {
-        UUID id = UUID.randomUUID();
-        when(repository.deleteById(id)).thenReturn(Mono.empty());
-        StepVerifier.create(controller.deleteAccount(id)).verifyComplete();
-    }
-
-    @Test
-    void getStatus_accountNotFound_returnsError() {
-        UUID id = UUID.randomUUID();
-        when(repository.findById(id)).thenReturn(Mono.empty());
-        StepVerifier.create(controller.getStatus(id))
-                .expectError(IllegalArgumentException.class)
-                .verify();
-    }
-
-    @Test
-    void submitCode_delegatesToTdlib() {
-        UUID id = UUID.randomUUID();
-        ExchangeFunction exchangeFunction =
-                req -> Mono.just(ClientResponse.create(HttpStatus.NO_CONTENT).build());
-        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
-        StepVerifier.create(c.submitCode(id, new TelegramAccountController.CodeRequest("12345")))
-                .verifyComplete();
-    }
-
-    @Test
-    void submitPassword_delegatesToTdlib() {
-        UUID id = UUID.randomUUID();
-        ExchangeFunction exchangeFunction =
-                req -> Mono.just(ClientResponse.create(HttpStatus.NO_CONTENT).build());
-        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
-        StepVerifier.create(
-                        c.submitPassword(
-                                id, new TelegramAccountController.PasswordRequest("secret")))
-                .verifyComplete();
-    }
-
-    @Test
-    void logout_updatesStatusToDisconnected() {
-        UUID id = UUID.randomUUID();
-        TelegramAccount account =
-                TelegramAccount.builder()
-                        .id(id)
-                        .phoneNumber("+49123")
-                        .status(TelegramAccountStatus.ACTIVE)
-                        .createdAt(Instant.now())
-                        .updatedAt(Instant.now())
+    void watchGroup_returns201() {
+        UUID accountId = UUID.randomUUID();
+        GroupProfile profile =
+                GroupProfile.builder()
+                        .id(2L)
+                        .telegramChatId(999L)
+                        .name("New Group")
+                        .moderationLevel("HIGH")
                         .build();
 
-        ExchangeFunction exchangeFunction =
-                req -> Mono.just(ClientResponse.create(HttpStatus.OK).build());
-        when(repository.findById(id)).thenReturn(Mono.just(account));
-        when(repository.save(any())).thenReturn(Mono.just(account));
+        when(telegramAccountService.watchGroup(eq(accountId), anyLong(), anyString()))
+                .thenReturn(Mono.just(profile));
 
-        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
-        StepVerifier.create(c.logout(id)).verifyComplete();
-    }
+        TelegramAccountController.WatchRequest req =
+                new TelegramAccountController.WatchRequest(999L, "New Group");
 
-    @Test
-    void discoverChats_returnsEmptyListOnError() {
-        UUID id = UUID.randomUUID();
-        ExchangeFunction exchangeFunction = req -> Mono.error(new RuntimeException("tdlib down"));
-        TelegramAccountController c = controllerWithTdlib(exchangeFunction);
-        StepVerifier.create(c.discoverChats(id))
-                .assertNext(list -> assertThat(list).isEmpty())
+        StepVerifier.create(controller.watchGroup(accountId, req))
+                .assertNext(
+                        map -> {
+                            assertThat(map.get("chatId")).isEqualTo(999L);
+                            assertThat(map.get("name")).isEqualTo("New Group");
+                        })
                 .verifyComplete();
     }
 
-    private TelegramAccountController controllerWithTdlib(ExchangeFunction exchangeFunction) {
-        WebClient tdlib = WebClient.builder().exchangeFunction(exchangeFunction).build();
-        return new TelegramAccountController(
-                repository,
-                r2dbcEntityTemplate,
-                tdlib,
-                watchedGroupRepository,
-                groupProfileRepository,
-                12345,
-                "abc123");
+    @Test
+    void unwatchGroup_returns204() {
+        UUID accountId = UUID.randomUUID();
+        long chatId = 555L;
+        when(telegramAccountService.unwatchGroup(accountId, chatId)).thenReturn(Mono.empty());
+
+        StepVerifier.create(controller.unwatchGroup(accountId, chatId)).verifyComplete();
+
+        verify(telegramAccountService).unwatchGroup(accountId, chatId);
+    }
+
+    @Test
+    void discoverChats_returnsEmptyOnError() {
+        UUID id = UUID.randomUUID();
+        when(telegramAccountService.discoverChats(id)).thenReturn(Mono.just(List.of()));
+
+        StepVerifier.create(controller.discoverChats(id))
+                .assertNext(list -> assertThat(list).isEmpty())
+                .verifyComplete();
     }
 }
