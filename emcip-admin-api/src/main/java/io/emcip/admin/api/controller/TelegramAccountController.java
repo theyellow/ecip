@@ -11,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -195,23 +194,4 @@ public class TelegramAccountController {
                     long chatId,
             @Schema(description = "Display title for the group", example = "My Community")
                     String title) {}
-
-    @Schema(description = "Connection status from the TDLib adapter")
-    @Data
-    public static class TdlibStatusResponse {
-        @Schema(
-                description = "Account status",
-                example = "ACTIVE",
-                allowableValues = {
-                    "UNCONFIGURED",
-                    "AWAITING_CODE",
-                    "AWAITING_PASSWORD",
-                    "ACTIVE",
-                    "DISCONNECTED"
-                })
-        private String status;
-
-        @Schema(description = "Last error message, if any")
-        private String lastError;
-    }
 }

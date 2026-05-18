@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.dto.SimulateMessageRequest;
 import io.emcip.admin.api.service.SimulationService;
 import io.emcip.admin.api.service.SimulationService.SimulateResult;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,9 +34,8 @@ class SimulateControllerTest {
                         Mono.just(new SimulateResult("test-event-id", SimulationService.TOPIC)));
     }
 
-    private SimulateController.SimulateMessageRequest request(long chatId) {
-        SimulateController.SimulateMessageRequest req =
-                new SimulateController.SimulateMessageRequest();
+    private SimulateMessageRequest request(long chatId) {
+        SimulateMessageRequest req = new SimulateMessageRequest();
         req.setChatId(chatId);
         req.setText("hello world");
         return req;
@@ -63,8 +63,7 @@ class SimulateControllerTest {
 
     @Test
     void simulateMessage_usesDefaultsForNullFields() {
-        SimulateController.SimulateMessageRequest req =
-                new SimulateController.SimulateMessageRequest();
+        SimulateMessageRequest req = new SimulateMessageRequest();
         req.setChatId(77L);
 
         StepVerifier.create(controller.simulateMessage(req))

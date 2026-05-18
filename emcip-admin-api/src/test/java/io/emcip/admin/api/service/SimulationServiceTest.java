@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.emcip.admin.api.controller.SimulateController.SimulateMessageRequest;
+import io.emcip.admin.api.dto.SimulateMessageRequest;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.junit.jupiter.api.BeforeEach;

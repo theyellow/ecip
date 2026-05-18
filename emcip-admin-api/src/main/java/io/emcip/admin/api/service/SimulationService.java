@@ -1,6 +1,6 @@
 package io.emcip.admin.api.service;
 
-import io.emcip.admin.api.controller.SimulateController.SimulateMessageRequest;
+import io.emcip.admin.api.dto.SimulateMessageRequest;
 import io.emcip.common.events.EventSchemas;
 import java.time.Instant;
 import java.util.UUID;
