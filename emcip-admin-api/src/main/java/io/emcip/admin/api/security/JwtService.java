@@ -3,6 +3,7 @@ package io.emcip.admin.api.security;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
 import java.util.Date;
 import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,16 @@ public class JwtService {
     private String secret;
 
     private static final long EXPIRY_MS = 8 * 60 * 60 * 1000L;
+
+    @PostConstruct
+    void validateSecret() {
+        if ("changeme-in-production-32chars-secret".equals(secret)) {
+            throw new IllegalStateException(
+                    "ADMIN_JWT_SECRET must be set to a strong random value. "
+                            + "The default 'changeme-in-production-32chars-secret' is not"
+                            + " acceptable for production.");
+        }
+    }
 
     private SecretKey signingKey() {
         return Keys.hmacShaKeyFor(secret.getBytes());
