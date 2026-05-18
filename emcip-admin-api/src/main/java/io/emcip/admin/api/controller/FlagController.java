@@ -1,6 +1,6 @@
 package io.emcip.admin.api.controller;
 
-import io.emcip.admin.api.client.PolicyEngineClient;
+import io.emcip.admin.api.service.FlagService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.Map;
@@ -24,27 +24,20 @@ import tools.jackson.databind.JsonNode;
 @Tag(name = "Flags", description = "View and action moderation flags from the policy engine")
 public class FlagController {
 
-    private final PolicyEngineClient policyEngineClient;
+    private final FlagService flagService;
 
     @Operation(summary = "List recent policy flags")
     @GetMapping
     public Flux<JsonNode> getFlags(
             @RequestParam(name = "size", defaultValue = "50") int size,
             @RequestParam(name = "decision", required = false) String decision) {
-        if (decision != null && !decision.isBlank()) {
-            return policyEngineClient.listDecisionsByType(decision, size);
-        }
-        return policyEngineClient.listFlags(size);
+        return flagService.listFlags(size, decision);
     }
 
     @Operation(summary = "Update the status of a policy flag")
     @PatchMapping("/{id}/status")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
-        String status = body.get("status");
-        if (status == null || status.isBlank()) {
-            return Mono.error(new IllegalArgumentException("status is required"));
-        }
-        return policyEngineClient.updateDecisionStatus(id, status);
+        return flagService.updateStatus(id, body);
     }
 }

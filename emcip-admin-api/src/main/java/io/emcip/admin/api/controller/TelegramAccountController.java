@@ -1,27 +1,18 @@
 package io.emcip.admin.api.controller;
 
-import io.emcip.admin.api.entity.AccountWatchedGroup;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
-import io.emcip.admin.api.entity.TelegramAccountStatus;
-import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
-import io.emcip.admin.api.repository.GroupProfileRepository;
-import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.emcip.admin.api.service.TelegramAccountService;
 import io.emcip.common.tenant.TenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,50 +22,24 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/telegram/accounts")
 @Tag(
         name = "Telegram Accounts",
         description = "Manage Telegram account connections, authentication, and group watching")
 public class TelegramAccountController {
 
-    private final TelegramAccountRepository repository;
-    private final R2dbcEntityTemplate r2dbcEntityTemplate;
-    private final WebClient tdlibClient;
-    private final AccountWatchedGroupRepository watchedGroupRepository;
-    private final GroupProfileRepository groupProfileRepository;
-    private final int telegramApiId;
-    private final String telegramApiHash;
-
-    public TelegramAccountController(
-            TelegramAccountRepository repository,
-            R2dbcEntityTemplate r2dbcEntityTemplate,
-            @Qualifier("tdlibWebClient") WebClient tdlibClient,
-            AccountWatchedGroupRepository watchedGroupRepository,
-            GroupProfileRepository groupProfileRepository,
-            @Value("${telegram.api-id}") int telegramApiId,
-            @Value("${telegram.api-hash}") String telegramApiHash) {
-        this.repository = repository;
-        this.r2dbcEntityTemplate = r2dbcEntityTemplate;
-        this.tdlibClient = tdlibClient;
-        this.watchedGroupRepository = watchedGroupRepository;
-        this.groupProfileRepository = groupProfileRepository;
-        this.telegramApiId = telegramApiId;
-        this.telegramApiHash = telegramApiHash;
-    }
+    private final TelegramAccountService telegramAccountService;
 
     @Operation(summary = "List all Telegram accounts")
     @GetMapping
     public Mono<List<Map<String, Object>>> listAccounts() {
-        if (TenantContext.isAdminMode()) {
-            return repository.findAll().map(TelegramAccountController::toSafeMap).collectList();
-        }
-        return repository
-                .findAllByTenantId(UUID.fromString(TenantContext.getTenantId()))
+        return telegramAccountService
+                .findAll()
                 .map(TelegramAccountController::toSafeMap)
                 .collectList();
     }
@@ -83,142 +48,54 @@ public class TelegramAccountController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Map<String, Object>> createAccount(@RequestBody CreateAccountRequest req) {
-        TelegramAccount account =
-                TelegramAccount.builder()
-                        .id(UUID.randomUUID())
-                        .phoneNumber(req.phoneNumber())
-                        .apiId(telegramApiId)
-                        .apiHash(telegramApiHash)
-                        .displayName(req.displayName())
-                        .status(TelegramAccountStatus.UNCONFIGURED)
-                        .createdAt(Instant.now())
-                        .updatedAt(Instant.now())
-                        .build();
-        if (!TenantContext.isAdminMode()) {
-            account.setTenantId(UUID.fromString(TenantContext.getTenantId()));
-        }
-        return r2dbcEntityTemplate.insert(account).map(TelegramAccountController::toSafeMap);
+        UUID tenantId =
+                TenantContext.isAdminMode() ? null : UUID.fromString(TenantContext.getTenantId());
+        return telegramAccountService
+                .create(req.phoneNumber(), req.displayName(), tenantId)
+                .map(TelegramAccountController::toSafeMap);
     }
 
     @Operation(summary = "Delete a Telegram account")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteAccount(@PathVariable("id") UUID id) {
-        if (TenantContext.isAdminMode()) {
-            return repository.deleteById(id);
-        }
-        return repository
-                .findByIdAndTenantId(id, UUID.fromString(TenantContext.getTenantId()))
-                .switchIfEmpty(
-                        Mono.error(
-                                new org.springframework.web.server.ResponseStatusException(
-                                        org.springframework.http.HttpStatus.NOT_FOUND)))
-                .flatMap(account -> repository.deleteById(id));
+        return telegramAccountService.delete(id);
     }
 
     @Operation(summary = "Get connection status of a Telegram account")
     @GetMapping("/{id}/status")
     public Mono<Map<String, Object>> getStatus(@PathVariable("id") UUID id) {
-        return repository
-                .findById(id)
-                .flatMap(
-                        account ->
-                                tdlibClient
-                                        .get()
-                                        .uri("/api/auth/{id}/status", id)
-                                        .retrieve()
-                                        .bodyToMono(TdlibStatusResponse.class)
-                                        .flatMap(
-                                                r -> {
-                                                    TelegramAccountStatus adapterStatus =
-                                                            TelegramAccountStatus.valueOf(
-                                                                    r.getStatus());
-                                                    Map<String, Object> m = new LinkedHashMap<>();
-                                                    m.put("id", id.toString());
-                                                    m.put("status", r.getStatus());
-                                                    m.put("lastError", r.getLastError());
-                                                    if (adapterStatus != account.getStatus()
-                                                            || (r.getLastError() != null
-                                                                    && !r.getLastError()
-                                                                            .equals(
-                                                                                    account
-                                                                                            .getLastError()))) {
-                                                        return repository
-                                                                .save(
-                                                                        update(
-                                                                                account,
-                                                                                adapterStatus,
-                                                                                r.getLastError()))
-                                                                .thenReturn(m);
-                                                    }
-                                                    return Mono.just(m);
-                                                })
-                                        .onErrorResume(
-                                                e -> {
-                                                    Map<String, Object> m = new LinkedHashMap<>();
-                                                    m.put("id", id.toString());
-                                                    m.put("status", account.getStatus().name());
-                                                    m.put("lastError", account.getLastError());
-                                                    return Mono.just(m);
-                                                }))
-                .switchIfEmpty(
-                        Mono.error(new IllegalArgumentException("Account not found: " + id)));
+        return telegramAccountService
+                .getStatus(id)
+                .map(
+                        account -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("id", id.toString());
+                            m.put("status", account.getStatus().name());
+                            m.put("lastError", account.getLastError());
+                            return m;
+                        });
     }
 
     @Operation(summary = "Reconnect a disconnected Telegram account")
     @PostMapping("/{id}/reconnect")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Map<String, Object>> reconnect(@PathVariable("id") UUID id) {
-        return repository
-                .findById(id)
-                .flatMap(
-                        account -> {
-                            Map<String, Object> payload = new LinkedHashMap<>();
-                            payload.put("phoneNumber", account.getPhoneNumber());
-                            payload.put("apiId", account.getApiId());
-                            payload.put("apiHash", account.getApiHash());
-                            payload.put("sessionString", account.getSessionString());
-                            return tdlibClient
-                                    .post()
-                                    .uri("/api/auth/{id}/initialize", id)
-                                    .bodyValue(payload)
-                                    .retrieve()
-                                    .bodyToMono(Void.class)
-                                    .then(pushWatchedGroups(id))
-                                    .then(
-                                            repository.save(
-                                                    update(
-                                                            account,
-                                                            TelegramAccountStatus.AWAITING_CODE,
-                                                            null)))
-                                    .thenReturn(Map.<String, Object>of("accepted", true))
-                                    .onErrorResume(
-                                            e -> {
-                                                log.warn(
-                                                        "reconnect failed for {}: {}",
-                                                        id,
-                                                        e.getMessage());
-                                                return Mono.just(
-                                                        Map.of(
-                                                                "accepted",
-                                                                false,
-                                                                "reason",
-                                                                e.getMessage()));
-                                            });
-                        })
-                .switchIfEmpty(Mono.just(Map.of("accepted", false, "reason", "Account not found")));
+        return telegramAccountService
+                .reconnect(id)
+                .thenReturn(Map.<String, Object>of("accepted", true))
+                .onErrorResume(
+                        e -> {
+                            log.warn("reconnect failed for {}: {}", id, e.getMessage());
+                            return Mono.just(Map.of("accepted", false, "reason", e.getMessage()));
+                        });
     }
 
     @Operation(summary = "Submit authentication code for a Telegram account")
     @PostMapping("/{id}/code")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Void> submitCode(@PathVariable("id") UUID id, @RequestBody CodeRequest req) {
-        return tdlibClient
-                .post()
-                .uri("/api/auth/{id}/code", id)
-                .bodyValue(Map.of("code", req.code()))
-                .retrieve()
-                .bodyToMono(Void.class);
+        return telegramAccountService.submitCode(id, req.code());
     }
 
     @Operation(summary = "Submit 2FA password for a Telegram account")
@@ -226,69 +103,33 @@ public class TelegramAccountController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Void> submitPassword(
             @PathVariable("id") UUID id, @RequestBody PasswordRequest req) {
-        return tdlibClient
-                .post()
-                .uri("/api/auth/{id}/password", id)
-                .bodyValue(Map.of("password", req.password()))
-                .retrieve()
-                .bodyToMono(Void.class);
+        return telegramAccountService.submitPassword(id, req.password());
     }
 
     @Operation(summary = "Log out a Telegram account")
     @PostMapping("/{id}/logout")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Void> logout(@PathVariable("id") UUID id) {
-        return tdlibClient
-                .post()
-                .uri("/api/auth/{id}/logout", id)
-                .retrieve()
-                .bodyToMono(Void.class)
-                .then(
-                        repository
-                                .findById(id)
-                                .flatMap(
-                                        a ->
-                                                repository.save(
-                                                        update(
-                                                                a,
-                                                                TelegramAccountStatus.DISCONNECTED,
-                                                                null)))
-                                .then());
+        return telegramAccountService.logout(id);
     }
 
     @Operation(summary = "Sync watched groups across all accounts")
     @PostMapping("/sync")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> syncWatchedGroups() {
-        return repository
-                .findByStatus(TelegramAccountStatus.ACTIVE)
-                .flatMap(account -> pushWatchedGroups(account.getId()))
-                .then();
+        return telegramAccountService.sync();
     }
 
     @Operation(summary = "Discover available Telegram chats for an account")
     @GetMapping("/{id}/chats")
     public Mono<List<Map<String, Object>>> discoverChats(@PathVariable("id") UUID id) {
-        return tdlibClient
-                .get()
-                .uri("/internal/chats/{id}", id)
-                .retrieve()
-                .bodyToFlux(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .collectList()
-                .onErrorReturn(List.of());
+        return telegramAccountService.discoverChats(id);
     }
 
     @Operation(summary = "List watched groups for an account")
     @GetMapping("/{id}/watched")
     public Mono<List<Map<String, Object>>> listWatched(@PathVariable("id") UUID id) {
-        return watchedGroupRepository
-                .findByAccountId(id)
-                .flatMap(
-                        awg ->
-                                groupProfileRepository
-                                        .findById(awg.getGroupProfileId())
-                                        .map(this::toWatchedMap))
-                .collectList();
+        return telegramAccountService.findWatchedGroups(id).map(this::toWatchedMap).collectList();
     }
 
     @Operation(summary = "Start watching a Telegram group")
@@ -296,48 +137,8 @@ public class TelegramAccountController {
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Map<String, Object>> watchGroup(
             @PathVariable("id") UUID accountId, @RequestBody WatchRequest req) {
-        return groupProfileRepository
-                .findByTelegramChatId(req.chatId())
-                .switchIfEmpty(
-                        Mono.defer(
-                                () ->
-                                        r2dbcEntityTemplate.insert(
-                                                GroupProfile.builder()
-                                                        .telegramChatId(req.chatId())
-                                                        .name(
-                                                                req.title() != null
-                                                                        ? req.title()
-                                                                        : "Chat " + req.chatId())
-                                                        .rulesEnabled("[]")
-                                                        .autoRespond(false)
-                                                        .moderationLevel("MEDIUM")
-                                                        .createdAt(Instant.now())
-                                                        .updatedAt(Instant.now())
-                                                        .build())))
-                .flatMap(
-                        profile ->
-                                watchedGroupRepository
-                                        .existsByAccountIdAndGroupProfileId(
-                                                accountId, profile.getId())
-                                        .flatMap(
-                                                exists ->
-                                                        exists
-                                                                ? Mono.just(profile)
-                                                                : r2dbcEntityTemplate
-                                                                        .insert(
-                                                                                AccountWatchedGroup
-                                                                                        .builder()
-                                                                                        .accountId(
-                                                                                                accountId)
-                                                                                        .groupProfileId(
-                                                                                                profile
-                                                                                                        .getId())
-                                                                                        .createdAt(
-                                                                                                Instant
-                                                                                                        .now())
-                                                                                        .build())
-                                                                        .thenReturn(profile)))
-                .flatMap(profile -> pushWatchedGroups(accountId).thenReturn(profile))
+        return telegramAccountService
+                .watchGroup(accountId, req.chatId(), req.title())
                 .map(this::toWatchedMap);
     }
 
@@ -346,38 +147,7 @@ public class TelegramAccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> unwatchGroup(
             @PathVariable("id") UUID accountId, @PathVariable("chatId") Long chatId) {
-        return groupProfileRepository
-                .findByTelegramChatId(chatId)
-                .flatMap(
-                        profile ->
-                                watchedGroupRepository.deleteByAccountIdAndGroupProfileId(
-                                        accountId, profile.getId()))
-                .then(pushWatchedGroups(accountId));
-    }
-
-    private Mono<Void> pushWatchedGroups(UUID accountId) {
-        return watchedGroupRepository
-                .findByAccountId(accountId)
-                .flatMap(awg -> groupProfileRepository.findById(awg.getGroupProfileId()))
-                .map(GroupProfile::getTelegramChatId)
-                .collectList()
-                .flatMap(
-                        chatIds ->
-                                tdlibClient
-                                        .post()
-                                        .uri("/internal/watched-groups/{id}", accountId)
-                                        .bodyValue(Map.of("chatIds", chatIds))
-                                        .retrieve()
-                                        .bodyToMono(Void.class)
-                                        .onErrorResume(
-                                                e -> {
-                                                    log.warn(
-                                                            "[{}] Failed to push watched groups:"
-                                                                    + " {}",
-                                                            accountId,
-                                                            e.getMessage());
-                                                    return Mono.empty();
-                                                }));
+        return telegramAccountService.unwatchGroup(accountId, chatId);
     }
 
     private Map<String, Object> toWatchedMap(GroupProfile profile) {
@@ -387,14 +157,6 @@ public class TelegramAccountController {
         m.put("name", profile.getName());
         m.put("moderationLevel", profile.getModerationLevel());
         return m;
-    }
-
-    private static TelegramAccount update(
-            TelegramAccount a, TelegramAccountStatus status, String lastError) {
-        a.setStatus(status);
-        a.setLastError(lastError);
-        a.setUpdatedAt(Instant.now());
-        return a;
     }
 
     private static Map<String, Object> toSafeMap(TelegramAccount a) {
@@ -432,23 +194,4 @@ public class TelegramAccountController {
                     long chatId,
             @Schema(description = "Display title for the group", example = "My Community")
                     String title) {}
-
-    @Schema(description = "Connection status from the TDLib adapter")
-    @Data
-    public static class TdlibStatusResponse {
-        @Schema(
-                description = "Account status",
-                example = "ACTIVE",
-                allowableValues = {
-                    "UNCONFIGURED",
-                    "AWAITING_CODE",
-                    "AWAITING_PASSWORD",
-                    "ACTIVE",
-                    "DISCONNECTED"
-                })
-        private String status;
-
-        @Schema(description = "Last error message, if any")
-        private String lastError;
-    }
 }
