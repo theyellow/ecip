@@ -293,10 +293,22 @@ public class AIProxyController {
     }
 
     @GetMapping("/provider-config/models")
-    public Mono<String> listProxyModels() {
+    public Mono<String> listProxyModels(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String baseUrl,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String apiKey) {
         return orchestratorClient
                 .get()
-                .uri("/api/provider-config/models")
+                .uri(
+                        uriBuilder -> {
+                            uriBuilder.path("/api/provider-config/models");
+                            if (baseUrl != null && !baseUrl.isBlank()) {
+                                uriBuilder.queryParam("baseUrl", baseUrl);
+                            }
+                            if (apiKey != null && !apiKey.isBlank()) {
+                                uriBuilder.queryParam("apiKey", apiKey);
+                            }
+                            return uriBuilder.build();
+                        })
                 .retrieve()
                 .onStatus(
                         status -> !status.is2xxSuccessful(),

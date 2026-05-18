@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -230,22 +231,36 @@ public class OrchestratorController {
         providerConfigRepository.deleteById(id);
     }
 
-    @Operation(summary = "List models available on the active LLM provider proxy")
+    @Operation(
+            summary =
+                    "List models on the active provider proxy, or on an ad-hoc URL (for testing"
+                            + " before save)")
     @GetMapping("/provider-config/models")
-    public ResponseEntity<Map<String, Object>> listProxyModels() {
-        return providerConfigService
-                .getActiveProvider()
-                .map(
-                        p -> {
-                            List<String> models =
-                                    providerConfigService.fetchAvailableModels(
-                                            p.getBaseUrl(), p.getApiKey());
-                            return ResponseEntity.ok(
-                                    Map.<String, Object>of(
-                                            "baseUrl", p.getBaseUrl(),
-                                            "models", models,
-                                            "reachable", !models.isEmpty()));
-                        })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Map<String, Object>> listProxyModels(
+            @RequestParam(required = false) String baseUrl,
+            @RequestParam(required = false) String apiKey) {
+        String effectiveBaseUrl;
+        String effectiveApiKey;
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            effectiveBaseUrl = baseUrl;
+            effectiveApiKey = apiKey;
+        } else {
+            Optional<LlmProviderConfig> active = providerConfigService.getActiveProvider();
+            if (active.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            effectiveBaseUrl = active.get().getBaseUrl();
+            effectiveApiKey = active.get().getApiKey();
+        }
+        List<String> models =
+                providerConfigService.fetchAvailableModels(effectiveBaseUrl, effectiveApiKey);
+        return ResponseEntity.ok(
+                Map.<String, Object>of(
+                        "baseUrl",
+                        effectiveBaseUrl,
+                        "models",
+                        models,
+                        "reachable",
+                        !models.isEmpty()));
     }
 }

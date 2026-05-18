@@ -64,7 +64,7 @@ public class PolicyEngineClient {
                 .uri(
                         uriBuilder ->
                                 uriBuilder
-                                        .path("/api/policy-decisions/flags")
+                                        .path("/api/policy-decisions")
                                         .queryParam("size", size)
                                         .build())
                 .retrieve()
@@ -96,9 +96,9 @@ public class PolicyEngineClient {
 
     public Mono<Void> updateDecisionStatus(String id, String status) {
         return webClient
-                .patch()
-                .uri("/api/policy-decisions/{id}/status", id)
-                .bodyValue(java.util.Map.of("status", status))
+                .put()
+                .uri("/api/policy-decisions/{id}", id)
+                .bodyValue(java.util.Map.of("signalStatus", status))
                 .retrieve()
                 .bodyToMono(Void.class);
     }
