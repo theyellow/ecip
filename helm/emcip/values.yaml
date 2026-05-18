@@ -68,7 +68,7 @@ services:
         memory: 256Mi
       limits:
         cpu: 500m
-        memory: 768Mi
+        memory: 1Gi
 
   intentClassifier:
     name: intent-classifier
@@ -86,7 +86,7 @@ services:
         memory: 256Mi
       limits:
         cpu: 500m
-        memory: 768Mi
+        memory: 1Gi
 
   policyEngine:
     name: policy-engine
@@ -107,7 +107,7 @@ services:
         memory: 256Mi
       limits:
         cpu: 500m
-        memory: 768Mi
+        memory: 1Gi
 
   llmOrchestrator:
     name: llm-orchestrator
@@ -131,7 +131,7 @@ services:
         memory: 256Mi
       limits:
         cpu: 1000m
-        memory: 768Mi
+        memory: 1Gi
 
   moderationService:
     name: moderation-service
@@ -153,7 +153,7 @@ services:
         memory: 256Mi
       limits:
         cpu: 500m
-        memory: 768Mi
+        memory: 1Gi
 
   auditService:
     name: audit-service
@@ -175,7 +175,7 @@ services:
         memory: 256Mi
       limits:
         cpu: 500m
-        memory: 768Mi
+        memory: 1Gi
 
   adminApi:
     name: admin-api
