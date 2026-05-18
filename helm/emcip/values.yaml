@@ -118,8 +118,9 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=25.0 -XX:+UseG1GC"
-    secrets:
-      ANTHROPIC_API_KEY: anthropic-api-key
+      # LiteLLM provider base_url and api_key are managed at runtime via the
+      # Admin UI (AI Config page) and stored in llm_provider_config table.
+      # No static API key secret needed here.
     resources:
       requests:
         cpu: 100m
