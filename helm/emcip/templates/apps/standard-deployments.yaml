@@ -27,7 +27,7 @@ spec:
       {{- end }}
       containers:
         - name: {{ $svc.name }}
-          image: {{ $.Values.image.registry }}{{ $svc.image }}
+          image: {{ $.Values.image.registry }}{{ $svc.imageRepo }}:{{ if $svc.imageVariant }}{{ $svc.imageVariant }}-{{ end }}{{ $.Values.image.stage }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
           ports:
             - containerPort: {{ $svc.port }}

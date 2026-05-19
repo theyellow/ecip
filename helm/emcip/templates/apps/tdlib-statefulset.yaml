@@ -26,7 +26,7 @@ spec:
       {{- end }}
       containers:
         - name: tdlib-adapter
-          image: {{ .Values.image.registry }}{{ .Values.tdlibAdapter.image }}
+          image: {{ .Values.image.registry }}{{ .Values.tdlibAdapter.imageRepo }}:{{ if .Values.tdlibAdapter.imageVariant }}{{ .Values.tdlibAdapter.imageVariant }}-{{ end }}{{ .Values.image.stage }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ .Values.tdlibAdapter.port }}

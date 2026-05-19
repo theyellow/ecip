@@ -9,6 +9,8 @@
 image:
   registry: ""          # e.g. "registry.example.com/" — leave empty for Docker Hub
   pullPolicy: Always
+  stage: staging        # Image tag stage: staging (main branch), latest (release tag), or semver e.g. v1.2.3
+                        # Override at deploy time: helm upgrade ... --set image.stage=latest
 
 # Storage — all PVCs use this StorageClass
 # Using microk8s-hostpath for local single-node setup
@@ -53,7 +55,8 @@ ingress:
 services:
   conversationContext:
     name: conversation-context
-    image: ghcr.io/theyellow/ecip/conversation-context:jvm-staging
+    imageRepo: ghcr.io/theyellow/ecip/conversation-context
+    imageVariant: jvm
     port: 9081
     replicas: 1
     nodeSelector: {}
@@ -76,7 +79,8 @@ services:
 
   intentClassifier:
     name: intent-classifier
-    image: ghcr.io/theyellow/ecip/intent-classifier:staging
+    imageRepo: ghcr.io/theyellow/ecip/intent-classifier
+    imageVariant: ""
     port: 9082
     replicas: 1
     nodeSelector: {}
@@ -98,7 +102,8 @@ services:
 
   policyEngine:
     name: policy-engine
-    image: ghcr.io/theyellow/ecip/policy-engine:jvm-staging
+    imageRepo: ghcr.io/theyellow/ecip/policy-engine
+    imageVariant: jvm
     port: 9083
     replicas: 1
     nodeSelector: {}
@@ -123,7 +128,8 @@ services:
 
   llmOrchestrator:
     name: llm-orchestrator
-    image: ghcr.io/theyellow/ecip/llm-orchestrator:jvm-staging
+    imageRepo: ghcr.io/theyellow/ecip/llm-orchestrator
+    imageVariant: jvm
     port: 9084
     replicas: 1
     nodeSelector: {}
@@ -151,7 +157,8 @@ services:
 
   moderationService:
     name: moderation-service
-    image: ghcr.io/theyellow/ecip/moderation-service:staging
+    imageRepo: ghcr.io/theyellow/ecip/moderation-service
+    imageVariant: ""
     port: 9085
     replicas: 1
     nodeSelector: {}
@@ -177,7 +184,8 @@ services:
 
   auditService:
     name: audit-service
-    image: ghcr.io/theyellow/ecip/audit-service:staging
+    imageRepo: ghcr.io/theyellow/ecip/audit-service
+    imageVariant: ""
     port: 9086
     replicas: 1
     nodeSelector: {}
@@ -203,7 +211,8 @@ services:
 
   adminApi:
     name: admin-api
-    image: ghcr.io/theyellow/ecip/admin-api:staging
+    imageRepo: ghcr.io/theyellow/ecip/admin-api
+    imageVariant: ""
     port: 9087
     replicas: 1
     nodeSelector: {}
@@ -241,7 +250,8 @@ services:
 
   adminUi:
     name: admin-ui
-    image: ghcr.io/theyellow/ecip/admin-ui:staging
+    imageRepo: ghcr.io/theyellow/ecip/admin-ui
+    imageVariant: ""
     port: 14009
     replicas: 1
     nodeSelector: {}
@@ -257,7 +267,8 @@ services:
 # tdlib-adapter is a StatefulSet (separate section — needs PVC for session state)
 tdlibAdapter:
   name: tdlib-adapter
-  image: ghcr.io/theyellow/ecip/tdlib-adapter:staging
+  imageRepo: ghcr.io/theyellow/ecip/tdlib-adapter
+  imageVariant: ""
   port: 9080
   replicas: 1
   nodeSelector: {}
