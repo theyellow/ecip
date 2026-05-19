@@ -1,5 +1,6 @@
 package io.emcip.moderation.service.controller;
 
+import io.emcip.common.tenant.ReactorTenantContext;
 import io.emcip.moderation.service.entity.ModerationRule;
 import io.emcip.moderation.service.repository.ModerationRuleRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,56 +33,70 @@ public class ModerationRuleController {
     @GetMapping
     @Operation(summary = "List all moderation rules")
     public Flux<ModerationRule> list() {
-        return repository.findAllOrderedByTenantId(
-                UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()));
+        return Flux.deferContextual(
+                ctx -> {
+                    UUID tenantId = UUID.fromString(ReactorTenantContext.getTenantId(ctx));
+                    return repository.findAllOrderedByTenantId(tenantId);
+                });
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Create a new moderation rule")
     public Mono<ModerationRule> create(@RequestBody ModerationRule rule) {
-        rule.setId(null);
-        rule.setCreatedAt(Instant.now());
-        rule.setUpdatedAt(Instant.now());
-        if (rule.getSeverity() == null || rule.getSeverity().isBlank()) {
-            rule.setSeverity("MEDIUM");
-        }
-        if (rule.getAction() == null || rule.getAction().isBlank()) {
-            rule.setAction("FLAG");
-        }
-        rule.setEnabled(true);
-        rule.setTenantId(UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()));
-        return repository.save(rule);
+        return Mono.deferContextual(
+                ctx -> {
+                    rule.setId(null);
+                    rule.setCreatedAt(Instant.now());
+                    rule.setUpdatedAt(Instant.now());
+                    if (rule.getSeverity() == null || rule.getSeverity().isBlank()) {
+                        rule.setSeverity("MEDIUM");
+                    }
+                    if (rule.getAction() == null || rule.getAction().isBlank()) {
+                        rule.setAction("FLAG");
+                    }
+                    rule.setEnabled(true);
+                    rule.setTenantId(UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                    return repository.save(rule);
+                });
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing moderation rule")
     public Mono<ModerationRule> update(@PathVariable Long id, @RequestBody ModerationRule rule) {
-        return repository
-                .findByIdAndTenantId(
-                        id, UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()))
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
-                .flatMap(
-                        existing -> {
-                            existing.setName(rule.getName());
-                            existing.setRuleType(rule.getRuleType());
-                            existing.setPattern(rule.getPattern());
-                            existing.setSeverity(rule.getSeverity());
-                            existing.setAction(rule.getAction());
-                            existing.setEnabled(rule.isEnabled());
-                            existing.setUpdatedAt(Instant.now());
-                            return repository.save(existing);
-                        });
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenantId = UUID.fromString(ReactorTenantContext.getTenantId(ctx));
+                    return repository
+                            .findByIdAndTenantId(id, tenantId)
+                            .switchIfEmpty(
+                                    Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                            .flatMap(
+                                    existing -> {
+                                        existing.setName(rule.getName());
+                                        existing.setRuleType(rule.getRuleType());
+                                        existing.setPattern(rule.getPattern());
+                                        existing.setSeverity(rule.getSeverity());
+                                        existing.setAction(rule.getAction());
+                                        existing.setEnabled(rule.isEnabled());
+                                        existing.setUpdatedAt(Instant.now());
+                                        return repository.save(existing);
+                                    });
+                });
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Delete a moderation rule")
     public Mono<Void> delete(@PathVariable Long id) {
-        return repository
-                .findByIdAndTenantId(
-                        id, UUID.fromString(io.emcip.common.tenant.TenantContext.getTenantId()))
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
-                .flatMap(rule -> repository.deleteById(id));
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenantId = UUID.fromString(ReactorTenantContext.getTenantId(ctx));
+                    return repository
+                            .findByIdAndTenantId(id, tenantId)
+                            .switchIfEmpty(
+                                    Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                            .flatMap(rule -> repository.deleteById(id));
+                });
     }
 }
