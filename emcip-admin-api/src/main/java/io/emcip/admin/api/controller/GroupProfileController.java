@@ -4,6 +4,7 @@ import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.service.GroupProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +41,7 @@ public class GroupProfileController {
 
     @Operation(summary = "Create a group profile")
     @PostMapping
-    public Mono<ResponseEntity<GroupProfile>> create(@RequestBody GroupProfile profile) {
+    public Mono<ResponseEntity<GroupProfile>> create(@Valid @RequestBody GroupProfile profile) {
         return service.create(profile)
                 .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved));
     }
@@ -48,7 +49,7 @@ public class GroupProfileController {
     @Operation(summary = "Update a group profile")
     @PutMapping("/{chatId}")
     public Mono<ResponseEntity<GroupProfile>> update(
-            @PathVariable("chatId") Long chatId, @RequestBody GroupProfile update) {
+            @PathVariable("chatId") Long chatId, @Valid @RequestBody GroupProfile update) {
         return service.update(chatId, update).map(ResponseEntity::ok);
     }
 

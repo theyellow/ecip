@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.service.GroupProfileService;
 import io.emcip.common.tenant.TenantContext;
@@ -41,7 +42,10 @@ class GroupProfileControllerTest {
         TenantContext.setAdminMode(true);
         controller = new GroupProfileController(service);
         webTestClient =
-                WebTestClient.bindToController(controller).webFilter(ADMIN_MODE_FILTER).build();
+                WebTestClient.bindToController(controller)
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .webFilter(ADMIN_MODE_FILTER)
+                        .build();
     }
 
     @AfterEach
@@ -186,5 +190,38 @@ class GroupProfileControllerTest {
                                         HttpStatus.NOT_FOUND, "Group not found: 999")));
 
         webTestClient.delete().uri("/api/groups/999").exchange().expectStatus().isNotFound();
+    }
+
+    @Test
+    void createGroup_blankName_returns400() {
+        GroupProfile profile = new GroupProfile();
+        profile.setTelegramChatId(-1001234567890L);
+        profile.setName("");
+
+        webTestClient
+                .post()
+                .uri("/api/groups")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(profile)
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
+    }
+
+    @Test
+    void createGroup_invalidModerationLevel_returns400() {
+        GroupProfile profile = new GroupProfile();
+        profile.setTelegramChatId(-1001234567890L);
+        profile.setName("Test Group");
+        profile.setModerationLevel("EXTREME");
+
+        webTestClient
+                .post()
+                .uri("/api/groups")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(profile)
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
     }
 }
