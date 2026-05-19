@@ -1,9 +1,10 @@
 package io.emcip.admin.api.controller;
 
+import io.emcip.admin.api.dto.StatusUpdateRequest;
 import io.emcip.admin.api.service.FlagService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.Map;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +38,8 @@ public class FlagController {
     @Operation(summary = "Update the status of a policy flag")
     @PatchMapping("/{id}/status")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Mono<Void> updateStatus(@PathVariable String id, @RequestBody Map<String, String> body) {
-        return flagService.updateStatus(id, body);
+    public Mono<Void> updateStatus(
+            @PathVariable String id, @Valid @RequestBody StatusUpdateRequest req) {
+        return flagService.updateStatus(id, req.status());
     }
 }

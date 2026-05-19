@@ -3,6 +3,7 @@ package io.emcip.admin.api.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.service.TenantService;
 import java.time.Instant;
@@ -25,7 +26,10 @@ class TenantControllerTest {
 
     @BeforeEach
     void setUp() {
-        webTestClient = WebTestClient.bindToController(new TenantController(tenantService)).build();
+        webTestClient =
+                WebTestClient.bindToController(new TenantController(tenantService))
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .build();
     }
 
     private Tenant tenant(String name) {
@@ -47,10 +51,13 @@ class TenantControllerTest {
     void createTenant_returns201() {
         when(tenantService.create(any())).thenReturn(Mono.just(tenant("new")));
 
+        Tenant request = new Tenant();
+        request.setName("new");
+
         webTestClient
                 .post()
                 .uri("/api/tenants")
-                .bodyValue(new Tenant())
+                .bodyValue(request)
                 .exchange()
                 .expectStatus()
                 .isCreated();
@@ -66,5 +73,20 @@ class TenantControllerTest {
                 .exchange()
                 .expectStatus()
                 .isNoContent();
+    }
+
+    @Test
+    void createTenant_blankName_returns400() {
+        Tenant tenant = new Tenant();
+        tenant.setName("");
+
+        webTestClient
+                .post()
+                .uri("/api/tenants")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(tenant)
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
     }
 }

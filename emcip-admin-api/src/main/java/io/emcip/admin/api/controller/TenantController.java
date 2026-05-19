@@ -4,6 +4,7 @@ import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.service.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -35,7 +36,7 @@ public class TenantController {
     @Operation(summary = "Create a new tenant")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<Tenant> createTenant(@RequestBody Tenant tenant) {
+    public Mono<Tenant> createTenant(@Valid @RequestBody Tenant tenant) {
         return tenantService.create(tenant);
     }
 

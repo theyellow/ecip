@@ -1,7 +1,6 @@
 package io.emcip.admin.api.service;
 
 import io.emcip.admin.api.client.PolicyEngineClient;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -21,11 +20,7 @@ public class FlagService {
         return policyEngineClient.listFlags(size);
     }
 
-    public Mono<Void> updateStatus(String id, Map<String, String> body) {
-        String status = body.get("status");
-        if (status == null || status.isBlank()) {
-            return Mono.error(new IllegalArgumentException("status is required"));
-        }
+    public Mono<Void> updateStatus(String id, String status) {
         return policyEngineClient.updateDecisionStatus(id, status);
     }
 }

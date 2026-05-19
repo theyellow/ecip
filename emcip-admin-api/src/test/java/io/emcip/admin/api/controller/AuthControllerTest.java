@@ -3,6 +3,7 @@ package io.emcip.admin.api.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.dto.TokenResponse;
 import io.emcip.admin.api.service.AuthService;
 import java.time.Instant;
@@ -25,7 +26,10 @@ class AuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        webTestClient = WebTestClient.bindToController(new AuthController(authService)).build();
+        webTestClient =
+                WebTestClient.bindToController(new AuthController(authService))
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .build();
     }
 
     @Test
@@ -59,5 +63,29 @@ class AuthControllerTest {
                 .exchange()
                 .expectStatus()
                 .isUnauthorized();
+    }
+
+    @Test
+    void token_blankUsername_returns400() {
+        webTestClient
+                .post()
+                .uri("/api/auth/token")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("username", "", "password", "validpassword"))
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
+    }
+
+    @Test
+    void token_blankPassword_returns400() {
+        webTestClient
+                .post()
+                .uri("/api/auth/token")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("username", "admin", "password", ""))
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
     }
 }

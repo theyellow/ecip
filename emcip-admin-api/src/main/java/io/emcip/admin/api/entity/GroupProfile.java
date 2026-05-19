@@ -1,6 +1,9 @@
 package io.emcip.admin.api.entity;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -30,9 +33,12 @@ public class GroupProfile {
     private Long telegramChatId;
 
     @Schema(description = "Display name for the group", example = "My Community")
+    @NotBlank(message = "name is required")
+    @Size(max = 255, message = "name must be 255 characters or fewer")
     private String name;
 
     @Schema(description = "Optional description")
+    @Size(max = 500, message = "description must be 500 characters or fewer")
     private String description;
 
     @Schema(
@@ -49,12 +55,16 @@ public class GroupProfile {
             description = "Moderation aggressiveness level",
             example = "MEDIUM",
             allowableValues = {"LOW", "MEDIUM", "HIGH"})
+    @Pattern(
+            regexp = "^(LOW|MEDIUM|HIGH)$",
+            message = "moderationLevel must be LOW, MEDIUM, or HIGH")
     @Column("moderation_level")
     private String moderationLevel;
 
     @Schema(
             description = "Message sent when a new member joins",
             example = "Welcome to our community!")
+    @Size(max = 500, message = "welcomeMessage must be 500 characters or fewer")
     @Column("welcome_message")
     private String welcomeMessage;
 

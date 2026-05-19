@@ -50,4 +50,39 @@ class GlobalExceptionHandlerTest {
         // Real error message must not be leaked to the client
         assertThat(result.getBody().getDetail()).doesNotContain("secret internal details");
     }
+
+    @Test
+    void handleValidation_returns400WithFieldErrors() {
+        @org.springframework.validation.annotation.Validated
+        @org.springframework.web.bind.annotation.RestController
+        class TestController {
+            @org.springframework.web.bind.annotation.PostMapping("/test-validation")
+            public reactor.core.publisher.Mono<String> handle(
+                    @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+                            TestRequest body) {
+                return reactor.core.publisher.Mono.just("ok");
+            }
+
+            public record TestRequest(@jakarta.validation.constraints.NotBlank String value) {}
+        }
+
+        org.springframework.test.web.reactive.server.WebTestClient client =
+                org.springframework.test.web.reactive.server.WebTestClient.bindToController(
+                                new TestController())
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .build();
+
+        client.post()
+                .uri("/test-validation")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("value", ""))
+                .exchange()
+                .expectStatus()
+                .isBadRequest()
+                .expectBody()
+                .jsonPath("$.status")
+                .isEqualTo(400)
+                .jsonPath("$.errors.value")
+                .isNotEmpty();
+    }
 }

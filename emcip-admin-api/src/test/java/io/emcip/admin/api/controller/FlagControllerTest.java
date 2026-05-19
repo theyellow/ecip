@@ -2,6 +2,7 @@ package io.emcip.admin.api.controller;
 
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.service.FlagService;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -24,7 +26,10 @@ class FlagControllerTest {
 
     @BeforeEach
     void setUp() {
-        webTestClient = WebTestClient.bindToController(new FlagController(flagService)).build();
+        webTestClient =
+                WebTestClient.bindToController(new FlagController(flagService))
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .build();
     }
 
     private JsonNode flag() {
@@ -59,11 +64,11 @@ class FlagControllerTest {
 
     @Test
     void updateStatus_returns204() {
-        when(flagService.updateStatus("flag-1", Map.of("status", "REVIEWED")))
-                .thenReturn(Mono.empty());
+        when(flagService.updateStatus("flag-1", "REVIEWED")).thenReturn(Mono.empty());
         webTestClient
                 .patch()
                 .uri("/api/flags/flag-1/status")
+                .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(Map.of("status", "REVIEWED"))
                 .exchange()
                 .expectStatus()
@@ -71,15 +76,14 @@ class FlagControllerTest {
     }
 
     @Test
-    void updateStatus_missingStatus_returnsError() {
-        when(flagService.updateStatus("flag-1", Map.of()))
-                .thenReturn(Mono.error(new IllegalArgumentException("status is required")));
+    void updateStatus_blankStatus_returns400() {
         webTestClient
                 .patch()
                 .uri("/api/flags/flag-1/status")
-                .bodyValue(Map.of())
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("status", ""))
                 .exchange()
                 .expectStatus()
-                .is5xxServerError();
+                .isBadRequest();
     }
 }
