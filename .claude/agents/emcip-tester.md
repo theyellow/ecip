@@ -26,6 +26,15 @@ Model: Haiku (fast, efficient for test boilerplate)
 - Add missing assertions
 - Improve test coverage
 
+## Stack Guide
+
+| Service | Test style |
+|---------|-----------|
+| admin-api, audit-service, moderation-service | `WebTestClient.bindToController()` + `StepVerifier`; no Spring context needed for unit tests |
+| intent-classifier, llm-orchestrator, policy-engine, tdlib-adapter | `@ExtendWith(MockitoExtension.class)` for services; `@DataJpaTest` + Testcontainers for repos |
+
+For reactive tests, propagate tenant context via `.contextWrite(ctx -> ReactorTenantContext.withTenant(ctx, tenantId.toString()))`.
+
 ## Test Patterns
 
 ### Unit Test (Service)

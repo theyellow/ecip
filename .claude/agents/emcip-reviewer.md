@@ -54,8 +54,10 @@ Model: Haiku (fast, cost-effective for reviews)
 
 ### Tests
 - [ ] Unit tests for services
-- [ ] Repository tests with @DataJpaTest
-- [ ] Meaningful test names (shouldXWhenY)
+- [ ] JPA services: repository tests with `@DataJpaTest` + Testcontainers
+- [ ] Reactive services: controller tests with `WebTestClient.bindToController()` + `.controllerAdvice(new GlobalExceptionHandler())`
+- [ ] Reactive tests: tenant context propagated via `.contextWrite(ctx -> ReactorTenantContext.withTenant(ctx, tenantId.toString()))`
+- [ ] Meaningful test names (shouldXWhenY or action_condition_result)
 - [ ] Assertions verify behavior, not just existence
 
 ### Kafka (if applicable)
