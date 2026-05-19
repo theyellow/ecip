@@ -7,9 +7,8 @@ import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.repository.GroupProfileRepository;
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.common.tenant.ReactorTenantContext;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,43 +35,46 @@ class GroupProfileServiceTest {
         service = new GroupProfileService(repository);
     }
 
-    @AfterEach
-    void clearTenantContext() {
-        TenantContext.clear();
-    }
-
     private GroupProfile profile(Long chatId) {
         return GroupProfile.builder().id(1L).telegramChatId(chatId).name("Test Group").build();
     }
 
     @Test
     void findAll_adminMode_returnsAll() {
-        TenantContext.setAdminMode(true);
         when(repository.findAll()).thenReturn(Flux.just(profile(100L), profile(200L)));
 
-        StepVerifier.create(service.findAll()).expectNextCount(2).verifyComplete();
+        StepVerifier.create(
+                        service.findAll()
+                                .contextWrite(ctx -> ReactorTenantContext.withAdminMode(ctx)))
+                .expectNextCount(2)
+                .verifyComplete();
 
         verify(repository).findAll();
     }
 
     @Test
     void findAll_tenantMode_scopesToTenant() {
-        TenantContext.setTenantId(TENANT_ID);
         when(repository.findAllByTenantId(TENANT_UUID)).thenReturn(Flux.just(profile(100L)));
 
-        StepVerifier.create(service.findAll()).expectNextCount(1).verifyComplete();
+        StepVerifier.create(
+                        service.findAll()
+                                .contextWrite(
+                                        ctx -> ReactorTenantContext.withTenant(ctx, TENANT_ID)))
+                .expectNextCount(1)
+                .verifyComplete();
 
         verify(repository).findAllByTenantId(TENANT_UUID);
     }
 
     @Test
     void create_setsTimestamps() {
-        TenantContext.setAdminMode(true);
         when(repository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
 
         GroupProfile input = profile(123L);
 
-        StepVerifier.create(service.create(input))
+        StepVerifier.create(
+                        service.create(input)
+                                .contextWrite(ctx -> ReactorTenantContext.withAdminMode(ctx)))
                 .assertNext(
                         saved -> {
                             assertThat(saved.getCreatedAt()).isNotNull();
@@ -83,10 +85,11 @@ class GroupProfileServiceTest {
 
     @Test
     void findByChatId_notFound_returns404() {
-        TenantContext.setAdminMode(true);
         when(repository.findByTelegramChatId(999L)).thenReturn(Mono.empty());
 
-        StepVerifier.create(service.findByChatId(999L))
+        StepVerifier.create(
+                        service.findByChatId(999L)
+                                .contextWrite(ctx -> ReactorTenantContext.withAdminMode(ctx)))
                 .expectErrorSatisfies(
                         ex -> {
                             assertThat(ex).isInstanceOf(ResponseStatusException.class);
@@ -98,7 +101,6 @@ class GroupProfileServiceTest {
 
     @Test
     void update_mergesFields() {
-        TenantContext.setAdminMode(true);
         GroupProfile existing = profile(123L);
         when(repository.findByTelegramChatId(123L)).thenReturn(Mono.just(existing));
         when(repository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
@@ -112,7 +114,9 @@ class GroupProfileServiceTest {
                         .welcomeMessage("Welcome!")
                         .build();
 
-        StepVerifier.create(service.update(123L, patch))
+        StepVerifier.create(
+                        service.update(123L, patch)
+                                .contextWrite(ctx -> ReactorTenantContext.withAdminMode(ctx)))
                 .assertNext(
                         result -> {
                             assertThat(result.getName()).isEqualTo("Updated");

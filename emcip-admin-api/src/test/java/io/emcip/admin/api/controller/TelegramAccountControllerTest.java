@@ -12,11 +12,10 @@ import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.service.TelegramAccountService;
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.common.tenant.ReactorTenantContext;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,13 +34,7 @@ class TelegramAccountControllerTest {
 
     @BeforeEach
     void setUp() {
-        TenantContext.setAdminMode(true);
         controller = new TelegramAccountController(telegramAccountService);
-    }
-
-    @AfterEach
-    void clearTenantContext() {
-        TenantContext.clear();
     }
 
     @Test
@@ -79,6 +72,7 @@ class TelegramAccountControllerTest {
                         .id(UUID.randomUUID())
                         .phoneNumber("+49123456789")
                         .apiId(12345)
+                        .displayName("")
                         .status(TelegramAccountStatus.UNCONFIGURED)
                         .createdAt(Instant.now())
                         .updatedAt(Instant.now())
@@ -90,7 +84,10 @@ class TelegramAccountControllerTest {
         TelegramAccountController.CreateAccountRequest req =
                 new TelegramAccountController.CreateAccountRequest("+49123456789", "Monitor 1");
 
-        StepVerifier.create(controller.createAccount(req))
+        StepVerifier.create(
+                        controller
+                                .createAccount(req)
+                                .contextWrite(ctx -> ReactorTenantContext.withAdminMode(ctx)))
                 .assertNext(
                         map -> {
                             assertThat(map.get("status")).isEqualTo("UNCONFIGURED");

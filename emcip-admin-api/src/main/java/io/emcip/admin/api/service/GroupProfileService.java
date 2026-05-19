@@ -2,7 +2,7 @@ package io.emcip.admin.api.service;
 
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.repository.GroupProfileRepository;
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.common.tenant.ReactorTenantContext;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -19,29 +19,41 @@ public class GroupProfileService {
     private final GroupProfileRepository repository;
 
     public Flux<GroupProfile> findAll() {
-        if (TenantContext.isAdminMode()) {
-            return repository.findAll();
-        }
-        return repository.findAllByTenantId(UUID.fromString(TenantContext.getTenantId()));
+        return Flux.deferContextual(
+                ctx -> {
+                    if (ReactorTenantContext.isAdminMode(ctx)) {
+                        return repository.findAll();
+                    }
+                    return repository.findAllByTenantId(
+                            UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                });
     }
 
     public Mono<GroupProfile> findByChatId(long chatId) {
-        if (TenantContext.isAdminMode()) {
-            return repository.findByTelegramChatId(chatId).switchIfEmpty(notFound(chatId));
-        }
-        return repository
-                .findByTelegramChatIdAndTenantId(
-                        chatId, UUID.fromString(TenantContext.getTenantId()))
-                .switchIfEmpty(notFound(chatId));
+        return Mono.deferContextual(
+                ctx -> {
+                    if (ReactorTenantContext.isAdminMode(ctx)) {
+                        return repository
+                                .findByTelegramChatId(chatId)
+                                .switchIfEmpty(notFound(chatId));
+                    }
+                    return repository
+                            .findByTelegramChatIdAndTenantId(
+                                    chatId, UUID.fromString(ReactorTenantContext.getTenantId(ctx)))
+                            .switchIfEmpty(notFound(chatId));
+                });
     }
 
     public Mono<GroupProfile> create(GroupProfile profile) {
-        profile.setCreatedAt(Instant.now());
-        profile.setUpdatedAt(Instant.now());
-        if (!TenantContext.isAdminMode()) {
-            profile.setTenantId(UUID.fromString(TenantContext.getTenantId()));
-        }
-        return repository.save(profile);
+        return Mono.deferContextual(
+                ctx -> {
+                    profile.setCreatedAt(Instant.now());
+                    profile.setUpdatedAt(Instant.now());
+                    if (!ReactorTenantContext.isAdminMode(ctx)) {
+                        profile.setTenantId(UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                    }
+                    return repository.save(profile);
+                });
     }
 
     public Mono<GroupProfile> update(long chatId, GroupProfile patch) {
