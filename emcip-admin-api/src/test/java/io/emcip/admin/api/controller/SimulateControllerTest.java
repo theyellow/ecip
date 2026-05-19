@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.dto.SimulateMessageRequest;
 import io.emcip.admin.api.service.SimulationService;
 import io.emcip.admin.api.service.SimulationService.SimulateResult;
@@ -13,11 +14,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class SimulateControllerTest {
 
     @Mock private SimulationService simulationService;
@@ -28,7 +33,10 @@ class SimulateControllerTest {
     @BeforeEach
     void setUp() {
         controller = new SimulateController(simulationService);
-        webTestClient = WebTestClient.bindToController(controller).build();
+        webTestClient =
+                WebTestClient.bindToController(controller)
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .build();
         when(simulationService.simulate(any()))
                 .thenReturn(
                         Mono.just(new SimulateResult("test-event-id", SimulationService.TOPIC)));
@@ -100,5 +108,17 @@ class SimulateControllerTest {
                 .isEqualTo("published")
                 .jsonPath("$.eventId")
                 .isNotEmpty();
+    }
+
+    @Test
+    void simulate_nullChatId_returns400() {
+        webTestClient
+                .post()
+                .uri("/api/simulate/message")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(java.util.Map.of("text", "hello"))
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
     }
 }

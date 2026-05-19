@@ -3,7 +3,6 @@ package io.emcip.admin.api.service;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.client.PolicyEngineClient;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -41,21 +40,10 @@ class FlagServiceTest {
     }
 
     @Test
-    void updateStatus_missingStatus_returnsError() {
-        StepVerifier.create(flagService.updateStatus("flag-1", Map.of()))
-                .expectErrorMatches(
-                        e ->
-                                e instanceof IllegalArgumentException
-                                        && "status is required".equals(e.getMessage()))
-                .verify();
-    }
-
-    @Test
     void updateStatus_validStatus_delegatesToClient() {
         when(policyEngineClient.updateDecisionStatus("flag-1", "REVIEWED"))
                 .thenReturn(Mono.empty());
 
-        StepVerifier.create(flagService.updateStatus("flag-1", Map.of("status", "REVIEWED")))
-                .verifyComplete();
+        StepVerifier.create(flagService.updateStatus("flag-1", "REVIEWED")).verifyComplete();
     }
 }
