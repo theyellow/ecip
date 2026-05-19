@@ -181,8 +181,5 @@ mvn test -pl <module>
 ```
 
 ## Related Files
-- `.windsurf/cascade-config.md` - Project status and rules
 - `documentation/planning/phases/` - User stories
-- `PORT_CONFIGURATION.md` - Database port info
-</content>
-</invoke>
+- `docs/superpowers/BACKLOG.md` - Open work items

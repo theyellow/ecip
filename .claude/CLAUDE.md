@@ -27,8 +27,9 @@ This applies to: `CLAUDE.md`, `agents/*.md`, `skills/*.md`, `cascade-config.md`
 
 | Attribute | Value |
 |-----------|-------|
-| **Stack** | Java 21, Spring Boot 4, Maven, Kafka, PostgreSQL, JPA/Hibernate, Docker |
-| **Phase** | 3 - Intelligence & Policy (Epic 3.3 complete) |
+| **Stack** | Java 21, Spring Boot 4, Maven, Kafka, PostgreSQL, Docker |
+| **DB access** | **Mixed**: admin-api / audit-service / moderation-service → Spring WebFlux + R2DBC; intent-classifier / llm-orchestrator / policy-engine / tdlib-adapter → JPA/Hibernate (blocking) |
+| **Phase** | Review-driven structural changes (see `docs/superpowers/BACKLOG.md`) |
 | **Database** | PostgreSQL port **14005**, Liquibase migrations |
 | **Messaging** | Kafka port **14003**, DLQ support enabled |
 
@@ -40,7 +41,7 @@ This applies to: `CLAUDE.md`, `agents/*.md`, `skills/*.md`, `cascade-config.md`
 | 2 | **Spotless** - `mvn spotless:apply` before every commit | See below |
 | 3 | **Lombok** - Use `@Slf4j`, `@RequiredArgsConstructor`, never manual getters | `@spring-boot-jpa.md` |
 | 4 | **Kafka** - Port 14003, use `CommonKafkaConfig` from emcip-core | `@kafka-messaging.md` |
-| 5 | **JPA** - UUID IDs, `@Column(nullable=false)`, `@Version` for locking | `@spring-boot-jpa.md` |
+| 5 | **JPA services** - UUID IDs, `@Column(nullable=false)`, `@Version` for locking; **R2DBC services** - Spring Data R2DBC, `Mono`/`Flux`, no `@Transactional` on reactive | `@spring-boot-jpa.md` / `@spring-reactive.md` |
 
 ## Spotless Output Guide
 
@@ -55,7 +56,7 @@ mvn spotless:check  # Verify
 # ^-- The 0 is what matters (N varies by module, not important)
 ```
 
-If X > 0 files changed: `git add -A && git commit --amend`
+If X > 0 files changed: `git add -A && git commit -m "style: apply spotless"`
 
 ## Git Workflow
 
@@ -65,12 +66,19 @@ If X > 0 files changed: `git add -A && git commit --amend`
 
 ## Current Phase Status
 
-| Epic | Status | Next |
-|------|--------|------|
-| 3.1 Policy Engine | ✅ Complete | Done |
-| 3.2 LLM Orchestrator | 🔄 In Progress | US-3.2.2 postponed |
-| 3.3 Kafka Monitoring | ✅ Complete | Done |
-| **3.4** | ⏳ Planned | Observability & Audit |
+Epics 3.1–3.3 complete. Working through review-driven structural changes from `documentation/REVIEW-2026-05-18.md`.
+
+| Item | Status |
+|------|--------|
+| SC1 Service layer extraction | ✅ PR #58 merged |
+| SC2 Input validation (@Valid) | ✅ PR #62 pending merge |
+| SC3 Reactor Context (ThreadLocal → reactive) | ✅ PR #60 merged |
+| SC4 Multi-tenancy enforcement | ⏳ Plan exists |
+| SC5 AuditEventConsumer refactor | ⏳ |
+| SC6 Pagination enforcement | ⏳ |
+| SC7 Refresh token | ⏳ |
+| SC8 Circuit breakers | ⏳ |
+| SC9 Docker network segmentation | ⏳ |
 
 ## When to Ask vs Act
 
@@ -100,4 +108,4 @@ All skills in `.claude/skills/` - loaded automatically by trigger keywords:
 
 For details: `@documentation/planning/MILESTONES.md`
 
-**Last Updated**: 2026-04-20
+**Last Updated**: 2026-05-19

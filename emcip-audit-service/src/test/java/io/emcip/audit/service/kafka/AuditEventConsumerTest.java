@@ -120,6 +120,39 @@ class AuditEventConsumerTest {
         verify(acknowledgment, never()).acknowledge();
     }
 
+    // --- handleIntentClassified ---
+
+    @Test
+    void handleIntentClassified_validEvent_savesWithCorrectSourceService() throws Exception {
+        io.emcip.common.events.EventSchemas.IntentClassifiedEvent event =
+                new io.emcip.common.events.EventSchemas.IntentClassifiedEvent(
+                        "cls-001",
+                        "2026-05-19T10:00:00Z",
+                        null,
+                        null,
+                        "evt-001",
+                        "GREETING",
+                        0.95,
+                        null,
+                        java.util.List.of("greeting-rule"));
+        String json = objectMapper.writeValueAsString(event);
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("messages.classified", 0, 0L, "key", json);
+
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
+        ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
+        when(auditService.save(captor.capture()))
+                .thenReturn(Mono.just(AuditEventEntity.builder().id(3L).build()));
+
+        consumer.handleIntentClassified(record, acknowledgment);
+
+        assertThat(captor.getValue().getSourceService()).isEqualTo("emcip-intent-classifier");
+        assertThat(captor.getValue().getResourceType()).isEqualTo("Intent");
+        assertThat(captor.getValue().getResourceId()).isEqualTo("evt-001");
+        assertThat(captor.getValue().getActorId()).isNull();
+        verify(acknowledgment).acknowledge();
+    }
+
     // --- handleModerationFlag ---
 
     @Test

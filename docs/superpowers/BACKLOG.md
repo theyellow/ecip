@@ -32,11 +32,11 @@ Items are ordered by priority.
 |---|------|------|-------|
 | SC2 | **Input validation** — `@Valid` on all request bodies, Jakarta annotations on DTOs | S | admin-api. Zero validation today. Addresses A2, S12. |
 | SC4 | **Multi-tenancy enforcement** (plan already exists) | L | All modules. Plan at `docs/superpowers/plans/2026-05-17-multi-tenancy-enforcement.md`. Overlaps with #21 and #22. |
-| SC5 | **Refactor `AuditEventConsumer`** — extract generic handler, cut 358-line duplication | S | audit-service. 5 nearly identical handler methods. |
+| SC5 | **Refactor `AuditEventConsumer`** — extract generic handler, cut 358-line duplication | S | ✅ PR pending merge 2026-05-19 |
 | SC6 | **Pagination enforcement** — upper-bound `size`, return metadata with total count | M | admin-api, policy-engine, audit-service. Addresses A5. |
 | SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | admin-api. Addresses S11. |
 | SC8 | **Circuit breakers** on WebClient calls to downstream services | M | admin-api. resilience4j or Spring Retry. Addresses A7, G7. |
-| SC9 | **Network segmentation** in docker-compose — data-tier / app-tier / monitoring-tier | S | docker-compose. Addresses S20. |
+| SC9 | **Network segmentation** in docker-compose — data-tier / app-tier / monitoring-tier | S | ✅ PR pending merge 2026-05-19 |
 
 ---
 

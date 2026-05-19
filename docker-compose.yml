@@ -11,7 +11,7 @@ services:
     ports:
       - "14001:14001"
     networks:
-      - ecip-network
+      - data-tier
 
   # Kafka Broker
   kafka:
@@ -32,7 +32,7 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: 3
     networks:
-      - ecip-network
+      - data-tier
 
   # Kafka UI for monitoring (optional)
   kafka-ui:
@@ -47,7 +47,7 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:14002
       KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:14001
     networks:
-      - ecip-network
+      - data-tier
 
   # PostgreSQL Database
   postgres:
@@ -62,7 +62,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - ecip-network
+      - data-tier
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U emcip"]
       interval: 10s
@@ -82,7 +82,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     networks:
-      - ecip-network
+      - data-tier
 
   # Conversation Context Service
   conversation-context:
@@ -104,7 +104,8 @@ services:
       - SPRING_DATASOURCE_PASSWORD=emcip
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
     profiles:
       - full
 
@@ -123,7 +124,8 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
     profiles:
       - full
 
@@ -147,7 +149,8 @@ services:
       - SPRING_DATASOURCE_PASSWORD=emcip
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
     profiles:
       - full
 
@@ -173,7 +176,8 @@ services:
       - SPRING_DATASOURCE_PASSWORD=emcip
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
     profiles:
       - llm
 
@@ -200,7 +204,8 @@ services:
       - SPRING_DATASOURCE_PASSWORD=emcip
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
 
   # Audit Service
   audit-service:
@@ -225,7 +230,8 @@ services:
       - SPRING_DATASOURCE_PASSWORD=emcip
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
 
   # Admin API
   admin-api:
@@ -252,7 +258,8 @@ services:
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
 
   # TDLib Telegram adapter
   # Requires TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_PHONE_NUMBER in .env
@@ -280,7 +287,8 @@ services:
       - tdlib-data:/app/tdlib-db
       - tdlib-files:/app/tdlib-files
     networks:
-      - ecip-network
+      - app-tier
+      - data-tier
     profiles:
       - telegram
 
@@ -295,7 +303,7 @@ services:
       - loki-data:/loki
     command: -config.file=/etc/loki/local-config.yaml
     networks:
-      - ecip-network
+      - monitoring-tier
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
       interval: 10s
@@ -315,7 +323,7 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     command: -config.file=/etc/promtail/config.yml
     networks:
-      - ecip-network
+      - monitoring-tier
 
   # Prometheus — metrics scraping (http://localhost:14010)
   prometheus:
@@ -331,7 +339,8 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=15d'
     networks:
-      - ecip-network
+      - app-tier
+      - monitoring-tier
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
       interval: 15s
@@ -359,7 +368,7 @@ services:
       - ./config/grafana/provisioning:/etc/grafana/provisioning
       - grafana-data:/var/lib/grafana
     networks:
-      - ecip-network
+      - monitoring-tier
 
   # Admin UI — React SPA served by Spring Boot (http://localhost:14009)
   admin-ui:
@@ -372,7 +381,7 @@ services:
     ports:
       - "14009:14009"
     networks:
-      - ecip-network
+      - app-tier
 
   # Tempo — distributed trace backend (http://localhost:14011)
   tempo:
@@ -385,7 +394,8 @@ services:
       - tempo-data:/var/tempo
     command: -config.file=/etc/tempo/config.yml
     networks:
-      - ecip-network
+      - app-tier
+      - monitoring-tier
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
       interval: 10s
@@ -402,5 +412,9 @@ volumes:
   tempo-data:
 
 networks:
-  ecip-network:
+  data-tier:
+    driver: bridge
+  app-tier:
+    driver: bridge
+  monitoring-tier:
     driver: bridge
