@@ -1,24 +1,10 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-17 (multi-tenancy enforcement #5 complete; #21 and #22 now unblocked)
+> Last updated: 2026-05-19 (all Quick Wins confirmed done; SC1 ✅ PR #58; SC3 ✅ PR #60; SC2/SC4–SC9 added from REVIEW-2026-05-18.md)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
 Items are ordered by priority.
-
----
-
-## Quick Wins (XS/S — do first)
-
-| # | Item | Size | Notes |
-|---|------|------|-------|
-| 4b | **OpenAPI: security scheme documentation** | XS | Document bearer token auth in springdoc `@SecurityScheme`. Deferred from US-4.3.4. |
-| 4a | **OpenAPI: `@Schema` annotations on DTOs** | S | Richer API docs — annotate request/response types across all services. Deferred from US-4.3.4. |
-| 16 | **CI/CD: GraalVM build caching** | S | `cache-from`/`cache-to` in `build-push-action`. Saves ~15–20 min per native build. Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
-| 15 | **CI/CD: image vulnerability scanning** | S | Trivy or Anchore scan step after each `build-push-action` in `build-images.yml`. Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
-| 17 | **CI/CD: staging vs. production image tags** | S | Push `:staging` on merge to `main`, promote to `:latest` on release tag. Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
-| 18 | **Multi-arch JVM images (linux/arm64)** | S | `docker buildx` with `eclipse-temurin:21-jdk` (already a multi-arch base image). Ref: `specs/2026-05-03-github-actions-image-publishing-design.md`. |
-| 11 | **Kubernetes TLS (cert-manager)** | S | cert-manager `ClusterIssuer` + TLS stanza in `helm/emcip/templates/ingress.yaml`. Ref: `specs/2026-04-29-kubernetes-helm-deployment-design.md`. |
 
 ---
 
@@ -34,6 +20,23 @@ Items are ordered by priority.
 | 9 | **Telegram: self-service account connection** | L | Allow end-users (not just admins) to link Telegram accounts via phone → OTP flow. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
 | 21 | **Tenant provisioning / onboarding flow** | M | No way to create a tenant without direct DB access. Needs admin-api endpoint + Liquibase-safe seed flow. |
 | 22 | **Admin UI: cross-tenant views** | M | Admin users should be able to browse data across all tenants. Requires admin-api ADMIN-mode bypass (built in #5) + UI pages. |
+
+---
+
+## Review-Driven Structural Changes (from REVIEW-2026-05-18.md)
+
+> SC1 (service layer) and SC3 (Reactor tenant context) are done. Remaining items below.
+> Full findings and rationale in `documentation/REVIEW-2026-05-18.md §8.2`.
+
+| # | Item | Size | Notes |
+|---|------|------|-------|
+| SC2 | **Input validation** — `@Valid` on all request bodies, Jakarta annotations on DTOs | S | admin-api. Zero validation today. Addresses A2, S12. |
+| SC4 | **Multi-tenancy enforcement** (plan already exists) | L | All modules. Plan at `docs/superpowers/plans/2026-05-17-multi-tenancy-enforcement.md`. Overlaps with #21 and #22. |
+| SC5 | **Refactor `AuditEventConsumer`** — extract generic handler, cut 358-line duplication | S | audit-service. 5 nearly identical handler methods. |
+| SC6 | **Pagination enforcement** — upper-bound `size`, return metadata with total count | M | admin-api, policy-engine, audit-service. Addresses A5. |
+| SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | admin-api. Addresses S11. |
+| SC8 | **Circuit breakers** on WebClient calls to downstream services | M | admin-api. resilience4j or Spring Retry. Addresses A7, G7. |
+| SC9 | **Network segmentation** in docker-compose — data-tier / app-tier / monitoring-tier | S | docker-compose. Addresses S20. |
 
 ---
 
