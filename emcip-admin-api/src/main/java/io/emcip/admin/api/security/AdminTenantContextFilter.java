@@ -1,5 +1,6 @@
 package io.emcip.admin.api.security;
 
+import io.emcip.common.tenant.ReactorTenantContext;
 import io.emcip.common.tenant.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -17,8 +18,8 @@ public class AdminTenantContextFilter implements WebFilter {
         String tenantId = exchange.getRequest().getHeaders().getFirst(TenantContext.HEADER_NAME);
 
         if (tenantId != null && !tenantId.isBlank()) {
-            TenantContext.setTenantId(tenantId);
-            return chain.filter(exchange).doFinally(signal -> TenantContext.clear());
+            return chain.filter(exchange)
+                    .contextWrite(ctx -> ReactorTenantContext.withTenant(ctx, tenantId));
         }
 
         return ReactiveSecurityContextHolder.getContext()
@@ -32,9 +33,9 @@ public class AdminTenantContextFilter implements WebFilter {
                 .flatMap(
                         isAdmin -> {
                             if (isAdmin) {
-                                TenantContext.setAdminMode(true);
                                 return chain.filter(exchange)
-                                        .doFinally(signal -> TenantContext.clear());
+                                        .contextWrite(
+                                                ctx -> ReactorTenantContext.withAdminMode(ctx));
                             }
                             log.debug(
                                     "Rejected request to {} — missing X-Tenant-Id and no ADMIN"

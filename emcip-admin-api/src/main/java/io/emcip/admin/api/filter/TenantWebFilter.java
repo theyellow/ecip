@@ -1,5 +1,6 @@
 package io.emcip.admin.api.filter;
 
+import io.emcip.common.tenant.ReactorTenantContext;
 import io.emcip.common.tenant.TenantContext;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -14,8 +15,9 @@ public class TenantWebFilter implements WebFilter {
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String tenantId = exchange.getRequest().getHeaders().getFirst(TenantContext.HEADER_NAME);
         if (tenantId != null && !tenantId.isBlank()) {
-            TenantContext.setTenantId(tenantId);
+            return chain.filter(exchange)
+                    .contextWrite(ctx -> ReactorTenantContext.withTenant(ctx, tenantId));
         }
-        return chain.filter(exchange).doFinally(signal -> TenantContext.clear());
+        return chain.filter(exchange);
     }
 }
