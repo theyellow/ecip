@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
@@ -15,12 +16,15 @@ import io.emcip.admin.api.service.TelegramAccountService;
 import io.emcip.common.tenant.ReactorTenantContext;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -31,10 +35,15 @@ class TelegramAccountControllerTest {
     @Mock TelegramAccountService telegramAccountService;
 
     TelegramAccountController controller;
+    WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
         controller = new TelegramAccountController(telegramAccountService);
+        webTestClient =
+                WebTestClient.bindToController(controller)
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .build();
     }
 
     @Test
@@ -208,5 +217,41 @@ class TelegramAccountControllerTest {
         StepVerifier.create(controller.discoverChats(id))
                 .assertNext(list -> assertThat(list).isEmpty())
                 .verifyComplete();
+    }
+
+    @Test
+    void createAccount_invalidPhoneNumber_returns400() {
+        webTestClient
+                .post()
+                .uri("/api/telegram/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("phoneNumber", "not-a-phone", "displayName", "Test"))
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
+    }
+
+    @Test
+    void createAccount_blankPhoneNumber_returns400() {
+        webTestClient
+                .post()
+                .uri("/api/telegram/accounts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("phoneNumber", "", "displayName", "Test"))
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
+    }
+
+    @Test
+    void submitCode_invalidCode_returns400() {
+        webTestClient
+                .post()
+                .uri("/api/telegram/accounts/" + UUID.randomUUID() + "/code")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(Map.of("code", ""))
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
     }
 }

@@ -7,6 +7,10 @@ import io.emcip.common.tenant.ReactorTenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +51,7 @@ public class TelegramAccountController {
     @Operation(summary = "Create and connect a new Telegram account")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Mono<Map<String, Object>> createAccount(@RequestBody CreateAccountRequest req) {
+    public Mono<Map<String, Object>> createAccount(@Valid @RequestBody CreateAccountRequest req) {
         return Mono.deferContextual(
                 ctx -> {
                     UUID tenantId =
@@ -99,7 +103,7 @@ public class TelegramAccountController {
     @Operation(summary = "Submit authentication code for a Telegram account")
     @PostMapping("/{id}/code")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Mono<Void> submitCode(@PathVariable("id") UUID id, @RequestBody CodeRequest req) {
+    public Mono<Void> submitCode(@PathVariable("id") UUID id, @Valid @RequestBody CodeRequest req) {
         return telegramAccountService.submitCode(id, req.code());
     }
 
@@ -107,7 +111,7 @@ public class TelegramAccountController {
     @PostMapping("/{id}/password")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public Mono<Void> submitPassword(
-            @PathVariable("id") UUID id, @RequestBody PasswordRequest req) {
+            @PathVariable("id") UUID id, @Valid @RequestBody PasswordRequest req) {
         return telegramAccountService.submitPassword(id, req.password());
     }
 
@@ -141,7 +145,7 @@ public class TelegramAccountController {
     @PostMapping("/{id}/watch")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Map<String, Object>> watchGroup(
-            @PathVariable("id") UUID accountId, @RequestBody WatchRequest req) {
+            @PathVariable("id") UUID accountId, @Valid @RequestBody WatchRequest req) {
         return telegramAccountService
                 .watchGroup(accountId, req.chatId(), req.title())
                 .map(this::toWatchedMap);
@@ -179,24 +183,42 @@ public class TelegramAccountController {
 
     @Schema(description = "Request to register a new Telegram account")
     public record CreateAccountRequest(
-            @Schema(description = "Phone number in international format", example = "+491234567890")
+            @NotBlank(message = "phoneNumber is required")
+                    @Pattern(
+                            regexp = "^\\+\\d{10,15}$",
+                            message =
+                                    "phoneNumber must be in international format, e.g."
+                                            + " +491234567890")
+                    @Schema(
+                            description = "Phone number in international format",
+                            example = "+491234567890")
                     String phoneNumber,
-            @Schema(description = "Human-readable label for this account", example = "Main bot")
+            @Size(max = 100, message = "displayName must be 100 characters or fewer")
+                    @Schema(
+                            description = "Human-readable label for this account",
+                            example = "Main bot")
                     String displayName) {}
 
     @Schema(description = "Telegram authentication code sent to the phone")
     public record CodeRequest(
-            @Schema(description = "Verification code received via Telegram", example = "12345")
+            @NotBlank(message = "code is required")
+                    @Pattern(regexp = "^\\d{4,7}$", message = "code must be 4–7 digits")
+                    @Schema(
+                            description = "Verification code received via Telegram",
+                            example = "12345")
                     String code) {}
 
     @Schema(description = "Two-factor authentication password")
     public record PasswordRequest(
-            @Schema(description = "2FA password for the Telegram account") String password) {}
+            @NotBlank(message = "password is required")
+                    @Schema(description = "2FA password for the Telegram account")
+                    String password) {}
 
     @Schema(description = "Request to start watching a Telegram group")
     public record WatchRequest(
             @Schema(description = "Telegram chat ID to watch", example = "-1001234567890")
                     long chatId,
-            @Schema(description = "Display title for the group", example = "My Community")
+            @Size(max = 255, message = "title must be 255 characters or fewer")
+                    @Schema(description = "Display title for the group", example = "My Community")
                     String title) {}
 }
