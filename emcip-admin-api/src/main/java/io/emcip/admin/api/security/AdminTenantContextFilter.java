@@ -15,6 +15,10 @@ public class AdminTenantContextFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        if (exchange.getRequest().getPath().value().startsWith("/actuator")) {
+            return chain.filter(exchange);
+        }
+
         String tenantId = exchange.getRequest().getHeaders().getFirst(TenantContext.HEADER_NAME);
 
         if (tenantId != null && !tenantId.isBlank()) {
