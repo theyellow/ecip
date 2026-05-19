@@ -652,23 +652,31 @@ Docker images are published to `ghcr.io/theyellow/ecip` automatically by GitHub 
 
 *Triggers:* push to `main` branch, or push of a tag matching `v*.*.*`.
 
+*Tag convention:*
+
+* Push to `main` → `staging` variants (e.g. `:staging`, `:jvm-staging`, `:native-amd64-staging`)
+* Push of a `v*.*.*` tag → `latest` variants + semver (e.g. `:latest`, `:jvm-latest`, `:native-amd64`, `:v1.2.3`)
+
 *Jobs:*
 
-[cols="2,3,2"]
+[cols="2,3,2,2"]
 |===
-|Job |Services |Tag on `main` push
+|Job |Services |Tag on `main` push |Tag on version tag push
 
 |`build-jvm-only`
 |`intent-classifier`, `moderation-service`, `audit-service`, `admin-api`, `admin-ui`, `tdlib-adapter`
-|`:latest`
+|`:staging`
+|`:latest`, `:v1.2.3`
 
 |`build-jvm-latest`
 |`policy-engine`, `conversation-context`, `llm-orchestrator`
-|`:jvm-latest`
+|`:jvm-staging`
+|`:jvm-latest`, `:v1.2.3`
 
 |`build-native-amd64`
 |`policy-engine`, `conversation-context`, `llm-orchestrator`
-|`:native-amd64`
+|`:native-amd64-staging`
+|`:native-amd64`, `:v1.2.3`
 |===
 
 After images are pushed, restart the cluster pods to pick them up — see

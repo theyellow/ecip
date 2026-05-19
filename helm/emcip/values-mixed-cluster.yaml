@@ -10,21 +10,21 @@
 
 services:
   policyEngine:
-    image: ghcr.io/theyellow/ecip/policy-engine:native-amd64
+    imageVariant: native-amd64
     nodeSelector:
       kubernetes.io/arch: amd64
 
   conversationContext:
-    image: ghcr.io/theyellow/ecip/conversation-context:native-amd64
+    imageVariant: native-amd64
     nodeSelector:
       kubernetes.io/arch: amd64
 
   llmOrchestrator:
-    image: ghcr.io/theyellow/ecip/llm-orchestrator:native-amd64
+    imageVariant: native-amd64
     nodeSelector:
       kubernetes.io/arch: amd64
 
 tdlibAdapter:
-  image: ghcr.io/theyellow/ecip/tdlib-adapter:latest   # libtdjni.so is amd64-only — must stay on amd64 nodes
+  # libtdjni.so is amd64-only — must stay on amd64 nodes
   nodeSelector:
     kubernetes.io/arch: amd64

@@ -138,50 +138,69 @@ helm install strimzi-operator strimzi/strimzi-kafka-operator \
 === Image Overview
 
 All 9 service images are published to `ghcr.io/theyellow/ecip` by GitHub Actions CI.
-Tags are updated on every push to `main` (rolling) and on version tags (`v*.*.*`).
 
-[cols="2,3,2"]
+*Tag convention:*
+
+* Push to `main` → `staging` / `jvm-staging` / `native-amd64-staging` (updated on every merge)
+* Push of a `v*.*.*` tag → `latest` / `jvm-latest` / `native-amd64` + semver (e.g. `v1.2.3`)
+
+The Helm chart uses a single `image.stage` parameter (default: `staging`) to select the tag stage
+for all services at once. Override at deploy time — see <<install>> and <<upgrade>>.
+
+[cols="2,3,2,2"]
 |===
-|Service |Image |Tag (default values.yaml)
+|Service |Image |Variant prefix |Notes
 
 |`tdlib-adapter`
 |`ghcr.io/theyellow/ecip/tdlib-adapter`
-|`:latest` — amd64 JVM; libtdjni.so amd64-only
+|(none)
+|amd64 JVM; libtdjni.so amd64-only
 
 |`conversation-context`
 |`ghcr.io/theyellow/ecip/conversation-context`
-|`:jvm-latest` (default) / `:native-amd64` (mixed-cluster overlay)
+|`jvm` (default) / `native-amd64` (mixed-cluster)
+|JPA/Hibernate; GraalVM native on mixed-cluster
 
 |`intent-classifier`
 |`ghcr.io/theyellow/ecip/intent-classifier`
-|`:latest` — multi-arch JVM
+|(none)
+|multi-arch JVM
 
 |`policy-engine`
 |`ghcr.io/theyellow/ecip/policy-engine`
-|`:jvm-latest` (default) / `:native-amd64` (mixed-cluster overlay)
+|`jvm` (default) / `native-amd64` (mixed-cluster)
+|JPA/Hibernate; GraalVM native on mixed-cluster
 
 |`llm-orchestrator`
 |`ghcr.io/theyellow/ecip/llm-orchestrator`
-|`:jvm-latest` (default) / `:native-amd64` (mixed-cluster overlay)
+|`jvm` (default) / `native-amd64` (mixed-cluster)
+|JPA/Hibernate; GraalVM native on mixed-cluster
 
 |`moderation-service`
 |`ghcr.io/theyellow/ecip/moderation-service`
-|`:latest` — multi-arch JVM
+|(none)
+|multi-arch JVM
 
 |`audit-service`
 |`ghcr.io/theyellow/ecip/audit-service`
-|`:latest` — multi-arch JVM
+|(none)
+|multi-arch JVM
 
 |`admin-api`
 |`ghcr.io/theyellow/ecip/admin-api`
-|`:latest` — multi-arch JVM
+|(none)
+|multi-arch JVM
 
 |`admin-ui`
 |`ghcr.io/theyellow/ecip/admin-ui`
-|`:latest` — multi-arch JVM
+|(none)
+|multi-arch JVM
 |===
 
-The `values-mixed-cluster.yaml` overlay switches policy-engine, conversation-context, and llm-orchestrator to `:native-amd64` and adds `nodeSelector: kubernetes.io/arch: amd64`.
+Full image tag = `{variant}-{stage}` when a variant is set, or `{stage}` when no variant.
+Example: policy-engine with `image.stage=latest` → `:jvm-latest` (default) / `:native-amd64-latest` (mixed-cluster).
+
+The `values-mixed-cluster.yaml` overlay switches policy-engine, conversation-context, and llm-orchestrator to the `native-amd64` variant and adds `nodeSelector: kubernetes.io/arch: amd64`.
 See <<mixed-cluster-deployment>>.
 
 === Secrets — Create Before Installing
@@ -206,11 +225,17 @@ NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` mus
 `telegram-*` values are required only if the Telegram profile is active.
 LLM provider URL is not a Kubernetes secret — configure it at runtime via Admin UI → AI Config → LLM Provider.
 
+[[install]]
 === Install
 
 [source,bash]
 ----
+# Deploy latest main-branch images (default — image.stage=staging)
 helm install emcip helm/emcip/ -n emcip
+
+# Deploy a specific release
+helm install emcip helm/emcip/ --set image.stage=latest -n emcip
+helm install emcip helm/emcip/ --set image.stage=v1.2.3 -n emcip
 ----
 
 Watch rollout progress:
@@ -222,11 +247,17 @@ kubectl get pods -n emcip -w
 
 All pods should reach `Running` state. Kafka and PostgreSQL may take 2-3 minutes on first start.
 
+[[upgrade]]
 === Upgrade
 
 [source,bash]
 ----
+# Upgrade to latest main-branch images
 helm upgrade emcip helm/emcip/ -n emcip
+
+# Upgrade to a specific release
+helm upgrade emcip helm/emcip/ --set image.stage=latest -n emcip
+helm upgrade emcip helm/emcip/ --set image.stage=v1.2.3 -n emcip
 ----
 
 === Rollback
@@ -292,13 +323,13 @@ what differs.
 |Service |Reason
 
 |`policy-engine`
-|GraalVM native image (`native-amd64` tag) — x86_64 binary
+|GraalVM native image (`native-amd64-{stage}` tag) — x86_64 binary
 
 |`conversation-context`
-|GraalVM native image (`native-amd64` tag) — x86_64 binary
+|GraalVM native image (`native-amd64-{stage}` tag) — x86_64 binary
 
 |`llm-orchestrator`
-|GraalVM native image (`native-amd64` tag) — x86_64 binary
+|GraalVM native image (`native-amd64-{stage}` tag) — x86_64 binary
 
 |`tdlib-adapter`
 |`libtdjni.so` compiled from source during Docker build (cmake, amd64-only)
@@ -313,10 +344,10 @@ Run from the project root on an x86_64 machine:
 
 [source,bash]
 ----
-# Build native-amd64 images for the three GraalVM services + tdlib-adapter:latest
+# Build native-amd64-staging images for the three GraalVM services + tdlib-adapter:staging
 scripts/build-images.sh --native amd64
 
-# Build JVM :latest images for all services (multi-arch via eclipse-temurin base)
+# Build JVM staging images for all services (multi-arch via eclipse-temurin base)
 scripts/build-images.sh --jvm
 ----
 
@@ -324,8 +355,15 @@ scripts/build-images.sh --jvm
 
 [source,bash]
 ----
+# Deploy main-branch images (default)
 helm upgrade --install emcip helm/emcip/ \
   -f helm/emcip/values-mixed-cluster.yaml \
+  -n emcip
+
+# Deploy a specific release
+helm upgrade --install emcip helm/emcip/ \
+  -f helm/emcip/values-mixed-cluster.yaml \
+  --set image.stage=latest \
   -n emcip
 ----
 
