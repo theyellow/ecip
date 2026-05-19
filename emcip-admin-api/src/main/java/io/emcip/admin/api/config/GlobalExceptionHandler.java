@@ -1,17 +1,39 @@
 package io.emcip.admin.api.config;
 
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(WebExchangeBindException.class)
+    public Mono<ResponseEntity<ProblemDetail>> handleValidation(WebExchangeBindException ex) {
+        Map<String, String> errors =
+                ex.getBindingResult().getFieldErrors().stream()
+                        .collect(
+                                Collectors.toMap(
+                                        FieldError::getField,
+                                        fe ->
+                                                fe.getDefaultMessage() != null
+                                                        ? fe.getDefaultMessage()
+                                                        : "invalid",
+                                        (a, b) -> a));
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Validation failed");
+        problem.setProperty("errors", errors);
+        return Mono.just(ResponseEntity.badRequest().body(problem));
+    }
 
     @ExceptionHandler(ResponseStatusException.class)
     public Mono<ResponseEntity<ProblemDetail>> handleResponseStatus(ResponseStatusException ex) {
