@@ -14,20 +14,23 @@ public class WebClientConfig {
 
     @Bean("tdlibWebClient")
     public WebClient tdlibWebClient(@Value("${service.tdlib.url}") String tdlibUrl) {
-        return buildWebClient(WebClient.builder(), tdlibUrl);
+        return buildWebClient(WebClient.builder(), tdlibUrl, Duration.ofSeconds(30));
     }
 
     @Bean("orchestratorWebClient")
     public WebClient orchestratorWebClient(
             @Value("${service.orchestrator.url}") String orchestratorUrl) {
-        return buildWebClient(WebClient.builder(), orchestratorUrl);
+        // 60s: /api/provider-config/models calls an external LLM provider to list models,
+        // which can be slow on the first call or under load.
+        return buildWebClient(WebClient.builder(), orchestratorUrl, Duration.ofSeconds(60));
     }
 
-    private WebClient buildWebClient(WebClient.Builder builder, String baseUrl) {
+    private WebClient buildWebClient(
+            WebClient.Builder builder, String baseUrl, Duration responseTimeout) {
         HttpClient httpClient =
                 HttpClient.create()
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5_000)
-                        .responseTimeout(Duration.ofSeconds(30));
+                        .responseTimeout(responseTimeout);
         return builder.baseUrl(baseUrl)
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
