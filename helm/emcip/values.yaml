@@ -53,7 +53,7 @@ ingress:
 services:
   conversationContext:
     name: conversation-context
-    image: ghcr.io/theyellow/ecip/conversation-context:jvm-latest
+    image: ghcr.io/theyellow/ecip/conversation-context:jvm-staging
     port: 9081
     replicas: 1
     nodeSelector: {}
@@ -76,7 +76,7 @@ services:
 
   intentClassifier:
     name: intent-classifier
-    image: ghcr.io/theyellow/ecip/intent-classifier:latest
+    image: ghcr.io/theyellow/ecip/intent-classifier:staging
     port: 9082
     replicas: 1
     nodeSelector: {}
@@ -98,7 +98,7 @@ services:
 
   policyEngine:
     name: policy-engine
-    image: ghcr.io/theyellow/ecip/policy-engine:jvm-latest
+    image: ghcr.io/theyellow/ecip/policy-engine:jvm-staging
     port: 9083
     replicas: 1
     nodeSelector: {}
@@ -123,7 +123,7 @@ services:
 
   llmOrchestrator:
     name: llm-orchestrator
-    image: ghcr.io/theyellow/ecip/llm-orchestrator:jvm-latest
+    image: ghcr.io/theyellow/ecip/llm-orchestrator:jvm-staging
     port: 9084
     replicas: 1
     nodeSelector: {}
@@ -151,7 +151,7 @@ services:
 
   moderationService:
     name: moderation-service
-    image: ghcr.io/theyellow/ecip/moderation-service:latest
+    image: ghcr.io/theyellow/ecip/moderation-service:staging
     port: 9085
     replicas: 1
     nodeSelector: {}
@@ -177,7 +177,7 @@ services:
 
   auditService:
     name: audit-service
-    image: ghcr.io/theyellow/ecip/audit-service:latest
+    image: ghcr.io/theyellow/ecip/audit-service:staging
     port: 9086
     replicas: 1
     nodeSelector: {}
@@ -203,7 +203,7 @@ services:
 
   adminApi:
     name: admin-api
-    image: ghcr.io/theyellow/ecip/admin-api:latest
+    image: ghcr.io/theyellow/ecip/admin-api:staging
     port: 9087
     replicas: 1
     nodeSelector: {}
@@ -241,7 +241,7 @@ services:
 
   adminUi:
     name: admin-ui
-    image: ghcr.io/theyellow/ecip/admin-ui:latest
+    image: ghcr.io/theyellow/ecip/admin-ui:staging
     port: 14009
     replicas: 1
     nodeSelector: {}
@@ -257,7 +257,7 @@ services:
 # tdlib-adapter is a StatefulSet (separate section — needs PVC for session state)
 tdlibAdapter:
   name: tdlib-adapter
-  image: ghcr.io/theyellow/ecip/tdlib-adapter:latest
+  image: ghcr.io/theyellow/ecip/tdlib-adapter:staging
   port: 9080
   replicas: 1
   nodeSelector: {}
