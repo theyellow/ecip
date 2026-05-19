@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.common.tenant.ReactorTenantContext;
 import io.emcip.moderation.service.entity.ModerationRule;
 import io.emcip.moderation.service.repository.ModerationRuleRepository;
 import java.time.Instant;
@@ -13,9 +13,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import org.springframework.web.server.ServerWebExchange;
-import org.springframework.web.server.WebFilter;
-import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,12 +28,17 @@ class ModerationRuleControllerTest {
     void setUp() {
         repository = mock(ModerationRuleRepository.class);
         ModerationRuleController controller = new ModerationRuleController(repository);
-        WebFilter tenantFilter =
-                (ServerWebExchange exchange, WebFilterChain chain) -> {
-                    TenantContext.setTenantId(TEST_TENANT_ID.toString());
-                    return chain.filter(exchange).doFinally(s -> TenantContext.clear());
-                };
-        client = WebTestClient.bindToController(controller).webFilter(tenantFilter).build();
+        client =
+                WebTestClient.bindToController(controller)
+                        .webFilter(
+                                (exchange, chain) ->
+                                        chain.filter(exchange)
+                                                .contextWrite(
+                                                        ctx ->
+                                                                ReactorTenantContext.withTenant(
+                                                                        ctx,
+                                                                        TEST_TENANT_ID.toString())))
+                        .build();
     }
 
     private ModerationRule rule(Long id, String name) {

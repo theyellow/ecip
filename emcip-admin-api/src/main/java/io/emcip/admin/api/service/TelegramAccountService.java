@@ -7,7 +7,7 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.common.tenant.ReactorTenantContext;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -56,10 +56,14 @@ public class TelegramAccountService {
     }
 
     public Flux<TelegramAccount> findAll() {
-        if (TenantContext.isAdminMode()) {
-            return repository.findAll();
-        }
-        return repository.findAllByTenantId(UUID.fromString(TenantContext.getTenantId()));
+        return Flux.deferContextual(
+                ctx -> {
+                    if (ReactorTenantContext.isAdminMode(ctx)) {
+                        return repository.findAll();
+                    }
+                    return repository.findAllByTenantId(
+                            UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                });
     }
 
     public Mono<TelegramAccount> getById(UUID id) {
@@ -72,33 +76,41 @@ public class TelegramAccountService {
     }
 
     public Mono<TelegramAccount> create(String phoneNumber, String displayName, UUID tenantId) {
-        TelegramAccount account =
-                TelegramAccount.builder()
-                        .id(UUID.randomUUID())
-                        .phoneNumber(phoneNumber)
-                        .apiId(telegramApiId)
-                        .apiHash(telegramApiHash)
-                        .displayName(displayName)
-                        .status(TelegramAccountStatus.UNCONFIGURED)
-                        .createdAt(Instant.now())
-                        .updatedAt(Instant.now())
-                        .build();
-        if (tenantId != null) {
-            account.setTenantId(tenantId);
-        } else if (!TenantContext.isAdminMode()) {
-            account.setTenantId(UUID.fromString(TenantContext.getTenantId()));
-        }
-        return r2dbcEntityTemplate.insert(account);
+        return Mono.deferContextual(
+                ctx -> {
+                    TelegramAccount account =
+                            TelegramAccount.builder()
+                                    .id(UUID.randomUUID())
+                                    .phoneNumber(phoneNumber)
+                                    .apiId(telegramApiId)
+                                    .apiHash(telegramApiHash)
+                                    .displayName(displayName)
+                                    .status(TelegramAccountStatus.UNCONFIGURED)
+                                    .createdAt(Instant.now())
+                                    .updatedAt(Instant.now())
+                                    .build();
+                    if (tenantId != null) {
+                        account.setTenantId(tenantId);
+                    } else if (!ReactorTenantContext.isAdminMode(ctx)) {
+                        account.setTenantId(UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                    }
+                    return r2dbcEntityTemplate.insert(account);
+                });
     }
 
     public Mono<Void> delete(UUID id) {
-        if (TenantContext.isAdminMode()) {
-            return repository.deleteById(id);
-        }
-        return repository
-                .findByIdAndTenantId(id, UUID.fromString(TenantContext.getTenantId()))
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
-                .flatMap(account -> repository.deleteById(id));
+        return Mono.deferContextual(
+                ctx -> {
+                    if (ReactorTenantContext.isAdminMode(ctx)) {
+                        return repository.deleteById(id);
+                    }
+                    return repository
+                            .findByIdAndTenantId(
+                                    id, UUID.fromString(ReactorTenantContext.getTenantId(ctx)))
+                            .switchIfEmpty(
+                                    Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
+                            .flatMap(account -> repository.deleteById(id));
+                });
     }
 
     public Mono<TelegramAccount> getStatus(UUID id) {

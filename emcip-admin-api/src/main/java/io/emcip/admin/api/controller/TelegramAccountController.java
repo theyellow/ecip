@@ -3,7 +3,7 @@ package io.emcip.admin.api.controller;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.service.TelegramAccountService;
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.common.tenant.ReactorTenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -48,11 +48,16 @@ public class TelegramAccountController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Map<String, Object>> createAccount(@RequestBody CreateAccountRequest req) {
-        UUID tenantId =
-                TenantContext.isAdminMode() ? null : UUID.fromString(TenantContext.getTenantId());
-        return telegramAccountService
-                .create(req.phoneNumber(), req.displayName(), tenantId)
-                .map(TelegramAccountController::toSafeMap);
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenantId =
+                            ReactorTenantContext.isAdminMode(ctx)
+                                    ? null
+                                    : UUID.fromString(ReactorTenantContext.getTenantId(ctx));
+                    return telegramAccountService
+                            .create(req.phoneNumber(), req.displayName(), tenantId)
+                            .map(TelegramAccountController::toSafeMap);
+                });
     }
 
     @Operation(summary = "Delete a Telegram account")
