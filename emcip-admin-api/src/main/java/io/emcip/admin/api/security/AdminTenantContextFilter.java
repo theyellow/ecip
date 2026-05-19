@@ -15,7 +15,10 @@ public class AdminTenantContextFilter implements WebFilter {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        if (exchange.getRequest().getPath().value().startsWith("/actuator")) {
+        String path = exchange.getRequest().getPath().value();
+        if (path.startsWith("/actuator")
+                || path.equals("/api/auth/token")
+                || path.equals("/auth/token")) {
             return chain.filter(exchange);
         }
 
