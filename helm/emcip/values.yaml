@@ -277,6 +277,7 @@ tdlibAdapter:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
     APP_TENANT_ID: ""      # Set to the tenant UUID this adapter serves
   secrets:
+    ADMIN_SERVICE_TOKEN: admin-service-token
     TELEGRAM_API_ID: telegram-api-id
     TELEGRAM_API_HASH: telegram-api-hash
     TELEGRAM_PHONE_NUMBER: telegram-phone-number
