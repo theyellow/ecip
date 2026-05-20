@@ -2,6 +2,7 @@ package io.emcip.audit.service.controller;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.service.AuditService;
+import io.emcip.common.pagination.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -33,22 +33,24 @@ public class AuditController {
      * @param eventType optional event type filter
      * @param from optional ISO-8601 start timestamp; defaults to 24 hours ago
      * @param to optional ISO-8601 end timestamp; defaults to now
+     * @param page zero-based page index (default 0)
+     * @param size page size, capped at 200 (default 50)
      */
     @Operation(summary = "List audit events filtered by type and time range")
     @GetMapping("/events")
-    public Flux<AuditEventEntity> getEvents(
+    public Mono<PageResponse<AuditEventEntity>> getEvents(
             @RequestParam(required = false) String eventType,
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
+            @RequestParam(required = false) String to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
 
         Instant fromInstant =
                 from != null ? Instant.parse(from) : Instant.now().minus(24, ChronoUnit.HOURS);
         Instant toInstant = to != null ? Instant.parse(to) : Instant.now();
+        int effectiveSize = Math.min(size, 200);
 
-        if (eventType != null) {
-            return auditService.findByEventTypeAndDateRange(eventType, fromInstant, toInstant);
-        }
-        return auditService.findByDateRange(fromInstant, toInstant);
+        return auditService.findPage(fromInstant, toInstant, page, effectiveSize, eventType);
     }
 
     /**

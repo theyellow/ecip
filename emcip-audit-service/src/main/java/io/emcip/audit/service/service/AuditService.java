@@ -2,6 +2,7 @@ package io.emcip.audit.service.service;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.repository.AuditEventRepository;
+import io.emcip.common.pagination.PageResponse;
 import io.emcip.common.tenant.ReactorTenantContext;
 import io.r2dbc.postgresql.codec.Json;
 import java.time.Instant;
@@ -9,6 +10,8 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -86,6 +89,51 @@ public class AuditService {
                                 eventId, UUID.fromString(tenantId));
                     }
                     return repository.findByEventId(eventId);
+                });
+    }
+
+    public Mono<PageResponse<AuditEventEntity>> findPage(
+            Instant from, Instant to, int page, int size, String eventType) {
+        Pageable pageable = PageRequest.of(page, size);
+        return Mono.deferContextual(
+                ctx -> {
+                    String tenantId = ReactorTenantContext.getTenantId(ctx);
+                    if (tenantId != null) {
+                        UUID tid = UUID.fromString(tenantId);
+                        if (eventType != null && !eventType.isBlank()) {
+                            Flux<AuditEventEntity> items =
+                                    repository
+                                            .findByEventTypeAndCreatedAtBetweenAndTenantIdOrderByCreatedAtDesc(
+                                                    eventType, from, to, tid, pageable);
+                            Mono<Long> count =
+                                    repository.countByEventTypeAndCreatedAtBetweenAndTenantId(
+                                            eventType, from, to, tid);
+                            return Mono.zip(items.collectList(), count)
+                                    .map(t -> new PageResponse<>(t.getT1(), t.getT2(), page, size));
+                        }
+                        Flux<AuditEventEntity> items =
+                                repository.findByCreatedAtBetweenAndTenantIdOrderByCreatedAtDesc(
+                                        from, to, tid, pageable);
+                        Mono<Long> count =
+                                repository.countByCreatedAtBetweenAndTenantId(from, to, tid);
+                        return Mono.zip(items.collectList(), count)
+                                .map(t -> new PageResponse<>(t.getT1(), t.getT2(), page, size));
+                    }
+                    if (eventType != null && !eventType.isBlank()) {
+                        Flux<AuditEventEntity> items =
+                                repository.findByEventTypeAndCreatedAtBetweenOrderByCreatedAtDesc(
+                                        eventType, from, to, pageable);
+                        Mono<Long> count =
+                                repository.countByEventTypeAndCreatedAtBetween(eventType, from, to);
+                        return Mono.zip(items.collectList(), count)
+                                .map(t -> new PageResponse<>(t.getT1(), t.getT2(), page, size));
+                    }
+                    Flux<AuditEventEntity> items =
+                            repository.findByCreatedAtBetweenOrderByCreatedAtDesc(
+                                    from, to, pageable);
+                    Mono<Long> count = repository.countByCreatedAtBetween(from, to);
+                    return Mono.zip(items.collectList(), count)
+                            .map(t -> new PageResponse<>(t.getT1(), t.getT2(), page, size));
                 });
     }
 
