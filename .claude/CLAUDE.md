@@ -73,7 +73,7 @@ Epics 3.1–3.3 complete. Working through review-driven structural changes from 
 | SC1 Service layer extraction | ✅ PR #58 merged |
 | SC2 Input validation (@Valid) | ✅ PR #62 pending merge |
 | SC3 Reactor Context (ThreadLocal → reactive) | ✅ PR #60 merged |
-| SC4 Multi-tenancy enforcement | ⏳ Plan exists |
+| SC4 Multi-tenancy enforcement | ✅ Done |
 | SC5 AuditEventConsumer refactor | ⏳ |
 | SC6 Pagination enforcement | ⏳ |
 | SC7 Refresh token | ⏳ |
