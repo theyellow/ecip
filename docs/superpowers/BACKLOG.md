@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-20 (tdlib 401 ✅ PR #69; AI Config 500 ✅ PR #71; SC4 ✅; SC1 ✅ PR #58; SC3 ✅ PR #60; SC2 ✅ PR #62)
+> Last updated: 2026-05-20 (first cluster deployment complete; SC1–SC5, SC9 done; INF items defined)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -25,31 +25,32 @@ Items are ordered by priority.
 
 ## Review-Driven Structural Changes (from REVIEW-2026-05-18.md)
 
-> SC1 (service layer) and SC3 (Reactor tenant context) are done. Remaining items below.
 > Full findings and rationale in `documentation/REVIEW-2026-05-18.md §8.2`.
 
 | # | Item | Size | Notes |
 |---|------|------|-------|
-| SC2 | **Input validation** — `@Valid` on all request bodies, Jakarta annotations on DTOs | S | ✅ PR #62 merged. |
-| SC4 | **Multi-tenancy enforcement** | L | ✅ Fully implemented across all modules. Hibernate @Filter (JPA), ReactorTenantContext (R2DBC), TenantAwareKafkaSupport (Kafka). |
-| SC5 | **Refactor `AuditEventConsumer`** — extract generic handler, cut 358-line duplication | S | ✅ PR pending merge 2026-05-19 |
+| SC1 | **Extract service layer** from controllers | S | ✅ PR #58 merged 2026-05-18 |
+| SC2 | **Input validation** — `@Valid` on all request bodies, Jakarta annotations on DTOs | S | ✅ PR #62 merged 2026-05-19 |
+| SC3 | **Replace ThreadLocal tenant** with Reactor `Context` | S | ✅ PR #60 merged 2026-05-19 |
+| SC4 | **Multi-tenancy enforcement** | L | ✅ Fully implemented. Hibernate @Filter (JPA), ReactorTenantContext (R2DBC), TenantAwareKafkaSupport (Kafka). |
+| SC5 | **Refactor `AuditEventConsumer`** — extract generic handler | S | ✅ PR #63 merged 2026-05-19 |
 | SC6 | **Pagination enforcement** — upper-bound `size`, return metadata with total count | M | admin-api, policy-engine, audit-service. Addresses A5. |
 | SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | admin-api. Addresses S11. |
 | SC8 | **Circuit breakers** on WebClient calls to downstream services | M | admin-api. resilience4j or Spring Retry. Addresses A7, G7. |
-| SC9 | **Network segmentation** in docker-compose — data-tier / app-tier / monitoring-tier | S | ✅ PR pending merge 2026-05-19 |
+| SC9 | **Network segmentation** in docker-compose — data-tier / app-tier / monitoring-tier | S | ✅ PR #63 merged 2026-05-19 |
 
 ---
 
-## Infrastructure / Developer Experience
+## Infrastructure / Pre-1.0.0 Requirements
 
-> These are pre-1.0.0 requirements. No production users exist yet — databases can be dropped and recreated freely.
-> The goal: a clean cluster install should work from `helm install` with no manual DB steps.
+> No production users exist yet — databases can be dropped and recreated freely.
+> Goal: a clean cluster install from `helm install` must work with no manual DB steps.
 
 | # | Item | Size | Notes |
 |---|------|------|-------|
-| INF1 | **Liquibase migration consolidation** | M | Current state: each service has 6–10 incremental migrations accumulated during development, several with `md5sum='manual'` from manual DB fixes (root cause of the AI Config 500). Before 1.0.0: squash each service's migrations into a single `001-initial-schema.xml` per service. Drop all intermediate seeds/patches — reseed via the new clean files. After this, `helm install` on a blank DB must produce a fully working cluster. |
-| INF2 | **Fresh install smoke test** | S | After INF1: destroy the test DB, run `helm install`, verify all pages work. Document the procedure in `docs/operations/fresh-install.md`. Catches Liquibase regressions before they hit a real user. |
-| INF3 | **Telegram test account seeding via Helm values** | S | Add optional Helm values (disabled by default) to seed a Telegram account for local testing: `testing.telegram.enabled`, `testing.telegram.accountId`, `testing.telegram.phoneNumber`, `testing.telegram.apiId`, `testing.telegram.apiHash`. If enabled, a Kubernetes Job runs after deploy and inserts the row into `telegram_accounts`. Removes the need for manual DB access during development. |
+| INF1 | **Liquibase migration consolidation** | M | Current state: each service has 6–10 incremental migrations from development, several applied with `md5sum='manual'` (root cause of the 2026-05-20 AI Config 500 incident). Before 1.0.0: squash each service's migrations into a single `001-initial-schema.xml`. Drop all intermediate seeds and patches. After this, `helm install` on a blank DB must produce a working cluster. |
+| INF2 | **Fresh install smoke test** | S | After INF1: destroy the test DB, run `helm install`, verify all pages work without manual intervention. Document procedure in `docs/operations/fresh-install.md`. |
+| INF3 | **Telegram test account seeding via Helm values** | S | Optional Helm values (disabled by default): `testing.telegram.enabled`, `testing.telegram.accountId`, `testing.telegram.phoneNumber`, `testing.telegram.apiId`, `testing.telegram.apiHash`. When enabled, a post-deploy Kubernetes Job inserts the row into `telegram_accounts`. Removes manual DB access for local development. |
 
 ---
 
