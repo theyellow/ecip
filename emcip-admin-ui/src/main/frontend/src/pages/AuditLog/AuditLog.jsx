@@ -10,17 +10,26 @@ export function AuditLog() {
   const { token } = useAuth()
   const api = auditLogApi(makeRequest(token))
   const [events, setEvents] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page] = useState(0)
   const [size, setSize] = useState(50)
   const [eventType, setEventType] = useState('')
   const [error, setError] = useState('')
 
-  const load = () => api.list(size, eventType).then(setEvents).catch(e => setError(e.message))
+  const load = () =>
+    api
+      .list(page, size, eventType)
+      .then(data => {
+        setEvents(data.items)
+        setTotal(data.total)
+      })
+      .catch(e => setError(e.message))
   useEffect(() => { load() }, [size, eventType])
 
   return (
     <div>
       <div className={styles.header}>
-        <h2>Audit Log</h2>
+        <h2>Audit Log {total > 0 && <small style={{ fontWeight: 'normal', color: 'var(--text-muted)' }}>({total} total)</small>}</h2>
         <div className={styles.filters}>
           <select value={eventType} onChange={e => setEventType(e.target.value)} className={styles.select}>
             {EVENT_TYPES.map(t => <option key={t} value={t}>{t || 'All types'}</option>)}
