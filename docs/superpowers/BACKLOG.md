@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-19 (all Quick Wins confirmed done; SC1 ✅ PR #58; SC3 ✅ PR #60; SC2/SC4–SC9 added from REVIEW-2026-05-18.md)
+> Last updated: 2026-05-19 (SC4 ✅ confirmed fully implemented; SC1 ✅ PR #58; SC3 ✅ PR #60; SC2 ✅ PR #62)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -30,8 +30,8 @@ Items are ordered by priority.
 
 | # | Item | Size | Notes |
 |---|------|------|-------|
-| SC2 | **Input validation** — `@Valid` on all request bodies, Jakarta annotations on DTOs | S | admin-api. Zero validation today. Addresses A2, S12. |
-| SC4 | **Multi-tenancy enforcement** (plan already exists) | L | All modules. Plan at `docs/superpowers/plans/2026-05-17-multi-tenancy-enforcement.md`. Overlaps with #21 and #22. |
+| SC2 | **Input validation** — `@Valid` on all request bodies, Jakarta annotations on DTOs | S | ✅ PR #62 merged. |
+| SC4 | **Multi-tenancy enforcement** | L | ✅ Fully implemented across all modules. Hibernate @Filter (JPA), ReactorTenantContext (R2DBC), TenantAwareKafkaSupport (Kafka). |
 | SC5 | **Refactor `AuditEventConsumer`** — extract generic handler, cut 358-line duplication | S | ✅ PR pending merge 2026-05-19 |
 | SC6 | **Pagination enforcement** — upper-bound `size`, return metadata with total count | M | admin-api, policy-engine, audit-service. Addresses A5. |
 | SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | admin-api. Addresses S11. |
