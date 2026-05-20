@@ -54,35 +54,22 @@ public class PolicyEngineClient {
                 .bodyToMono(Void.class);
     }
 
-    public Flux<JsonNode> listDecisions() {
-        return webClient.get().uri("/api/policy-decisions").retrieve().bodyToFlux(JsonNode.class);
-    }
-
-    public Flux<JsonNode> listFlags(int size) {
+    public Mono<JsonNode> listDecisions(int page, int size, String decision) {
         return webClient
                 .get()
                 .uri(
-                        uriBuilder ->
-                                uriBuilder
-                                        .path("/api/policy-decisions")
-                                        .queryParam("size", size)
-                                        .build())
+                        uriBuilder -> {
+                            uriBuilder
+                                    .path("/api/policy-decisions")
+                                    .queryParam("page", page)
+                                    .queryParam("size", size);
+                            if (decision != null && !decision.isBlank()) {
+                                uriBuilder.queryParam("decision", decision);
+                            }
+                            return uriBuilder.build();
+                        })
                 .retrieve()
-                .bodyToFlux(JsonNode.class);
-    }
-
-    public Flux<JsonNode> listDecisionsByType(String decision, int size) {
-        return webClient
-                .get()
-                .uri(
-                        uriBuilder ->
-                                uriBuilder
-                                        .path("/api/policy-decisions")
-                                        .queryParam("decision", decision)
-                                        .queryParam("size", size)
-                                        .build())
-                .retrieve()
-                .bodyToFlux(JsonNode.class);
+                .bodyToMono(JsonNode.class);
     }
 
     public Mono<Void> updateDecision(String id, JsonNode body) {

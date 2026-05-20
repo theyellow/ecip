@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
 
 @RestController
@@ -21,9 +21,10 @@ public class AuditController {
 
     @Operation(summary = "List recent audit events, optionally filtered by type")
     @GetMapping("/events")
-    public Flux<JsonNode> getEvents(
+    public Mono<JsonNode> getEvents(
+            @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "50") int size,
             @RequestParam(name = "eventType", required = false) String eventType) {
-        return auditServiceClient.listEvents(size, eventType);
+        return auditServiceClient.listEvents(page, Math.min(size, 200), eventType);
     }
 }
