@@ -69,3 +69,24 @@ services:
 telegram:
   api-id: ${TELEGRAM_API_ID:0}
   api-hash: ${TELEGRAM_API_HASH:}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        registerHealthIndicator: true
+    instances:
+      policy-engine:
+        baseConfig: default
+      audit-service:
+        baseConfig: default
+      moderation-service:
+        baseConfig: default
+      tdlib-adapter:
+        baseConfig: default
+      orchestrator:
+        baseConfig: default
