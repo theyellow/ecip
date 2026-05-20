@@ -17,6 +17,8 @@ public class JwtService {
 
     public static final long EXPIRY_MS = 8 * 60 * 60 * 1000L;
 
+    public static final long REFRESH_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000L;
+
     @PostConstruct
     void validateSecret() {
         if ("changeme-in-production-32chars-secret".equals(secret)) {
