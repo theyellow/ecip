@@ -13,8 +13,13 @@ import reactor.netty.http.client.HttpClient;
 public class WebClientConfig {
 
     @Bean("tdlibWebClient")
-    public WebClient tdlibWebClient(@Value("${service.tdlib.url}") String tdlibUrl) {
-        return buildWebClient(WebClient.builder(), tdlibUrl, Duration.ofSeconds(30));
+    public WebClient tdlibWebClient(
+            @Value("${service.tdlib.url}") String tdlibUrl,
+            @Value("${admin.service-token}") String serviceToken) {
+        return buildWebClient(
+                WebClient.builder().defaultHeader("X-Service-Token", serviceToken),
+                tdlibUrl,
+                Duration.ofSeconds(30));
     }
 
     @Bean("orchestratorWebClient")
