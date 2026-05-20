@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { flagsApi } from '../../api/flags'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
@@ -112,8 +111,7 @@ function FlagDetailModal({ flag, onClose, onStatusChange }) {
 }
 
 export function Flags() {
-  const { token } = useAuth()
-  const api = flagsApi(makeRequest(token))
+  const api = flagsApi(useAuthRequest())
   const [flags, setFlags] = useState([])
   const [total, setTotal] = useState(0)
   const [page] = useState(0)

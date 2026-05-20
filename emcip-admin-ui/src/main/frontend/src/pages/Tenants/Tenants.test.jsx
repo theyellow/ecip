@@ -5,6 +5,7 @@ import { Tenants } from './Tenants'
 
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
+  useAuthRequest: () => vi.fn(),
 }))
 vi.mock('../../api/client', () => ({ makeRequest: () => vi.fn() }))
 

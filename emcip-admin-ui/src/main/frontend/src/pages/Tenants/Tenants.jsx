@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { tenantsApi } from '../../api/tenants'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
@@ -27,8 +26,7 @@ function TenantModal({ onClose, onSave }) {
 }
 
 export function Tenants() {
-  const { token } = useAuth()
-  const api = tenantsApi(makeRequest(token))
+  const api = tenantsApi(useAuthRequest())
   const [tenants, setTenants] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [error, setError] = useState('')

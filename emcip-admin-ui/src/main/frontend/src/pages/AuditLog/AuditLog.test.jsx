@@ -5,6 +5,7 @@ import { AuditLog } from './AuditLog'
 
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
+  useAuthRequest: () => vi.fn(),
 }))
 vi.mock('../../api/client', () => ({ makeRequest: () => vi.fn() }))
 

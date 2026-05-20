@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { auditLogApi } from '../../api/auditLog'
 import styles from './AuditLog.module.css'
 
 const EVENT_TYPES = ['', 'MESSAGE_RECEIVED', 'MESSAGE_CLASSIFIED', 'POLICY_DECISION', 'MODERATION_ACTION']
 
 export function AuditLog() {
-  const { token } = useAuth()
-  const api = auditLogApi(makeRequest(token))
+  const api = auditLogApi(useAuthRequest())
   const [events, setEvents] = useState([])
   const [total, setTotal] = useState(0)
   const [page] = useState(0)

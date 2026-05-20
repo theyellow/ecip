@@ -1,13 +1,11 @@
 import { useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { simulateApi } from '../../api/simulate'
 import { Button } from '../../components/Button/Button'
 import styles from './Simulate.module.css'
 
 export function Simulate() {
-  const { token } = useAuth()
-  const api = simulateApi(makeRequest(token))
+  const api = simulateApi(useAuthRequest())
   const [form, setForm] = useState({ chatId: '', senderId: 'sim-user', senderType: 'USER', text: '' })
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
