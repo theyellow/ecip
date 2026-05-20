@@ -47,8 +47,8 @@
             <column name="model_name" value="qwen3-14b"/>
             <column name="description" value="Qwen3-14B via LiteLLM for content moderation and toxicity detection"/>
             <column name="task_type" value="MODERATION"/>
-            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
-            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="input_cost_per1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per1k_tokens" valueNumeric="0.0"/>
             <column name="context_window" valueNumeric="40000"/>
             <column name="max_output_tokens" valueNumeric="256"/>
             <column name="avg_latency_ms" valueNumeric="400.0"/>
