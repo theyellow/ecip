@@ -49,6 +49,7 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | INF1 | **Liquibase migration consolidation** | M | Each service has 6–10 incremental migrations from development, several with `md5sum='manual'` (root cause of the 2026-05-20 AI Config 500 incident). Squash into a single `001-initial-schema.xml` per service before 1.0.0. |
+| INF4 | **Refresh token cleanup job** | XS | SC7 adds a `refresh_tokens` table. Expired/revoked rows accumulate. Add a scheduled `@Transactional` cleanup (e.g. nightly `deleteByExpiresAtBefore`) or a Liquibase-safe TTL policy before 1.0.0. |
 | INF2 | **Fresh install smoke test** | S | After INF1: drop the test DB, `helm install`, verify all pages work. Document in `docs/operations/fresh-install.md`. |
 | INF3 | **Telegram test account seeding via Helm values** | S | Optional: `testing.telegram.enabled` + account params → post-deploy Kubernetes Job inserts row into `telegram_accounts`. Removes manual DB access during development. |
 | 21 | **Tenant provisioning / onboarding flow** | M | No way to create a tenant without direct DB access. Needs admin-api endpoint + Liquibase-safe seed flow. Blockers 1.0.0. |
@@ -65,6 +66,7 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | 20 | **Mixed-cluster: node taints + tolerations** | S | Fine-grained pod scheduling. Currently `nodeSelector` is sufficient. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
+| SC6b | **Paginate `PolicyRuleController.listActive()`** | XS | SC6 adds a `.take(200)` safety cap. Full `PageResponse<T>` not needed — policy rules are config data and will stay small in practice. Revisit if a tenant exceeds ~100 rules. |
 | 19 | **Mixed-cluster: arm64 native images** | L | Cross-compile GraalVM native for Pi 4 nodes. Needs QEMU emulation or a dedicated arm64 runner. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
 | 13 | **GraalVM native — R2DBC services** | XL | 4 services JVM-only: `moderation-service`, `audit-service`, `admin-api`, `intent-classifier`. Blocked on R2DBC + GraalVM reflection hints. Ref: `specs/2026-04-29-graalvm-native-migration-design.md`. |
 

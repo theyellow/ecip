@@ -51,3 +51,8 @@ Sort into a proper backlog in a later step.
 ## Moderation
 
 - ML toxicity detection via OpenNLP or Perspective API (see Backlog item #8)
+
+## Resilience (SC8 follow-ons)
+
+- Retry with exponential backoff on circuit-broken calls before surfacing 503 (currently 30 s half-open re-probe is the only recovery path)
+- Per-service fallback responses: return empty list / degraded payload instead of 503 so the admin UI stays functional when one downstream service is down
