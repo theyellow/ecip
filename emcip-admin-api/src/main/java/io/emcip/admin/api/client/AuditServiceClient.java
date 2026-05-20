@@ -1,5 +1,8 @@
 package io.emcip.admin.api.client;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -12,15 +15,18 @@ import tools.jackson.databind.JsonNode;
 public class AuditServiceClient {
 
     private final WebClient webClient;
+    private final CircuitBreaker circuitBreaker;
 
     public AuditServiceClient(
             @Value("${services.audit-service.url}") String baseUrl,
-            @Value("${admin.service-token}") String serviceToken) {
+            @Value("${admin.service-token}") String serviceToken,
+            CircuitBreakerRegistry registry) {
         this.webClient =
                 WebClient.builder()
                         .baseUrl(baseUrl)
                         .defaultHeader("X-Service-Token", serviceToken)
                         .build();
+        this.circuitBreaker = registry.circuitBreaker("audit-service");
     }
 
     public Mono<JsonNode> listEvents(int page, int size, String eventType) {
@@ -38,6 +44,7 @@ public class AuditServiceClient {
                             return uriBuilder.build();
                         })
                 .retrieve()
-                .bodyToMono(JsonNode.class);
+                .bodyToMono(JsonNode.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 }

@@ -1,6 +1,9 @@
 package io.emcip.admin.api.client;
 
 import io.emcip.common.tenant.ReactorTenantContext;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -14,15 +17,18 @@ import tools.jackson.databind.JsonNode;
 public class ModerationServiceClient {
 
     private final WebClient webClient;
+    private final CircuitBreaker circuitBreaker;
 
     public ModerationServiceClient(
             @Value("${services.moderation-service.url}") String baseUrl,
-            @Value("${admin.service-token}") String serviceToken) {
+            @Value("${admin.service-token}") String serviceToken,
+            CircuitBreakerRegistry registry) {
         this.webClient =
                 WebClient.builder()
                         .baseUrl(baseUrl)
                         .defaultHeader("X-Service-Token", serviceToken)
                         .build();
+        this.circuitBreaker = registry.circuitBreaker("moderation-service");
     }
 
     public Flux<JsonNode> listRules() {
@@ -32,7 +38,8 @@ public class ModerationServiceClient {
                     var spec = webClient.get().uri("/api/moderation-rules");
                     return (tenantId != null ? spec.header("X-Tenant-Id", tenantId) : spec)
                             .retrieve()
-                            .bodyToFlux(JsonNode.class);
+                            .bodyToFlux(JsonNode.class)
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
                 });
     }
 
@@ -44,7 +51,8 @@ public class ModerationServiceClient {
                     return (tenantId != null ? spec.header("X-Tenant-Id", tenantId) : spec)
                             .bodyValue(body)
                             .retrieve()
-                            .bodyToMono(JsonNode.class);
+                            .bodyToMono(JsonNode.class)
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
                 });
     }
 
@@ -54,7 +62,8 @@ public class ModerationServiceClient {
                 .uri("/api/moderation-rules/{id}", id)
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(JsonNode.class);
+                .bodyToMono(JsonNode.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Mono<Void> deleteRule(String id) {
@@ -62,6 +71,7 @@ public class ModerationServiceClient {
                 .delete()
                 .uri("/api/moderation-rules/{id}", id)
                 .retrieve()
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 }
