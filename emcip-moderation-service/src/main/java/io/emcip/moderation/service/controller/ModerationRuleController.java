@@ -35,8 +35,11 @@ public class ModerationRuleController {
     public Flux<ModerationRule> list() {
         return Flux.deferContextual(
                 ctx -> {
-                    UUID tenantId = UUID.fromString(ReactorTenantContext.getTenantId(ctx));
-                    return repository.findAllOrderedByTenantId(tenantId);
+                    String tenantIdStr = ReactorTenantContext.getTenantId(ctx);
+                    if (tenantIdStr == null) {
+                        return repository.findAllOrdered();
+                    }
+                    return repository.findAllOrderedByTenantId(UUID.fromString(tenantIdStr));
                 });
     }
 
@@ -56,7 +59,10 @@ public class ModerationRuleController {
                         rule.setAction("FLAG");
                     }
                     rule.setEnabled(true);
-                    rule.setTenantId(UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                    String tenantIdStr = ReactorTenantContext.getTenantId(ctx);
+                    if (tenantIdStr != null) {
+                        rule.setTenantId(UUID.fromString(tenantIdStr));
+                    }
                     return repository.save(rule);
                 });
     }
@@ -66,10 +72,13 @@ public class ModerationRuleController {
     public Mono<ModerationRule> update(@PathVariable Long id, @RequestBody ModerationRule rule) {
         return Mono.deferContextual(
                 ctx -> {
-                    UUID tenantId = UUID.fromString(ReactorTenantContext.getTenantId(ctx));
-                    return repository
-                            .findByIdAndTenantId(id, tenantId)
-                            .switchIfEmpty(
+                    String tenantIdStr = ReactorTenantContext.getTenantId(ctx);
+                    Mono<ModerationRule> finder =
+                            tenantIdStr != null
+                                    ? repository.findByIdAndTenantId(
+                                            id, UUID.fromString(tenantIdStr))
+                                    : repository.findById(id);
+                    return finder.switchIfEmpty(
                                     Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
                             .flatMap(
                                     existing -> {
@@ -91,10 +100,13 @@ public class ModerationRuleController {
     public Mono<Void> delete(@PathVariable Long id) {
         return Mono.deferContextual(
                 ctx -> {
-                    UUID tenantId = UUID.fromString(ReactorTenantContext.getTenantId(ctx));
-                    return repository
-                            .findByIdAndTenantId(id, tenantId)
-                            .switchIfEmpty(
+                    String tenantIdStr = ReactorTenantContext.getTenantId(ctx);
+                    Mono<ModerationRule> finder =
+                            tenantIdStr != null
+                                    ? repository.findByIdAndTenantId(
+                                            id, UUID.fromString(tenantIdStr))
+                                    : repository.findById(id);
+                    return finder.switchIfEmpty(
                                     Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)))
                             .flatMap(rule -> repository.deleteById(id));
                 });
