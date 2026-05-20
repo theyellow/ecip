@@ -8,6 +8,9 @@ import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import io.emcip.common.tenant.ReactorTenantContext;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -35,6 +38,7 @@ public class TelegramAccountService {
     private final GroupProfileRepository groupProfileRepository;
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
     private final WebClient tdlibClient;
+    private final CircuitBreaker tdlibCircuitBreaker;
 
     @Value("${telegram.api-id}")
     private int telegramApiId;
@@ -47,12 +51,14 @@ public class TelegramAccountService {
             AccountWatchedGroupRepository watchedGroupRepository,
             GroupProfileRepository groupProfileRepository,
             R2dbcEntityTemplate r2dbcEntityTemplate,
-            @Qualifier("tdlibWebClient") WebClient tdlibClient) {
+            @Qualifier("tdlibWebClient") WebClient tdlibClient,
+            CircuitBreakerRegistry registry) {
         this.repository = repository;
         this.watchedGroupRepository = watchedGroupRepository;
         this.groupProfileRepository = groupProfileRepository;
         this.r2dbcEntityTemplate = r2dbcEntityTemplate;
         this.tdlibClient = tdlibClient;
+        this.tdlibCircuitBreaker = registry.circuitBreaker("tdlib-adapter");
     }
 
     public Flux<TelegramAccount> findAll() {
@@ -127,6 +133,8 @@ public class TelegramAccountService {
                                         .uri("/api/auth/{id}/status", id)
                                         .retrieve()
                                         .bodyToMono(TdlibStatusResponse.class)
+                                        .transformDeferred(
+                                                CircuitBreakerOperator.of(tdlibCircuitBreaker))
                                         .flatMap(
                                                 r -> {
                                                     TelegramAccountStatus adapterStatus =
@@ -169,6 +177,8 @@ public class TelegramAccountService {
                                     .bodyValue(payload)
                                     .retrieve()
                                     .bodyToMono(Void.class)
+                                    .transformDeferred(
+                                            CircuitBreakerOperator.of(tdlibCircuitBreaker))
                                     .then(pushWatchedGroups(id))
                                     .then(
                                             repository.save(
@@ -185,7 +195,8 @@ public class TelegramAccountService {
                 .uri("/api/auth/{id}/code", id)
                 .bodyValue(Map.of("code", code))
                 .retrieve()
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(tdlibCircuitBreaker));
     }
 
     public Mono<Void> submitPassword(UUID id, String password) {
@@ -194,7 +205,8 @@ public class TelegramAccountService {
                 .uri("/api/auth/{id}/password", id)
                 .bodyValue(Map.of("password", password))
                 .retrieve()
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(tdlibCircuitBreaker));
     }
 
     public Mono<Void> logout(UUID id) {
@@ -203,6 +215,7 @@ public class TelegramAccountService {
                 .uri("/api/auth/{id}/logout", id)
                 .retrieve()
                 .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(tdlibCircuitBreaker))
                 .then(
                         repository
                                 .findById(id)
@@ -298,6 +311,8 @@ public class TelegramAccountService {
                                         .bodyValue(Map.of("chatIds", chatIds))
                                         .retrieve()
                                         .bodyToMono(Void.class)
+                                        .transformDeferred(
+                                                CircuitBreakerOperator.of(tdlibCircuitBreaker))
                                         .retryWhen(
                                                 reactor.util.retry.Retry.backoff(
                                                                 5, Duration.ofSeconds(2))
@@ -341,6 +356,7 @@ public class TelegramAccountService {
                 .bodyValue(payload)
                 .retrieve()
                 .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(tdlibCircuitBreaker))
                 .onErrorResume(
                         e -> {
                             log.warn(
@@ -360,6 +376,7 @@ public class TelegramAccountService {
                 .uri("/internal/chats/{id}", accountId)
                 .retrieve()
                 .bodyToFlux(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .transformDeferred(CircuitBreakerOperator.of(tdlibCircuitBreaker))
                 .collectList()
                 .onErrorReturn(List.of());
     }

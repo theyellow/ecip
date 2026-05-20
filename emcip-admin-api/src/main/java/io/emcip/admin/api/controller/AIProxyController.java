@@ -1,5 +1,8 @@
 package io.emcip.admin.api.controller;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
@@ -30,9 +33,13 @@ import reactor.core.publisher.Mono;
 public class AIProxyController {
 
     private final WebClient orchestratorClient;
+    private final CircuitBreaker circuitBreaker;
 
-    public AIProxyController(@Qualifier("orchestratorWebClient") WebClient orchestratorClient) {
+    public AIProxyController(
+            @Qualifier("orchestratorWebClient") WebClient orchestratorClient,
+            CircuitBreakerRegistry registry) {
         this.orchestratorClient = orchestratorClient;
+        this.circuitBreaker = registry.circuitBreaker("orchestrator");
     }
 
     // ---- Models ----
@@ -53,7 +60,8 @@ public class AIProxyController {
                                                         Mono.error(
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(), body))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @Operation(summary = "Create an AI model configuration")
@@ -76,7 +84,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @Operation(summary = "Update an AI model configuration")
@@ -98,7 +107,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @Operation(summary = "Delete an AI model configuration")
@@ -119,7 +129,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     // ---- Templates ----
@@ -140,7 +151,8 @@ public class AIProxyController {
                                                         Mono.error(
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(), body))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @Operation(summary = "Create a prompt template")
@@ -163,7 +175,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @Operation(summary = "Update a prompt template")
@@ -185,7 +198,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @Operation(summary = "Delete a prompt template")
@@ -206,7 +220,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     // ---- Provider Config ----
@@ -226,7 +241,8 @@ public class AIProxyController {
                                                         Mono.error(
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(), body))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @PostMapping(value = "/provider-config", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -248,7 +264,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @PutMapping(value = "/provider-config/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -269,7 +286,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @DeleteMapping("/provider-config/{id}")
@@ -289,7 +307,8 @@ public class AIProxyController {
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(),
                                                                         respBody))))
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     @GetMapping("/provider-config/models")
@@ -319,6 +338,7 @@ public class AIProxyController {
                                                         Mono.error(
                                                                 new ResponseStatusException(
                                                                         resp.statusCode(), body))))
-                .bodyToMono(String.class);
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 }
