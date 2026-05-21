@@ -1,0 +1,20 @@
+package io.emcip.admin.api.security;
+
+public enum Permission {
+    GROUPS_READ,
+    GROUPS_WRITE,
+    POLICY_RULES_READ,
+    POLICY_RULES_WRITE,
+    MODERATION_RULES_READ,
+    MODERATION_RULES_WRITE,
+    AUDIT_READ,
+    TELEGRAM_READ,
+    TELEGRAM_WRITE,
+    SIMULATE_WRITE,
+    AI_CONFIG_READ,
+    AI_CONFIG_WRITE,
+    TENANTS_READ,
+    TENANTS_WRITE,
+    USERS_READ,
+    USERS_WRITE
+}
