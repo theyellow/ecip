@@ -267,7 +267,4 @@ Actions:
 
 ## Out of Scope
 
-- Public self-service portal (external users, no EMCIP account required) → `documentation/POSSIBLE_DEVELOPMENT.md`
-- Fine-grained per-resource permissions (e.g., read-only operator role)
-- Tenant-level user limits or quotas
-- SSO / OAuth2 / OIDC for admin login
+See `documentation/POSSIBLE_DEVELOPMENT.md` § "User-Facing / Self-Service" for deferred ideas: public self-service portal, fine-grained per-resource permissions, tenant-level user limits, SSO/OIDC.
