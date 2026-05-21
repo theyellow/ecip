@@ -84,7 +84,7 @@ class SecurityFilterChainTest {
 
     @Test
     void jwtFilter_validJwt_chainRunsWithAuthenticationInContext() {
-        String token = jwtService.generateToken("admin", "ADMIN");
+        String token = jwtService.generateToken("admin", "ADMIN", null, null);
         MockServerWebExchange exchange =
                 MockServerWebExchange.from(
                         MockServerHttpRequest.get("/api/groups")

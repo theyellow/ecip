@@ -5,6 +5,7 @@ import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.entity.AdminUser;
 import io.emcip.admin.api.repository.AdminUserRepository;
+import io.emcip.admin.api.repository.TenantRepository;
 import io.emcip.admin.api.security.JwtService;
 import io.emcip.admin.api.security.Role;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ class AuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
     @Mock private RefreshTokenService refreshTokenService;
+    @Mock private TenantRepository tenantRepository;
 
     @InjectMocks private AuthService authService;
 
@@ -40,7 +42,7 @@ class AuthServiceTest {
     void authenticate_validCredentials_returnsTokenWithRefresh() {
         when(userRepository.findByUsername("admin")).thenReturn(Mono.just(enabledUser()));
         when(passwordEncoder.matches("secret", "$2a$hash")).thenReturn(true);
-        when(jwtService.generateToken("admin", "ADMIN")).thenReturn("jwt-abc");
+        when(jwtService.generateToken("admin", "ADMIN", null, null)).thenReturn("jwt-abc");
         when(refreshTokenService.issue(1L)).thenReturn(Mono.just("refresh-xyz"));
 
         StepVerifier.create(authService.authenticate("admin", "secret"))
@@ -93,7 +95,7 @@ class AuthServiceTest {
                 new RefreshTokenService.RotateResult("new-refresh", 1L);
         when(refreshTokenService.rotate("old-refresh")).thenReturn(Mono.just(rotated));
         when(userRepository.findById(1L)).thenReturn(Mono.just(enabledUser()));
-        when(jwtService.generateToken("admin", "ADMIN")).thenReturn("new-jwt");
+        when(jwtService.generateToken("admin", "ADMIN", null, null)).thenReturn("new-jwt");
 
         StepVerifier.create(authService.refresh("old-refresh"))
                 .assertNext(
