@@ -49,14 +49,25 @@ public class UserManagementService {
                 .flatMap(this::toResponse);
     }
 
-    public Mono<UserResponse> update(Long id, UserRequest req) {
+    public Mono<UserResponse> update(Long id, UserRequest req, String callerUsername) {
         return userRepository
                 .findById(id)
                 .switchIfEmpty(
                         Mono.error(
                                 new ResponseStatusException(
                                         HttpStatus.NOT_FOUND, "User not found")))
-                .flatMap(user -> validateRequest(req).thenReturn(user))
+                .flatMap(
+                        user -> {
+                            if (user.getUsername().equals(callerUsername)
+                                    && user.getRole() == Role.ADMIN
+                                    && req.getRole() != Role.ADMIN) {
+                                return Mono.error(
+                                        new ResponseStatusException(
+                                                HttpStatus.BAD_REQUEST,
+                                                "Cannot remove your own admin role"));
+                            }
+                            return validateRequest(req).thenReturn(user);
+                        })
                 .flatMap(
                         user -> {
                             user.setRole(req.getRole());

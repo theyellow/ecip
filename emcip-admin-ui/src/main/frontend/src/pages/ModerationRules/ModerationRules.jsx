@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuthRequest } from '../../auth/AuthContext'
+import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { moderationRulesApi } from '../../api/moderationRules'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
@@ -19,7 +19,7 @@ const PATTERN_HINT = {
 const SEVERITY_VARIANT = { LOW: 'gray', MEDIUM: 'yellow', HIGH: 'red' }
 const ACTION_VARIANT   = { FLAG: 'blue', WARN: 'yellow', MUTE: 'yellow', BAN: 'red', DELETE: 'red', ESCALATE: 'gray' }
 
-function RuleModal({ rule, onClose, onSave }) {
+function RuleModal({ rule, onClose, onSave, currentTenant }) {
   const [form, setForm] = useState({
     name:     rule?.name     ?? '',
     ruleType: rule?.ruleType ?? 'KEYWORD',
@@ -68,11 +68,20 @@ function RuleModal({ rule, onClose, onSave }) {
           </select>
         </>
       )}
+      <label>Tenant</label>
+      <p className={styles.hint}>
+        {rule?.tenantId
+          ? rule.tenantId.slice(0, 8) + '…'
+          : currentTenant
+            ? currentTenant.name
+            : 'All tenants — select a tenant in the sidebar to scope this rule'}
+      </p>
     </Modal>
   )
 }
 
 export function ModerationRules() {
+  const { currentTenant } = useAuth()
   const api = moderationRulesApi(useAuthRequest())
   const [rules, setRules]   = useState([])
   const [modal, setModal]   = useState(null)
@@ -107,6 +116,7 @@ export function ModerationRules() {
         <thead>
           <tr>
             <th>Rule Name</th>
+            <th>Tenant</th>
             <th>Type</th>
             <th>Pattern</th>
             <th>Severity</th>
@@ -119,6 +129,7 @@ export function ModerationRules() {
           {rules.map(r => (
             <tr key={r.id}>
               <td>{r.name}</td>
+              <td className={styles.mono}>{r.tenantId ? r.tenantId.slice(0, 8) + '…' : '—'}</td>
               <td><Badge variant="gray">{r.ruleType}</Badge></td>
               <td className={styles.pattern} title={r.pattern}>{r.pattern}</td>
               <td><Badge variant={SEVERITY_VARIANT[r.severity] ?? 'gray'}>{r.severity}</Badge></td>
@@ -137,6 +148,7 @@ export function ModerationRules() {
           rule={modal === 'add' ? null : modal}
           onClose={() => setModal(null)}
           onSave={save}
+          currentTenant={currentTenant}
         />
       )}
     </div>

@@ -73,9 +73,13 @@ public class PolicyRuleController {
                                                                     : existing.getTargetIntent());
                                                     existing.setAction(rule.getAction());
                                                     existing.setPriority(rule.getPriority());
-                                                    existing.setActive(rule.getActive());
-                                                    existing.setMinConfidence(
-                                                            rule.getMinConfidence());
+                                                    if (rule.getActive() != null) {
+                                                        existing.setActive(rule.getActive());
+                                                    }
+                                                    if (rule.getMinConfidence() != null) {
+                                                        existing.setMinConfidence(
+                                                                rule.getMinConfidence());
+                                                    }
                                                     existing.setMaxConfidence(
                                                             rule.getMaxConfidence());
                                                     existing.setDescription(rule.getDescription());

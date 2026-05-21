@@ -124,8 +124,8 @@ export function Flags() {
     api
       .list(page, size, decision)
       .then(data => {
-        setFlags(data.items)
-        setTotal(data.total)
+        setFlags(data?.items ?? [])
+        setTotal(data?.total ?? 0)
       })
       .catch(e => setError(e.message))
 
