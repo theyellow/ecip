@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-21 (SC6/SC7/SC8 + INF4 complete)
+> Last updated: 2026-05-21 (SC6/SC7/SC8 + INF4 + secret scanning complete)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
