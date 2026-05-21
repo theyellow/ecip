@@ -66,12 +66,16 @@ class AdminTenantContextFilterTest {
     }
 
     @Test
-    void tenantHeader_propagatesTenantContext() {
+    void admin_withTenantHeader_propagatesTenantContext() {
         MockServerWebExchange exchange =
                 MockServerWebExchange.from(
                         MockServerHttpRequest.get("/api/groups")
                                 .header(TenantContext.HEADER_NAME, "tenant-abc")
                                 .build());
+
+        var auth =
+                new UsernamePasswordAuthenticationToken(
+                        "superadmin", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
 
         AtomicReference<String> capturedTenant = new AtomicReference<>();
         WebFilterChain chain =
@@ -82,7 +86,11 @@ class AdminTenantContextFilterTest {
                                     return Mono.empty();
                                 });
 
-        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+        StepVerifier.create(
+                        filter.filter(exchange, chain)
+                                .contextWrite(
+                                        ReactiveSecurityContextHolder.withAuthentication(auth)))
+                .verifyComplete();
 
         assertThat(capturedTenant.get()).isEqualTo("tenant-abc");
     }
@@ -115,16 +123,84 @@ class AdminTenantContextFilterTest {
     }
 
     @Test
-    void noTenantAndNoAdminRole_returns400() {
+    void noTenantInDetails_returns403() {
         MockServerWebExchange exchange =
                 MockServerWebExchange.from(MockServerHttpRequest.get("/api/groups").build());
 
         AtomicBoolean chainInvoked = new AtomicBoolean(false);
         WebFilterChain chain = ex -> Mono.fromRunnable(() -> chainInvoked.set(true));
 
-        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+        var auth =
+                new UsernamePasswordAuthenticationToken(
+                        "alice", null, List.of(new SimpleGrantedAuthority("ROLE_TENANT_ADMIN")));
+        // details is null — no tenant embedded in JWT
 
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        StepVerifier.create(
+                        filter.filter(exchange, chain)
+                                .contextWrite(
+                                        ReactiveSecurityContextHolder.withAuthentication(auth)))
+                .verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(chainInvoked.get()).isFalse();
+    }
+
+    @Test
+    void tenantAdmin_withDetailsInAuth_setsTenantContext() {
+        MockServerWebExchange exchange =
+                MockServerWebExchange.from(MockServerHttpRequest.get("/api/groups").build());
+
+        var auth =
+                new UsernamePasswordAuthenticationToken(
+                        "alice", null, List.of(new SimpleGrantedAuthority("ROLE_TENANT_ADMIN")));
+        auth.setDetails("550e8400-e29b-41d4-a716-446655440000");
+
+        AtomicReference<String> capturedTenant = new AtomicReference<>();
+        WebFilterChain chain =
+                ex ->
+                        Mono.deferContextual(
+                                ctx -> {
+                                    capturedTenant.set(ReactorTenantContext.getTenantId(ctx));
+                                    return Mono.empty();
+                                });
+
+        StepVerifier.create(
+                        filter.filter(exchange, chain)
+                                .contextWrite(
+                                        ReactiveSecurityContextHolder.withAuthentication(auth)))
+                .verifyComplete();
+
+        assertThat(capturedTenant.get()).isEqualTo("550e8400-e29b-41d4-a716-446655440000");
+    }
+
+    @Test
+    void tenantAdmin_ignoresXTenantIdHeader() {
+        MockServerWebExchange exchange =
+                MockServerWebExchange.from(
+                        MockServerHttpRequest.get("/api/groups")
+                                .header("X-Tenant-Id", "spoofed-tenant-id")
+                                .build());
+
+        var auth =
+                new UsernamePasswordAuthenticationToken(
+                        "alice", null, List.of(new SimpleGrantedAuthority("ROLE_TENANT_ADMIN")));
+        auth.setDetails("real-tenant-uuid");
+
+        AtomicReference<String> capturedTenant = new AtomicReference<>();
+        WebFilterChain chain =
+                ex ->
+                        Mono.deferContextual(
+                                ctx -> {
+                                    capturedTenant.set(ReactorTenantContext.getTenantId(ctx));
+                                    return Mono.empty();
+                                });
+
+        StepVerifier.create(
+                        filter.filter(exchange, chain)
+                                .contextWrite(
+                                        ReactiveSecurityContextHolder.withAuthentication(auth)))
+                .verifyComplete();
+
+        assertThat(capturedTenant.get()).isEqualTo("real-tenant-uuid");
     }
 }

@@ -1,9 +1,12 @@
 package io.emcip.admin.api.service;
 
 import io.emcip.admin.api.dto.TokenResponse;
+import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.repository.AdminUserRepository;
+import io.emcip.admin.api.repository.TenantRepository;
 import io.emcip.admin.api.security.JwtService;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +22,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final TenantRepository tenantRepository;
 
     public Mono<TokenResponse> authenticate(String username, String password) {
         return userRepository
@@ -34,19 +38,32 @@ public class AuthService {
                                         HttpStatus.UNAUTHORIZED, "Invalid credentials")))
                 .flatMap(
                         user ->
-                                refreshTokenService
-                                        .issue(user.getId())
-                                        .map(
-                                                rawRefresh ->
-                                                        new TokenResponse(
-                                                                jwtService.generateToken(
-                                                                        user.getUsername(),
-                                                                        user.getRole()),
-                                                                Instant.now()
-                                                                        .plusMillis(
-                                                                                JwtService
-                                                                                        .EXPIRY_MS),
-                                                                rawRefresh)));
+                                resolveTenantName(user.getTenantId())
+                                        .flatMap(
+                                                tenantName ->
+                                                        refreshTokenService
+                                                                .issue(user.getId())
+                                                                .map(
+                                                                        rawRefresh ->
+                                                                                new TokenResponse(
+                                                                                        jwtService
+                                                                                                .generateToken(
+                                                                                                        user
+                                                                                                                .getUsername(),
+                                                                                                        user.getRole()
+                                                                                                                .name(),
+                                                                                                        user
+                                                                                                                .getTenantId(),
+                                                                                                        tenantName
+                                                                                                                        .isEmpty()
+                                                                                                                ? null
+                                                                                                                : tenantName),
+                                                                                        Instant
+                                                                                                .now()
+                                                                                                .plusMillis(
+                                                                                                        JwtService
+                                                                                                                .EXPIRY_MS),
+                                                                                        rawRefresh))));
     }
 
     public Mono<TokenResponse> refresh(String rawRefreshToken) {
@@ -61,16 +78,35 @@ public class AuthService {
                                                         new ResponseStatusException(
                                                                 HttpStatus.UNAUTHORIZED,
                                                                 "User not found")))
-                                        .map(
+                                        .flatMap(
                                                 user ->
-                                                        new TokenResponse(
-                                                                jwtService.generateToken(
-                                                                        user.getUsername(),
-                                                                        user.getRole()),
-                                                                Instant.now()
-                                                                        .plusMillis(
-                                                                                JwtService
-                                                                                        .EXPIRY_MS),
-                                                                result.newRawToken())));
+                                                        resolveTenantName(user.getTenantId())
+                                                                .map(
+                                                                        tenantName ->
+                                                                                new TokenResponse(
+                                                                                        jwtService
+                                                                                                .generateToken(
+                                                                                                        user
+                                                                                                                .getUsername(),
+                                                                                                        user.getRole()
+                                                                                                                .name(),
+                                                                                                        user
+                                                                                                                .getTenantId(),
+                                                                                                        tenantName
+                                                                                                                        .isEmpty()
+                                                                                                                ? null
+                                                                                                                : tenantName),
+                                                                                        Instant
+                                                                                                .now()
+                                                                                                .plusMillis(
+                                                                                                        JwtService
+                                                                                                                .EXPIRY_MS),
+                                                                                        result
+                                                                                                .newRawToken()))));
+    }
+
+    private Mono<String> resolveTenantName(UUID tenantId) {
+        if (tenantId == null) return Mono.just("");
+        return tenantRepository.findById(tenantId).map(Tenant::getName).defaultIfEmpty("");
     }
 }

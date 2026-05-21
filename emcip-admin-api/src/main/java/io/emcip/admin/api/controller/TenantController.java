@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +23,7 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/tenants")
 @RequiredArgsConstructor
+@PreAuthorize("hasAuthority('TENANTS_READ')")
 @Tag(name = "Tenants", description = "Manage EMCIP tenants")
 public class TenantController {
 

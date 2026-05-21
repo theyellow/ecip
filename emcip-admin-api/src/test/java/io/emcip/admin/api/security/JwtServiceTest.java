@@ -9,6 +9,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import java.util.Date;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -27,7 +28,7 @@ class JwtServiceTest {
 
     @Test
     void generateToken_producesValidToken() {
-        String token = jwtService.generateToken("admin", "ADMIN");
+        String token = jwtService.generateToken("admin", "ADMIN", null, null);
 
         assertThat(token).isNotBlank();
         assertThat(token.split("\\.")).hasSize(3);
@@ -35,7 +36,7 @@ class JwtServiceTest {
 
     @Test
     void validateToken_extractsCorrectClaims() {
-        String token = jwtService.generateToken("admin", "ADMIN");
+        String token = jwtService.generateToken("admin", "ADMIN", null, null);
 
         Claims claims = jwtService.validateToken(token);
 
@@ -46,16 +47,33 @@ class JwtServiceTest {
 
     @Test
     void extractUsername_returnsCorrectUsername() {
-        String token = jwtService.generateToken("testuser", "OPERATOR");
+        String token = jwtService.generateToken("testuser", "OPERATOR", null, null);
 
         assertThat(jwtService.extractUsername(token)).isEqualTo("testuser");
     }
 
     @Test
     void extractRole_returnsCorrectRole() {
-        String token = jwtService.generateToken("testuser", "OPERATOR");
+        String token = jwtService.generateToken("testuser", "OPERATOR", null, null);
 
         assertThat(jwtService.extractRole(token)).isEqualTo("OPERATOR");
+    }
+
+    @Test
+    void generateToken_tenantAdmin_includesTenantClaims() {
+        UUID tenantId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        String token = jwtService.generateToken("alice", "TENANT_ADMIN", tenantId, "Acme Corp");
+
+        assertThat(jwtService.extractTenantId(token)).isEqualTo(tenantId.toString());
+        assertThat(jwtService.extractTenantName(token)).isEqualTo("Acme Corp");
+    }
+
+    @Test
+    void generateToken_admin_noTenantClaims() {
+        String token = jwtService.generateToken("admin", "ADMIN", null, null);
+
+        assertThat(jwtService.extractTenantId(token)).isNull();
+        assertThat(jwtService.extractTenantName(token)).isNull();
     }
 
     @Test

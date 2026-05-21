@@ -2,6 +2,7 @@ package io.emcip.admin.api.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,7 +85,7 @@ class SecurityFilterChainTest {
 
     @Test
     void jwtFilter_validJwt_chainRunsWithAuthenticationInContext() {
-        String token = jwtService.generateToken("admin", "ADMIN");
+        String token = jwtService.generateToken("admin", "ADMIN", null, null);
         MockServerWebExchange exchange =
                 MockServerWebExchange.from(
                         MockServerHttpRequest.get("/api/groups")
@@ -162,5 +163,39 @@ class SecurityFilterChainTest {
         assertThat(capturedAuth.get()).isNotNull();
         assertThat(capturedAuth.get().getAuthorities())
                 .anyMatch(a -> a.getAuthority().equals("ROLE_SERVICE"));
+    }
+
+    @Test
+    void validTenantAdminJwt_populatesPermissionsAndDetails() {
+        JwtService jwtService = new JwtService();
+        ReflectionTestUtils.setField(
+                jwtService, "secret", "test-secret-key-must-be-32-chars-minimum!!");
+        UUID tenantId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        String token = jwtService.generateToken("alice", "TENANT_ADMIN", tenantId, "Acme Corp");
+
+        MockServerWebExchange exchange =
+                MockServerWebExchange.from(
+                        MockServerHttpRequest.get("/api/telegram/accounts")
+                                .header("Authorization", "Bearer " + token)
+                                .build());
+
+        AtomicReference<org.springframework.security.core.Authentication> capturedAuth =
+                new AtomicReference<>();
+        WebFilterChain chain =
+                ex ->
+                        ReactiveSecurityContextHolder.getContext()
+                                .doOnNext(ctx -> capturedAuth.set(ctx.getAuthentication()))
+                                .then();
+
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtService);
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        org.springframework.security.core.Authentication auth = capturedAuth.get();
+        assertThat(auth).isNotNull();
+        assertThat(auth.getAuthorities())
+                .extracting(a -> a.getAuthority())
+                .contains("ROLE_TENANT_ADMIN", "TELEGRAM_READ", "TELEGRAM_WRITE")
+                .doesNotContain("AI_CONFIG_READ", "TENANTS_READ");
+        assertThat(auth.getDetails()).isEqualTo("550e8400-e29b-41d4-a716-446655440000");
     }
 }
