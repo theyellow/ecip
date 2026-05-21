@@ -57,21 +57,27 @@ public class ModerationServiceClient {
     }
 
     public Mono<JsonNode> updateRule(String id, JsonNode body) {
-        return webClient
-                .put()
-                .uri("/api/moderation-rules/{id}", id)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return Mono.deferContextual(
+                ctx -> {
+                    String tenantId = ReactorTenantContext.getTenantId(ctx);
+                    var spec = webClient.put().uri("/api/moderation-rules/{id}", id);
+                    return (tenantId != null ? spec.header("X-Tenant-Id", tenantId) : spec)
+                            .bodyValue(body)
+                            .retrieve()
+                            .bodyToMono(JsonNode.class)
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                });
     }
 
     public Mono<Void> deleteRule(String id) {
-        return webClient
-                .delete()
-                .uri("/api/moderation-rules/{id}", id)
-                .retrieve()
-                .bodyToMono(Void.class)
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return Mono.deferContextual(
+                ctx -> {
+                    String tenantId = ReactorTenantContext.getTenantId(ctx);
+                    var spec = webClient.delete().uri("/api/moderation-rules/{id}", id);
+                    return (tenantId != null ? spec.header("X-Tenant-Id", tenantId) : spec)
+                            .retrieve()
+                            .bodyToMono(Void.class)
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                });
     }
 }

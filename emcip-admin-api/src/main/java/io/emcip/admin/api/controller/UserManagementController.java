@@ -50,8 +50,11 @@ public class UserManagementController {
     @PutMapping("/{id}")
     @PreAuthorize("hasAuthority('USERS_WRITE')")
     public Mono<UserResponse> updateUser(
-            @PathVariable Long id, @Valid @RequestBody UserRequest req) {
-        return userManagementService.update(id, req);
+            @PathVariable Long id, @Valid @RequestBody UserRequest req, Mono<Principal> principal) {
+        return principal
+                .map(Principal::getName)
+                .defaultIfEmpty("")
+                .flatMap(callerUsername -> userManagementService.update(id, req, callerUsername));
     }
 
     @Operation(summary = "Delete a user")

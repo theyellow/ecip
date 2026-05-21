@@ -18,8 +18,8 @@ export function AuditLog() {
     api
       .list(page, size, eventType)
       .then(data => {
-        setEvents(data.items)
-        setTotal(data.total)
+        setEvents(data?.items ?? [])
+        setTotal(data?.total ?? 0)
       })
       .catch(e => setError(e.message))
   useEffect(() => { load() }, [size, eventType])

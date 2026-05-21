@@ -81,6 +81,25 @@ class UserManagementControllerTest {
     }
 
     @Test
+    void updateUser_returns200() {
+        when(userManagementService.update(any(), any(), any())).thenReturn(Mono.just(sampleUser()));
+
+        UserRequest req = new UserRequest();
+        req.setUsername("admin");
+        req.setEmail("admin@example.com");
+        req.setRole(Role.ADMIN);
+
+        webTestClient
+                .put()
+                .uri("/api/users/1")
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue(req)
+                .exchange()
+                .expectStatus()
+                .isOk();
+    }
+
+    @Test
     void deleteUser_returns204() {
         when(userManagementService.delete(any(), any())).thenReturn(Mono.empty());
 

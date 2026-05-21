@@ -1,5 +1,6 @@
 package io.emcip.admin.api.client;
 
+import io.emcip.common.tenant.ReactorTenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
@@ -30,21 +31,27 @@ public class AuditServiceClient {
     }
 
     public Mono<JsonNode> listEvents(int page, int size, String eventType) {
-        return webClient
-                .get()
-                .uri(
-                        uriBuilder -> {
-                            uriBuilder
-                                    .path("/api/audit/events")
-                                    .queryParam("page", page)
-                                    .queryParam("size", size);
-                            if (eventType != null && !eventType.isBlank()) {
-                                uriBuilder.queryParam("eventType", eventType);
-                            }
-                            return uriBuilder.build();
-                        })
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return Mono.deferContextual(
+                ctx -> {
+                    String tenantId = ReactorTenantContext.getTenantId(ctx);
+                    var spec =
+                            webClient
+                                    .get()
+                                    .uri(
+                                            uriBuilder -> {
+                                                uriBuilder
+                                                        .path("/api/audit/events")
+                                                        .queryParam("page", page)
+                                                        .queryParam("size", size);
+                                                if (eventType != null && !eventType.isBlank()) {
+                                                    uriBuilder.queryParam("eventType", eventType);
+                                                }
+                                                return uriBuilder.build();
+                                            });
+                    return (tenantId != null ? spec.header("X-Tenant-Id", tenantId) : spec)
+                            .retrieve()
+                            .bodyToMono(JsonNode.class)
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                });
     }
 }

@@ -139,4 +139,47 @@ class UserManagementServiceTest {
 
         StepVerifier.create(userManagementService.delete(2L, "other")).verifyComplete();
     }
+
+    @Test
+    void updateUser_selfDemotion_rejected() {
+        when(userRepository.findById(1L)).thenReturn(Mono.just(adminUser()));
+
+        UserRequest req = new UserRequest();
+        req.setRole(Role.TENANT_ADMIN);
+        req.setTenantId(TENANT_ID);
+
+        StepVerifier.create(userManagementService.update(1L, req, "admin"))
+                .expectErrorMatches(
+                        e ->
+                                e.getMessage() != null
+                                        && e.getMessage()
+                                                .contains("Cannot remove your own admin role"))
+                .verify();
+    }
+
+    @Test
+    void updateUser_otherUser_succeeds() {
+        AdminUser other =
+                AdminUser.builder()
+                        .id(2L)
+                        .username("other")
+                        .email("other@example.com")
+                        .passwordHash("$2a$hash")
+                        .role(Role.ADMIN)
+                        .enabled(true)
+                        .createdAt(Instant.now())
+                        .build();
+        when(userRepository.findById(2L)).thenReturn(Mono.just(other));
+        when(tenantRepository.existsById(TENANT_ID)).thenReturn(Mono.just(true));
+        when(userRepository.save(any())).thenReturn(Mono.just(tenantAdminUser()));
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Mono.just(tenant("Acme Corp")));
+
+        UserRequest req = new UserRequest();
+        req.setRole(Role.TENANT_ADMIN);
+        req.setTenantId(TENANT_ID);
+
+        StepVerifier.create(userManagementService.update(2L, req, "admin"))
+                .assertNext(resp -> assertThat(resp.getRole()).isEqualTo(Role.TENANT_ADMIN))
+                .verifyComplete();
+    }
 }
