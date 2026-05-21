@@ -4,8 +4,40 @@ import { makeRefreshableRequest } from '../api/client'
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 const AuthContext = createContext(null)
 
+function decodeJwt(token) {
+  try {
+    const payload = token.split('.')[1]
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+  } catch {
+    return null
+  }
+}
+
+function storedTenant() {
+  const raw = sessionStorage.getItem('emcip-current-tenant')
+  return raw ? JSON.parse(raw) : null
+}
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => sessionStorage.getItem('emcip-token'))
+  const [role, setRole] = useState(() => {
+    const t = sessionStorage.getItem('emcip-token')
+    return t ? (decodeJwt(t)?.role ?? null) : null
+  })
+  const [tenantId, setTenantId] = useState(() => {
+    const t = sessionStorage.getItem('emcip-token')
+    return t ? (decodeJwt(t)?.tenantId ?? null) : null
+  })
+  const [currentTenant, setCurrentTenantState] = useState(() => storedTenant())
+
+  const setCurrentTenant = (tenant) => {
+    if (tenant) {
+      sessionStorage.setItem('emcip-current-tenant', JSON.stringify(tenant))
+    } else {
+      sessionStorage.removeItem('emcip-current-tenant')
+    }
+    setCurrentTenantState(tenant)
+  }
 
   const login = async (username, password) => {
     const res = await fetch(`${API_BASE}/api/auth/token`, {
@@ -15,9 +47,23 @@ export function AuthProvider({ children }) {
     })
     if (!res.ok) throw new Error('Invalid credentials')
     const data = await res.json()
+    const payload = decodeJwt(data.token)
+    const newRole = payload?.role ?? null
+    const newTenantId = payload?.tenantId ?? null
+
     sessionStorage.setItem('emcip-token', data.token)
     sessionStorage.setItem('emcip-refresh-token', data.refreshToken)
     setToken(data.token)
+    setRole(newRole)
+    setTenantId(newTenantId)
+
+    // TENANT_ADMIN: lock currentTenant to their JWT-embedded tenant
+    if (newRole === 'TENANT_ADMIN' && newTenantId) {
+      const tenant = { id: newTenantId, name: payload?.tenantName ?? newTenantId }
+      setCurrentTenant(tenant)
+    } else {
+      setCurrentTenant(null)
+    }
   }
 
   const logout = () => {
@@ -31,7 +77,11 @@ export function AuthProvider({ children }) {
     }
     sessionStorage.removeItem('emcip-token')
     sessionStorage.removeItem('emcip-refresh-token')
+    sessionStorage.removeItem('emcip-current-tenant')
     setToken(null)
+    setRole(null)
+    setTenantId(null)
+    setCurrentTenantState(null)
   }
 
   const refresh = async () => {
@@ -51,7 +101,9 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, login, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ token, role, tenantId, currentTenant, setCurrentTenant, login, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   )
@@ -63,6 +115,6 @@ export function useAuth() {
 
 /** Returns a fetch function that auto-refreshes on 401 and logs out on refresh failure. */
 export function useAuthRequest() {
-  const { token, refresh, logout } = useAuth()
-  return makeRefreshableRequest(token ?? '', refresh, logout)
+  const { token, role, currentTenant, refresh, logout } = useAuth()
+  return makeRefreshableRequest(token ?? '', role, currentTenant, refresh, logout)
 }
