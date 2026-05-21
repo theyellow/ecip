@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-20 (first cluster deployment complete; SC1–SC5, SC9 done)
+> Last updated: 2026-05-21 (SC6/SC7/SC8 complete; all review-driven structural changes done)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -8,8 +8,7 @@
 
 ## 1. Now — Finish Review-Driven Structural Changes
 
-> SC1–SC5, SC9 complete. Three items remain from the 2026-05-18 review.
-> Full findings in `documentation/REVIEW-2026-05-18.md §8.2`.
+> All SC items complete. Full findings in `documentation/REVIEW-2026-05-18.md §8.2`.
 
 | # | Item | Size | Notes |
 |---|------|------|-------|
@@ -19,9 +18,9 @@
 | SC4 | **Multi-tenancy enforcement** | L | ✅ Hibernate @Filter, ReactorTenantContext, TenantAwareKafkaSupport |
 | SC5 | **Refactor `AuditEventConsumer`** — extract generic handler | S | ✅ PR #63 — 2026-05-19 |
 | SC9 | **Network segmentation** in docker-compose | S | ✅ PR #63 — 2026-05-19 |
-| SC6 | **Pagination enforcement** — upper-bound `size`, return total count | M | ⏳ admin-api, policy-engine, audit-service. Addresses A5. |
-| SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | ⏳ admin-api. Addresses S11. |
-| SC8 | **Circuit breakers** on WebClient calls to downstream services | M | ⏳ admin-api. resilience4j or Spring Retry. Addresses A7, G7. |
+| SC6 | **Pagination enforcement** — upper-bound `size`, return total count | M | ✅ PR #73 — 2026-05-21 |
+| SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | ✅ PR #73 — 2026-05-21 |
+| SC8 | **Circuit breakers** on WebClient calls to downstream services | M | ✅ PR #73 — 2026-05-21 |
 
 ---
 
