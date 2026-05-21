@@ -123,7 +123,7 @@ class AdminTenantContextFilterTest {
     }
 
     @Test
-    void noTenantInDetails_returns400() {
+    void noTenantInDetails_returns403() {
         MockServerWebExchange exchange =
                 MockServerWebExchange.from(MockServerHttpRequest.get("/api/groups").build());
 
@@ -141,7 +141,7 @@ class AdminTenantContextFilterTest {
                                         ReactiveSecurityContextHolder.withAuthentication(auth)))
                 .verifyComplete();
 
-        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(chainInvoked.get()).isFalse();
     }
 

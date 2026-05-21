@@ -26,7 +26,6 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('USERS_WRITE')")
 @Tag(name = "Users", description = "Manage admin users and their roles")
 public class UserManagementController {
 
@@ -34,6 +33,7 @@ public class UserManagementController {
 
     @Operation(summary = "List all admin users")
     @GetMapping
+    @PreAuthorize("hasAuthority('USERS_READ')")
     public Flux<UserResponse> listUsers() {
         return userManagementService.findAll();
     }
@@ -41,12 +41,14 @@ public class UserManagementController {
     @Operation(summary = "Create a new admin user")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('USERS_WRITE')")
     public Mono<UserResponse> createUser(@Valid @RequestBody UserRequest req) {
         return userManagementService.create(req);
     }
 
     @Operation(summary = "Update a user's role, tenant, or enabled status")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('USERS_WRITE')")
     public Mono<UserResponse> updateUser(
             @PathVariable Long id, @Valid @RequestBody UserRequest req) {
         return userManagementService.update(id, req);
@@ -55,6 +57,7 @@ public class UserManagementController {
     @Operation(summary = "Delete a user")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('USERS_WRITE')")
     public Mono<Void> deleteUser(@PathVariable Long id, Mono<Principal> principal) {
         return principal
                 .map(Principal::getName)
@@ -65,6 +68,7 @@ public class UserManagementController {
     @Operation(summary = "Reset a user's password")
     @PostMapping("/{id}/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('USERS_WRITE')")
     public Mono<Void> resetPassword(
             @PathVariable Long id, @Valid @RequestBody PasswordResetRequest req) {
         return userManagementService.resetPassword(id, req.getNewPassword());

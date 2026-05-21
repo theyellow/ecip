@@ -70,7 +70,7 @@ public class AdminTenantContextFilter implements WebFilter {
                             log.debug(
                                     "Rejected {} — authenticated user has no tenant context",
                                     exchange.getRequest().getPath());
-                            exchange.getResponse().setStatusCode(HttpStatus.BAD_REQUEST);
+                            exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                             return exchange.getResponse().setComplete();
                         });
     }
