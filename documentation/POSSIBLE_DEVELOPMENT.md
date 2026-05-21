@@ -52,6 +52,10 @@ Sort into a proper backlog in a later step.
 
 - ML toxicity detection via OpenNLP or Perspective API (see Backlog item #8)
 
+## User-Facing / Self-Service
+
+- **Public self-service portal** (separate service, not admin-api): allow end-users (group members, tenant subscribers, external stakeholders) to link their own personal Telegram accounts to EMCIP without requiring an EMCIP admin login. Would need a new public-facing API distinct from admin-api (admin-api is too powerful to expose publicly), user registration/identity model, and a dedicated UI. Prerequisite: stable tenant provisioning flow (backlog #21).
+
 ## Resilience (SC8 follow-ons)
 
 - Retry with exponential backoff on circuit-broken calls before surfacing 503 (currently 30 s half-open re-probe is the only recovery path)
