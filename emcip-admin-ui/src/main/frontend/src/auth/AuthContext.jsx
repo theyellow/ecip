@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     })
-    if (!res.ok) throw new Error('Invalid credentials')
+    if (!res.ok) throw new Error(`Login failed: ${res.status}`)
     const data = await res.json()
     const payload = decodeJwt(data.token)
     const newRole = payload?.role ?? null
@@ -94,9 +94,12 @@ export function AuthProvider({ children }) {
     })
     if (!res.ok) throw new Error('Refresh failed')
     const data = await res.json()
+    const payload = decodeJwt(data.token)
     sessionStorage.setItem('emcip-token', data.token)
     sessionStorage.setItem('emcip-refresh-token', data.refreshToken)
     setToken(data.token)
+    setRole(payload?.role ?? null)
+    setTenantId(payload?.tenantId ?? null)
     return data.token
   }
 
@@ -110,7 +113,9 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used within <AuthProvider>')
+  return context
 }
 
 /** Returns a fetch function that auto-refreshes on 401 and logs out on refresh failure. */
