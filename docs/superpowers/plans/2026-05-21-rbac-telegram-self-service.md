@@ -2057,3 +2057,39 @@ Expected: `BUILD SUCCESS`, 0 files reformatted.
 ```bash
 cd /home/ben/Development/ecip && git add emcip-admin-ui/src/main/frontend/src/api/usersApi.js emcip-admin-ui/src/main/frontend/src/pages/Users/ emcip-admin-ui/src/main/frontend/src/App.jsx && git commit -m "feat(admin-ui): add Users management page and route"
 ```
+
+---
+
+### Task 11: Update documentation before merge
+
+**Files:**
+- Modify: `docs/superpowers/BACKLOG.md`
+- Modify: `documentation/REVIEW-2026-05-18.md`
+
+- [ ] **Step 1: Mark backlog item #9 complete**
+
+In `docs/superpowers/BACKLOG.md`, update item #9 in the "Up Next" table:
+```markdown
+| 9 | **Telegram: self-service account connection** | L | ✅ PR — 2026-05-21. TENANT_ADMIN role, permission matrix, JWT tenantId (S10), user management API + UI, global tenant switcher. Ref: `specs/2026-05-21-telegram-self-service-rbac-design.md`. |
+```
+
+- [ ] **Step 2: Add RBAC items to the review action plan status table**
+
+In `documentation/REVIEW-2026-05-18.md` § 8.2 (Structural Changes), append these rows to the status table:
+```markdown
+| SC-RBAC1 | **TENANT_ADMIN role + permission matrix** | admin-api | Backlog #9 | ✅ 2026-05-21 |
+| SC-RBAC2 | **S10: tenantId in JWT claims** (stop trusting X-Tenant-Id header for non-admins) | admin-api | S10 | ✅ 2026-05-21 |
+| SC-RBAC3 | **User management API** (CRUD for admin_users, ADMIN-only) | admin-api | Backlog #9 | ✅ 2026-05-21 |
+| SC-RBAC4 | **Global tenant switcher + permission-gated sidebar** | admin-ui | Backlog #9 | ✅ 2026-05-21 |
+```
+
+Also update § 5.2 finding S10 status — add `✅ 2026-05-21` note:
+```markdown
+| S10 | **Tenant ID from spoofable header** ... | ... | ✅ 2026-05-21 — tenantId embedded in JWT; TENANT_ADMIN ignores X-Tenant-Id header |
+```
+
+- [ ] **Step 3: Commit documentation updates**
+
+```bash
+git add docs/superpowers/BACKLOG.md documentation/REVIEW-2026-05-18.md && git commit -m "docs: mark backlog #9 complete, update REVIEW with RBAC/S10 status"
+```
