@@ -1,5 +1,6 @@
 package io.emcip.admin.api.security;
 
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,11 +35,18 @@ public class JwtAuthenticationFilter implements WebFilter {
 
         try {
             String username = jwtService.extractUsername(token);
-            String role = jwtService.extractRole(token);
+            String roleStr = jwtService.extractRole(token);
+            Role role = Role.valueOf(roleStr);
+            String tenantId = jwtService.extractTenantId(token);
+
+            List<SimpleGrantedAuthority> authorities = new ArrayList<>();
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
+            RolePermissions.permissionsFor(role)
+                    .forEach(p -> authorities.add(new SimpleGrantedAuthority(p.name())));
 
             UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            username, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    new UsernamePasswordAuthenticationToken(username, null, authorities);
+            authentication.setDetails(tenantId);
 
             return chain.filter(exchange)
                     .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authentication));
