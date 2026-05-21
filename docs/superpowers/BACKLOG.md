@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-21 (SC6/SC7/SC8 complete; all review-driven structural changes done)
+> Last updated: 2026-05-21 (SC6/SC7/SC8 + INF4 complete)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -48,7 +48,7 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | INF1 | **Liquibase migration consolidation** | M | Each service has 6–10 incremental migrations from development, several with `md5sum='manual'` (root cause of the 2026-05-20 AI Config 500 incident). Squash into a single `001-initial-schema.xml` per service before 1.0.0. |
-| INF4 | **Refresh token cleanup job** | XS | SC7 adds a `refresh_tokens` table. Expired/revoked rows accumulate. Add a scheduled `@Transactional` cleanup (e.g. nightly `deleteByExpiresAtBefore`) or a Liquibase-safe TTL policy before 1.0.0. |
+| INF4 | **Refresh token cleanup job** | XS | ✅ 2026-05-21 — nightly `deleteByExpiresAtBefore` at 03:00, `@EnableScheduling` on AdminApiApplication. |
 | INF2 | **Fresh install smoke test** | S | After INF1: drop the test DB, `helm install`, verify all pages work. Document in `docs/operations/fresh-install.md`. |
 | INF3 | **Telegram test account seeding via Helm values** | S | Optional: `testing.telegram.enabled` + account params → post-deploy Kubernetes Job inserts row into `telegram_accounts`. Removes manual DB access during development. |
 | 21 | **Tenant provisioning / onboarding flow** | M | No way to create a tenant without direct DB access. Needs admin-api endpoint + Liquibase-safe seed flow. Blockers 1.0.0. |
