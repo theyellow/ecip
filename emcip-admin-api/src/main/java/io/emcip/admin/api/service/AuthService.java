@@ -56,6 +56,11 @@ public class AuthService {
                         result ->
                                 userRepository
                                         .findById(result.userId())
+                                        .switchIfEmpty(
+                                                Mono.error(
+                                                        new ResponseStatusException(
+                                                                HttpStatus.UNAUTHORIZED,
+                                                                "User not found")))
                                         .map(
                                                 user ->
                                                         new TokenResponse(
