@@ -75,5 +75,6 @@
     <include file="db/changelog/changes/009-rules-enabled-jsonb-to-text.xml"/>
     <include file="db/changelog/changes/010-telegram-accounts-add-tenant-id.xml"/>
     <include file="db/changelog/changes/011-refresh-tokens.xml"/>
+    <include file="db/changelog/changes/012-admin-users-add-tenant.xml"/>
 
 </databaseChangeLog>

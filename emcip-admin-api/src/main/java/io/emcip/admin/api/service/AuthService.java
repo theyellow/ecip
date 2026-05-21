@@ -41,7 +41,7 @@ public class AuthService {
                                                         new TokenResponse(
                                                                 jwtService.generateToken(
                                                                         user.getUsername(),
-                                                                        user.getRole()),
+                                                                        user.getRole().name()),
                                                                 Instant.now()
                                                                         .plusMillis(
                                                                                 JwtService
@@ -66,7 +66,7 @@ public class AuthService {
                                                         new TokenResponse(
                                                                 jwtService.generateToken(
                                                                         user.getUsername(),
-                                                                        user.getRole()),
+                                                                        user.getRole().name()),
                                                                 Instant.now()
                                                                         .plusMillis(
                                                                                 JwtService

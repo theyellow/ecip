@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import io.emcip.admin.api.entity.AdminUser;
 import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.security.JwtService;
+import io.emcip.admin.api.security.Role;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,7 +31,7 @@ class AuthServiceTest {
                 .id(1L)
                 .username("admin")
                 .passwordHash("$2a$hash")
-                .role("ADMIN")
+                .role(Role.ADMIN)
                 .enabled(true)
                 .build();
     }
@@ -78,7 +79,7 @@ class AuthServiceTest {
                         .id(2L)
                         .username("admin")
                         .passwordHash("$2a$hash")
-                        .role("ADMIN")
+                        .role(Role.ADMIN)
                         .enabled(false)
                         .build();
         when(userRepository.findByUsername("admin")).thenReturn(Mono.just(disabled));
