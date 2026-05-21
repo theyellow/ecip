@@ -13,40 +13,62 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class AdminTenantContextFilter implements WebFilter {
 
+    private record AuthInfo(boolean isAdmin, String tenantId) {}
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String path = exchange.getRequest().getPath().value();
         if (path.startsWith("/actuator")
                 || path.equals("/api/auth/token")
-                || path.equals("/auth/token")) {
+                || path.equals("/auth/token")
+                || path.equals("/api/auth/refresh")) {
             return chain.filter(exchange);
-        }
-
-        String tenantId = exchange.getRequest().getHeaders().getFirst(TenantContext.HEADER_NAME);
-
-        if (tenantId != null && !tenantId.isBlank()) {
-            return chain.filter(exchange)
-                    .contextWrite(ctx -> ReactorTenantContext.withTenant(ctx, tenantId));
         }
 
         return ReactiveSecurityContextHolder.getContext()
                 .map(
-                        ctx ->
-                                ctx.getAuthentication() != null
-                                        && ctx.getAuthentication().getAuthorities().stream()
-                                                .anyMatch(
-                                                        a -> "ROLE_ADMIN".equals(a.getAuthority())))
-                .defaultIfEmpty(false)
+                        secCtx -> {
+                            var auth = secCtx.getAuthentication();
+                            if (auth == null) {
+                                return new AuthInfo(false, null);
+                            }
+                            boolean isAdmin =
+                                    auth.getAuthorities().stream()
+                                            .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+                            String tenantId = isAdmin ? null : (String) auth.getDetails();
+                            return new AuthInfo(isAdmin, tenantId);
+                        })
+                .defaultIfEmpty(new AuthInfo(false, null))
                 .flatMap(
-                        isAdmin -> {
-                            if (isAdmin) {
+                        info -> {
+                            if (info.isAdmin()) {
+                                String headerTenantId =
+                                        exchange.getRequest()
+                                                .getHeaders()
+                                                .getFirst(TenantContext.HEADER_NAME);
+                                if (headerTenantId != null && !headerTenantId.isBlank()) {
+                                    return chain.filter(exchange)
+                                            .contextWrite(
+                                                    ctx ->
+                                                            ReactorTenantContext.withTenant(
+                                                                    ctx, headerTenantId));
+                                }
+                                return chain.filter(exchange)
+                                        .contextWrite(ReactorTenantContext::withAdminMode);
+                            }
+
+                            // TENANT_ADMIN: read tenantId from JWT (stored in auth.details)
+                            String tenantId = info.tenantId();
+                            if (tenantId != null && !tenantId.isBlank()) {
                                 return chain.filter(exchange)
                                         .contextWrite(
-                                                ctx -> ReactorTenantContext.withAdminMode(ctx));
+                                                ctx ->
+                                                        ReactorTenantContext.withTenant(
+                                                                ctx, tenantId));
                             }
+
                             log.debug(
-                                    "Rejected request to {} — missing X-Tenant-Id and no ADMIN"
-                                            + " role",
+                                    "Rejected {} — authenticated user has no tenant context",
                                     exchange.getRequest().getPath());
                             exchange.getResponse().setStatusCode(HttpStatus.BAD_REQUEST);
                             return exchange.getResponse().setComplete();
