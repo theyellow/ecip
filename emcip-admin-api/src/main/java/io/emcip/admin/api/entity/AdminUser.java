@@ -1,6 +1,8 @@
 package io.emcip.admin.api.entity;
 
+import io.emcip.admin.api.security.Role;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,9 +29,12 @@ public class AdminUser {
     @Column("password_hash")
     private String passwordHash;
 
-    private String role;
+    private Role role;
 
     private boolean enabled;
+
+    @Column("tenant_id")
+    private UUID tenantId;
 
     @Column("last_login")
     private Instant lastLogin;

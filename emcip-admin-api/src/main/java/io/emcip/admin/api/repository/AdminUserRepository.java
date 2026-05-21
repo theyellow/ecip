@@ -1,6 +1,7 @@
 package io.emcip.admin.api.repository;
 
 import io.emcip.admin.api.entity.AdminUser;
+import io.emcip.admin.api.security.Role;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
@@ -9,4 +10,6 @@ import reactor.core.publisher.Mono;
 public interface AdminUserRepository extends ReactiveCrudRepository<AdminUser, Long> {
 
     Mono<AdminUser> findByUsername(String username);
+
+    Mono<Long> countByRoleAndEnabled(Role role, boolean enabled);
 }

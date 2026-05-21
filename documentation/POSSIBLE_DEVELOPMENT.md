@@ -52,6 +52,13 @@ Sort into a proper backlog in a later step.
 
 - ML toxicity detection via OpenNLP or Perspective API (see Backlog item #8)
 
+## User-Facing / Self-Service
+
+- **Public self-service portal** (separate service, not admin-api): allow end-users (group members, tenant subscribers, external stakeholders) to link their own personal Telegram accounts to EMCIP without requiring an EMCIP admin login. Would need a new public-facing API distinct from admin-api (admin-api is too powerful to expose publicly), user registration/identity model, and a dedicated UI. Prerequisite: stable tenant provisioning flow (backlog #21).
+- **Fine-grained per-resource permissions**: e.g., a read-only `TENANT_VIEWER` role that can see data but not mutate anything, or a `TELEGRAM_OPERATOR` role scoped to only the Telegram account connection flow. Extends the `RolePermissions` matrix introduced in backlog #9.
+- **Tenant-level user limits and quotas**: cap the number of `TENANT_ADMIN` users per tenant, or the number of Telegram accounts a tenant can connect. Relevant once self-service onboarding (backlog #21) is in place.
+- **SSO / OAuth2 / OIDC for admin login**: replace username/password auth in `admin_users` with an identity provider (Keycloak, Auth0, Google Workspace). Would require replacing the current `JwtService` + `admin_users` table with an OIDC token exchange flow.
+
 ## Resilience (SC8 follow-ons)
 
 - Retry with exponential backoff on circuit-broken calls before surfacing 503 (currently 30 s half-open re-probe is the only recovery path)
