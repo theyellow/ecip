@@ -1,7 +1,10 @@
 export function flagsApi(request) {
   return {
-    list: (size = 50, decision = '') =>
-      request(`/api/flags?size=${size}${decision ? `&decision=${encodeURIComponent(decision)}` : ''}`),
+    list: (page = 0, size = 50, decision = '') => {
+      const params = new URLSearchParams({ page, size })
+      if (decision) params.set('decision', decision)
+      return request(`/api/flags?${params}`)
+    },
     updateStatus: (id, status) =>
       request(`/api/flags/${encodeURIComponent(id)}/status`, {
         method: 'PATCH',

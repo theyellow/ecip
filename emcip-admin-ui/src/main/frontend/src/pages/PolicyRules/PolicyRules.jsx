@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { policyRulesApi } from '../../api/policyRules'
 import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
@@ -76,8 +75,8 @@ function HistoryModal({ ruleName, history, onClose }) {
 const ACTION_VARIANT = { FLAG: 'blue', WARN: 'yellow', MUTE: 'yellow', BAN: 'red', DELETE: 'red', ESCALATE: 'gray' }
 
 export function PolicyRules() {
-  const { token } = useAuth()
-  const api = policyRulesApi(makeRequest(token))
+  const authRequest = useAuthRequest()
+  const api = policyRulesApi(authRequest)
   const [rules, setRules] = useState([])
   const [modal, setModal] = useState(null)
   const [history, setHistory] = useState(null)
@@ -88,7 +87,7 @@ export function PolicyRules() {
   useEffect(() => { load() }, [])
 
   useEffect(() => {
-    tenantsApi(makeRequest(token)).list().then(setTenants).catch(() => {})
+    tenantsApi(authRequest).list().then(setTenants).catch(() => {})
   }, [])
 
   const save = async form => {

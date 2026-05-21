@@ -21,6 +21,7 @@ class AuthServiceTest {
     @Mock private AdminUserRepository userRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtService jwtService;
+    @Mock private RefreshTokenService refreshTokenService;
 
     @InjectMocks private AuthService authService;
 
@@ -35,15 +36,17 @@ class AuthServiceTest {
     }
 
     @Test
-    void authenticate_validCredentials_returnsToken() {
+    void authenticate_validCredentials_returnsTokenWithRefresh() {
         when(userRepository.findByUsername("admin")).thenReturn(Mono.just(enabledUser()));
         when(passwordEncoder.matches("secret", "$2a$hash")).thenReturn(true);
         when(jwtService.generateToken("admin", "ADMIN")).thenReturn("jwt-abc");
+        when(refreshTokenService.issue(1L)).thenReturn(Mono.just("refresh-xyz"));
 
         StepVerifier.create(authService.authenticate("admin", "secret"))
                 .assertNext(
                         resp -> {
                             assertThat(resp.token()).isEqualTo("jwt-abc");
+                            assertThat(resp.refreshToken()).isEqualTo("refresh-xyz");
                             assertThat(resp.expiresAt()).isNotNull();
                         })
                 .verifyComplete();
@@ -55,10 +58,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("wrong", "$2a$hash")).thenReturn(false);
 
         StepVerifier.create(authService.authenticate("admin", "wrong"))
-                .expectErrorMatches(
-                        e ->
-                                e.getMessage() != null
-                                        && e.getMessage().contains("Invalid credentials"))
+                .expectErrorMatches(e -> e.getMessage().contains("Invalid credentials"))
                 .verify();
     }
 
@@ -67,10 +67,7 @@ class AuthServiceTest {
         when(userRepository.findByUsername("nobody")).thenReturn(Mono.empty());
 
         StepVerifier.create(authService.authenticate("nobody", "pass"))
-                .expectErrorMatches(
-                        e ->
-                                e.getMessage() != null
-                                        && e.getMessage().contains("Invalid credentials"))
+                .expectErrorMatches(e -> e.getMessage().contains("Invalid credentials"))
                 .verify();
     }
 
@@ -87,5 +84,22 @@ class AuthServiceTest {
         when(userRepository.findByUsername("admin")).thenReturn(Mono.just(disabled));
 
         StepVerifier.create(authService.authenticate("admin", "secret")).expectError().verify();
+    }
+
+    @Test
+    void refresh_validToken_returnsNewTokenPair() {
+        RefreshTokenService.RotateResult rotated =
+                new RefreshTokenService.RotateResult("new-refresh", 1L);
+        when(refreshTokenService.rotate("old-refresh")).thenReturn(Mono.just(rotated));
+        when(userRepository.findById(1L)).thenReturn(Mono.just(enabledUser()));
+        when(jwtService.generateToken("admin", "ADMIN")).thenReturn("new-jwt");
+
+        StepVerifier.create(authService.refresh("old-refresh"))
+                .assertNext(
+                        resp -> {
+                            assertThat(resp.token()).isEqualTo("new-jwt");
+                            assertThat(resp.refreshToken()).isEqualTo("new-refresh");
+                        })
+                .verifyComplete();
     }
 }

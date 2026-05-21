@@ -15,7 +15,9 @@ public class JwtService {
     @Value("${admin.jwt.secret}")
     private String secret;
 
-    public static final long EXPIRY_MS = 8 * 60 * 60 * 1000L;
+    public static final long EXPIRY_MS = 60 * 60 * 1000L;
+
+    public static final long REFRESH_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000L;
 
     @PostConstruct
     void validateSecret() {

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { groupsApi } from '../../api/groups'
 import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
@@ -65,8 +64,8 @@ function GroupModal({ group, onClose, onSave, tenants }) {
 }
 
 export function Groups() {
-  const { token } = useAuth()
-  const api = groupsApi(makeRequest(token))
+  const authRequest = useAuthRequest()
+  const api = groupsApi(authRequest)
   const [groups, setGroups] = useState([])
   const [modal, setModal] = useState(null)
   const [error, setError] = useState('')
@@ -76,7 +75,7 @@ export function Groups() {
   useEffect(() => { load() }, [])
 
   useEffect(() => {
-    tenantsApi(makeRequest(token)).list().then(setTenants).catch(() => {})
+    tenantsApi(authRequest).list().then(setTenants).catch(() => {})
   }, [])
 
   const save = async form => {

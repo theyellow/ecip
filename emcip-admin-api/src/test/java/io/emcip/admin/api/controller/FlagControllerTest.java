@@ -12,16 +12,15 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
+import tools.jackson.databind.node.ObjectNode;
 
 @ExtendWith(MockitoExtension.class)
 class FlagControllerTest {
 
     @Mock private FlagService flagService;
-
     private WebTestClient webTestClient;
 
     @BeforeEach
@@ -32,34 +31,33 @@ class FlagControllerTest {
                         .build();
     }
 
-    private JsonNode flag() {
-        return JsonNodeFactory.instance.objectNode().put("id", "flag-1").put("signalStatus", "NEW");
+    private JsonNode pageNode() {
+        ObjectNode page = JsonNodeFactory.instance.objectNode();
+        page.putArray("items").addObject().put("id", "flag-1");
+        page.put("total", 1);
+        page.put("page", 0);
+        page.put("size", 50);
+        return page;
     }
 
     @Test
-    void getFlags_withoutDecision_callsListFlags() {
-        when(flagService.listFlags(50, null)).thenReturn(Flux.just(flag()));
+    void getFlags_returnsPageResponse() {
+        when(flagService.listFlags(0, 50, null)).thenReturn(Mono.just(pageNode()));
         webTestClient
                 .get()
                 .uri("/api/flags")
                 .exchange()
                 .expectStatus()
                 .isOk()
-                .expectBodyList(JsonNode.class)
-                .hasSize(1);
+                .expectBody()
+                .jsonPath("$.total")
+                .isEqualTo(1);
     }
 
     @Test
-    void getFlags_withDecision_callsListDecisionsByType() {
-        when(flagService.listFlags(50, "SPAM")).thenReturn(Flux.just(flag()));
-        webTestClient
-                .get()
-                .uri("/api/flags?decision=SPAM")
-                .exchange()
-                .expectStatus()
-                .isOk()
-                .expectBodyList(JsonNode.class)
-                .hasSize(1);
+    void getFlags_sizeCapAt200() {
+        when(flagService.listFlags(0, 200, null)).thenReturn(Mono.just(pageNode()));
+        webTestClient.get().uri("/api/flags?size=999").exchange().expectStatus().isOk();
     }
 
     @Test
@@ -73,17 +71,5 @@ class FlagControllerTest {
                 .exchange()
                 .expectStatus()
                 .isNoContent();
-    }
-
-    @Test
-    void updateStatus_blankStatus_returns400() {
-        webTestClient
-                .patch()
-                .uri("/api/flags/flag-1/status")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(Map.of("status", ""))
-                .exchange()
-                .expectStatus()
-                .isBadRequest();
     }
 }

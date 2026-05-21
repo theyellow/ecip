@@ -9,7 +9,7 @@ const mockTenants = [
   { id: '11111111-0000-0000-0000-000000000000', name: 'Acme Corp' },
 ]
 
-vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ token: 'test-token' }) }))
+vi.mock('../../auth/AuthContext', () => ({ useAuth: () => ({ token: 'test-token' }), useAuthRequest: () => vi.fn() }))
 vi.mock('../../api/client', () => ({ makeRequest: () => vi.fn() }))
 
 vi.mock('../../api/groups', () => ({

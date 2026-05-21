@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { flagsApi } from '../../api/flags'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
@@ -112,16 +111,23 @@ function FlagDetailModal({ flag, onClose, onStatusChange }) {
 }
 
 export function Flags() {
-  const { token } = useAuth()
-  const api = flagsApi(makeRequest(token))
+  const api = flagsApi(useAuthRequest())
   const [flags, setFlags] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page] = useState(0)
   const [size, setSize] = useState(50)
   const [decision, setDecision] = useState('')
   const [error, setError] = useState('')
   const [selected, setSelected] = useState(null)
 
   const load = () =>
-    api.list(size, decision).then(setFlags).catch(e => setError(e.message))
+    api
+      .list(page, size, decision)
+      .then(data => {
+        setFlags(data.items)
+        setTotal(data.total)
+      })
+      .catch(e => setError(e.message))
 
   useEffect(() => { load() }, [size, decision])
 
@@ -134,7 +140,7 @@ export function Flags() {
   return (
     <div>
       <div className={styles.header}>
-        <h2>Flags</h2>
+        <h2>Flags {total > 0 && <small style={{ fontWeight: 'normal', color: 'var(--text-muted)' }}>({total} total)</small>}</h2>
         <div className={styles.filters}>
           <select value={decision} onChange={e => setDecision(e.target.value)} className={styles.select}>
             {DECISIONS.map(d => <option key={d} value={d}>{d || 'All decisions'}</option>)}

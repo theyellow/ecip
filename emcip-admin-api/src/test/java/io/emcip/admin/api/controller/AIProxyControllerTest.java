@@ -3,6 +3,7 @@ package io.emcip.admin.api.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +28,8 @@ class AIProxyControllerTest {
     void setUp() {
         WebClient orchestratorClient =
                 WebClient.builder().exchangeFunction(exchangeFunction).build();
-        AIProxyController controller = new AIProxyController(orchestratorClient);
+        AIProxyController controller =
+                new AIProxyController(orchestratorClient, CircuitBreakerRegistry.ofDefaults());
         webTestClient = WebTestClient.bindToController(controller).build();
     }
 

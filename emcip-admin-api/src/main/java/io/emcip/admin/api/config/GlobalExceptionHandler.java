@@ -1,5 +1,6 @@
 package io.emcip.admin.api.config;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +49,15 @@ public class GlobalExceptionHandler {
         ProblemDetail problem =
                 ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         return Mono.just(ResponseEntity.badRequest().body(problem));
+    }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    public Mono<ResponseEntity<ProblemDetail>> handleCircuitOpen(CallNotPermittedException ex) {
+        log.warn("Circuit breaker open: {}", ex.getMessage());
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable");
+        return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem));
     }
 
     @ExceptionHandler(Exception.class)

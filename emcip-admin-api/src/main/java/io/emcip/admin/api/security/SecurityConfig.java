@@ -32,7 +32,12 @@ public class SecurityConfig {
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource()))
                 .authorizeExchange(
                         auth ->
-                                auth.pathMatchers(HttpMethod.POST, "/api/auth/token", "/auth/token")
+                                auth.pathMatchers(
+                                                HttpMethod.POST,
+                                                "/api/auth/token",
+                                                "/auth/token",
+                                                "/api/auth/refresh",
+                                                "/api/auth/logout")
                                         .permitAll()
                                         .pathMatchers("/actuator/**")
                                         .permitAll()

@@ -2,6 +2,8 @@ package io.emcip.admin.api.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -49,6 +51,20 @@ class GlobalExceptionHandlerTest {
         assertThat(result.getBody().getDetail()).isEqualTo("An unexpected error occurred");
         // Real error message must not be leaked to the client
         assertThat(result.getBody().getDetail()).doesNotContain("secret internal details");
+    }
+
+    @Test
+    void callNotPermitted_returns503() {
+        CircuitBreaker cb = CircuitBreaker.ofDefaults("test");
+        CallNotPermittedException ex =
+                CallNotPermittedException.createCallNotPermittedException(cb);
+
+        ResponseEntity<ProblemDetail> result = handler.handleCircuitOpen(ex).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.getStatusCode().value()).isEqualTo(503);
+        assertThat(result.getBody()).isNotNull();
+        assertThat(result.getBody().getDetail()).isEqualTo("Service temporarily unavailable");
     }
 
     @Test

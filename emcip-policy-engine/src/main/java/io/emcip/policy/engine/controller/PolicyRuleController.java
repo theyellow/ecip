@@ -36,7 +36,8 @@ public class PolicyRuleController {
     public Flux<PolicyRuleConfig> listActive() {
         return Mono.fromCallable(repository::findByActiveTrueOrderByPriorityAsc)
                 .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(Flux::fromIterable);
+                .flatMapMany(Flux::fromIterable)
+                .take(200);
     }
 
     @Operation(summary = "Create a new policy rule")

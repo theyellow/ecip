@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-20 (first cluster deployment complete; SC1–SC5, SC9 done)
+> Last updated: 2026-05-21 (SC6/SC7/SC8 + INF4 + secret scanning complete)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -8,8 +8,7 @@
 
 ## 1. Now — Finish Review-Driven Structural Changes
 
-> SC1–SC5, SC9 complete. Three items remain from the 2026-05-18 review.
-> Full findings in `documentation/REVIEW-2026-05-18.md §8.2`.
+> All SC items complete. Full findings in `documentation/REVIEW-2026-05-18.md §8.2`.
 
 | # | Item | Size | Notes |
 |---|------|------|-------|
@@ -19,9 +18,9 @@
 | SC4 | **Multi-tenancy enforcement** | L | ✅ Hibernate @Filter, ReactorTenantContext, TenantAwareKafkaSupport |
 | SC5 | **Refactor `AuditEventConsumer`** — extract generic handler | S | ✅ PR #63 — 2026-05-19 |
 | SC9 | **Network segmentation** in docker-compose | S | ✅ PR #63 — 2026-05-19 |
-| SC6 | **Pagination enforcement** — upper-bound `size`, return total count | M | ⏳ admin-api, policy-engine, audit-service. Addresses A5. |
-| SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | ⏳ admin-api. Addresses S11. |
-| SC8 | **Circuit breakers** on WebClient calls to downstream services | M | ⏳ admin-api. resilience4j or Spring Retry. Addresses A7, G7. |
+| SC6 | **Pagination enforcement** — upper-bound `size`, return total count | M | ✅ PR #73 — 2026-05-21 |
+| SC7 | **Refresh token** — reduce JWT to 1–2h expiry, add `/api/auth/refresh` | M | ✅ PR #73 — 2026-05-21 |
+| SC8 | **Circuit breakers** on WebClient calls to downstream services | M | ✅ PR #73 — 2026-05-21 |
 
 ---
 
@@ -49,6 +48,7 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | INF1 | **Liquibase migration consolidation** | M | Each service has 6–10 incremental migrations from development, several with `md5sum='manual'` (root cause of the 2026-05-20 AI Config 500 incident). Squash into a single `001-initial-schema.xml` per service before 1.0.0. |
+| INF4 | **Refresh token cleanup job** | XS | ✅ 2026-05-21 — nightly `deleteByExpiresAtBefore` at 03:00, `@EnableScheduling` on AdminApiApplication. |
 | INF2 | **Fresh install smoke test** | S | After INF1: drop the test DB, `helm install`, verify all pages work. Document in `docs/operations/fresh-install.md`. |
 | INF3 | **Telegram test account seeding via Helm values** | S | Optional: `testing.telegram.enabled` + account params → post-deploy Kubernetes Job inserts row into `telegram_accounts`. Removes manual DB access during development. |
 | 21 | **Tenant provisioning / onboarding flow** | M | No way to create a tenant without direct DB access. Needs admin-api endpoint + Liquibase-safe seed flow. Blockers 1.0.0. |
@@ -65,6 +65,7 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | 20 | **Mixed-cluster: node taints + tolerations** | S | Fine-grained pod scheduling. Currently `nodeSelector` is sufficient. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
+| SC6b | **Paginate `PolicyRuleController.listActive()`** | XS | SC6 adds a `.take(200)` safety cap. Full `PageResponse<T>` not needed — policy rules are config data and will stay small in practice. Revisit if a tenant exceeds ~100 rules. |
 | 19 | **Mixed-cluster: arm64 native images** | L | Cross-compile GraalVM native for Pi 4 nodes. Needs QEMU emulation or a dedicated arm64 runner. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
 | 13 | **GraalVM native — R2DBC services** | XL | 4 services JVM-only: `moderation-service`, `audit-service`, `admin-api`, `intent-classifier`. Blocked on R2DBC + GraalVM reflection hints. Ref: `specs/2026-04-29-graalvm-native-migration-design.md`. |
 

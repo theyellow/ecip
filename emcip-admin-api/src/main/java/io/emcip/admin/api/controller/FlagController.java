@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
 
@@ -29,10 +28,11 @@ public class FlagController {
 
     @Operation(summary = "List recent policy flags")
     @GetMapping
-    public Flux<JsonNode> getFlags(
+    public Mono<JsonNode> getFlags(
+            @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "50") int size,
             @RequestParam(name = "decision", required = false) String decision) {
-        return flagService.listFlags(size, decision);
+        return flagService.listFlags(page, Math.min(size, 200), decision);
     }
 
     @Operation(summary = "Update the status of a policy flag")

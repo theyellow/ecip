@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { moderationRulesApi } from '../../api/moderationRules'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
@@ -74,8 +73,7 @@ function RuleModal({ rule, onClose, onSave }) {
 }
 
 export function ModerationRules() {
-  const { token } = useAuth()
-  const api = moderationRulesApi(makeRequest(token))
+  const api = moderationRulesApi(useAuthRequest())
   const [rules, setRules]   = useState([])
   const [modal, setModal]   = useState(null)
   const [error, setError]   = useState('')

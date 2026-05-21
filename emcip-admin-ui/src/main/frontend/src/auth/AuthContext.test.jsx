@@ -1,7 +1,8 @@
 import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { AuthProvider, useAuth } from './AuthContext'
+import { renderHook } from '@testing-library/react'
+import { AuthProvider, useAuth, useAuthRequest } from './AuthContext'
 
 // Helper component that exposes auth context values for assertions
 function AuthConsumer() {
@@ -68,5 +69,60 @@ describe('AuthContext', () => {
 
     expect(sessionStorage.getItem('emcip-token')).toBeNull()
     expect(screen.getByTestId('token').textContent).toBe('null')
+  })
+})
+
+describe('AuthContext — refresh token', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+    vi.restoreAllMocks()
+  })
+
+  it('login stores refreshToken in sessionStorage', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'access-tok', refreshToken: 'refresh-tok' }),
+    })
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }) => <AuthProvider>{children}</AuthProvider>,
+    })
+
+    await act(async () => { await result.current.login('user', 'pass') })
+
+    expect(sessionStorage.getItem('emcip-refresh-token')).toBe('refresh-tok')
+  })
+
+  it('logout clears both tokens', async () => {
+    sessionStorage.setItem('emcip-token', 'tok')
+    sessionStorage.setItem('emcip-refresh-token', 'rt')
+    global.fetch = vi.fn().mockResolvedValue({ ok: true })
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }) => <AuthProvider>{children}</AuthProvider>,
+    })
+
+    act(() => { result.current.logout() })
+
+    expect(sessionStorage.getItem('emcip-token')).toBeNull()
+    expect(sessionStorage.getItem('emcip-refresh-token')).toBeNull()
+  })
+
+  it('refresh updates tokens and returns new access token', async () => {
+    sessionStorage.setItem('emcip-refresh-token', 'old-rt')
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ token: 'new-access', refreshToken: 'new-rt' }),
+    })
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }) => <AuthProvider>{children}</AuthProvider>,
+    })
+
+    let newToken
+    await act(async () => { newToken = await result.current.refresh() })
+
+    expect(newToken).toBe('new-access')
+    expect(sessionStorage.getItem('emcip-refresh-token')).toBe('new-rt')
   })
 })

@@ -4,6 +4,7 @@ import { AIConfig } from './AIConfig'
 
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
+  useAuthRequest: () => vi.fn(),
 }))
 
 const mockModels = [

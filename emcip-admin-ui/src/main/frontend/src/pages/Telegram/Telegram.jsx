@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { telegramApi } from '../../api/telegram'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
@@ -16,8 +15,8 @@ const STATUS_VARIANT = {
 }
 
 export function Telegram() {
-  const { token } = useAuth()
-  const api = useMemo(() => telegramApi(makeRequest(token)), [token])
+  const authRequest = useAuthRequest()
+  const api = useMemo(() => telegramApi(authRequest), [authRequest])
 
   const [accounts, setAccounts] = useState([])
   const [error, setError] = useState('')

@@ -12,6 +12,7 @@ import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import io.emcip.common.tenant.ReactorTenantContext;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +45,8 @@ class TelegramAccountServiceTest {
                         watchedGroupRepository,
                         groupProfileRepository,
                         r2dbcEntityTemplate,
-                        tdlibClient);
+                        tdlibClient,
+                        CircuitBreakerRegistry.ofDefaults());
         ReflectionTestUtils.setField(service, "telegramApiId", 12345);
         ReflectionTestUtils.setField(service, "telegramApiHash", "test-api-hash");
     }

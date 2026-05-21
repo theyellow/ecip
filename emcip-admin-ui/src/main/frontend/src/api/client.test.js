@@ -1,4 +1,4 @@
-import { makeRequest } from './client'
+import { makeRequest, makeRefreshableRequest } from './client'
 
 beforeEach(() => {
   global.fetch = vi.fn()
@@ -38,4 +38,29 @@ test('makeRequest returns null for 202 Accepted with empty body', async () => {
   const request = makeRequest('tok')
   const result = await request('/api/telegram/accounts/1/code', { method: 'POST' })
   expect(result).toBeNull()
+})
+
+test('makeRefreshableRequest retries with new token on 401', async () => {
+  const onRefresh = vi.fn().mockResolvedValue('new-token')
+  const onLogout = vi.fn()
+  fetch
+    .mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized' })
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) })
+
+  const request = makeRefreshableRequest('old-token', onRefresh, onLogout)
+  const result = await request('/api/groups')
+
+  expect(onRefresh).toHaveBeenCalledOnce()
+  expect(onLogout).not.toHaveBeenCalled()
+  expect(result).toEqual({ ok: true })
+})
+
+test('makeRefreshableRequest calls onLogout when refresh fails', async () => {
+  const onRefresh = vi.fn().mockRejectedValue(new Error('Refresh failed'))
+  const onLogout = vi.fn()
+  fetch.mockResolvedValue({ ok: false, status: 401, statusText: 'Unauthorized' })
+
+  const request = makeRefreshableRequest('old-token', onRefresh, onLogout)
+  await expect(request('/api/groups')).rejects.toThrow('Session expired')
+  expect(onLogout).toHaveBeenCalledOnce()
 })

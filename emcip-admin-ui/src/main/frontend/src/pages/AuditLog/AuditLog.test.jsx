@@ -5,6 +5,7 @@ import { AuditLog } from './AuditLog'
 
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
+  useAuthRequest: () => vi.fn(),
 }))
 vi.mock('../../api/client', () => ({ makeRequest: () => vi.fn() }))
 
@@ -26,7 +27,7 @@ const EVENT = {
 describe('AuditLog page', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockApi.list.mockResolvedValue([])
+    mockApi.list.mockResolvedValue({ items: [], total: 0 })
   })
 
   it('renders heading and filter controls', async () => {
@@ -36,7 +37,7 @@ describe('AuditLog page', () => {
   })
 
   it('displays event row with timestamp, type, entityId and details', async () => {
-    mockApi.list.mockResolvedValue([EVENT])
+    mockApi.list.mockResolvedValue({ items: [EVENT], total: 1 })
     render(<AuditLog />)
     await waitFor(() => expect(screen.getByText('POLICY_DECISION')).toBeInTheDocument())
     expect(screen.getByText('entity-uuid-1')).toBeInTheDocument()
@@ -44,7 +45,7 @@ describe('AuditLog page', () => {
   })
 
   it('shows em-dash for missing entityId and details', async () => {
-    mockApi.list.mockResolvedValue([{ ...EVENT, entityId: null, details: null }])
+    mockApi.list.mockResolvedValue({ items: [{ ...EVENT, entityId: null, details: null }], total: 1 })
     render(<AuditLog />)
     await waitFor(() => screen.getByText('POLICY_DECISION'))
     const dashes = screen.getAllByText('—')
@@ -52,7 +53,7 @@ describe('AuditLog page', () => {
   })
 
   it('reloads with eventType filter when type selected', async () => {
-    mockApi.list.mockResolvedValue([EVENT])
+    mockApi.list.mockResolvedValue({ items: [EVENT], total: 1 })
     render(<AuditLog />)
     await waitFor(() => screen.getByText('All types'))
 
@@ -61,12 +62,12 @@ describe('AuditLog page', () => {
     await userEvent.selectOptions(typeSelect, 'POLICY_DECISION')
 
     await waitFor(() =>
-      expect(mockApi.list).toHaveBeenCalledWith(expect.anything(), 'POLICY_DECISION')
+      expect(mockApi.list).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), 'POLICY_DECISION')
     )
   })
 
   it('reloads with new page size when size selected', async () => {
-    mockApi.list.mockResolvedValue([])
+    mockApi.list.mockResolvedValue({ items: [], total: 0 })
     render(<AuditLog />)
     await waitFor(() => screen.getByText('Audit Log'))
 
@@ -75,7 +76,7 @@ describe('AuditLog page', () => {
     await userEvent.selectOptions(sizeSelect, '100')
 
     await waitFor(() =>
-      expect(mockApi.list).toHaveBeenCalledWith(100, expect.anything())
+      expect(mockApi.list).toHaveBeenCalledWith(expect.any(Number), 100, expect.anything())
     )
   })
 

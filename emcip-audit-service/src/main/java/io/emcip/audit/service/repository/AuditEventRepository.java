@@ -3,14 +3,16 @@ package io.emcip.audit.service.repository;
 import io.emcip.audit.service.entity.AuditEventEntity;
 import java.time.Instant;
 import java.util.UUID;
-import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @Repository
-public interface AuditEventRepository extends ReactiveCrudRepository<AuditEventEntity, Long> {
+public interface AuditEventRepository extends R2dbcRepository<AuditEventEntity, Long> {
 
+    // --- existing un-paginated methods (kept for internal use) ---
     Flux<AuditEventEntity> findByEventType(String eventType);
 
     Flux<AuditEventEntity> findByCreatedAtBetween(Instant from, Instant to);
@@ -29,4 +31,26 @@ public interface AuditEventRepository extends ReactiveCrudRepository<AuditEventE
             String eventType, Instant from, Instant to, UUID tenantId);
 
     Mono<AuditEventEntity> findByEventIdAndTenantId(String eventId, UUID tenantId);
+
+    // --- paginated variants ---
+    Flux<AuditEventEntity> findByCreatedAtBetweenOrderByCreatedAtDesc(
+            Instant from, Instant to, Pageable pageable);
+
+    Mono<Long> countByCreatedAtBetween(Instant from, Instant to);
+
+    Flux<AuditEventEntity> findByEventTypeAndCreatedAtBetweenOrderByCreatedAtDesc(
+            String eventType, Instant from, Instant to, Pageable pageable);
+
+    Mono<Long> countByEventTypeAndCreatedAtBetween(String eventType, Instant from, Instant to);
+
+    Flux<AuditEventEntity> findByCreatedAtBetweenAndTenantIdOrderByCreatedAtDesc(
+            Instant from, Instant to, UUID tenantId, Pageable pageable);
+
+    Mono<Long> countByCreatedAtBetweenAndTenantId(Instant from, Instant to, UUID tenantId);
+
+    Flux<AuditEventEntity> findByEventTypeAndCreatedAtBetweenAndTenantIdOrderByCreatedAtDesc(
+            String eventType, Instant from, Instant to, UUID tenantId, Pageable pageable);
+
+    Mono<Long> countByEventTypeAndCreatedAtBetweenAndTenantId(
+            String eventType, Instant from, Instant to, UUID tenantId);
 }

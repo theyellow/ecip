@@ -18,6 +18,7 @@ public class AuthService {
     private final AdminUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
 
     public Mono<TokenResponse> authenticate(String username, String password) {
         return userRepository
@@ -27,15 +28,49 @@ public class AuthService {
                                 user.isEnabled()
                                         && passwordEncoder.matches(
                                                 password, user.getPasswordHash()))
-                .map(
-                        user ->
-                                new TokenResponse(
-                                        jwtService.generateToken(
-                                                user.getUsername(), user.getRole()),
-                                        Instant.now().plusMillis(JwtService.EXPIRY_MS)))
                 .switchIfEmpty(
                         Mono.error(
                                 new ResponseStatusException(
-                                        HttpStatus.UNAUTHORIZED, "Invalid credentials")));
+                                        HttpStatus.UNAUTHORIZED, "Invalid credentials")))
+                .flatMap(
+                        user ->
+                                refreshTokenService
+                                        .issue(user.getId())
+                                        .map(
+                                                rawRefresh ->
+                                                        new TokenResponse(
+                                                                jwtService.generateToken(
+                                                                        user.getUsername(),
+                                                                        user.getRole()),
+                                                                Instant.now()
+                                                                        .plusMillis(
+                                                                                JwtService
+                                                                                        .EXPIRY_MS),
+                                                                rawRefresh)));
+    }
+
+    public Mono<TokenResponse> refresh(String rawRefreshToken) {
+        return refreshTokenService
+                .rotate(rawRefreshToken)
+                .flatMap(
+                        result ->
+                                userRepository
+                                        .findById(result.userId())
+                                        .switchIfEmpty(
+                                                Mono.error(
+                                                        new ResponseStatusException(
+                                                                HttpStatus.UNAUTHORIZED,
+                                                                "User not found")))
+                                        .map(
+                                                user ->
+                                                        new TokenResponse(
+                                                                jwtService.generateToken(
+                                                                        user.getUsername(),
+                                                                        user.getRole()),
+                                                                Instant.now()
+                                                                        .plusMillis(
+                                                                                JwtService
+                                                                                        .EXPIRY_MS),
+                                                                result.newRawToken())));
     }
 }

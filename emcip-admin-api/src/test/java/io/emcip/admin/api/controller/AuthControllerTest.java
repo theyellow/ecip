@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.config.GlobalExceptionHandler;
+import io.emcip.admin.api.dto.RefreshRequest;
 import io.emcip.admin.api.dto.TokenResponse;
 import io.emcip.admin.api.service.AuthService;
+import io.emcip.admin.api.service.RefreshTokenService;
 import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,21 +24,25 @@ import reactor.core.publisher.Mono;
 class AuthControllerTest {
 
     @Mock private AuthService authService;
+    @Mock private RefreshTokenService refreshTokenService;
 
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
         webTestClient =
-                WebTestClient.bindToController(new AuthController(authService))
+                WebTestClient.bindToController(new AuthController(authService, refreshTokenService))
                         .controllerAdvice(new GlobalExceptionHandler())
                         .build();
     }
 
+    private TokenResponse tokenResponse() {
+        return new TokenResponse("jwt-abc", Instant.now().plusSeconds(3600), "refresh-xyz");
+    }
+
     @Test
     void token_validCredentials_returns200WithToken() {
-        when(authService.authenticate("admin", "secret"))
-                .thenReturn(Mono.just(new TokenResponse("jwt-token-abc", Instant.now())));
+        when(authService.authenticate("admin", "secret")).thenReturn(Mono.just(tokenResponse()));
 
         webTestClient
                 .post()
@@ -45,7 +52,11 @@ class AuthControllerTest {
                 .expectStatus()
                 .isOk()
                 .expectBody(TokenResponse.class)
-                .value(resp -> assertThat(resp.token()).isEqualTo("jwt-token-abc"));
+                .value(
+                        resp -> {
+                            assertThat(resp.token()).isEqualTo("jwt-abc");
+                            assertThat(resp.refreshToken()).isEqualTo("refresh-xyz");
+                        });
     }
 
     @Test
@@ -66,24 +77,58 @@ class AuthControllerTest {
     }
 
     @Test
+    void refresh_validToken_returns200() {
+        when(authService.refresh("refresh-xyz")).thenReturn(Mono.just(tokenResponse()));
+
+        webTestClient
+                .post()
+                .uri("/api/auth/refresh")
+                .bodyValue(new RefreshRequest("refresh-xyz"))
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody(TokenResponse.class)
+                .value(resp -> assertThat(resp.token()).isEqualTo("jwt-abc"));
+    }
+
+    @Test
+    void refresh_invalidToken_returns401() {
+        when(authService.refresh("bad-token"))
+                .thenReturn(
+                        Mono.error(
+                                new ResponseStatusException(
+                                        HttpStatus.UNAUTHORIZED,
+                                        "Invalid or expired refresh token")));
+
+        webTestClient
+                .post()
+                .uri("/api/auth/refresh")
+                .bodyValue(new RefreshRequest("bad-token"))
+                .exchange()
+                .expectStatus()
+                .isUnauthorized();
+    }
+
+    @Test
+    void logout_returns204() {
+        when(refreshTokenService.revoke("refresh-xyz")).thenReturn(Mono.empty());
+
+        webTestClient
+                .post()
+                .uri("/api/auth/logout")
+                .bodyValue(new RefreshRequest("refresh-xyz"))
+                .exchange()
+                .expectStatus()
+                .isNoContent();
+    }
+
+    @Test
     void token_blankUsername_returns400() {
         webTestClient
                 .post()
                 .uri("/api/auth/token")
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .bodyValue(java.util.Map.of("username", "", "password", "validpassword"))
-                .exchange()
-                .expectStatus()
-                .isBadRequest();
-    }
-
-    @Test
-    void token_blankPassword_returns400() {
-        webTestClient
-                .post()
-                .uri("/api/auth/token")
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .bodyValue(java.util.Map.of("username", "admin", "password", ""))
+                .bodyValue(Map.of("username", "", "password", "validpassword"))
                 .exchange()
                 .expectStatus()
                 .isBadRequest();

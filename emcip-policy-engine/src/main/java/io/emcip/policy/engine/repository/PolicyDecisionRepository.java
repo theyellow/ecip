@@ -26,6 +26,9 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
     /** Find decisions by decision type. */
     List<PolicyDecision> findByDecision(String decision);
 
+    /** Find decisions matching a decision value with pagination. */
+    Page<PolicyDecision> findByDecision(String decision, Pageable pageable);
+
     /** Find decisions within a time range. */
     List<PolicyDecision> findByTimestampBetween(Instant start, Instant end);
 

@@ -1,5 +1,8 @@
 package io.emcip.admin.api.client;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -13,19 +16,27 @@ import tools.jackson.databind.JsonNode;
 public class PolicyEngineClient {
 
     private final WebClient webClient;
+    private final CircuitBreaker circuitBreaker;
 
     public PolicyEngineClient(
             @Value("${services.policy-engine.url}") String baseUrl,
-            @Value("${admin.service-token}") String serviceToken) {
+            @Value("${admin.service-token}") String serviceToken,
+            CircuitBreakerRegistry registry) {
         this.webClient =
                 WebClient.builder()
                         .baseUrl(baseUrl)
                         .defaultHeader("X-Service-Token", serviceToken)
                         .build();
+        this.circuitBreaker = registry.circuitBreaker("policy-engine");
     }
 
     public Flux<JsonNode> listRules() {
-        return webClient.get().uri("/api/policy-rules").retrieve().bodyToFlux(JsonNode.class);
+        return webClient
+                .get()
+                .uri("/api/policy-rules")
+                .retrieve()
+                .bodyToFlux(JsonNode.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Mono<JsonNode> createRule(JsonNode body) {
@@ -34,7 +45,8 @@ public class PolicyEngineClient {
                 .uri("/api/policy-rules")
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(JsonNode.class);
+                .bodyToMono(JsonNode.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Mono<JsonNode> updateRule(String id, JsonNode body) {
@@ -43,7 +55,8 @@ public class PolicyEngineClient {
                 .uri("/api/policy-rules/{id}", id)
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(JsonNode.class);
+                .bodyToMono(JsonNode.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Mono<Void> deleteRule(String id) {
@@ -51,38 +64,27 @@ public class PolicyEngineClient {
                 .delete()
                 .uri("/api/policy-rules/{id}", id)
                 .retrieve()
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
-    public Flux<JsonNode> listDecisions() {
-        return webClient.get().uri("/api/policy-decisions").retrieve().bodyToFlux(JsonNode.class);
-    }
-
-    public Flux<JsonNode> listFlags(int size) {
+    public Mono<JsonNode> listDecisions(int page, int size, String decision) {
         return webClient
                 .get()
                 .uri(
-                        uriBuilder ->
-                                uriBuilder
-                                        .path("/api/policy-decisions")
-                                        .queryParam("size", size)
-                                        .build())
+                        uriBuilder -> {
+                            uriBuilder
+                                    .path("/api/policy-decisions")
+                                    .queryParam("page", page)
+                                    .queryParam("size", size);
+                            if (decision != null && !decision.isBlank()) {
+                                uriBuilder.queryParam("decision", decision);
+                            }
+                            return uriBuilder.build();
+                        })
                 .retrieve()
-                .bodyToFlux(JsonNode.class);
-    }
-
-    public Flux<JsonNode> listDecisionsByType(String decision, int size) {
-        return webClient
-                .get()
-                .uri(
-                        uriBuilder ->
-                                uriBuilder
-                                        .path("/api/policy-decisions")
-                                        .queryParam("decision", decision)
-                                        .queryParam("size", size)
-                                        .build())
-                .retrieve()
-                .bodyToFlux(JsonNode.class);
+                .bodyToMono(JsonNode.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Mono<Void> updateDecision(String id, JsonNode body) {
@@ -91,7 +93,8 @@ public class PolicyEngineClient {
                 .uri("/api/policy-decisions/{id}", id)
                 .bodyValue(body)
                 .retrieve()
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Mono<Void> updateDecisionStatus(String id, String status) {
@@ -100,6 +103,7 @@ public class PolicyEngineClient {
                 .uri("/api/policy-decisions/{id}", id)
                 .bodyValue(java.util.Map.of("signalStatus", status))
                 .retrieve()
-                .bodyToMono(Void.class);
+                .bodyToMono(Void.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 }

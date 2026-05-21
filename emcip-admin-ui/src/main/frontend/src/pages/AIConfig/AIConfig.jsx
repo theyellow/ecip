@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '../../auth/AuthContext'
-import { makeRequest } from '../../api/client'
+import { useAuthRequest } from '../../auth/AuthContext'
 import { aiConfigApi } from '../../api/aiConfig'
 import { providerConfigApi } from '../../api/providerConfig'
 import { Badge } from '../../components/Badge/Badge'
@@ -9,8 +8,7 @@ import { Modal } from '../../components/Modal/Modal'
 import styles from './AIConfig.module.css'
 
 function ProxyModelPicker({ onPick }) {
-  const { token } = useAuth()
-  const api = providerConfigApi(makeRequest(token))
+  const api = providerConfigApi(useAuthRequest())
   const [models, setModels] = useState([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -168,8 +166,7 @@ function TemplateModal({ template, onClose, onSave }) {
 }
 
 function ProviderModal({ provider, onClose, onSave }) {
-  const { token } = useAuth()
-  const api = providerConfigApi(makeRequest(token))
+  const api = providerConfigApi(useAuthRequest())
   const [form, setForm] = useState({
     name: provider?.name ?? '',
     baseUrl: provider?.baseUrl ?? '',
@@ -231,8 +228,8 @@ function ProviderModal({ provider, onClose, onSave }) {
   )
 }
 
-function ProviderConfigSection({ token }) {
-  const api = providerConfigApi(makeRequest(token))
+function ProviderConfigSection() {
+  const api = providerConfigApi(useAuthRequest())
   const [providers, setProviders] = useState([])
   const [modal, setModal] = useState(null)
   const [status, setStatus] = useState(null)
@@ -320,8 +317,7 @@ function ProviderConfigSection({ token }) {
 }
 
 export function AIConfig() {
-  const { token } = useAuth()
-  const api = aiConfigApi(makeRequest(token))
+  const api = aiConfigApi(useAuthRequest())
 
   const [models, setModels] = useState([])
   const [templates, setTemplates] = useState([])
@@ -445,7 +441,7 @@ export function AIConfig() {
       </div>
 
       {/* LLM Provider */}
-      <ProviderConfigSection token={token} />
+      <ProviderConfigSection />
 
       {modelModal && (
         <ModelModal
