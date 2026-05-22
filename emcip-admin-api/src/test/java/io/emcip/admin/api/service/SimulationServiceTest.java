@@ -1,12 +1,13 @@
 package io.emcip.admin.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.dto.SimulateMessageRequest;
 import java.util.concurrent.CompletableFuture;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ class SimulationServiceTest {
                 new SimulationService(kafkaTemplate, new tools.jackson.databind.ObjectMapper());
         SendResult<String, String> sendResult =
                 new SendResult<>(null, new RecordMetadata(null, 0, 0, 0, 0, 0));
-        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+        when(kafkaTemplate.send(any(ProducerRecord.class)))
                 .thenReturn(CompletableFuture.completedFuture(sendResult));
     }
 
@@ -46,7 +47,7 @@ class SimulationServiceTest {
     void simulate_publishesToKafka() {
         simulationService.simulate(request(99L)).block();
 
-        verify(kafkaTemplate).send(anyString(), anyString(), anyString());
+        verify(kafkaTemplate).send(any(ProducerRecord.class));
     }
 
     @Test

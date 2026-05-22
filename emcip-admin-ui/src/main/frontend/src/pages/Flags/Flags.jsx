@@ -20,6 +20,8 @@ const DECISION_VARIANT = {
 const STATUS_VARIANT = { NEW: 'blue', REVIEWED: 'gray', ACTIONED: 'green' }
 
 function parseMeta(raw) {
+  if (!raw) return {}
+  if (typeof raw === 'object') return raw
   try {
     return JSON.parse(raw)
   } catch {

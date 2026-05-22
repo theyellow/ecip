@@ -1,12 +1,13 @@
 package io.emcip.intent.classifier.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.common.events.EventSchemas;
 import java.util.concurrent.CompletableFuture;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,7 @@ class IntentClassificationServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+        when(kafkaTemplate.send(any(ProducerRecord.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
         service = new IntentClassificationService(kafkaTemplate, new ObjectMapper());
     }
@@ -33,7 +34,7 @@ class IntentClassificationServiceTest {
     void classify_greeting_returnsGreetingIntent() {
         var event = buildMessage("src-1", "hello there");
 
-        var result = service.classify(event).block();
+        var result = service.classify(event, null).block();
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("GREETING");
@@ -45,7 +46,7 @@ class IntentClassificationServiceTest {
     void classify_question_returnsQuestionIntent() {
         var event = buildMessage("src-2", "what is the status?");
 
-        var result = service.classify(event).block();
+        var result = service.classify(event, null).block();
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("QUESTION");
@@ -56,7 +57,7 @@ class IntentClassificationServiceTest {
     void classify_command_returnsCommandIntent() {
         var event = buildMessage("src-3", "start the service");
 
-        var result = service.classify(event).block();
+        var result = service.classify(event, null).block();
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("COMMAND");
@@ -69,7 +70,7 @@ class IntentClassificationServiceTest {
         // "bye" is ^-anchored so the text must start with it; "thanks" has no anchor
         var event = buildMessage("src-4", "bye, thanks for everything");
 
-        var result = service.classify(event).block();
+        var result = service.classify(event, null).block();
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("THANKS");
@@ -81,7 +82,7 @@ class IntentClassificationServiceTest {
     void classify_spam_returnsSpamIntent() {
         var event = buildMessage("src-5", "click here to earn money fast!");
 
-        var result = service.classify(event).block();
+        var result = service.classify(event, null).block();
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("SPAM");
@@ -92,7 +93,7 @@ class IntentClassificationServiceTest {
     void classify_noMatch_returnsUnknown() {
         var event = buildMessage("src-6", "random message with no recognizable pattern");
 
-        var result = service.classify(event).block();
+        var result = service.classify(event, null).block();
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("UNKNOWN");
@@ -104,16 +105,16 @@ class IntentClassificationServiceTest {
     void classify_publishesClassificationEventToKafka() {
         var event = buildMessage("src-7", "hello");
 
-        service.classify(event).block();
+        service.classify(event, null).block();
 
-        verify(kafkaTemplate).send(anyString(), anyString(), anyString());
+        verify(kafkaTemplate).send(any(ProducerRecord.class));
     }
 
     @Test
     void classify_populatesSourceEventIdAndMetadata() {
         var event = buildMessage("src-8", "hi there");
 
-        var result = service.classify(event).block();
+        var result = service.classify(event, null).block();
 
         assertThat(result).isNotNull();
         assertThat(result.sourceEventId()).isEqualTo("src-8");

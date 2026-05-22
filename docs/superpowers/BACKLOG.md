@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-21 (SC6/SC7/SC8 + INF4 + secret scanning complete)
+> Last updated: 2026-05-22 (post-RBAC bugfix PRs #79, #80; flag-detail reaction item added)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -36,6 +36,7 @@
 | 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. |
 | 22 | **Admin UI: cross-tenant views** | M | Admin users browse data across all tenants. Requires ADMIN-mode bypass (already implemented) + UI pages. |
+| 23 | **Flag-detail: reaction / response action** | M | From the flag detail modal, allow an operator to take a direct action on the flagged message. Phase 1: simple Reply field that publishes a response event. Phase 2: AI-research prompt interface — open a chat-style UI backed by one of the configured LiteLLM models so the operator can research/draft a response with AI assistance before sending. High priority — direct operator workflow value. |
 
 ---
 

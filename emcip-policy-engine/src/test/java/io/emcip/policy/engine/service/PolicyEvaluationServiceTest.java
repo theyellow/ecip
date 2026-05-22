@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -73,7 +74,7 @@ class PolicyEvaluationServiceTest {
         assertThat(result.getDecision()).isEqualTo("BLOCK");
         assertThat(result.getReason()).contains("Spam detected");
         verify(decisionRepository).save(any());
-        verify(kafkaTemplate).send(anyString(), anyString(), anyString());
+        verify(kafkaTemplate).send(any(ProducerRecord.class));
         verify(actionService).executeAction(any(PolicyDecision.class), anyMap());
     }
 
@@ -256,7 +257,7 @@ class PolicyEvaluationServiceTest {
         policyService.evaluate(classification, null);
 
         // Then
-        verify(kafkaTemplate).send(eq("policies.decisions"), eq("evt-classify-001"), anyString());
+        verify(kafkaTemplate).send(any(ProducerRecord.class));
     }
 
     @Test

@@ -1,12 +1,14 @@
 package io.emcip.intent.classifier.service;
 
 import io.emcip.common.events.EventSchemas;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -65,7 +67,7 @@ public class IntentClassificationService {
 
     /** Classify a Telegram message and publish the result. */
     public Mono<EventSchemas.IntentClassifiedEvent> classify(
-            EventSchemas.TelegramMessageEvent message) {
+            EventSchemas.TelegramMessageEvent message, String tenantId) {
         return Mono.fromCallable(
                 () -> {
                     String text = message.text();
@@ -105,9 +107,16 @@ public class IntentClassificationService {
                                             text),
                                     matchedRules);
 
-                    // Publish to Kafka
+                    // Publish to Kafka, forwarding tenant_id header if present
                     String json = objectMapper.writeValueAsString(classification);
-                    kafkaTemplate.send(TOPIC_OUTPUT, message.eventId(), json);
+                    ProducerRecord<String, String> producerRecord =
+                            new ProducerRecord<>(TOPIC_OUTPUT, null, message.eventId(), json);
+                    if (tenantId != null) {
+                        producerRecord
+                                .headers()
+                                .add("tenant_id", tenantId.getBytes(StandardCharsets.UTF_8));
+                    }
+                    kafkaTemplate.send(producerRecord);
 
                     log.debug(
                             "Published classification for message {}: {}",

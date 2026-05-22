@@ -2,6 +2,7 @@ package io.emcip.intent.classifier.service;
 
 import io.emcip.common.events.EventSchemas;
 import io.emcip.common.validation.EventValidator;
+import java.nio.charset.StandardCharsets;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +45,13 @@ public class TelegramMessageConsumer {
                 record.partition(),
                 record.offset());
 
+        // Read tenant_id header to propagate through the pipeline
+        var tenantHeader = record.headers().lastHeader("tenant_id");
+        String tenantId =
+                tenantHeader != null
+                        ? new String(tenantHeader.value(), StandardCharsets.UTF_8)
+                        : null;
+
         Mono.<EventSchemas.IntentClassifiedEvent>fromCallable(
                         () -> {
                             // Validate JSON structure
@@ -61,7 +69,7 @@ public class TelegramMessageConsumer {
                                     objectMapper.readValue(
                                             record.value(),
                                             EventSchemas.TelegramMessageEvent.class);
-                            return classificationService.classify(event).block();
+                            return classificationService.classify(event, tenantId).block();
                         })
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnSuccess(
