@@ -2,7 +2,7 @@ package io.emcip.tdlib.adapter.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import io.emcip.tdlib.adapter.model.TelegramMessageEvent;
+import io.emcip.common.events.EventSchemas;
 import io.emcip.tdlib.adapter.model.TelegramUpdateEvent;
 import java.time.Instant;
 import java.util.UUID;
@@ -61,7 +61,8 @@ public class TelegramEventPublisher {
 
         return Mono.fromCallable(
                         () -> {
-                            TelegramMessageEvent event = convertToEvent(message, update);
+                            EventSchemas.TelegramMessageEvent event =
+                                    convertToEvent(message, update);
                             String json = serialize(event);
                             org.apache.kafka.clients.producer.ProducerRecord<String, String>
                                     kafkaRecord =
@@ -125,15 +126,18 @@ public class TelegramEventPublisher {
                 .then();
     }
 
-    private TelegramMessageEvent convertToEvent(
+    private EventSchemas.TelegramMessageEvent convertToEvent(
             TdApi.Message message, TdApi.UpdateNewMessage update) {
         String text = "";
         if (message.content instanceof TdApi.MessageText messageText) {
             text = messageText.text.text;
         }
 
-        return new TelegramMessageEvent(
+        return new EventSchemas.TelegramMessageEvent(
                 UUID.randomUUID().toString(),
+                Instant.now().toString(),
+                null,
+                null,
                 message.id,
                 message.chatId,
                 message.senderId != null ? getSenderId(message.senderId) : null,

@@ -54,7 +54,9 @@ public class AuthController {
         String status =
                 client.isAuthorized()
                         ? "ACTIVE"
-                        : client.isInitialized() ? "AWAITING_CODE" : "DISCONNECTED";
+                        : client.isAwaitingPassword()
+                                ? "AWAITING_PASSWORD"
+                                : client.isInitialized() ? "AWAITING_CODE" : "DISCONNECTED";
         return Mono.just(ResponseEntity.ok(new AuthStatusResponse(status, client.getLastError())));
     }
 
