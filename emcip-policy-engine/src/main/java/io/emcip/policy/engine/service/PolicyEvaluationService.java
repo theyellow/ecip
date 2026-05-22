@@ -5,10 +5,12 @@ import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
 import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.UUID;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -133,7 +135,10 @@ public class PolicyEvaluationService {
         for (EvaluatedRule rule : rulesToEvaluate) {
             if (matchesRule(rule, classification.intent(), classification.confidence())) {
                 decision = rule.action;
-                reason = rule.reason;
+                reason =
+                        (rule.reason != null && !rule.reason.isBlank())
+                                ? rule.reason
+                                : rule.name + " matched";
                 matchedPolicyId = rule.id;
                 log.info(
                         "Policy {} matched for event {}: {} -> {}",
@@ -168,7 +173,14 @@ public class PolicyEvaluationService {
                             List.of(decision.toLowerCase()));
 
             String json = objectMapper.writeValueAsString(decisionEvent);
-            kafkaTemplate.send(TOPIC_OUTPUT, classification.eventId(), json);
+            ProducerRecord<String, String> producerRecord =
+                    new ProducerRecord<>(TOPIC_OUTPUT, null, classification.eventId(), json);
+            if (tenantId != null) {
+                producerRecord
+                        .headers()
+                        .add("tenant_id", tenantId.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            kafkaTemplate.send(producerRecord);
         } catch (Exception e) {
             log.error("Failed to publish policy decision to Kafka: {}", e.getMessage(), e);
         }
