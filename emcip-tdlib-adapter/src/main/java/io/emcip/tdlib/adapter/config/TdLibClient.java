@@ -26,6 +26,7 @@ public class TdLibClient {
     private Client client;
     private volatile boolean initialized = false;
     private volatile boolean authorized = false;
+    private volatile boolean awaitingPassword = false;
     private volatile String lastError = null;
 
     private final ConcurrentMap<String, Consumer<TdApi.Update>> updateHandlers =
@@ -93,14 +94,18 @@ public class TdLibClient {
                     setPhoneNumber(phoneNumber);
                 }
             }
+            case TdApi.AuthorizationStateWaitCode.CONSTRUCTOR -> awaitingPassword = false;
+            case TdApi.AuthorizationStateWaitPassword.CONSTRUCTOR -> awaitingPassword = true;
             case TdApi.AuthorizationStateReady.CONSTRUCTOR -> {
                 authorized = true;
+                awaitingPassword = false;
                 lastError = null;
             }
             case TdApi.AuthorizationStateLoggingOut.CONSTRUCTOR -> authorized = false;
             case TdApi.AuthorizationStateClosed.CONSTRUCTOR -> {
                 initialized = false;
                 authorized = false;
+                awaitingPassword = false;
             }
             default ->
                     log.debug(
@@ -175,6 +180,10 @@ public class TdLibClient {
 
     public boolean isAuthorized() {
         return authorized;
+    }
+
+    public boolean isAwaitingPassword() {
+        return awaitingPassword;
     }
 
     public String getLastError() {
