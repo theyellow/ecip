@@ -40,14 +40,17 @@ export function AuditLog() {
       {error && <p className={styles.error}>{error}</p>}
       <table className={styles.table}>
         <thead>
-          <tr><th>Timestamp</th><th>Event Type</th><th>Entity ID</th><th>Details</th></tr>
+          <tr><th>Timestamp</th><th>Event Type</th><th>Source</th><th>Action</th><th>Resource</th><th>Outcome</th><th>Details</th></tr>
         </thead>
         <tbody>
           {events.map((e, i) => (
             <tr key={i}>
               <td className={styles.mono}>{e.timestamp ? new Date(e.timestamp).toLocaleString() : '\u2014'}</td>
               <td>{e.eventType}</td>
-              <td className={styles.mono}>{e.entityId ?? '\u2014'}</td>
+              <td className={styles.mono}>{e.sourceService ?? '\u2014'}</td>
+              <td>{e.action ?? '\u2014'}</td>
+              <td className={styles.mono}>{e.resourceId ?? '\u2014'}</td>
+              <td>{e.outcome ?? '\u2014'}</td>
               <td className={styles.details}>{e.details != null ? (typeof e.details === 'object' ? JSON.stringify(e.details) : e.details) : '\u2014'}</td>
             </tr>
           ))}
