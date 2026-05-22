@@ -32,7 +32,7 @@ public class PolicyDecision {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "tenant_id")
     private UUID tenantId;
 
     @Column(nullable = false)

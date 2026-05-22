@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+    <changeSet id="007" author="fix">
+        <!-- Allow null tenant_id on policy_decisions for admin-level simulate events
+             that have no tenant context. Policy rules retain NOT NULL since they are
+             always created within a tenant scope via the admin UI. -->
+        <dropNotNullConstraint tableName="policy_decisions" columnName="tenant_id" columnDataType="UUID"/>
+    </changeSet>
+</databaseChangeLog>

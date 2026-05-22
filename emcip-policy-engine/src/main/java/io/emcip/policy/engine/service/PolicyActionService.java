@@ -67,6 +67,9 @@ public class PolicyActionService {
                 case "ALLOW":
                     executeAllow(decision, context);
                     break;
+                case "FLAG":
+                    executeFlag(decision, context);
+                    break;
                 default:
                     log.warn("Unknown action type: {}. No action taken.", action);
             }
@@ -183,6 +186,25 @@ public class PolicyActionService {
         log.info(
                 "Published REVIEW action to {} for event {}",
                 TOPIC_REVIEW,
+                decision.getSourceEventId());
+    }
+
+    /** FLAG: Publish to moderation topic for human review without blocking. */
+    private void executeFlag(PolicyDecision decision, Map<String, Object> context) {
+        Map<String, Object> actionEvent = new java.util.HashMap<>();
+        actionEvent.put("eventId", UUID.randomUUID().toString());
+        actionEvent.put("timestamp", Instant.now().toString());
+        actionEvent.put("actionType", "FLAG");
+        actionEvent.put("sourceEventId", decision.getSourceEventId());
+        actionEvent.put("decisionId", decision.getId());
+        actionEvent.put("reason", decision.getReason());
+        actionEvent.put("context", context);
+        actionEvent.put("severity", "MEDIUM");
+
+        publishToTopic(TOPIC_MODERATION, decision.getSourceEventId(), actionEvent);
+        log.info(
+                "Published FLAG action to {} for event {}",
+                TOPIC_MODERATION,
                 decision.getSourceEventId());
     }
 

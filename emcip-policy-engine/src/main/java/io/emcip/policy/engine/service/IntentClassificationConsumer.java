@@ -2,6 +2,8 @@ package io.emcip.policy.engine.service;
 
 import io.emcip.common.events.EventSchemas;
 import io.emcip.common.validation.EventValidator;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,11 +53,24 @@ public class IntentClassificationConsumer {
                 return;
             }
 
+            // Read tenant from Kafka header
+            UUID tenantId = null;
+            var tenantHeader = record.headers().lastHeader("tenant_id");
+            if (tenantHeader != null) {
+                try {
+                    tenantId =
+                            UUID.fromString(
+                                    new String(tenantHeader.value(), StandardCharsets.UTF_8));
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid tenant_id header value, ignoring");
+                }
+            }
+
             // Parse and evaluate
             var event =
                     objectMapper.readValue(
                             record.value(), EventSchemas.IntentClassifiedEvent.class);
-            var result = policyService.evaluate(event);
+            var result = policyService.evaluate(event, tenantId);
 
             log.info(
                     "Evaluated policy for event {}: decision={}",

@@ -67,7 +67,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("SPAM", 0.9);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("BLOCK");
@@ -104,7 +104,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("SPAM", 0.6);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("CUSTOM_ACTION");
@@ -123,7 +123,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("SPAM", 0.85);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("BLOCK");
@@ -141,7 +141,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("SPAM", 0.5);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("ALLOW");
@@ -159,7 +159,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("GREETING", 0.75);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("RESPOND");
@@ -176,7 +176,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("QUESTION", 0.8);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("ESCALATE");
@@ -193,7 +193,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("COMMAND", 0.85);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("EXECUTE");
@@ -210,7 +210,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("UNKNOWN", 0.2);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("REVIEW");
@@ -228,7 +228,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("SPAM", 0.9);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         ArgumentCaptor<PolicyDecision> captor = ArgumentCaptor.forClass(PolicyDecision.class);
@@ -253,7 +253,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("GREETING", 0.8);
 
         // When
-        policyService.evaluate(classification);
+        policyService.evaluate(classification, null);
 
         // Then
         verify(kafkaTemplate).send(eq("policies.decisions"), eq("evt-classify-001"), anyString());
@@ -281,7 +281,7 @@ class PolicyEvaluationServiceTest {
         var classification = createClassification("ANYTHING", 0.05);
 
         // When
-        PolicyDecision result = policyService.evaluate(classification);
+        PolicyDecision result = policyService.evaluate(classification, null);
 
         // Then
         assertThat(result.getDecision()).isEqualTo("ESCALATE");
