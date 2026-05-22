@@ -8,6 +8,7 @@ import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -90,7 +91,8 @@ public class PolicyEvaluationService {
 
     /** Evaluate policies against an intent classification and persist the decision. */
     @Transactional
-    public PolicyDecision evaluate(EventSchemas.IntentClassifiedEvent classification) {
+    public PolicyDecision evaluate(
+            EventSchemas.IntentClassifiedEvent classification, UUID tenantId) {
         String decision = "ALLOW";
         String reason = "No policy matched";
         String matchedPolicyId = null;
@@ -145,7 +147,7 @@ public class PolicyEvaluationService {
 
         // Persist decision
         PolicyDecision persistedDecision =
-                persistDecision(classification, matchedPolicyId, decision, reason);
+                persistDecision(classification, matchedPolicyId, decision, reason, tenantId);
 
         // Publish to Kafka
         try {
@@ -201,8 +203,10 @@ public class PolicyEvaluationService {
             EventSchemas.IntentClassifiedEvent classification,
             String matchedPolicyId,
             String decision,
-            String reason) {
+            String reason,
+            UUID tenantId) {
         PolicyDecision policyDecision = new PolicyDecision();
+        policyDecision.setTenantId(tenantId);
         policyDecision.setEventId(UUID.randomUUID().toString());
         policyDecision.setSourceEventId(classification.eventId());
         policyDecision.setPolicyId(matchedPolicyId != null ? matchedPolicyId : "default");

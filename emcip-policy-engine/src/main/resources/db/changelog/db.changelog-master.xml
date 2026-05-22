@@ -11,5 +11,6 @@
     <include file="changes/004-add-tenant-id.xml" relativeToChangelogFile="true"/>
     <include file="changes/005-policy-rule-versioning.xml" relativeToChangelogFile="true"/>
     <include file="changes/006-add-signal-status.xml" relativeToChangelogFile="true"/>
+    <include file="changes/007-tenant-id-nullable.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
