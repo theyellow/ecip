@@ -45,7 +45,7 @@ export function AuditLog() {
         <tbody>
           {events.map((e, i) => (
             <tr key={i}>
-              <td className={styles.mono}>{e.timestamp ? new Date(e.timestamp).toLocaleString() : '\u2014'}</td>
+              <td className={styles.mono}>{e.createdAt ? new Date(e.createdAt).toLocaleString() : '\u2014'}</td>
               <td>{e.eventType}</td>
               <td className={styles.mono}>{e.sourceService ?? '\u2014'}</td>
               <td>{e.action ?? '\u2014'}</td>
@@ -54,6 +54,9 @@ export function AuditLog() {
               <td className={styles.details}>{e.details != null ? (typeof e.details === 'object' ? JSON.stringify(e.details) : e.details) : '\u2014'}</td>
             </tr>
           ))}
+          {events.length === 0 && !error && (
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No audit events in the last 24 hours</td></tr>
+          )}
         </tbody>
       </table>
     </div>
