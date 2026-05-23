@@ -34,7 +34,19 @@ export function Telegram() {
   const [discoverError, setDiscoverError] = useState('')
 
   const loadAccounts = useCallback(() => {
-    api.listAccounts().then(setAccounts).catch(e => setError(e.message))
+    api.listAccounts()
+      .then(accts => {
+        setAccounts(accts)
+        // Sync live status for any account stuck in a transitional state
+        accts
+          .filter(a => a.status === 'AWAITING_CODE' || a.status === 'AWAITING_PASSWORD')
+          .forEach(a =>
+            api.getStatus(a.id)
+              .then(s => setAccounts(prev => prev.map(p => p.id === a.id ? { ...p, status: s.status } : p)))
+              .catch(() => {})
+          )
+      })
+      .catch(e => setError(e.message))
   }, [api])
 
   useEffect(() => {

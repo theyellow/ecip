@@ -37,6 +37,7 @@
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. |
 | 22 | **Admin UI: cross-tenant views** | M | Admin users browse data across all tenants. Requires ADMIN-mode bypass (already implemented) + UI pages. |
 | 23 | **Flag-detail: reaction / response action** | M | From the flag detail modal, allow an operator to take a direct action on the flagged message. Phase 1: simple Reply field that publishes a response event. Phase 2: AI-research prompt interface — open a chat-style UI backed by one of the configured LiteLLM models so the operator can research/draft a response with AI assistance before sending. High priority — direct operator workflow value. |
+| 24 | **Flag-detail: clickable message links + AI content research** | S | In the flag detail modal, make URLs in the message text clickable. Add an "Investigate" action that sends the message + context to a configured LLM model for content analysis (spam signals, toxicity, intent) and displays the response inline. Lower priority than #23 (reaction) and Telegram items 10/8. |
 
 ---
 
