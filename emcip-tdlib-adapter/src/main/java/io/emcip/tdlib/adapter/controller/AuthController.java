@@ -39,7 +39,8 @@ public class AuthController {
                                     req.apiId(),
                                     req.apiHash(),
                                     req.phoneNumber(),
-                                    req.sessionString());
+                                    req.sessionString(),
+                                    req.tenantId());
                         })
                 .thenReturn(ResponseEntity.accepted().<Void>build());
     }

@@ -20,6 +20,7 @@ public class TdLibClientManager {
     private final TelegramUpdateHandler updateHandler;
     private final ConcurrentMap<UUID, TdLibClient> clients = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Set<Long>> watchedChatIds;
+    private final ConcurrentMap<UUID, String> tenantIds = new ConcurrentHashMap<>();
 
     public TdLibClientManager(
             TdLibProperties properties,
@@ -36,7 +37,12 @@ public class TdLibClientManager {
      * will attempt a silent session resume from its database directory.
      */
     public TdLibClient createAndInitialize(
-            UUID accountId, int apiId, String apiHash, String phoneNumber, String sessionString) {
+            UUID accountId,
+            int apiId,
+            String apiHash,
+            String phoneNumber,
+            String sessionString,
+            String tenantId) {
         log.debug(
                 "[{}] Session string present: {}",
                 accountId,
@@ -53,9 +59,16 @@ public class TdLibClientManager {
                         properties,
                         this::onAuthStateChange);
         clients.put(accountId, client);
+        if (tenantId != null && !tenantId.isBlank()) {
+            tenantIds.put(accountId, tenantId);
+        }
         client.initialize();
         updateHandler.registerOn(client);
         return client;
+    }
+
+    public String getTenantId(UUID accountId) {
+        return tenantIds.get(accountId);
     }
 
     /** Register a pre-constructed client (used in tests). */
@@ -90,6 +103,7 @@ public class TdLibClientManager {
             }
         }
         watchedChatIds.remove(accountId);
+        tenantIds.remove(accountId);
     }
 
     public void updateWatchedChats(UUID accountId, Set<Long> chatIds) {

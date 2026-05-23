@@ -171,6 +171,9 @@ public class TelegramAccountService {
                             payload.put("apiId", account.getApiId());
                             payload.put("apiHash", account.getApiHash());
                             payload.put("sessionString", account.getSessionString());
+                            if (account.getTenantId() != null) {
+                                payload.put("tenantId", account.getTenantId().toString());
+                            }
                             return tdlibClient
                                     .post()
                                     .uri("/api/auth/{id}/initialize", id)
@@ -349,6 +352,9 @@ public class TelegramAccountService {
         payload.put("apiId", account.getApiId());
         payload.put("apiHash", account.getApiHash());
         payload.put("sessionString", account.getSessionString());
+        if (account.getTenantId() != null) {
+            payload.put("tenantId", account.getTenantId().toString());
+        }
 
         return tdlibClient
                 .post()
