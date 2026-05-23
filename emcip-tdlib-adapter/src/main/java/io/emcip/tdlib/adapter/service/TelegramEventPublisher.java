@@ -42,7 +42,8 @@ public class TelegramEventPublisher {
         this.objectMapper = new ObjectMapper();
     }
 
-    public Mono<Void> publishMessage(TdApi.Message message, TdApi.UpdateNewMessage update) {
+    public Mono<Void> publishMessage(
+            TdApi.Message message, TdApi.UpdateNewMessage update, String tenantId) {
         String dedupKey = message.chatId + ":" + message.id;
         AtomicBoolean shouldPublish = new AtomicBoolean(false);
         deduplicationCache.get(
@@ -70,12 +71,19 @@ public class TelegramEventPublisher {
                                                     TOPIC_TELEGRAM_RAW,
                                                     String.valueOf(message.chatId),
                                                     json);
-                            if (configuredTenantId != null && !configuredTenantId.isBlank()) {
+                            String effectiveTenantId =
+                                    (tenantId != null && !tenantId.isBlank())
+                                            ? tenantId
+                                            : (configuredTenantId != null
+                                                            && !configuredTenantId.isBlank()
+                                                    ? configuredTenantId
+                                                    : null);
+                            if (effectiveTenantId != null) {
                                 kafkaRecord
                                         .headers()
                                         .add(
                                                 io.emcip.common.tenant.TenantContext.KAFKA_HEADER,
-                                                configuredTenantId.getBytes(
+                                                effectiveTenantId.getBytes(
                                                         java.nio.charset.StandardCharsets.UTF_8));
                             }
                             return kafkaTemplate.send(kafkaRecord);

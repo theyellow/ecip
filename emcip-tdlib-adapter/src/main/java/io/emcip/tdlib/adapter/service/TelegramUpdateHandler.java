@@ -1,6 +1,7 @@
 package io.emcip.tdlib.adapter.service;
 
 import io.emcip.tdlib.adapter.config.TdLibClient;
+import io.emcip.tdlib.adapter.config.TdLibClientManager;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
@@ -15,11 +16,15 @@ public class TelegramUpdateHandler {
 
     private final TelegramEventPublisher eventPublisher;
     private final ConcurrentMap<UUID, Set<Long>> watchedChatIds;
+    private final TdLibClientManager manager;
 
     public TelegramUpdateHandler(
-            TelegramEventPublisher eventPublisher, ConcurrentMap<UUID, Set<Long>> watchedChatIds) {
+            TelegramEventPublisher eventPublisher,
+            ConcurrentMap<UUID, Set<Long>> watchedChatIds,
+            TdLibClientManager manager) {
         this.eventPublisher = eventPublisher;
         this.watchedChatIds = watchedChatIds;
+        this.manager = manager;
     }
 
     /**
@@ -55,8 +60,9 @@ public class TelegramUpdateHandler {
                         ? text.text.text
                         : "[non-text]");
 
+        String tenantId = manager.getTenantId(accountId);
         eventPublisher
-                .publishMessage(newMessage.message, newMessage)
+                .publishMessage(newMessage.message, newMessage, tenantId)
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         null,

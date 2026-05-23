@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.emcip.tdlib.adapter.config.TdLibClientManager;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +22,7 @@ import reactor.core.publisher.Mono;
 class TelegramUpdateHandlerTest {
 
     @Mock TelegramEventPublisher publisher;
+    @Mock TdLibClientManager manager;
 
     ConcurrentMap<UUID, Set<Long>> watchedChatIds;
     TelegramUpdateHandler handler;
@@ -28,7 +30,7 @@ class TelegramUpdateHandlerTest {
     @BeforeEach
     void setUp() {
         watchedChatIds = new ConcurrentHashMap<>();
-        handler = new TelegramUpdateHandler(publisher, watchedChatIds);
+        handler = new TelegramUpdateHandler(publisher, watchedChatIds, manager);
     }
 
     @Test
@@ -45,11 +47,11 @@ class TelegramUpdateHandlerTest {
     void handleNewMessage_chatWatched_publishes() {
         UUID accountId = UUID.randomUUID();
         watchedChatIds.put(accountId, Set.of(111L));
-        when(publisher.publishMessage(any(), any())).thenReturn(Mono.empty());
+        when(publisher.publishMessage(any(), any(), any())).thenReturn(Mono.empty());
 
         handler.handleNewMessage(accountId, makeUpdate(111L, 1L));
 
-        verify(publisher).publishMessage(any(), any());
+        verify(publisher).publishMessage(any(), any(), any());
     }
 
     @Test

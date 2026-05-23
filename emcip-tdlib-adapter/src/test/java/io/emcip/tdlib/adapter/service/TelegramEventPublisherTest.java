@@ -39,8 +39,10 @@ class TelegramEventPublisherTest {
         TdApi.UpdateNewMessage update1 = makeUpdate(100L, 42L, "hello");
         TdApi.UpdateNewMessage update2 = makeUpdate(100L, 42L, "hello"); // same chatId + messageId
 
-        StepVerifier.create(publisher.publishMessage(update1.message, update1)).verifyComplete();
-        StepVerifier.create(publisher.publishMessage(update2.message, update2)).verifyComplete();
+        StepVerifier.create(publisher.publishMessage(update1.message, update1, null))
+                .verifyComplete();
+        StepVerifier.create(publisher.publishMessage(update2.message, update2, null))
+                .verifyComplete();
 
         verify(kafkaTemplate, times(1)).send(any(ProducerRecord.class));
     }
@@ -50,8 +52,10 @@ class TelegramEventPublisherTest {
         TdApi.UpdateNewMessage update1 = makeUpdate(100L, 1L, "hello");
         TdApi.UpdateNewMessage update2 = makeUpdate(100L, 2L, "world"); // different messageId
 
-        StepVerifier.create(publisher.publishMessage(update1.message, update1)).verifyComplete();
-        StepVerifier.create(publisher.publishMessage(update2.message, update2)).verifyComplete();
+        StepVerifier.create(publisher.publishMessage(update1.message, update1, null))
+                .verifyComplete();
+        StepVerifier.create(publisher.publishMessage(update2.message, update2, null))
+                .verifyComplete();
 
         verify(kafkaTemplate, times(2)).send(any(ProducerRecord.class));
     }
