@@ -129,3 +129,6 @@
 .discoverModal { display: flex; flex-direction: column; gap: 0.75rem; min-width: 480px; }
 
 .discoverHeader { display: flex; justify-content: flex-end; }
+
+.advancedFields { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.5rem 0; }
+.advancedHint { font-size: 0.8rem; color: var(--text-secondary); margin: 0; }

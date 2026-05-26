@@ -21,7 +21,8 @@ export function Telegram() {
   const [accounts, setAccounts] = useState([])
   const [error, setError] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [addForm, setAddForm] = useState({ phoneNumber: '', displayName: '' })
+  const [addForm, setAddForm] = useState({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' })
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [wizard, setWizard] = useState(null)
   const [codeInput, setCodeInput] = useState('')
   const [passwordInput, setPasswordInput] = useState('')
@@ -133,9 +134,15 @@ export function Telegram() {
   const handleAdd = async () => {
     setError('')
     try {
-      await api.createAccount({ phoneNumber: addForm.phoneNumber, displayName: addForm.displayName })
+      const body = { phoneNumber: addForm.phoneNumber, displayName: addForm.displayName }
+      if (addForm.customApiId && addForm.customApiHash) {
+        body.apiId = Number(addForm.customApiId)
+        body.apiHash = addForm.customApiHash
+      }
+      await api.createAccount(body)
       setShowAdd(false)
-      setAddForm({ phoneNumber: '', displayName: '' })
+      setShowAdvanced(false)
+      setAddForm({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' })
       loadAccounts()
     } catch (e) {
       setError(e.message)
@@ -303,7 +310,7 @@ export function Telegram() {
       </table>
 
       {showAdd && (
-        <Modal title="Add Telegram Account" onClose={() => setShowAdd(false)}>
+        <Modal title="Add Telegram Account" onClose={() => { setShowAdd(false); setShowAdvanced(false); setAddForm({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' }) }}>
           <div className={styles.form}>
             {[
               {
@@ -330,9 +337,43 @@ export function Telegram() {
                 />
               </div>
             ))}
+            <button
+              type="button"
+              className={styles.sessionToggle}
+              onClick={() => setShowAdvanced(s => !s)}
+            >
+              {showAdvanced ? '▾ Advanced' : '▸ Advanced'}
+            </button>
+            {showAdvanced && (
+              <div className={styles.advancedFields}>
+                <p className={styles.advancedHint}>
+                  Provide your own Telegram API credentials. Leave blank to use system defaults.
+                </p>
+                <div>
+                  <label className={styles.label}>API ID</label>
+                  <input
+                    type="number"
+                    className={styles.input}
+                    placeholder="12345678"
+                    value={addForm.customApiId}
+                    onChange={e => setAddForm(f => ({ ...f, customApiId: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className={styles.label}>API Hash</label>
+                  <input
+                    type="text"
+                    className={styles.input}
+                    placeholder="abc123def456..."
+                    value={addForm.customApiHash}
+                    onChange={e => setAddForm(f => ({ ...f, customApiHash: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )}
             <div className={styles.modalActions}>
               <Button onClick={handleAdd}>Save</Button>
-              <Button variant="secondary" onClick={() => setShowAdd(false)}>
+              <Button variant="secondary" onClick={() => { setShowAdd(false); setShowAdvanced(false); setAddForm({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' }) }}>
                 Cancel
               </Button>
             </div>
