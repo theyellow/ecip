@@ -13,8 +13,10 @@ export function AuditLog() {
   const [size, setSize] = useState(50)
   const [eventType, setEventType] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  const load = () =>
+  const load = () => {
+    setLoading(true)
     api
       .list(page, size, eventType)
       .then(data => {
@@ -22,6 +24,8 @@ export function AuditLog() {
         setTotal(data?.total ?? 0)
       })
       .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }
   useEffect(() => { load() }, [size, eventType])
 
   return (
@@ -54,7 +58,10 @@ export function AuditLog() {
               <td className={styles.details}>{e.details != null ? (typeof e.details === 'object' ? JSON.stringify(e.details) : e.details) : '\u2014'}</td>
             </tr>
           ))}
-          {events.length === 0 && !error && (
+          {loading && (
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>Loading…</td></tr>
+          )}
+          {!loading && events.length === 0 && !error && (
             <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No audit events in the last 24 hours</td></tr>
           )}
         </tbody>

@@ -120,9 +120,11 @@ export function Flags() {
   const [size, setSize] = useState(50)
   const [decision, setDecision] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
 
-  const load = () =>
+  const load = () => {
+    setLoading(true)
     api
       .list(page, size, decision)
       .then(data => {
@@ -130,6 +132,8 @@ export function Flags() {
         setTotal(data?.total ?? 0)
       })
       .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }
 
   useEffect(() => { load() }, [size, decision])
 
@@ -166,6 +170,12 @@ export function Flags() {
           </tr>
         </thead>
         <tbody>
+          {loading && (
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>Loading…</td></tr>
+          )}
+          {!loading && flags.length === 0 && !error && (
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No flags yet</td></tr>
+          )}
           {flags.map(f => {
             const meta = parseMeta(f.metadata)
             return (
