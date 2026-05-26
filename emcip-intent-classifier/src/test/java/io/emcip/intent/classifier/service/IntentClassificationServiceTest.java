@@ -140,6 +140,9 @@ class IntentClassificationServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
                 null);
     }
 }

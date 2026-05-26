@@ -24,10 +24,12 @@ class TelegramEventPublisherTest {
     @Mock KafkaTemplate<String, String> kafkaTemplate;
     TelegramEventPublisher publisher;
 
+    private final ProfileCacheService profileCache = new ProfileCacheService();
+
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        publisher = new TelegramEventPublisher(kafkaTemplate);
+        publisher = new TelegramEventPublisher(kafkaTemplate, profileCache);
         SendResult<String, String> sendResult =
                 new SendResult<>(null, new RecordMetadata(null, 0, 0, 0, 0, 0));
         when(kafkaTemplate.send(any(ProducerRecord.class)))

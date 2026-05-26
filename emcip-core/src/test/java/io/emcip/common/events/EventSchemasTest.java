@@ -23,7 +23,7 @@ class EventSchemasTest {
         var event =
                 new EventSchemas.TelegramMessageEvent(
                         "id", "ts", null, null, 1L, 2L, "s", "USER", "hello", 0, null, false, null,
-                        null, null, null);
+                        null, null, null, null, null, null);
         assertThat(event.schemaVersion()).isEqualTo(EventSchemas.TELEGRAM_MESSAGE_V1);
         assertThat(event.eventType()).isEqualTo("TelegramMessage");
     }
@@ -33,7 +33,7 @@ class EventSchemasTest {
         var event =
                 new EventSchemas.TelegramMessageEvent(
                         "id", "ts", "2.0.0", "Custom", 1L, 2L, "s", "USER", "hello", 0, null, false,
-                        null, null, null, null);
+                        null, null, null, null, null, null, null);
         assertThat(event.schemaVersion()).isEqualTo("2.0.0");
         assertThat(event.eventType()).isEqualTo("Custom");
     }
@@ -103,7 +103,10 @@ class EventSchemasTest {
                         null,
                         null,
                         Map.of(),
-                        "2026-01-01T00:00:00Z");
+                        "2026-01-01T00:00:00Z",
+                        null,
+                        null,
+                        null);
         assertThat(event.eventId()).isEqualTo("event-1");
         assertThat(event.timestamp()).isEqualTo("2026-01-01T00:00:00Z");
     }

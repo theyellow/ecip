@@ -26,6 +26,7 @@ public class TelegramEventPublisher {
     private static final String TOPIC_TELEGRAM_UPDATES = "telegram.raw.updates";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ProfileCacheService profileCache;
     private final ObjectMapper objectMapper;
 
     @Value("${app.tenant-id:}")
@@ -37,8 +38,10 @@ public class TelegramEventPublisher {
                     .maximumSize(10_000)
                     .build();
 
-    public TelegramEventPublisher(KafkaTemplate<String, String> kafkaTemplate) {
+    public TelegramEventPublisher(
+            KafkaTemplate<String, String> kafkaTemplate, ProfileCacheService profileCache) {
         this.kafkaTemplate = kafkaTemplate;
+        this.profileCache = profileCache;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -141,6 +144,8 @@ public class TelegramEventPublisher {
             text = messageText.text.text;
         }
 
+        long senderId = message.senderId != null ? getSenderIdNumeric(message.senderId) : 0L;
+
         return new EventSchemas.TelegramMessageEvent(
                 UUID.randomUUID().toString(),
                 Instant.now().toString(),
@@ -157,7 +162,19 @@ public class TelegramEventPublisher {
                 extractReplyToMessageId(message),
                 extractReplyInChatId(message),
                 extractMetadata(message),
-                Instant.now().toString());
+                Instant.now().toString(),
+                senderId != 0 ? profileCache.getUserDisplayName(senderId) : null,
+                senderId != 0 ? profileCache.getUserUsername(senderId) : null,
+                profileCache.getChatTitle(message.chatId));
+    }
+
+    private long getSenderIdNumeric(TdApi.MessageSender sender) {
+        if (sender instanceof TdApi.MessageSenderUser user) {
+            return user.userId;
+        } else if (sender instanceof TdApi.MessageSenderChat chat) {
+            return chat.chatId;
+        }
+        return 0L;
     }
 
     private long extractReplyToMessageId(TdApi.Message message) {
