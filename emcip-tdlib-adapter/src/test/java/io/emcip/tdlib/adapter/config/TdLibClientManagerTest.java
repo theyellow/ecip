@@ -21,7 +21,10 @@ class TdLibClientManagerTest {
         properties = new TdLibProperties("tdlib-test", true, true, true, false, 1);
         manager =
                 new TdLibClientManager(
-                        properties, mock(TelegramUpdateHandler.class), new ConcurrentHashMap<>());
+                        properties,
+                        mock(TelegramUpdateHandler.class),
+                        new ConcurrentHashMap<>(),
+                        30);
     }
 
     @Test
@@ -80,9 +83,23 @@ class TdLibClientManagerTest {
         assertThat(manager.getWatchedChatIds(UUID.randomUUID())).isEmpty();
     }
 
+    @Test
+    void getRateLimiter_sameApiId_returnsSameInstance() {
+        var rl1 = manager.getOrCreateRateLimiter(12345);
+        var rl2 = manager.getOrCreateRateLimiter(12345);
+        assertThat(rl1).isSameAs(rl2);
+    }
+
+    @Test
+    void getRateLimiter_differentApiId_returnsDifferentInstances() {
+        var rl1 = manager.getOrCreateRateLimiter(11111);
+        var rl2 = manager.getOrCreateRateLimiter(22222);
+        assertThat(rl1).isNotSameAs(rl2);
+    }
+
     private TdLibClient stubClient(UUID id) {
         // Construct without initialising (no TDLib native library needed)
         return new TdLibClient(
-                id, 0, "hash", "+49000", "tdlib-test/" + id, properties, (a, s) -> {});
+                id, 0, "hash", "+49000", "tdlib-test/" + id, properties, (a, s) -> {}, null);
     }
 }

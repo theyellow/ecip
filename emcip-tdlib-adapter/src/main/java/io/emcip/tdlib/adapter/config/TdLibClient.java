@@ -1,5 +1,6 @@
 package io.emcip.tdlib.adapter.config;
 
+import io.github.resilience4j.ratelimiter.RateLimiter;
 import jakarta.annotation.PreDestroy;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,6 +23,7 @@ public class TdLibClient {
     private final String databaseDirectory;
     private final TdLibProperties properties;
     private final BiConsumer<UUID, TdApi.AuthorizationState> authStateCallback;
+    private final RateLimiter rateLimiter;
 
     private Client client;
     private volatile boolean initialized = false;
@@ -39,7 +41,8 @@ public class TdLibClient {
             String phoneNumber,
             String databaseDirectory,
             TdLibProperties properties,
-            BiConsumer<UUID, TdApi.AuthorizationState> authStateCallback) {
+            BiConsumer<UUID, TdApi.AuthorizationState> authStateCallback,
+            RateLimiter rateLimiter) {
         this.accountId = accountId;
         this.apiId = apiId;
         this.apiHash = apiHash;
@@ -47,6 +50,7 @@ public class TdLibClient {
         this.databaseDirectory = databaseDirectory;
         this.properties = properties;
         this.authStateCallback = authStateCallback;
+        this.rateLimiter = rateLimiter;
     }
 
     public void initialize() {
@@ -170,6 +174,9 @@ public class TdLibClient {
         if (!initialized || client == null) {
             throw new IllegalStateException(
                     "TDLib client not initialized for account " + accountId);
+        }
+        if (rateLimiter != null) {
+            RateLimiter.waitForPermission(rateLimiter);
         }
         client.send(query, handler);
     }
