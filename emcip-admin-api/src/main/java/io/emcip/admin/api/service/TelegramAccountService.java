@@ -81,17 +81,19 @@ public class TelegramAccountService {
                                         HttpStatus.NOT_FOUND, "Account not found: " + id)));
     }
 
-    public Mono<TelegramAccount> create(String phoneNumber, String displayName, UUID tenantId) {
+    public Mono<TelegramAccount> create(
+            String phoneNumber, String displayName, UUID tenantId, Integer apiId, String apiHash) {
         return Mono.deferContextual(
                 ctx -> {
                     TelegramAccount account =
                             TelegramAccount.builder()
                                     .id(UUID.randomUUID())
                                     .phoneNumber(phoneNumber)
-                                    .apiId(telegramApiId)
-                                    .apiHash(telegramApiHash)
+                                    .apiId(apiId != null ? apiId : telegramApiId)
+                                    .apiHash(apiHash != null ? apiHash : telegramApiHash)
                                     .displayName(displayName)
                                     .status(TelegramAccountStatus.UNCONFIGURED)
+                                    .adapterId("default")
                                     .createdAt(Instant.now())
                                     .updatedAt(Instant.now())
                                     .build();
