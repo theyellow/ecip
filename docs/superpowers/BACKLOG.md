@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-22 (post-RBAC bugfix PRs #79, #80; flag-detail reaction item added)
+> Last updated: 2026-05-26 (loading states, group/sender enrichment, topic clustering, deep research; multi-account promoted to urgent)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -31,13 +31,16 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | 9 | **Telegram: self-service account connection** | L | ✅ PR — 2026-05-21. TENANT_ADMIN role, permission matrix, JWT tenantId (S10), user management API + UI, global tenant switcher. Ref: `specs/2026-05-21-telegram-self-service-rbac-design.md`. |
-| 10 | **Telegram: concurrent multi-account sessions** | XL | Only one Telegram account active at a time. True concurrency needs `tdlib-adapter` architectural rework. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
+| 10 | **Telegram: concurrent multi-account sessions** ⚠️ URGENT | XL | **Blocks all further tdlib-adapter work.** Only one Telegram account active at a time. True concurrency needs `tdlib-adapter` architectural rework. All items 25-27 and further Telegram enrichment must be sequenced after or alongside this. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
+| 25 | **Group name + full sender info on flags and audits** | M | Replace raw `chatId` with resolved group name (show both name and id). Enrich sender info for forensics: `senderId`, `senderType`, display name, username, account age, profile photo URL. Requires tdlib-adapter to capture user profiles from `UpdateUser` events and denormalize at Kafka publish time. **tdlib-adapter portion should be planned together with item 10 (multi-account rework).** |
+| 23 | **Flag-detail: reaction / response action** | M | From the flag detail modal, allow an operator to take a direct action on the flagged message. Phase 1: simple Reply field that publishes a response event. Phase 2: AI-research prompt interface — open a chat-style UI backed by one of the configured LiteLLM models so the operator can research/draft a response with AI assistance before sending. High priority — direct operator workflow value. |
+| 26 | **Bulk message ingestion + topic clustering + RAG knowledge base** | L | Harvest historical messages from watched groups (backfill via TDLib `getChatHistory`). Cluster into topics (BERTopic, keyBERT, or LiteLLM summarization). Build a per-group queryable knowledge base for RAG retrieval. Goal: quickly surface recurring topics and key facts. Prerequisite for item 27. |
+| 27 | **Deep research operator tool** | XL | Operator-triggered autonomous research agent (wrapper around `langchain-ai/open_deep_research` or similar). Given a flagged message or topic cluster, researches via RAG + web search + LLM reasoning and produces a structured report (facts, sources, risk assessment). Feeds into flag-detail UI (item 23 Phase 2). Depends on item 26. |
 | 8 | **ML toxicity detection** | XL | Replace keyword/regex moderation rules with a model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed before implementation. |
 | 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. |
 | 22 | **Admin UI: cross-tenant views** | M | Admin users browse data across all tenants. Requires ADMIN-mode bypass (already implemented) + UI pages. |
-| 23 | **Flag-detail: reaction / response action** | M | From the flag detail modal, allow an operator to take a direct action on the flagged message. Phase 1: simple Reply field that publishes a response event. Phase 2: AI-research prompt interface — open a chat-style UI backed by one of the configured LiteLLM models so the operator can research/draft a response with AI assistance before sending. High priority — direct operator workflow value. |
-| 24 | **Flag-detail: clickable message links + AI content research** | S | In the flag detail modal, make URLs in the message text clickable. Add an "Investigate" action that sends the message + context to a configured LLM model for content analysis (spam signals, toxicity, intent) and displays the response inline. Lower priority than #23 (reaction) and Telegram items 10/8. |
+| 24 | **Flag-detail: clickable message links + AI content research** | S | In the flag detail modal, make URLs in the message text clickable. Add an "Investigate" action that sends the message + context to a configured LLM model for content analysis (spam signals, toxicity, intent) and displays the response inline. Lower priority than #23 and Telegram items 10/25. |
 
 ---
 
