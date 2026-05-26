@@ -76,5 +76,6 @@
     <include file="db/changelog/changes/010-telegram-accounts-add-tenant-id.xml"/>
     <include file="db/changelog/changes/011-refresh-tokens.xml"/>
     <include file="db/changelog/changes/012-admin-users-add-tenant.xml"/>
+    <include file="db/changelog/changes/013-telegram-accounts-adapter-id.xml"/>
 
 </databaseChangeLog>
