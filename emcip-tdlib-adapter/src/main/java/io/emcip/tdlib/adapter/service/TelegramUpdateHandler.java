@@ -17,14 +17,17 @@ public class TelegramUpdateHandler {
     private final TelegramEventPublisher eventPublisher;
     private final ConcurrentMap<UUID, Set<Long>> watchedChatIds;
     private final TdLibClientManager manager;
+    private final ProfileCacheService profileCache;
 
     public TelegramUpdateHandler(
             TelegramEventPublisher eventPublisher,
             ConcurrentMap<UUID, Set<Long>> watchedChatIds,
-            TdLibClientManager manager) {
+            TdLibClientManager manager,
+            ProfileCacheService profileCache) {
         this.eventPublisher = eventPublisher;
         this.watchedChatIds = watchedChatIds;
         this.manager = manager;
+        this.profileCache = profileCache;
     }
 
     /**
@@ -101,8 +104,9 @@ public class TelegramUpdateHandler {
         }
     }
 
-    private void handleChatTitle(TdApi.Update update) {
+    void handleChatTitle(TdApi.Update update) {
         if (update instanceof TdApi.UpdateChatTitle title) {
+            profileCache.putChat(title.chatId, title.title);
             log.debug("Chat {} title updated: {}", title.chatId, title.title);
 
             eventPublisher
@@ -117,9 +121,14 @@ public class TelegramUpdateHandler {
         }
     }
 
-    private void handleUserUpdate(TdApi.Update update) {
+    void handleUserUpdate(TdApi.Update update) {
         if (update instanceof TdApi.UpdateUser userUpdate) {
-            log.debug("User {} updated", userUpdate.user.id);
+            TdApi.User user = userUpdate.user;
+            String displayName =
+                    (user.firstName + " " + (user.lastName != null ? user.lastName : "")).trim();
+            String username = user.username;
+            profileCache.putUser(user.id, displayName, username);
+            log.debug("User {} updated: {} (@{})", user.id, displayName, username);
 
             eventPublisher
                     .publishUpdate(update)
