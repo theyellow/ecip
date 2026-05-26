@@ -1,3 +1,8 @@
+tdlib:
+  adapters:
+    - id: default
+      url: ${TDLIB_ADAPTER_URL:http://localhost:9080}
+
 server:
   port: 9087
 
