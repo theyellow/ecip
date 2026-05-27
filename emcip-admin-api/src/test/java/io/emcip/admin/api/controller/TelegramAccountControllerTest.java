@@ -87,11 +87,12 @@ class TelegramAccountControllerTest {
                         .updatedAt(Instant.now())
                         .build();
 
-        when(telegramAccountService.create(anyString(), anyString(), any()))
+        when(telegramAccountService.create(anyString(), anyString(), any(), any(), any()))
                 .thenReturn(Mono.just(account));
 
         TelegramAccountController.CreateAccountRequest req =
-                new TelegramAccountController.CreateAccountRequest("+49123456789", "Monitor 1");
+                new TelegramAccountController.CreateAccountRequest(
+                        "+49123456789", "Monitor 1", null, null);
 
         StepVerifier.create(
                         controller
