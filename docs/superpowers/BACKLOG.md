@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-26 (loading states, group/sender enrichment, topic clustering, deep research; multi-account promoted to urgent)
+> Last updated: 2026-05-27 (items 10+25 complete — multi-account scaling + sender/group enrichment, PR #85/#86/#87)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -31,8 +31,8 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | 9 | **Telegram: self-service account connection** | L | ✅ PR — 2026-05-21. TENANT_ADMIN role, permission matrix, JWT tenantId (S10), user management API + UI, global tenant switcher. Ref: `specs/2026-05-21-telegram-self-service-rbac-design.md`. |
-| 10 | **Telegram: concurrent multi-account sessions** ⚠️ URGENT | XL | **Blocks all further tdlib-adapter work.** Only one Telegram account active at a time. True concurrency needs `tdlib-adapter` architectural rework. All items 25-27 and further Telegram enrichment must be sequenced after or alongside this. Ref: `specs/2026-04-26-telegram-multi-account-auth-design.md`. |
-| 25 | **Group name + full sender info on flags and audits** | M | Replace raw `chatId` with resolved group name (show both name and id). Enrich sender info for forensics: `senderId`, `senderType`, display name, username, account age, profile photo URL. Requires tdlib-adapter to capture user profiles from `UpdateUser` events and denormalize at Kafka publish time. **tdlib-adapter portion should be planned together with item 10 (multi-account rework).** |
+| 10 | **Telegram: multi-account scaling foundation** | XL | ✅ PR #85 — 2026-05-27. Per-account API credentials, adapter_id routing metadata, per-API-ID rate limiting (Resilience4j), session resume filtered by adapter. Ref: `specs/2026-05-26-tdlib-multi-account-scaling-design.md`. |
+| 25 | **Group name + full sender info on flags and audits** | M | ✅ PR #85 — 2026-05-27. `TelegramMessageEvent` enriched with `senderDisplayName`, `senderUsername`, `chatTitle`. Caffeine profile caches populated from `UpdateUser`/`UpdateChatTitle` events. |
 | 23 | **Flag-detail: reaction / response action** | M | From the flag detail modal, allow an operator to take a direct action on the flagged message. Phase 1: simple Reply field that publishes a response event. Phase 2: AI-research prompt interface — open a chat-style UI backed by one of the configured LiteLLM models so the operator can research/draft a response with AI assistance before sending. High priority — direct operator workflow value. |
 | 26 | **Bulk message ingestion + topic clustering + RAG knowledge base** | L | Harvest historical messages from watched groups (backfill via TDLib `getChatHistory`). Cluster into topics (BERTopic, keyBERT, or LiteLLM summarization). Build a per-group queryable knowledge base for RAG retrieval. Goal: quickly surface recurring topics and key facts. Prerequisite for item 27. |
 | 27 | **Deep research operator tool** | XL | Operator-triggered autonomous research agent (wrapper around `langchain-ai/open_deep_research` or similar). Given a flagged message or topic cluster, researches via RAG + web search + LLM reasoning and produces a structured report (facts, sources, risk assessment). Feeds into flag-detail UI (item 23 Phase 2). Depends on item 26. |
