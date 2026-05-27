@@ -306,4 +306,40 @@ public class TdApi {
     public static class ChatListMain extends ChatList {
         public static final int CONSTRUCTOR = -400991316;
     }
+
+    // InputMessageContent hierarchy
+    public abstract static class InputMessageContent extends Object {}
+
+    public static class InputMessageText extends InputMessageContent {
+        public static final int CONSTRUCTOR = 1447278813;
+        public FormattedText text;
+    }
+
+    // InputMessageReplyTo hierarchy
+    public abstract static class InputMessageReplyTo extends Object {}
+
+    public static class InputMessageReplyToMessage extends InputMessageReplyTo {
+        public static final int CONSTRUCTOR = -763431794;
+        public long messageId;
+    }
+
+    // SendMessage function
+    public static class SendMessage extends Function<Message> {
+        public static final int CONSTRUCTOR = 504157374;
+        public long chatId;
+        public InputMessageReplyTo replyTo;
+        public InputMessageContent inputMessageContent;
+    }
+
+    // CreatePrivateChat function
+    public static class CreatePrivateChat extends Function<Chat> {
+        public static final int CONSTRUCTOR = -1303995166;
+        public long userId;
+        public boolean force;
+
+        public CreatePrivateChat(long userId, boolean force) {
+            this.userId = userId;
+            this.force = force;
+        }
+    }
 }

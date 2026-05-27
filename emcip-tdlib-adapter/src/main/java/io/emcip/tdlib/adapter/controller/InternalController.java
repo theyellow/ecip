@@ -2,6 +2,8 @@ package io.emcip.tdlib.adapter.controller;
 
 import io.emcip.tdlib.adapter.config.TdLibClient;
 import io.emcip.tdlib.adapter.config.TdLibClientManager;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -113,7 +115,105 @@ public class InternalController {
         return "GROUP";
     }
 
+    @PostMapping("/send-message/{accountId}")
+    public Mono<ResponseEntity<SendMessageResponse>> sendMessage(
+            @PathVariable UUID accountId, @Valid @RequestBody SendMessageRequest req) {
+        if (!manager.hasClient(accountId)) {
+            log.warn("[{}] sendMessage: no client found", accountId);
+            return Mono.just(ResponseEntity.badRequest().build());
+        }
+        TdLibClient client = manager.getClient(accountId);
+        if (!client.isAuthorized()) {
+            log.warn("[{}] sendMessage: client not authorized", accountId);
+            return Mono.just(ResponseEntity.badRequest().build());
+        }
+
+        // If recipientUserId is set, open a private chat (DM); otherwise send to chatId (group)
+        Mono<Long> chatIdMono;
+        if (req.recipientUserId() != null && req.recipientUserId() > 0) {
+            chatIdMono =
+                    Mono.<Long>create(
+                            sink ->
+                                    client.sendRequest(
+                                            new TdApi.CreatePrivateChat(
+                                                    req.recipientUserId(), false),
+                                            result -> {
+                                                if (result instanceof TdApi.Chat chat)
+                                                    sink.success(chat.id);
+                                                else if (result instanceof TdApi.Error err)
+                                                    sink.error(
+                                                            new RuntimeException(
+                                                                    "CreatePrivateChat error: "
+                                                                            + err.message));
+                                            }));
+        } else {
+            chatIdMono = Mono.just(req.chatId());
+        }
+
+        return chatIdMono
+                .flatMap(
+                        resolvedChatId -> {
+                            TdApi.FormattedText formattedText = new TdApi.FormattedText();
+                            formattedText.text = req.text();
+                            formattedText.entities = new TdApi.TextEntity[0];
+
+                            TdApi.InputMessageText inputContent = new TdApi.InputMessageText();
+                            inputContent.text = formattedText;
+
+                            TdApi.SendMessage sendMsg = new TdApi.SendMessage();
+                            sendMsg.chatId = resolvedChatId;
+                            sendMsg.inputMessageContent = inputContent;
+                            if (req.replyToMessageId() > 0) {
+                                TdApi.InputMessageReplyToMessage replyTo =
+                                        new TdApi.InputMessageReplyToMessage();
+                                replyTo.messageId = req.replyToMessageId();
+                                sendMsg.replyTo = replyTo;
+                            }
+
+                            return Mono.<SendMessageResponse>create(
+                                    sink ->
+                                            client.sendRequest(
+                                                    sendMsg,
+                                                    result -> {
+                                                        if (result instanceof TdApi.Message msg) {
+                                                            log.info(
+                                                                    "[{}] Message sent to chat {},"
+                                                                            + " messageId={}",
+                                                                    accountId,
+                                                                    resolvedChatId,
+                                                                    msg.id);
+                                                            sink.success(
+                                                                    new SendMessageResponse(
+                                                                            true, msg.id));
+                                                        } else if (result
+                                                                instanceof TdApi.Error err) {
+                                                            log.error(
+                                                                    "[{}] SendMessage error: {}",
+                                                                    accountId,
+                                                                    err.message);
+                                                            sink.error(
+                                                                    new RuntimeException(
+                                                                            "SendMessage error: "
+                                                                                    + err.message));
+                                                        }
+                                                    }));
+                        })
+                .map(resp -> ResponseEntity.status(HttpStatus.CREATED).body(resp))
+                .onErrorResume(
+                        e -> {
+                            log.error("[{}] sendMessage failed: {}", accountId, e.getMessage());
+                            return Mono.just(
+                                    ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                            .build());
+                        });
+    }
+
     public record WatchedGroupsRequest(List<Long> chatIds) {}
 
     public record ChatInfo(long chatId, String title, String type) {}
+
+    public record SendMessageRequest(
+            long chatId, @NotBlank String text, long replyToMessageId, Long recipientUserId) {}
+
+    public record SendMessageResponse(boolean success, long messageId) {}
 }
