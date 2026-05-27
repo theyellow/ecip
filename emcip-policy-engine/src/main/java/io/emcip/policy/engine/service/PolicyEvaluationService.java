@@ -235,6 +235,8 @@ public class PolicyEvaluationService {
         if (params.containsKey("messageText")) meta.put("messageText", params.get("messageText"));
         if (params.containsKey("chatId")) meta.put("chatId", params.get("chatId"));
         if (params.containsKey("senderId")) meta.put("senderId", params.get("senderId"));
+        if (params.containsKey("telegramMessageId"))
+            meta.put("telegramMessageId", params.get("telegramMessageId"));
         policyDecision.setMetadata(meta);
         policyDecision.setTimestamp(Instant.now());
 
