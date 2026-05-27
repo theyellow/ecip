@@ -69,6 +69,15 @@ public class PolicyEngineClient {
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
+    public Mono<JsonNode> getDecision(String id) {
+        return webClient
+                .get()
+                .uri("/api/policy-decisions/{id}", id)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
     public Mono<JsonNode> listDecisions(int page, int size, String decision) {
         return Mono.deferContextual(
                 ctx -> {

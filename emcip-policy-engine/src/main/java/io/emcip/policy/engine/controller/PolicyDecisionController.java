@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -29,6 +30,21 @@ import reactor.core.scheduler.Schedulers;
 public class PolicyDecisionController {
 
     private final PolicyDecisionRepository repository;
+
+    @Operation(summary = "Get a single policy decision by ID")
+    @GetMapping("/{id}")
+    public Mono<PolicyDecision> getById(@PathVariable String id) {
+        return Mono.fromCallable(
+                        () ->
+                                repository
+                                        .findById(id)
+                                        .orElseThrow(
+                                                () ->
+                                                        new ResponseStatusException(
+                                                                HttpStatus.NOT_FOUND,
+                                                                "Decision not found: " + id)))
+                .subscribeOn(Schedulers.boundedElastic());
+    }
 
     @Operation(summary = "List recent policy decisions")
     @GetMapping

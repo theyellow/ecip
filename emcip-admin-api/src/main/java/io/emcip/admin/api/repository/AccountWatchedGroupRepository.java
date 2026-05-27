@@ -11,6 +11,8 @@ public interface AccountWatchedGroupRepository
 
     Flux<AccountWatchedGroup> findByAccountId(UUID accountId);
 
+    Flux<AccountWatchedGroup> findByGroupProfileId(Long groupProfileId);
+
     Mono<Void> deleteByAccountIdAndGroupProfileId(UUID accountId, Long groupProfileId);
 
     Mono<Boolean> existsByAccountIdAndGroupProfileId(UUID accountId, Long groupProfileId);
