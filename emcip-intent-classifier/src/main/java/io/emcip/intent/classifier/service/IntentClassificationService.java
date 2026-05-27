@@ -4,6 +4,7 @@ import io.emcip.common.events.EventSchemas;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -87,6 +88,14 @@ public class IntentClassificationService {
                     }
 
                     // Create classification event
+                    Map<String, Object> params = new LinkedHashMap<>();
+                    params.put("textLength", text.length());
+                    params.put("chatId", message.chatId());
+                    params.put("senderId", message.senderId() != null ? message.senderId() : "");
+                    params.put("messageText", text);
+                    if (message.telegramMessageId() != null) {
+                        params.put("telegramMessageId", message.telegramMessageId());
+                    }
                     var classification =
                             new EventSchemas.IntentClassifiedEvent(
                                     UUID.randomUUID().toString(),
@@ -96,15 +105,7 @@ public class IntentClassificationService {
                                     message.eventId(),
                                     matchedIntent,
                                     highestConfidence,
-                                    Map.of(
-                                            "textLength",
-                                            text.length(),
-                                            "chatId",
-                                            message.chatId(),
-                                            "senderId",
-                                            message.senderId() != null ? message.senderId() : "",
-                                            "messageText",
-                                            text),
+                                    params,
                                     matchedRules);
 
                     // Publish to Kafka, forwarding tenant_id header if present

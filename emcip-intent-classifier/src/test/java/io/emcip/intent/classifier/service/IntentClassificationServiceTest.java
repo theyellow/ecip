@@ -121,15 +121,32 @@ class IntentClassificationServiceTest {
         assertThat(result.parameters()).containsKey("textLength");
         assertThat(result.parameters()).containsKey("chatId");
         assertThat(result.parameters()).containsKey("messageText");
+        assertThat(result.parameters()).containsKey("telegramMessageId");
+        assertThat(result.parameters().get("telegramMessageId")).isEqualTo(1L);
+    }
+
+    @Test
+    void classify_omitsTelegramMessageIdWhenNull() {
+        var event = buildMessageWithTelegramId("src-9", "hi there", null);
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.parameters()).doesNotContainKey("telegramMessageId");
     }
 
     private EventSchemas.TelegramMessageEvent buildMessage(String eventId, String text) {
+        return buildMessageWithTelegramId(eventId, text, 1L);
+    }
+
+    private EventSchemas.TelegramMessageEvent buildMessageWithTelegramId(
+            String eventId, String text, Long telegramMessageId) {
         return new EventSchemas.TelegramMessageEvent(
                 eventId,
                 "2026-05-13T10:00:00Z",
                 null,
                 null,
-                1L,
+                telegramMessageId,
                 100L,
                 "user-1",
                 "USER",
