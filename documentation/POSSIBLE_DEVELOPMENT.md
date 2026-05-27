@@ -59,6 +59,13 @@ Sort into a proper backlog in a later step.
 - **Tenant-level user limits and quotas**: cap the number of `TENANT_ADMIN` users per tenant, or the number of Telegram accounts a tenant can connect. Relevant once self-service onboarding (backlog #21) is in place.
 - **SSO / OAuth2 / OIDC for admin login**: replace username/password auth in `admin_users` with an identity provider (Keycloak, Auth0, Google Workspace). Would require replacing the current `JwtService` + `admin_users` table with an OIDC token exchange flow.
 
+## Operator Reply Enhancements (item #23 follow-ons)
+
+- Media/file replies: support sending images, documents, or voice messages as operator responses (Phase 1 is text-only)
+- Edit or delete sent operator messages: allow correcting or retracting a response after it was sent to Telegram
+- Bulk replies: respond to multiple flagged messages at once (e.g., same response to a spam wave)
+- Message templates: pre-defined response templates (e.g., "Community guidelines warning", "Spam notice") selectable from a dropdown instead of freeform text
+
 ## Resilience (SC8 follow-ons)
 
 - Retry with exponential backoff on circuit-broken calls before surfacing 503 (currently 30 s half-open re-probe is the only recovery path)
