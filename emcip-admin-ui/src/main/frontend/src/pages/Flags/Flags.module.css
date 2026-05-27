@@ -25,3 +25,17 @@
 .statusRow { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .statusButtons { display: flex; gap: 0.4rem; }
 .messageText { white-space: pre-wrap; word-break: break-word; font-size: 0.875rem; line-height: 1.5; }
+
+/* Reply panel */
+.replyToggle { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.85rem; padding: 0; margin-top: 1rem; }
+.replySection { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+.replyTextarea { width: 100%; min-height: 80px; padding: 0.5rem 0.7rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.875rem; resize: vertical; box-sizing: border-box; font-family: inherit; }
+.replyOptions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-secondary); }
+.replyOptions label { display: flex; align-items: center; gap: 0.3rem; cursor: pointer; }
+.targetToggle { display: flex; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+.targetBtn { padding: 0.25rem 0.6rem; border: none; background: var(--bg-secondary); color: var(--text-secondary); font-size: 0.8rem; cursor: pointer; }
+.targetBtn.active { background: var(--accent); color: white; }
+.replyActions { display: flex; gap: 0.5rem; align-items: center; }
+.replySuccess { color: var(--badge-green-text, #16a34a); font-size: 0.85rem; }
+.replyError { color: var(--badge-red-text); font-size: 0.85rem; }
+.accountSelect { padding: 0.3rem 0.5rem; border: 1px solid var(--border); border-radius: 5px; background: var(--bg-secondary); color: var(--text-primary); font-size: 0.8rem; }

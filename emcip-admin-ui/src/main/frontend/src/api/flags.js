@@ -10,5 +10,10 @@ export function flagsApi(request) {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       }),
+    reply: (id, body) =>
+      request(`/api/flags/${encodeURIComponent(id)}/reply`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   }
 }
