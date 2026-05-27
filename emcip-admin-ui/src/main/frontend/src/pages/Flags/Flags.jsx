@@ -29,11 +29,23 @@ function parseMeta(raw) {
   }
 }
 
-function FlagDetailModal({ flag, onClose, onStatusChange }) {
+function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
   const meta = parseMeta(flag.metadata)
   const [status, setStatus] = useState(flag.signalStatus ?? 'NEW')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const [showReply, setShowReply] = useState(false)
+  const [replyText, setReplyText] = useState('')
+  const [replyTarget, setReplyTarget] = useState('GROUP')
+  const [replyToOriginal, setReplyToOriginal] = useState(true)
+  const [prefixModerator, setPrefixModerator] = useState(false)
+  const [replySending, setReplySending] = useState(false)
+  const [replyError, setReplyError] = useState('')
+  const [replySuccess, setReplySuccess] = useState(false)
+  const [accounts, setAccounts] = useState(null)
+  const [selectedAccountId, setSelectedAccountId] = useState(null)
+  const [promptActioned, setPromptActioned] = useState(false)
 
   const handleStatusChange = async newStatus => {
     setSaving(true)
@@ -45,6 +57,43 @@ function FlagDetailModal({ flag, onClose, onStatusChange }) {
       setError(e.message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleReply = async () => {
+    setReplySending(true)
+    setReplyError('')
+    setReplySuccess(false)
+    try {
+      await api.reply(flag.id, {
+        text: replyText,
+        target: replyTarget,
+        replyToOriginal,
+        prefixModerator,
+        accountId: selectedAccountId,
+      })
+      setReplySuccess(true)
+      setPromptActioned(true)
+      setReplyText('')
+    } catch (e) {
+      if (e.status === 409 && e.body?.accounts) {
+        setAccounts(e.body.accounts)
+        setReplyError('Multiple accounts watch this chat \u2014 select one below.')
+      } else {
+        setReplyError(e.message || 'Failed to send reply')
+      }
+    } finally {
+      setReplySending(false)
+    }
+  }
+
+  const handleMarkActioned = async () => {
+    try {
+      await onStatusChange(flag.id, 'ACTIONED')
+      setStatus('ACTIONED')
+      setPromptActioned(false)
+    } catch (e) {
+      setReplyError(e.message)
     }
   }
 
@@ -106,6 +155,74 @@ function FlagDetailModal({ flag, onClose, onStatusChange }) {
           </div>
 
           {error && <p className={styles.error} role="alert">{error}</p>}
+
+          <button className={styles.replyToggle} onClick={() => setShowReply(s => !s)}>
+            {showReply ? '\u25BE Reply' : '\u25B8 Reply'}
+          </button>
+
+          {showReply && (
+            <div className={styles.replySection}>
+              <textarea
+                className={styles.replyTextarea}
+                placeholder="Type your response..."
+                value={replyText}
+                onChange={e => setReplyText(e.target.value)}
+                maxLength={4096}
+              />
+
+              <div className={styles.replyOptions}>
+                <div className={styles.targetToggle}>
+                  <button
+                    className={`${styles.targetBtn}${replyTarget === 'GROUP' ? ' ' + styles.active : ''}`}
+                    onClick={() => setReplyTarget('GROUP')}
+                  >Group</button>
+                  <button
+                    className={`${styles.targetBtn}${replyTarget === 'DM' ? ' ' + styles.active : ''}`}
+                    onClick={() => setReplyTarget('DM')}
+                  >DM</button>
+                </div>
+                <label>
+                  <input type="checkbox" checked={replyToOriginal} onChange={e => setReplyToOriginal(e.target.checked)} />
+                  Reply to original
+                </label>
+                <label>
+                  <input type="checkbox" checked={prefixModerator} onChange={e => setPrefixModerator(e.target.checked)} />
+                  Prefix [Moderator]
+                </label>
+              </div>
+
+              {accounts && (
+                <select
+                  className={styles.accountSelect}
+                  value={selectedAccountId ?? ''}
+                  onChange={e => setSelectedAccountId(e.target.value || null)}
+                >
+                  <option value="">Select account...</option>
+                  {accounts.map(a => (
+                    <option key={a.id} value={a.id}>{a.displayName} ({a.phoneNumber})</option>
+                  ))}
+                </select>
+              )}
+
+              <div className={styles.replyActions}>
+                <Button onClick={handleReply} disabled={replySending || !replyText.trim()}>
+                  {replySending ? 'Sending...' : 'Send'}
+                </Button>
+                {replySuccess && !promptActioned && (
+                  <span className={styles.replySuccess}>Sent!</span>
+                )}
+                {promptActioned && (
+                  <>
+                    <span className={styles.replySuccess}>Sent! Mark as actioned?</span>
+                    <Button variant="secondary" onClick={handleMarkActioned}>Yes</Button>
+                    <Button variant="secondary" onClick={() => setPromptActioned(false)}>No</Button>
+                  </>
+                )}
+              </div>
+
+              {replyError && <p className={styles.replyError}>{replyError}</p>}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -208,6 +325,7 @@ export function Flags() {
           flag={selected}
           onClose={() => setSelected(null)}
           onStatusChange={updateStatus}
+          api={api}
         />
       )}
     </div>

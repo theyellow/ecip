@@ -151,6 +151,8 @@ The Admin API (`emcip-admin-api`) is the single management entry point for opera
 
 Domain data (moderation rules, audit events, policy decisions) is accessed via REST proxy clients (`ModerationServiceClient`, `PolicyEngineClient`, `AuditServiceClient`) that call each domain service's own REST API with an `X-Service-Token` header. The admin-api does not share or directly access the database tables of other services.
 
+The admin-api also supports *operator actions* — currently, operators can reply to flagged messages directly from the Flag Detail modal. The reply flow resolves the Telegram account watching the flagged chat (via `GroupProfile` → `AccountWatchedGroup` → `TelegramAccount`), sends the message through `emcip-tdlib-adapter`'s `POST /internal/send-message/{accountId}` endpoint (with Resilience4j circuit breaker), and publishes an `OPERATOR_REPLY` audit event to the `audit.events` Kafka topic.
+
 == Domain & Code Model (C4)
 
 [plantuml,c4-code,png]

@@ -124,6 +124,9 @@ The audit log is an append-only record of every significant event in the pipelin
 
 |`MODERATION_FLAG`
 |The Moderation Service flagged a message (includes rule type and pattern).
+
+|`OPERATOR_REPLY`
+|An operator sent a reply to a flagged message via the Flag Detail modal (includes target, account, chat ID).
 |===
 
 ==== Filtering Events
@@ -191,12 +194,32 @@ Click any row to open the *Flag Detail* modal. The modal shows the full (untrunc
 
 To change the status, click one of the status buttons in the modal (*New*, *Reviewed*, or *Actioned*). The change is saved immediately via `PATCH /api/flags/\{id}/status` and reflected in both the modal and the table row. There is no undo in the UI (the API accepts any value).
 
-Typical review workflow:
+==== Replying to a Flagged Message
+
+From the Flag Detail modal, click the *Reply* toggle to expand the reply panel. This allows you to send a response directly to the Telegram chat where the flagged message originated.
+
+*Reply options:*
+
+* *Text* — type your response (up to 4096 characters).
+* *Group / DM* — choose whether to reply in the group chat or send a direct message to the original sender.
+* *Reply to original* — if checked, your message appears as a threaded reply to the flagged message (Telegram's reply-to feature).
+* *Prefix [Moderator]* — if checked, the message text is prefixed with `[Moderator]: ` to clearly identify it as a moderator action.
+
+Click *Send* to deliver the message via the Telegram account that watches the flagged chat. After sending, the UI prompts "Mark as actioned?" — click *Yes* to change the status to *ACTIONED*, or *No* to leave it unchanged.
+
+NOTE: If multiple Telegram accounts watch the same chat, the UI presents an account selector dropdown. Select which account should send the reply and click *Send* again.
+
+NOTE: Replies are sent through the TDLib Adapter using the same Telegram session as the watching account. The reply appears in Telegram as if sent by that account.
+
+All operator replies are recorded in the audit log as `OPERATOR_REPLY` events, including the target (group/DM), account used, and whether the reply was threaded.
+
+==== Typical Review Workflow
 
 . Row arrives as *NEW* (blue).
 . Operator clicks the row and reads the full message text in the modal.
 . Operator clicks *Reviewed* — status changes to *REVIEWED* (gray).
-. After taking action (e.g., banning the user manually), operator clicks *Actioned* — status changes to *ACTIONED* (green).
+. Operator optionally sends a reply using the reply panel (see above).
+. After taking action, operator clicks *Actioned* — status changes to *ACTIONED* (green).
 
 ==== Understanding the Pipeline
 
@@ -654,6 +677,10 @@ curl "http://emcip.local/api/api/audit/events?eventType=POLICY_DECISION&from=202
 |`PATCH /api/flags/\{id}/status`
 |Update review status
 |Body: `\{"status": "REVIEWED"}`. Valid values: `NEW`, `REVIEWED`, `ACTIONED`. Returns 204.
+
+|`POST /api/flags/\{id}/reply`
+|Send operator reply
+|Body: `\{text, target, replyToOriginal, prefixModerator, accountId}`. Returns 201. Returns 409 with account list if multiple accounts watch the chat.
 |===
 
 ==== List Flags Example
@@ -701,6 +728,49 @@ curl -X PATCH \
 ----
 HTTP/1.1 204 No Content
 ----
+
+==== Reply to Flag Example
+
+[source,bash]
+----
+curl -X POST \
+  "http://emcip.local/api/api/flags/23dcbc18-4a19-48c6-a6bd-259dcbfd76f8/reply" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "This message violates community guidelines.",
+    "target": "GROUP",
+    "replyToOriginal": true,
+    "prefixModerator": true
+  }'
+----
+
+[source,json]
+----
+HTTP/1.1 201 Created
+
+{
+  "messageId": 12345,
+  "target": "GROUP",
+  "markedActioned": false
+}
+----
+
+If multiple accounts watch the chat and no `accountId` is provided:
+
+[source,json]
+----
+HTTP/1.1 409 Conflict
+
+{
+  "accounts": [
+    {"id": "a1b2c3...", "displayName": "Bot Account 1", "phoneNumber": "+491234567890"},
+    {"id": "d4e5f6...", "displayName": "Bot Account 2", "phoneNumber": "+491234567891"}
+  ]
+}
+----
+
+Re-submit the request with the chosen `accountId` field to resolve the conflict.
 
 === Moderation Rules API
 

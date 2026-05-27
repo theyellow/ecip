@@ -21,8 +21,17 @@ async function doFetch(token, role, currentTenant, path, options) {
   })
 }
 
-function parseResponse(res) {
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+async function parseResponse(res) {
+  if (!res.ok) {
+    const err = new Error(`${res.status} ${res.statusText}`)
+    err.status = res.status
+    try {
+      err.body = await res.json()
+    } catch {
+      /* no JSON body */
+    }
+    throw err
+  }
   if (res.status === 204 || res.headers?.get('content-length') === '0') return null
   return res.json()
 }
