@@ -126,7 +126,7 @@ public class TelegramUpdateHandler {
             TdApi.User user = userUpdate.user;
             String displayName =
                     (user.firstName + " " + (user.lastName != null ? user.lastName : "")).trim();
-            String username = user.username;
+            String username = resolveUsername(user);
             profileCache.putUser(user.id, displayName, username);
             log.debug("User {} updated: {} (@{})", user.id, displayName, username);
 
@@ -139,6 +139,33 @@ public class TelegramUpdateHandler {
                                     log.error(
                                             "Error publishing user update: {}",
                                             error.getMessage()));
+        }
+    }
+
+    /**
+     * Resolve username from TdApi.User — the real TDLib API uses {@code
+     * user.usernames.editableUsername} while the local development stub uses {@code user.username}.
+     * This method tries the real API field first via reflection, falling back to the stub field.
+     */
+    private static String resolveUsername(TdApi.User user) {
+        try {
+            var field = TdApi.User.class.getField("usernames");
+            Object usernames = field.get(user);
+            if (usernames != null) {
+                var editableField = usernames.getClass().getField("editableUsername");
+                return (String) editableField.get(usernames);
+            }
+            return null;
+        } catch (NoSuchFieldException e) {
+            // Stub TdApi — fall back to direct username field
+            try {
+                var fallback = TdApi.User.class.getField("username");
+                return (String) fallback.get(user);
+            } catch (ReflectiveOperationException ex) {
+                return null;
+            }
+        } catch (ReflectiveOperationException e) {
+            return null;
         }
     }
 }
