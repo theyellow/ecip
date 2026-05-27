@@ -355,6 +355,10 @@ Ports: 9080 (tdlib-adapter) through 9087 (admin-api). See the _Operations Guide_
 |`DELETE /api/admin/moderation-rules/{id}`
 |Delete moderation rule
 |Bearer token
+
+|`POST /api/flags/{id}/reply`
+|Send operator reply to flagged message (group or DM via TDLib)
+|Bearer token
 |===
 
 == Testing
