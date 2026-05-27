@@ -23,6 +23,7 @@ class TelegramUpdateHandlerTest {
 
     @Mock TelegramEventPublisher publisher;
     @Mock TdLibClientManager manager;
+    @Mock ProfileCacheService profileCache;
 
     ConcurrentMap<UUID, Set<Long>> watchedChatIds;
     TelegramUpdateHandler handler;
@@ -30,7 +31,7 @@ class TelegramUpdateHandlerTest {
     @BeforeEach
     void setUp() {
         watchedChatIds = new ConcurrentHashMap<>();
-        handler = new TelegramUpdateHandler(publisher, watchedChatIds, manager);
+        handler = new TelegramUpdateHandler(publisher, watchedChatIds, manager, profileCache);
     }
 
     @Test
@@ -70,6 +71,34 @@ class TelegramUpdateHandlerTest {
         handler.handleNewMessage(UUID.randomUUID(), makeUpdate(111L, 1L));
 
         verifyNoInteractions(publisher);
+    }
+
+    @Test
+    void handleUserUpdate_populatesProfileCache() {
+        TdApi.User user = new TdApi.User();
+        user.id = 42L;
+        user.firstName = "John";
+        user.lastName = "Doe";
+        user.username = "johndoe";
+        TdApi.UpdateUser update = new TdApi.UpdateUser();
+        update.user = user;
+        when(publisher.publishUpdate(any())).thenReturn(Mono.empty());
+
+        handler.handleUserUpdate(update);
+
+        verify(profileCache).putUser(42L, "John Doe", "johndoe");
+    }
+
+    @Test
+    void handleChatTitle_populatesProfileCache() {
+        TdApi.UpdateChatTitle update = new TdApi.UpdateChatTitle();
+        update.chatId = -100123L;
+        update.title = "New Group Name";
+        when(publisher.publishUpdate(any())).thenReturn(Mono.empty());
+
+        handler.handleChatTitle(update);
+
+        verify(profileCache).putChat(-100123L, "New Group Name");
     }
 
     private TdApi.UpdateNewMessage makeUpdate(long chatId, long messageId) {

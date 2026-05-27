@@ -5,10 +5,12 @@ import io.emcip.tdlib.adapter.config.TdLibClientManager;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.drinkless.tdlib.TdApi;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +30,14 @@ import reactor.core.publisher.Mono;
 public class InternalController {
 
     private final TdLibClientManager manager;
+
+    @Value("${app.adapter-id:default}")
+    private String adapterId;
+
+    @GetMapping("/identity")
+    public Map<String, String> identity() {
+        return Map.of("adapterId", adapterId);
+    }
 
     @PostMapping("/watched-groups/{accountId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

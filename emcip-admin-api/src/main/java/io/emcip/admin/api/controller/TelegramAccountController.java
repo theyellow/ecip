@@ -52,6 +52,12 @@ public class TelegramAccountController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Map<String, Object>> createAccount(@Valid @RequestBody CreateAccountRequest req) {
+        if ((req.apiId() != null) != (req.apiHash() != null && !req.apiHash().isBlank())) {
+            return Mono.error(
+                    new org.springframework.web.server.ResponseStatusException(
+                            HttpStatus.BAD_REQUEST,
+                            "apiId and apiHash must both be provided, or both omitted"));
+        }
         return Mono.deferContextual(
                 ctx -> {
                     UUID tenantId =
@@ -59,7 +65,12 @@ public class TelegramAccountController {
                                     ? null
                                     : UUID.fromString(ReactorTenantContext.getTenantId(ctx));
                     return telegramAccountService
-                            .create(req.phoneNumber(), req.displayName(), tenantId)
+                            .create(
+                                    req.phoneNumber(),
+                                    req.displayName(),
+                                    tenantId,
+                                    req.apiId(),
+                                    req.apiHash())
                             .map(TelegramAccountController::toSafeMap);
                 });
     }
@@ -197,7 +208,10 @@ public class TelegramAccountController {
                     @Schema(
                             description = "Human-readable label for this account",
                             example = "Main bot")
-                    String displayName) {}
+                    String displayName,
+            @Schema(description = "Optional Telegram API ID (from my.telegram.org)") Integer apiId,
+            @Schema(description = "Optional Telegram API Hash (from my.telegram.org)")
+                    String apiHash) {}
 
     @Schema(description = "Telegram authentication code sent to the phone")
     public record CodeRequest(

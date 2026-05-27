@@ -46,6 +46,9 @@ class AuditEventPersistenceIT extends AbstractAuditIntegrationTest {
                         null,
                         null,
                         Map.of(),
+                        null,
+                        null,
+                        null,
                         null);
         String json = new ObjectMapper().writeValueAsString(event);
 

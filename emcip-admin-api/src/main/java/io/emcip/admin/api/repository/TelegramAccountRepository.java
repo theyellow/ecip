@@ -11,6 +11,8 @@ public interface TelegramAccountRepository extends ReactiveCrudRepository<Telegr
 
     Flux<TelegramAccount> findByStatus(TelegramAccountStatus status);
 
+    Flux<TelegramAccount> findByStatusAndAdapterId(TelegramAccountStatus status, String adapterId);
+
     Flux<TelegramAccount> findAllByTenantId(UUID tenantId);
 
     Flux<TelegramAccount> findByStatusAndTenantId(TelegramAccountStatus status, UUID tenantId);

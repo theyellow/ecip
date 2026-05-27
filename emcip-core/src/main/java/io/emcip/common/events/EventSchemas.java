@@ -51,7 +51,10 @@ public final class EventSchemas {
             Long replyToMessageId,
             Long replyInChatId,
             java.util.Map<String, Object> metadata,
-            String ingestedAt)
+            String ingestedAt,
+            String senderDisplayName,
+            String senderUsername,
+            String chatTitle)
             implements Event {
 
         public TelegramMessageEvent {

@@ -50,4 +50,7 @@ public class TelegramAccount {
 
     @Column("tenant_id")
     private UUID tenantId;
+
+    @Column("adapter_id")
+    private String adapterId;
 }

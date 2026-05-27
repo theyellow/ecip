@@ -42,3 +42,8 @@ logging:
 
 admin:
   service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
+
+app:
+  adapter-id: ${APP_ADAPTER_ID:default}
+  rate-limit:
+    requests-per-second: ${RATE_LIMIT_RPS:30}

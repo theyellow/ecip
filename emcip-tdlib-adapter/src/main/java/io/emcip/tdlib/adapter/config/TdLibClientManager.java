@@ -1,6 +1,9 @@
 package io.emcip.tdlib.adapter.config;
 
 import io.emcip.tdlib.adapter.service.TelegramUpdateHandler;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -9,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import lombok.extern.slf4j.Slf4j;
 import org.drinkless.tdlib.TdApi;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
@@ -21,14 +25,18 @@ public class TdLibClientManager {
     private final ConcurrentMap<UUID, TdLibClient> clients = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Set<Long>> watchedChatIds;
     private final ConcurrentMap<UUID, String> tenantIds = new ConcurrentHashMap<>();
+    private final ConcurrentMap<Integer, RateLimiter> rateLimiters = new ConcurrentHashMap<>();
+    private final int requestsPerSecond;
 
     public TdLibClientManager(
             TdLibProperties properties,
             @Lazy TelegramUpdateHandler updateHandler,
-            ConcurrentMap<UUID, Set<Long>> watchedChatIds) {
+            ConcurrentMap<UUID, Set<Long>> watchedChatIds,
+            @Value("${app.rate-limit.requests-per-second:30}") int requestsPerSecond) {
         this.properties = properties;
         this.updateHandler = updateHandler;
         this.watchedChatIds = watchedChatIds;
+        this.requestsPerSecond = requestsPerSecond;
     }
 
     /**
@@ -49,6 +57,7 @@ public class TdLibClientManager {
                 sessionString != null && !sessionString.isEmpty());
         removeClient(accountId);
         String dbDir = properties.baseDirectory() + "/" + accountId;
+        RateLimiter rateLimiter = getOrCreateRateLimiter(apiId);
         TdLibClient client =
                 new TdLibClient(
                         accountId,
@@ -57,7 +66,8 @@ public class TdLibClientManager {
                         phoneNumber,
                         dbDir,
                         properties,
-                        this::onAuthStateChange);
+                        this::onAuthStateChange,
+                        rateLimiter);
         clients.put(accountId, client);
         if (tenantId != null && !tenantId.isBlank()) {
             tenantIds.put(accountId, tenantId);
@@ -65,6 +75,20 @@ public class TdLibClientManager {
         client.initialize();
         updateHandler.registerOn(client);
         return client;
+    }
+
+    public RateLimiter getOrCreateRateLimiter(int apiId) {
+        return rateLimiters.computeIfAbsent(
+                apiId,
+                id -> {
+                    RateLimiterConfig config =
+                            RateLimiterConfig.custom()
+                                    .limitForPeriod(requestsPerSecond)
+                                    .limitRefreshPeriod(Duration.ofSeconds(1))
+                                    .timeoutDuration(Duration.ofSeconds(5))
+                                    .build();
+                    return RateLimiter.of("tdlib-api-" + id, config);
+                });
     }
 
     public String getTenantId(UUID accountId) {

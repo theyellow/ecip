@@ -79,6 +79,13 @@
       <artifactId>caffeine</artifactId>
     </dependency>
 
+    <!-- Resilience4j rate limiter -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-ratelimiter</artifactId>
+      <version>2.3.0</version>
+    </dependency>
+
     <!-- Observability -->
 
     <!-- Lombok -->

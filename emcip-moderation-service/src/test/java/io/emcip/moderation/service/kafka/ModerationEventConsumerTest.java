@@ -68,6 +68,9 @@ class ModerationEventConsumerTest {
                         null,
                         null,
                         Map.of(),
+                        null,
+                        null,
+                        null,
                         null);
         String message = objectMapper.writeValueAsString(event);
 
@@ -108,6 +111,9 @@ class ModerationEventConsumerTest {
                         null,
                         null,
                         Map.of(),
+                        null,
+                        null,
+                        null,
                         null);
         String message = objectMapper.writeValueAsString(event);
 
@@ -150,6 +156,9 @@ class ModerationEventConsumerTest {
                         null,
                         null,
                         Map.of(),
+                        null,
+                        null,
+                        null,
                         null);
         String message = objectMapper.writeValueAsString(event);
 

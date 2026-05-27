@@ -78,6 +78,9 @@ class ModerationFlowIT extends AbstractModerationIntegrationTest {
                         null,
                         null,
                         Map.of(),
+                        null,
+                        null,
+                        null,
                         null);
         String json = new ObjectMapper().writeValueAsString(event);
 
