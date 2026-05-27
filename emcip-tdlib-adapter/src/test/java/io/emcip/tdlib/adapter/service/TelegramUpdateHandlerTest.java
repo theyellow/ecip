@@ -79,7 +79,7 @@ class TelegramUpdateHandlerTest {
         user.id = 42L;
         user.firstName = "John";
         user.lastName = "Doe";
-        user.username = "johndoe";
+        setUsername(user, "johndoe");
         TdApi.UpdateUser update = new TdApi.UpdateUser();
         update.user = user;
         when(publisher.publishUpdate(any())).thenReturn(Mono.empty());
@@ -99,6 +99,28 @@ class TelegramUpdateHandlerTest {
         handler.handleChatTitle(update);
 
         verify(profileCache).putChat(-100123L, "New Group Name");
+    }
+
+    /** Set username on TdApi.User — works with both the local stub and real TDLib API. */
+    private static void setUsername(TdApi.User user, String username) {
+        try {
+            // Stub: user.username
+            var field = TdApi.User.class.getField("username");
+            field.set(user, username);
+        } catch (NoSuchFieldException e) {
+            // Real TDLib: user.usernames.editableUsername
+            try {
+                var unField = TdApi.User.class.getField("usernames");
+                var usernamesClass = Class.forName("org.drinkless.tdlib.TdApi$Usernames");
+                Object usernames = usernamesClass.getDeclaredConstructor().newInstance();
+                usernamesClass.getField("editableUsername").set(usernames, username);
+                unField.set(user, usernames);
+            } catch (ReflectiveOperationException ex) {
+                throw new RuntimeException("Cannot set username on TdApi.User", ex);
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Cannot set username on TdApi.User", e);
+        }
     }
 
     private TdApi.UpdateNewMessage makeUpdate(long chatId, long messageId) {
