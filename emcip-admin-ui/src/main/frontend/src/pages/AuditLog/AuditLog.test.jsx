@@ -18,9 +18,12 @@ vi.mock('../../api/auditLog', () => ({
 }))
 
 const EVENT = {
-  timestamp: '2026-05-13T08:00:00Z',
+  createdAt: '2026-05-13T08:00:00Z',
   eventType: 'POLICY_DECISION',
-  entityId: 'entity-uuid-1',
+  sourceService: 'policy-engine',
+  action: 'decide',
+  resourceId: 'msg-12345',
+  outcome: 'OK',
   details: 'Allowed by rule #3',
 }
 
@@ -36,16 +39,18 @@ describe('AuditLog page', () => {
     expect(screen.getByText('All types')).toBeInTheDocument()
   })
 
-  it('displays event row with timestamp, type, entityId and details', async () => {
+  it('displays event row with type, source, action, resource and outcome', async () => {
     mockApi.list.mockResolvedValue({ items: [EVENT], total: 1 })
     render(<AuditLog />)
     await waitFor(() => expect(screen.getByText('POLICY_DECISION')).toBeInTheDocument())
-    expect(screen.getByText('entity-uuid-1')).toBeInTheDocument()
-    expect(screen.getByText('Allowed by rule #3')).toBeInTheDocument()
+    expect(screen.getByText('policy-engine')).toBeInTheDocument()
+    expect(screen.getByText('decide')).toBeInTheDocument()
+    expect(screen.getByText('msg-12345')).toBeInTheDocument()
+    expect(screen.getByText('OK')).toBeInTheDocument()
   })
 
-  it('shows em-dash for missing entityId and details', async () => {
-    mockApi.list.mockResolvedValue({ items: [{ ...EVENT, entityId: null, details: null }], total: 1 })
+  it('shows em-dash for missing fields', async () => {
+    mockApi.list.mockResolvedValue({ items: [{ ...EVENT, sourceService: null, resourceId: null, outcome: null, details: null }], total: 1 })
     render(<AuditLog />)
     await waitFor(() => screen.getByText('POLICY_DECISION'))
     const dashes = screen.getAllByText('—')
