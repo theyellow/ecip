@@ -4,8 +4,12 @@ import { policyRulesApi } from '../../api/policyRules'
 import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
 import styles from './PolicyRules.module.css'
+
+const ACTIONS = ['FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE']
+const ACTION_VARIANT = { FLAG: 'blue', WARN: 'yellow', MUTE: 'yellow', BAN: 'red', DELETE: 'red', ESCALATE: 'gray' }
 
 function RuleModal({ rule, onClose, onSave, tenants }) {
   const [form, setForm] = useState({
@@ -22,38 +26,53 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
 
   return (
     <Modal title={rule ? 'Edit Rule' : 'Create Rule'} onClose={onClose} onSubmit={() => onSave(form)}>
-      <label>Rule Name *</label>
-      <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
-        className={styles.input} required disabled={!!rule} />
-      <label>Target Intent</label>
-      <input type="text" value={form.targetIntent} onChange={e => set('targetIntent', e.target.value)}
-        className={styles.input} placeholder='e.g. SPAM, GREETING, * (wildcard)' />
-      <label>Action</label>
-      <select value={form.action} onChange={e => set('action', e.target.value)} className={styles.input}>
-        {['FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE'].map(a => <option key={a}>{a}</option>)}
-      </select>
-      <label>Priority</label>
-      <input type="number" value={form.priority} onChange={e => set('priority', parseInt(e.target.value) || 0)}
-        className={styles.input} min={0} />
-      <label>Description</label>
-      <textarea value={form.description} onChange={e => set('description', e.target.value)}
-        className={styles.input} rows={4} placeholder='Optional rule description' />
-      <label>Effective From</label>
-      <input type="datetime-local" value={form.effectiveFrom}
-        onChange={e => set('effectiveFrom', e.target.value)} className={styles.input} />
-      <label>Effective To</label>
-      <input type="datetime-local" value={form.effectiveTo}
-        onChange={e => set('effectiveTo', e.target.value)} className={styles.input} />
-      <label>Tenant</label>
-      <select value={form.tenantId ?? ''}
-        onChange={e => set('tenantId', e.target.value || null)} className={styles.input}>
-        <option value="">— none —</option>
-        {tenants.map(t => (
-          <option key={t.id} value={t.id}>
-            {t.name} ({t.id.slice(0, 8)})
-          </option>
-        ))}
-      </select>
+      <div className={styles.field}>
+        <label>Rule Name *</label>
+        <input type="text" className={styles.input} value={form.name}
+          onChange={e => set('name', e.target.value)} required disabled={!!rule} />
+      </div>
+      <div className={styles.field}>
+        <label>Target Intent</label>
+        <input type="text" className={styles.input} value={form.targetIntent}
+          onChange={e => set('targetIntent', e.target.value)} placeholder="e.g. SPAM, GREETING, * (wildcard)" />
+      </div>
+      <div className={styles.field}>
+        <label>Action</label>
+        <select className={styles.input} value={form.action}
+          onChange={e => set('action', e.target.value)}>
+          {ACTIONS.map(a => <option key={a}>{a}</option>)}
+        </select>
+      </div>
+      <div className={styles.field}>
+        <label>Priority</label>
+        <input type="number" className={styles.input} value={form.priority}
+          onChange={e => set('priority', parseInt(e.target.value) || 0)} min={0} />
+      </div>
+      <div className={styles.field}>
+        <label>Description</label>
+        <textarea className={styles.input} value={form.description}
+          onChange={e => set('description', e.target.value)} rows={4} placeholder="Optional rule description" />
+      </div>
+      <div className={styles.field}>
+        <label>Effective From</label>
+        <input type="datetime-local" className={styles.input} value={form.effectiveFrom}
+          onChange={e => set('effectiveFrom', e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label>Effective To</label>
+        <input type="datetime-local" className={styles.input} value={form.effectiveTo}
+          onChange={e => set('effectiveTo', e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label>Tenant</label>
+        <select className={styles.input} value={form.tenantId ?? ''}
+          onChange={e => set('tenantId', e.target.value || null)}>
+          <option value="">None</option>
+          {tenants.map(t => (
+            <option key={t.id} value={t.id}>{t.name} ({t.id.slice(0, 8)})</option>
+          ))}
+        </select>
+      </div>
     </Modal>
   )
 }
@@ -61,7 +80,7 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
 function HistoryModal({ ruleName, history, onClose }) {
   return (
     <Modal title={`History \u2014 ${ruleName}`} onClose={onClose}>
-      {history.length === 0 ? <p>No history.</p> : history.map((h, i) => (
+      {history.length === 0 ? <p style={{ color: 'var(--fg-3)', fontStyle: 'italic' }}>No history.</p> : history.map((h, i) => (
         <div key={i} className={styles.historyItem}>
           <span className={styles.mono}>v{h.version}</span>
           <span>{h.action}</span>
@@ -71,8 +90,6 @@ function HistoryModal({ ruleName, history, onClose }) {
     </Modal>
   )
 }
-
-const ACTION_VARIANT = { FLAG: 'blue', WARN: 'yellow', MUTE: 'yellow', BAN: 'red', DELETE: 'red', ESCALATE: 'gray' }
 
 export function PolicyRules() {
   const authRequest = useAuthRequest()
@@ -85,10 +102,7 @@ export function PolicyRules() {
 
   const load = () => api.list().then(setRules).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
-
-  useEffect(() => {
-    tenantsApi(authRequest).list().then(setTenants).catch(() => {})
-  }, [])
+  useEffect(() => { tenantsApi(authRequest).list().then(setTenants).catch(() => {}) }, [])
 
   const save = async form => {
     try {
@@ -114,37 +128,50 @@ export function PolicyRules() {
     setHistory({ ruleName: rule.name, items: h })
   }
 
+  // Columns defined inside component so showHistory is in scope
+  const columns = [
+    { key: 'name', label: 'Rule Name' },
+    { key: 'targetIntent', label: 'Intent', render: v => <Badge variant="gray">{v}</Badge> },
+    { key: 'action', label: 'Action', width: 110, render: v => <Badge variant={ACTION_VARIANT[v] ?? 'gray'}>{v}</Badge> },
+    { key: 'priority', label: 'Priority', mono: true, width: 80 },
+    { key: 'effectiveFrom', label: 'From', mono: true, width: 110, render: v => v ? new Date(v).toLocaleDateString() : '\u2014' },
+    { key: 'effectiveTo', label: 'To', mono: true, width: 110, render: v => v ? new Date(v).toLocaleDateString() : '\u2014' },
+    { key: 'id', label: '', width: 80, render: (v, row) => (
+      <Button variant="secondary" onClick={e => { e.stopPropagation(); showHistory(row) }}>History</Button>
+    )},
+  ]
+
   return (
-    <div>
-      <div className={styles.header}>
-        <h2>Policy Rules</h2>
-        <Button onClick={() => setModal('add')}>+ Create Rule</Button>
-      </div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <table className={styles.table}>
-        <thead>
-          <tr><th>Rule Name</th><th>Target Intent</th><th>Action</th><th>Priority</th><th>Effective From</th><th>Effective To</th><th></th></tr>
-        </thead>
-        <tbody>
-          {rules.map(r => (
-            <tr key={r.id}>
-              <td>{r.name}</td>
-              <td><Badge variant="gray">{r.targetIntent}</Badge></td>
-              <td><Badge variant={ACTION_VARIANT[r.action] ?? 'gray'}>{r.action}</Badge></td>
-              <td className={styles.mono}>{r.priority ?? 0}</td>
-              <td className={styles.mono}>{r.effectiveFrom ? new Date(r.effectiveFrom).toLocaleDateString() : '\u2014'}</td>
-              <td className={styles.mono}>{r.effectiveTo ? new Date(r.effectiveTo).toLocaleDateString() : '\u2014'}</td>
-              <td className={styles.actions}>
-                <Button variant="secondary" onClick={() => showHistory(r)}>History</Button>
-                <Button variant="secondary" onClick={() => setModal(r)}>Edit</Button>
-                <Button variant="danger" onClick={() => remove(r)}>Delete</Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {modal && <RuleModal rule={modal === 'add' ? null : modal} onClose={() => setModal(null)} onSave={save} tenants={tenants} />}
-      {history && <HistoryModal ruleName={history.ruleName} history={history.items} onClose={() => setHistory(null)} />}
-    </div>
+    <>
+      {error && <p style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }} role="alert">{error}</p>}
+
+      <DataTable
+        title="Policy Rules"
+        systemId={`\u2696 policy-rules \u00b7 ${rules.length} rules`}
+        addLabel="+ Create Rule"
+        onAdd={() => setModal('add')}
+        columns={columns}
+        rows={rules}
+        onEdit={setModal}
+        onDelete={remove}
+        emptyText="No policy rules defined"
+      />
+
+      {modal && (
+        <RuleModal
+          rule={modal === 'add' ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={save}
+          tenants={tenants}
+        />
+      )}
+      {history && (
+        <HistoryModal
+          ruleName={history.ruleName}
+          history={history.items}
+          onClose={() => setHistory(null)}
+        />
+      )}
+    </>
   )
 }
