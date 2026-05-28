@@ -81,7 +81,7 @@ function HistoryModal({ ruleName, history, onClose }) {
   return (
     <Modal title={`History \u2014 ${ruleName}`} onClose={onClose}>
       {history.length === 0 ? <p style={{ color: 'var(--fg-3)', fontStyle: 'italic' }}>No history.</p> : history.map((h, i) => (
-        <div key={i} className={styles.historyItem}>
+        <div key={h.version} className={styles.historyItem}>
           <span className={styles.mono}>v{h.version}</span>
           <span>{h.action}</span>
           <span className={styles.mono}>{h.changedAt ? new Date(h.changedAt).toLocaleString() : ''}</span>
