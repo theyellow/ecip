@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-27 (item 23 Phase 1 complete — operator reply, PR #89)
+> Last updated: 2026-05-28 (item 28 in progress — Admin UI v2 design system)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -34,6 +34,9 @@
 | 10 | **Telegram: multi-account scaling foundation** | XL | ✅ PR #85 — 2026-05-27. Per-account API credentials, adapter_id routing metadata, per-API-ID rate limiting (Resilience4j), session resume filtered by adapter. Ref: `specs/2026-05-26-tdlib-multi-account-scaling-design.md`. |
 | 25 | **Group name + full sender info on flags and audits** | M | ✅ PR #85 — 2026-05-27. `TelegramMessageEvent` enriched with `senderDisplayName`, `senderUsername`, `chatTitle`. Caffeine profile caches populated from `UpdateUser`/`UpdateChatTitle` events. |
 | 23 | **Flag-detail: reaction / response action** | M | **Phase 1 ✅ PR #89 — 2026-05-27.** Operator reply panel in flag detail modal: text reply to group or DM, reply-to-original, [Moderator] prefix, multi-account selection (409 flow), audit trail via `audit.events` topic. Touches intent-classifier, policy-engine, tdlib-adapter, admin-api, admin-ui. Phase 2: AI-research prompt interface — open a chat-style UI backed by one of the configured LiteLLM models so the operator can research/draft a response with AI assistance before sending. |
+| 28 | **Admin UI v2: design system + Groups page** | M | ⏳ In progress. v2 token system, font setup, restyle Button/Badge/Modal, new DataTable component, CLAUDE.md project guidance, Groups page redesign as proof-of-concept. Ref: `specs/2026-05-28-admin-ui-v2-design-system-design.md`. |
+| 29 | **Admin UI v2: page redesigns** | L | Redesign remaining 9 pages to v2: Flags (incl. SegmentedControl, ChipRow, ReplyComposer v2), Tenants, PolicyRules, ModerationRules, AuditLog, Telegram, AIConfig, Simulate, Users. Each page S-sized, can be done incrementally. Depends on #28. |
+| 30 | **Admin UI v2: remove v1 compat aliases** | XS | After all pages redesigned, remove the `/* v1 compat */` block from `variables.css`. Depends on #29. |
 | 26 | **Bulk message ingestion + topic clustering + RAG knowledge base** | L | Harvest historical messages from watched groups (backfill via TDLib `getChatHistory`). Cluster into topics (BERTopic, keyBERT, or LiteLLM summarization). Build a per-group queryable knowledge base for RAG retrieval. Goal: quickly surface recurring topics and key facts. Prerequisite for item 27. |
 | 27 | **Deep research operator tool** | XL | Operator-triggered autonomous research agent (wrapper around `langchain-ai/open_deep_research` or similar). Given a flagged message or topic cluster, researches via RAG + web search + LLM reasoning and produces a structured report (facts, sources, risk assessment). Feeds into flag-detail UI (item 23 Phase 2). Depends on item 26. |
 | 8 | **ML toxicity detection** | XL | Replace keyword/regex moderation rules with a model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed before implementation. |
