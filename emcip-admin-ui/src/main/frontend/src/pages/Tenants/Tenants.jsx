@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useAuthRequest } from '../../auth/AuthContext'
 import { tenantsApi } from '../../api/tenants'
-import { Button } from '../../components/Button/Button'
+import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
 import styles from './Tenants.module.css'
+
+const COLUMNS = [
+  { key: 'id', label: 'ID', mono: true, width: 100, render: v => `${v?.slice(0, 8)}\u2026` },
+  { key: 'name', label: 'Name' },
+  { key: 'description', label: 'Description', render: v => v || '\u2014' },
+  { key: 'llmModelOverride', label: 'LLM Override', mono: true, render: v => v || '\u2014' },
+  { key: 'createdAt', label: 'Created', mono: true, width: 110, render: v => v ? new Date(v).toLocaleDateString() : '\u2014' },
+]
 
 function TenantModal({ onClose, onSave }) {
   const [form, setForm] = useState({ name: '', description: '', llmModelOverride: '' })
@@ -11,16 +19,22 @@ function TenantModal({ onClose, onSave }) {
 
   return (
     <Modal title="Create Tenant" onClose={onClose} onSubmit={() => onSave(form)}>
-      <label>Name *</label>
-      <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
-        className={styles.input} required />
-      <label>Description</label>
-      <textarea value={form.description} onChange={e => set('description', e.target.value)}
-        className={styles.input} rows={3} />
-      <label>LLM Model Override</label>
-      <input type="text" value={form.llmModelOverride}
-        onChange={e => set('llmModelOverride', e.target.value)}
-        className={styles.input} placeholder="e.g. gpt-4o, claude-3-5-sonnet" />
+      <div className={styles.field}>
+        <label>Name *</label>
+        <input type="text" className={styles.input} value={form.name}
+          onChange={e => set('name', e.target.value)} required />
+      </div>
+      <div className={styles.field}>
+        <label>Description</label>
+        <textarea className={styles.input} value={form.description}
+          onChange={e => set('description', e.target.value)} rows={3} />
+      </div>
+      <div className={styles.field}>
+        <label>LLM Model Override</label>
+        <input type="text" className={styles.input} value={form.llmModelOverride}
+          onChange={e => set('llmModelOverride', e.target.value)}
+          placeholder="e.g. gpt-4o, claude-3-5-sonnet" />
+      </div>
     </Modal>
   )
 }
@@ -46,30 +60,21 @@ export function Tenants() {
   }
 
   return (
-    <div>
-      <div className={styles.header}>
-        <h2>Tenants</h2>
-        <Button onClick={() => setShowModal(true)}>+ Create Tenant</Button>
-      </div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <table className={styles.table}>
-        <thead>
-          <tr><th>ID</th><th>Name</th><th>Description</th><th>LLM Override</th><th>Created</th><th></th></tr>
-        </thead>
-        <tbody>
-          {tenants.map(t => (
-            <tr key={t.id}>
-              <td className={styles.mono}>{t.id?.slice(0, 8)}\u2026</td>
-              <td>{t.name}</td>
-              <td className={styles.desc}>{t.description ?? '\u2014'}</td>
-              <td className={styles.mono}>{t.llmModelOverride ?? '\u2014'}</td>
-              <td>{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : '\u2014'}</td>
-              <td><Button variant="danger" onClick={() => remove(t)}>Delete</Button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <>
+      {error && <p style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }} role="alert">{error}</p>}
+
+      <DataTable
+        title="Tenants"
+        systemId={`\u2B21 tenants \u00b7 ${tenants.length} registered`}
+        addLabel="+ Create Tenant"
+        onAdd={() => setShowModal(true)}
+        columns={COLUMNS}
+        rows={tenants}
+        onDelete={remove}
+        emptyText="No tenants registered"
+      />
+
       {showModal && <TenantModal onClose={() => setShowModal(false)} onSave={save} />}
-    </div>
+    </>
   )
 }
