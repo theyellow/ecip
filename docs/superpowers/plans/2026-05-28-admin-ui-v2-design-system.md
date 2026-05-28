@@ -1438,43 +1438,9 @@ file paths."
 
 ---
 
-### Task 9: Delete design handoff directory
+### ~~Task 9: Delete design handoff directory~~ — DEFERRED to backlog #31
 
-**Files:**
-- Delete: `emcip-admin-ui/design_handoff_emcip_admin/` (entire directory)
-
-- [ ] **Step 1: Verify all work is done**
-
-Confirm the previous 8 tasks are complete and all tests pass:
-
-```bash
-cd emcip-admin-ui/src/main/frontend && npx vitest run 2>&1 | tail -20
-```
-
-- [ ] **Step 2: Delete the handoff directory**
-
-```bash
-rm -rf emcip-admin-ui/design_handoff_emcip_admin/
-```
-
-- [ ] **Step 3: Run tests one final time**
-
-```bash
-cd emcip-admin-ui/src/main/frontend && npx vitest run 2>&1 | tail -20
-```
-
-Expected: all tests pass. Nothing references the handoff directory.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add -A emcip-admin-ui/design_handoff_emcip_admin/
-git commit -m "chore(admin-ui): remove design handoff directory
-
-All design references are now integrated into production code and
-the CLAUDE.md project guidance file. The handoff bundle is no longer
-needed."
-```
+Moved to backlog item #31. The handoff directory (`emcip-admin-ui/design_handoff_emcip_admin/`) contains page-specific mockups and reference CSS needed for the remaining 9 page redesigns (backlog #29). Delete only after all pages are redesigned.
 
 ---
 
