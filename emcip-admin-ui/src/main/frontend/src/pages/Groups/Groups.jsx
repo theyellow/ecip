@@ -3,13 +3,24 @@ import { useAuthRequest } from '../../auth/AuthContext'
 import { groupsApi } from '../../api/groups'
 import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
-import { Button } from '../../components/Button/Button'
+import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
+import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
 import styles from './Groups.module.css'
 
+const LEVELS = ['LOW', 'MEDIUM', 'HIGH', 'STRICT']
 const LEVEL_VARIANT = { LOW: 'green', MEDIUM: 'blue', HIGH: 'yellow', STRICT: 'red' }
 
-function GroupModal({ group, onClose, onSave, tenants }) {
+const COLUMNS = [
+  { key: 'name', label: 'Group' },
+  { key: 'telegramChatId', label: 'Chat ID', mono: true, width: 180 },
+  { key: 'moderationLevel', label: 'Mod', width: 100, render: v => <Badge variant={LEVEL_VARIANT[v] ?? 'gray'}>{v}</Badge> },
+  { key: 'autoRespond', label: 'Auto-respond', width: 120, render: v => <Badge variant={v ? 'green' : 'gray'}>{v ? 'YES' : 'NO'}</Badge> },
+  { key: 'description', label: 'Description', render: v => v || '\u2014' },
+]
+
+function GroupEditModal({ group, onClose, onSave, tenants }) {
+  const isNew = !group
   const [form, setForm] = useState({
     telegramChatId: group?.telegramChatId ?? '',
     name: group?.name ?? '',
@@ -22,43 +33,73 @@ function GroupModal({ group, onClose, onSave, tenants }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Modal title={group ? 'Edit Group' : 'Add Group'} onClose={onClose} onSubmit={() => onSave(form)}>
-      {!group && (
+    <Modal title={isNew ? 'Add Group' : `Edit \u00b7 ${group.name}`} onClose={onClose} onSubmit={() => onSave(form)}>
+      {!isNew && (
         <>
-          <label>Telegram Chat ID *</label>
-          <input type="number" value={form.telegramChatId}
-            onChange={e => set('telegramChatId', parseInt(e.target.value, 10))}
-            className={styles.input} required />
+          <SectionLabel>Details</SectionLabel>
+          <div className={styles.metaGrid}>
+            <span className={styles.metaLabel}>Chat ID</span>
+            <span className={styles.metaValue}>{group.telegramChatId}</span>
+            <span className={styles.metaLabel}>Auto-respond</span>
+            <span className={styles.metaValue}>{group.autoRespond ? 'Yes' : 'No'}</span>
+            {group.tenantId && <>
+              <span className={styles.metaLabel}>Tenant</span>
+              <span className={styles.metaValue}>{group.tenantId}</span>
+            </>}
+          </div>
         </>
       )}
-      <label>Name *</label>
-      <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
-        className={styles.input} required />
-      <label>Description</label>
-      <input type="text" value={form.description}
-        onChange={e => set('description', e.target.value)} className={styles.input} />
-      <label>Moderation Level</label>
-      <select value={form.moderationLevel}
-        onChange={e => set('moderationLevel', e.target.value)} className={styles.input}>
-        {['LOW', 'MEDIUM', 'HIGH', 'STRICT'].map(l => <option key={l}>{l}</option>)}
-      </select>
-      <label>
+
+      {isNew && (
+        <div className={styles.field}>
+          <label>Telegram Chat ID</label>
+          <input type="number" className={styles.input} value={form.telegramChatId}
+            onChange={e => set('telegramChatId', parseInt(e.target.value, 10))} required />
+        </div>
+      )}
+
+      <div className={styles.field}>
+        <label>Name</label>
+        <input type="text" className={styles.input} value={form.name}
+          onChange={e => set('name', e.target.value)} required />
+      </div>
+
+      <div className={styles.field}>
+        <label>Description</label>
+        <input type="text" className={styles.input} value={form.description}
+          onChange={e => set('description', e.target.value)} />
+      </div>
+
+      <div className={styles.field}>
+        <label>Moderation Level</label>
+        <select className={styles.input} value={form.moderationLevel}
+          onChange={e => set('moderationLevel', e.target.value)}>
+          {LEVELS.map(l => <option key={l}>{l}</option>)}
+        </select>
+      </div>
+
+      <div className={styles.checkboxRow}>
         <input type="checkbox" checked={form.autoRespond}
-          onChange={e => set('autoRespond', e.target.checked)} /> Auto-respond
-      </label>
-      <label>Welcome Message</label>
-      <textarea value={form.welcomeMessage}
-        onChange={e => set('welcomeMessage', e.target.value)} className={styles.input} rows={3} />
-      <label>Tenant</label>
-      <select value={form.tenantId ?? ''}
-        onChange={e => set('tenantId', e.target.value || null)} className={styles.input}>
-        <option value="">— none —</option>
-        {tenants.map(t => (
-          <option key={t.id} value={t.id}>
-            {t.name} ({t.id.slice(0, 8)})
-          </option>
-        ))}
-      </select>
+          onChange={e => set('autoRespond', e.target.checked)} />
+        Auto-respond
+      </div>
+
+      <div className={styles.field}>
+        <label>Welcome Message</label>
+        <textarea className={styles.input} value={form.welcomeMessage}
+          onChange={e => set('welcomeMessage', e.target.value)} rows={3} />
+      </div>
+
+      <div className={styles.field}>
+        <label>Tenant</label>
+        <select className={styles.input} value={form.tenantId ?? ''}
+          onChange={e => set('tenantId', e.target.value || null)}>
+          <option value="">None</option>
+          {tenants.map(t => (
+            <option key={t.id} value={t.id}>{t.name} ({t.id.slice(0, 8)})</option>
+          ))}
+        </select>
+      </div>
     </Modal>
   )
 }
@@ -70,56 +111,62 @@ export function Groups() {
   const [modal, setModal] = useState(null)
   const [error, setError] = useState('')
   const [tenants, setTenants] = useState([])
+  const [levelFilter, setLevelFilter] = useState('')
 
   const load = () => api.list().then(setGroups).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
+  useEffect(() => { tenantsApi(authRequest).list().then(setTenants).catch(() => {}) }, [])
 
-  useEffect(() => {
-    tenantsApi(authRequest).list().then(setTenants).catch(() => {})
-  }, [])
+  const filtered = groups.filter(g => !levelFilter || g.moderationLevel === levelFilter)
 
   const save = async form => {
     try {
-      if (modal !== 'add') await api.update(modal.telegramChatId, form)
-      else await api.create(form)
-      setModal(null); load()
+      if (modal === 'add') await api.create(form)
+      else await api.update(modal.telegramChatId, form)
+      setModal(null)
+      load()
     } catch (e) { setError(e.message) }
   }
 
   const remove = async group => {
-    if (!confirm(`Delete group "${group.name}"?`)) return
+    if (!confirm(`Stop watching "${group.name}"?`)) return
     try { await api.remove(group.telegramChatId); load() }
     catch (e) { setError(e.message) }
   }
 
   return (
-    <div>
-      <div className={styles.header}>
-        <h2>Groups</h2>
-        <Button onClick={() => setModal('add')}>+ Add Group</Button>
-      </div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <table className={styles.table}>
-        <thead>
-          <tr><th>Chat ID</th><th>Name</th><th>Moderation</th><th>Auto-respond</th><th>Description</th><th></th></tr>
-        </thead>
-        <tbody>
-          {groups.map(g => (
-            <tr key={g.telegramChatId}>
-              <td className={styles.mono}>{g.telegramChatId}</td>
-              <td>{g.name}</td>
-              <td><Badge variant={LEVEL_VARIANT[g.moderationLevel] ?? 'gray'}>{g.moderationLevel}</Badge></td>
-              <td><Badge variant={g.autoRespond ? 'green' : 'red'}>{g.autoRespond ? 'Yes' : 'No'}</Badge></td>
-              <td className={styles.desc}>{g.description ?? '\u2014'}</td>
-              <td className={styles.actions}>
-                <Button variant="secondary" onClick={() => setModal(g)}>Edit</Button>
-                <Button variant="danger" onClick={() => remove(g)}>Delete</Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {modal && <GroupModal group={modal === 'add' ? null : modal} onClose={() => setModal(null)} onSave={save} tenants={tenants} />}
-    </div>
+    <>
+      {error && <p style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }} role="alert">{error}</p>}
+
+      <DataTable
+        title="Groups"
+        systemId={`\u25C8 groups \u00b7 ${groups.length} watched`}
+        addLabel="+ Add Group"
+        onAdd={() => setModal('add')}
+        columns={COLUMNS}
+        rows={filtered}
+        rowKey={r => r.telegramChatId ?? r.id}
+        onEdit={setModal}
+        onDelete={remove}
+        filters={[{
+          value: levelFilter,
+          onChange: e => setLevelFilter(e.target.value),
+          options: [
+            { value: '', label: 'All moderation levels' },
+            ...LEVELS.map(l => ({ value: l, label: l })),
+          ],
+        }]}
+        emptyText="No groups match this filter"
+      />
+
+      {modal && (
+        <GroupEditModal
+          group={modal === 'add' ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={save}
+          tenants={tenants}
+        />
+      )}
+    </>
   )
 }
