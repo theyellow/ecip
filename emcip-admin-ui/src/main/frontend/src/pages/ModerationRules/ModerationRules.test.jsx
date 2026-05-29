@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ModerationRules } from './ModerationRules'
 
 vi.mock('../../auth/AuthContext', () => ({
-  useAuth: () => ({ token: 'test-token' }),
+  useAuth: () => ({ token: 'test-token', currentTenant: { name: 'Test Tenant' } }),
   useAuthRequest: () => vi.fn(),
 }))
 vi.mock('../../api/client', () => ({ makeRequest: () => vi.fn() }))
@@ -53,7 +53,7 @@ describe('ModerationRules page', () => {
     expect(screen.getByText('ON')).toBeInTheDocument()
   })
 
-  it('shows em-dash for disabled rule', async () => {
+  it('shows OFF badge for disabled rule', async () => {
     mockApi.list.mockResolvedValue([{ ...RULE, enabled: false }])
     render(<ModerationRules />)
     await waitFor(() => screen.getByText('no-spam'))
