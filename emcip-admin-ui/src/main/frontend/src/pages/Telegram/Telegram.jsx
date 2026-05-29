@@ -4,6 +4,7 @@ import { telegramApi } from '../../api/telegram'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
+import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
 import styles from './Telegram.module.css'
 
 const STATUS_VARIANT = {
@@ -38,7 +39,6 @@ export function Telegram() {
     api.listAccounts()
       .then(accts => {
         setAccounts(accts)
-        // Sync live status for any account stuck in a transitional state
         accts
           .filter(a => a.status === 'AWAITING_CODE' || a.status === 'AWAITING_PASSWORD')
           .forEach(a =>
@@ -108,7 +108,6 @@ export function Telegram() {
     }
   }
 
-  // Poll status when wizard is open
   useEffect(() => {
     if (!wizard) return
     const interval = setInterval(async () => {
@@ -125,11 +124,17 @@ export function Telegram() {
           setWizard(w => ({ ...w, step: 'password', error: null }))
         }
       } catch (e) {
-      console.warn('Telegram status poll error:', e.message)
-    }
+        console.warn('Telegram status poll error:', e.message)
+      }
     }, 2500)
     return () => clearInterval(interval)
   }, [wizard, api, loadAccounts, loadWatched, openDiscover])
+
+  const resetAddForm = () => {
+    setShowAdd(false)
+    setShowAdvanced(false)
+    setAddForm({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' })
+  }
 
   const handleAdd = async () => {
     setError('')
@@ -140,9 +145,7 @@ export function Telegram() {
         body.apiHash = addForm.customApiHash
       }
       await api.createAccount(body)
-      setShowAdd(false)
-      setShowAdvanced(false)
-      setAddForm({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' })
+      resetAddForm()
       loadAccounts()
     } catch (e) {
       setError(e.message)
@@ -205,17 +208,16 @@ export function Telegram() {
     (watchedGroups[accountId] || []).some(g => g.chatId === chatId)
 
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
-        <h2>Telegram Accounts</h2>
-        <Button onClick={() => setShowAdd(true)}>Add Account</Button>
+    <>
+      <div className={styles.pageHeader}>
+        <div>
+          <h2>Telegram</h2>
+          <div className={styles.systemId}>{'\u2318'} tdlib-adapter {'\u00b7'} {accounts.length} accounts</div>
+        </div>
+        <Button onClick={() => setShowAdd(true)}>+ Add Account</Button>
       </div>
 
-      {error && (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
+      {error && <p style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }} role="alert">{error}</p>}
 
       <table className={styles.table}>
         <thead>
@@ -230,37 +232,26 @@ export function Telegram() {
           {accounts.map(a => (
             <React.Fragment key={a.id}>
               <tr>
-                <td>{a.displayName || '—'}</td>
-                <td>{a.phoneNumber}</td>
+                <td>{a.displayName || '\u2014'}</td>
+                <td className={styles.mono}>{a.phoneNumber}</td>
                 <td>
                   <Badge variant={STATUS_VARIANT[a.status] ?? 'gray'} title={a.lastError ?? ''}>
                     {a.status}
                   </Badge>
                 </td>
                 <td className={styles.actions}>
-                  <Button variant="secondary" onClick={() => openGroupsPanel(a.id)}>
-                    Groups
-                  </Button>
-                  <Button variant="secondary" onClick={() => handleReconnect(a.id)}>
-                    Auth
-                  </Button>
-                  <Button variant="secondary" onClick={() => handleLogout(a.id)}>
-                    Logout
-                  </Button>
-                  <Button variant="danger" onClick={() => handleDelete(a.id)}>
-                    Delete
-                  </Button>
+                  <Button variant="secondary" onClick={() => openGroupsPanel(a.id)}>Groups</Button>
+                  <Button variant="secondary" onClick={() => handleReconnect(a.id)}>Auth</Button>
+                  <Button variant="secondary" onClick={() => handleLogout(a.id)}>Logout</Button>
+                  <Button variant="danger" onClick={() => handleDelete(a.id)}>Delete</Button>
                 </td>
               </tr>
               {expandedAccount === a.id && (
                 <tr>
                   <td colSpan={4} className={styles.groupsPanel}>
-                    <div className={styles.groupsPanelHeader}>
-                      <span>Watched Groups</span>
-                      <Button variant="secondary" onClick={() => openDiscover(a.id)}>
-                        Discover
-                      </Button>
-                    </div>
+                    <SectionLabel aside={<Button variant="secondary" onClick={() => openDiscover(a.id)}>Discover</Button>}>
+                      Watched Groups
+                    </SectionLabel>
                     {(watchedGroups[a.id] || []).length === 0 ? (
                       <p className={styles.empty}>
                         No groups watched. Use Discover to add groups.
@@ -279,15 +270,10 @@ export function Telegram() {
                           {(watchedGroups[a.id] || []).map(g => (
                             <tr key={g.chatId}>
                               <td>{g.name}</td>
-                              <td>{g.chatId}</td>
+                              <td className={styles.mono}>{g.chatId}</td>
                               <td>{g.moderationLevel}</td>
                               <td>
-                                <Button
-                                  variant="danger"
-                                  onClick={() => handleUnwatch(a.id, g.chatId)}
-                                >
-                                  Unwatch
-                                </Button>
+                                <Button variant="danger" onClick={() => handleUnwatch(a.id, g.chatId)}>Unwatch</Button>
                               </td>
                             </tr>
                           ))}
@@ -301,122 +287,75 @@ export function Telegram() {
           ))}
           {accounts.length === 0 && (
             <tr>
-              <td colSpan={4} className={styles.empty}>
-                No accounts configured
-              </td>
+              <td colSpan={4} className={styles.empty}>No accounts configured</td>
             </tr>
           )}
         </tbody>
       </table>
 
       {showAdd && (
-        <Modal title="Add Telegram Account" onClose={() => { setShowAdd(false); setShowAdvanced(false); setAddForm({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' }) }}>
-          <div className={styles.form}>
-            {[
-              {
-                label: 'Display Name',
-                key: 'displayName',
-                type: 'text',
-                placeholder: 'Monitor account 1',
-              },
-              {
-                label: 'Phone Number',
-                key: 'phoneNumber',
-                type: 'text',
-                placeholder: '+49123456789',
-              },
-            ].map(({ label, key, type, placeholder }) => (
-              <div key={key}>
-                <label className={styles.label}>{label}</label>
-                <input
-                  type={type}
-                  className={styles.input}
-                  placeholder={placeholder}
-                  value={addForm[key]}
-                  onChange={e => setAddForm(f => ({ ...f, [key]: e.target.value }))}
-                />
-              </div>
-            ))}
-            <button
-              type="button"
-              className={styles.sessionToggle}
-              onClick={() => setShowAdvanced(s => !s)}
-            >
-              {showAdvanced ? '▾ Advanced' : '▸ Advanced'}
-            </button>
-            {showAdvanced && (
-              <div className={styles.advancedFields}>
-                <p className={styles.advancedHint}>
-                  Provide your own Telegram API credentials. Leave blank to use system defaults.
-                </p>
-                <div>
-                  <label className={styles.label}>API ID</label>
-                  <input
-                    type="number"
-                    className={styles.input}
-                    placeholder="12345678"
-                    value={addForm.customApiId}
-                    onChange={e => setAddForm(f => ({ ...f, customApiId: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className={styles.label}>API Hash</label>
-                  <input
-                    type="text"
-                    className={styles.input}
-                    placeholder="abc123def456..."
-                    value={addForm.customApiHash}
-                    onChange={e => setAddForm(f => ({ ...f, customApiHash: e.target.value }))}
-                  />
-                </div>
-              </div>
-            )}
-            <div className={styles.modalActions}>
-              <Button onClick={handleAdd}>Save</Button>
-              <Button variant="secondary" onClick={() => { setShowAdd(false); setShowAdvanced(false); setAddForm({ phoneNumber: '', displayName: '', customApiId: '', customApiHash: '' }) }}>
-                Cancel
-              </Button>
-            </div>
+        <Modal title="Add Telegram Account" onClose={resetAddForm} onSubmit={handleAdd}>
+          <div className={styles.field}>
+            <label>Display Name</label>
+            <input type="text" className={styles.input} placeholder="Monitor account 1"
+              value={addForm.displayName}
+              onChange={e => setAddForm(f => ({ ...f, displayName: e.target.value }))} />
           </div>
+          <div className={styles.field}>
+            <label>Phone Number</label>
+            <input type="text" className={styles.input} placeholder="+49123456789"
+              value={addForm.phoneNumber}
+              onChange={e => setAddForm(f => ({ ...f, phoneNumber: e.target.value }))} />
+          </div>
+          <button type="button" className={styles.advancedToggle}
+            onClick={() => setShowAdvanced(s => !s)}>
+            {showAdvanced ? '\u25BE Advanced' : '\u25B8 Advanced'}
+          </button>
+          {showAdvanced && (
+            <div className={styles.advancedFields}>
+              <p className={styles.advancedHint}>
+                Provide your own Telegram API credentials. Leave blank to use system defaults.
+              </p>
+              <div className={styles.field}>
+                <label>API ID</label>
+                <input type="number" className={styles.input} placeholder="12345678"
+                  value={addForm.customApiId}
+                  onChange={e => setAddForm(f => ({ ...f, customApiId: e.target.value }))} />
+              </div>
+              <div className={styles.field}>
+                <label>API Hash</label>
+                <input type="text" className={styles.input} placeholder="abc123def456..."
+                  value={addForm.customApiHash}
+                  onChange={e => setAddForm(f => ({ ...f, customApiHash: e.target.value }))} />
+              </div>
+            </div>
+          )}
         </Modal>
       )}
 
       {wizard && (
         <Modal title="Authenticate Account" onClose={() => setWizard(null)}>
-          <div className={styles.form}>
-            {wizard.error && <p className={styles.error}>{wizard.error}</p>}
-            {wizard.step === 'code' && (
-              <>
-                <p>Enter the verification code sent to your Telegram app.</p>
-                <input
-                  type="text"
-                  className={styles.input}
-                  placeholder="12345"
-                  value={codeInput}
-                  onChange={e => setCodeInput(e.target.value)}
-                  autoFocus
-                />
-                <div className={styles.modalActions}>
-                  <Button onClick={handleSubmitCode}>Submit Code</Button>
-                </div>
-              </>
-            )}
-            {wizard.step === 'password' && (
-              <>
-                <p>Enter your 2FA password.</p>
-                <input
-                  type="password"
-                  className={styles.input}
-                  value={passwordInput}
-                  onChange={e => setPasswordInput(e.target.value)}
-                  autoFocus
-                />
-                <div className={styles.modalActions}>
-                  <Button onClick={handleSubmitPassword}>Submit Password</Button>
-                </div>
-              </>
-            )}
-          </div>
+          {wizard.error && <p style={{ color: 'var(--signal-stop-fg)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{wizard.error}</p>}
+          {wizard.step === 'code' && (
+            <>
+              <p className={styles.wizardText}>Enter the verification code sent to your Telegram app.</p>
+              <input type="text" className={styles.input} placeholder="12345"
+                value={codeInput} onChange={e => setCodeInput(e.target.value)} autoFocus />
+              <div className={styles.wizardActions}>
+                <Button onClick={handleSubmitCode}>Submit Code</Button>
+              </div>
+            </>
+          )}
+          {wizard.step === 'password' && (
+            <>
+              <p className={styles.wizardText}>Enter your 2FA password.</p>
+              <input type="password" className={styles.input}
+                value={passwordInput} onChange={e => setPasswordInput(e.target.value)} autoFocus />
+              <div className={styles.wizardActions}>
+                <Button onClick={handleSubmitPassword}>Submit Password</Button>
+              </div>
+            </>
+          )}
         </Modal>
       )}
 
@@ -424,12 +363,10 @@ export function Telegram() {
         <Modal title="Discover Groups" onClose={() => setShowDiscover(null)}>
           <div className={styles.discoverModal}>
             <div className={styles.discoverHeader}>
-              <Button variant="secondary" onClick={() => openDiscover(showDiscover)}>
-                Refresh
-              </Button>
+              <Button variant="secondary" onClick={() => openDiscover(showDiscover)}>Refresh</Button>
             </div>
-            {discoverError && <p className={styles.error}>{discoverError}</p>}
-            {discoverLoading && <p>Loading groups...</p>}
+            {discoverError && <p style={{ color: 'var(--signal-stop-fg)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{discoverError}</p>}
+            {discoverLoading && <p className={styles.wizardText}>Loading groups...</p>}
             {!discoverLoading && discoveredChats.length === 0 && !discoverError && (
               <p className={styles.empty}>
                 No groups found. Ensure the account is ACTIVE and in at least one group.
@@ -451,9 +388,7 @@ export function Telegram() {
                       <td>{chat.type}</td>
                       <td>
                         {isWatched(showDiscover, chat.chatId) ? (
-                          <Button variant="secondary" disabled>
-                            Watching
-                          </Button>
+                          <Button variant="secondary" disabled>Watching</Button>
                         ) : (
                           <Button onClick={() => handleWatch(showDiscover, chat)}>Watch</Button>
                         )}
@@ -466,6 +401,6 @@ export function Telegram() {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }
