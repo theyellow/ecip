@@ -50,14 +50,14 @@ describe('ModerationRules page', () => {
     expect(screen.getByText('buy now')).toBeInTheDocument()
     expect(screen.getByText('HIGH')).toBeInTheDocument()
     expect(screen.getByText('BAN')).toBeInTheDocument()
-    expect(screen.getByText('✓')).toBeInTheDocument()
+    expect(screen.getByText('ON')).toBeInTheDocument()
   })
 
   it('shows em-dash for disabled rule', async () => {
     mockApi.list.mockResolvedValue([{ ...RULE, enabled: false }])
     render(<ModerationRules />)
     await waitFor(() => screen.getByText('no-spam'))
-    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.getByText('OFF')).toBeInTheDocument()
   })
 
   it('opens Create Rule modal when button clicked', async () => {
@@ -92,7 +92,7 @@ describe('ModerationRules page', () => {
     mockApi.list.mockResolvedValue([RULE])
     render(<ModerationRules />)
     await waitFor(() => screen.getByText('no-spam'))
-    await userEvent.click(screen.getByRole('button', { name: /edit/i }))
+    await userEvent.click(screen.getByText('no-spam'))
 
     expect(screen.getByText('Edit Rule')).toBeInTheDocument()
     expect(screen.getByDisplayValue('buy now')).toBeInTheDocument()
@@ -108,7 +108,7 @@ describe('ModerationRules page', () => {
 
     render(<ModerationRules />)
     await waitFor(() => screen.getByText('no-spam'))
-    await userEvent.click(screen.getByRole('button', { name: /edit/i }))
+    await userEvent.click(screen.getByText('no-spam'))
 
     const patternInput = screen.getByDisplayValue('buy now')
     await userEvent.clear(patternInput)
