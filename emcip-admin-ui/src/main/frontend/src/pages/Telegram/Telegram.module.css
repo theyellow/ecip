@@ -98,6 +98,10 @@
   border-bottom: none;
 }
 
+.innerTable tr:hover td {
+  background: rgba(212, 168, 73, 0.04);
+}
+
 .field {
   display: flex;
   flex-direction: column;

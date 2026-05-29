@@ -335,7 +335,7 @@ export function Telegram() {
 
       {wizard && (
         <Modal title="Authenticate Account" onClose={() => setWizard(null)}>
-          {wizard.error && <p style={{ color: 'var(--signal-stop-fg)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{wizard.error}</p>}
+          {wizard.error && <p role="alert" style={{ color: 'var(--signal-stop-fg)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{wizard.error}</p>}
           {wizard.step === 'code' && (
             <>
               <p className={styles.wizardText}>Enter the verification code sent to your Telegram app.</p>
@@ -365,7 +365,7 @@ export function Telegram() {
             <div className={styles.discoverHeader}>
               <Button variant="secondary" onClick={() => openDiscover(showDiscover)}>Refresh</Button>
             </div>
-            {discoverError && <p style={{ color: 'var(--signal-stop-fg)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{discoverError}</p>}
+            {discoverError && <p role="alert" style={{ color: 'var(--signal-stop-fg)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{discoverError}</p>}
             {discoverLoading && <p className={styles.wizardText}>Loading groups...</p>}
             {!discoverLoading && discoveredChats.length === 0 && !discoverError && (
               <p className={styles.empty}>
