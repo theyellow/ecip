@@ -2,14 +2,18 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--rule);
 }
 
 .systemId {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
   color: var(--fg-3);
-  margin-top: 2px;
+  margin-top: 6px;
 }
 
 .table {
@@ -28,12 +32,12 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .table td {
   padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
   font-size: 13px;
   color: var(--fg-1);
 }
@@ -85,12 +89,12 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .innerTable td {
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
   color: var(--fg-1);
 }
 
