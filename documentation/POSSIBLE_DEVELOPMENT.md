@@ -51,6 +51,7 @@ Sort into a proper backlog in a later step.
 ## Moderation
 
 - ML toxicity detection via OpenNLP or Perspective API (see Backlog item #8)
+- **Category-based moderation rules with thresholds** — the v2 design handoff envisions replacing keyword/regex rules with ML-scored categories (harassment, hate_speech, sexual_content, self_harm, spam, misinformation), each with a 0–1 threshold, per-category action (BLOCK/FLAG/WARN/ALLOW), and optional admin notification. This would require a new backend data model and ML scoring pipeline. Deferred until backlog item #8 (ML toxicity detection) is implemented.
 
 ## User-Facing / Self-Service
 
