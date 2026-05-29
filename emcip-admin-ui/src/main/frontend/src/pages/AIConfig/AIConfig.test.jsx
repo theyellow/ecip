@@ -27,13 +27,23 @@ vi.mock('../../api/aiConfig', () => ({
   }),
 }))
 
+vi.mock('../../api/providerConfig', () => ({
+  providerConfigApi: () => ({
+    listProviderConfigs: vi.fn().mockResolvedValue([]),
+    createProviderConfig: vi.fn().mockResolvedValue({}),
+    updateProviderConfig: vi.fn().mockResolvedValue({}),
+    deleteProviderConfig: vi.fn().mockResolvedValue(null),
+    getProxyModels: vi.fn().mockResolvedValue({ reachable: true, models: [] }),
+  }),
+}))
+
 vi.mock('../../api/client', () => ({ makeRequest: () => vi.fn() }))
 
 describe('AIConfig page', () => {
   it('renders Models section heading', async () => {
     render(<AIConfig />)
     await waitFor(() => {
-      expect(screen.getByText('AI Models')).toBeInTheDocument()
+      expect(screen.getByText(/ai models/i)).toBeInTheDocument()
     })
   })
 
@@ -47,7 +57,7 @@ describe('AIConfig page', () => {
   it('renders Templates section heading', async () => {
     render(<AIConfig />)
     await waitFor(() => {
-      expect(screen.getByText('Prompt Templates')).toBeInTheDocument()
+      expect(screen.getByText(/prompt templates/i)).toBeInTheDocument()
     })
   })
 

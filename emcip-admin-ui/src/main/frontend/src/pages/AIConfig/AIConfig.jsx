@@ -5,6 +5,7 @@ import { providerConfigApi } from '../../api/providerConfig'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
+import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
 import styles from './AIConfig.module.css'
 
 function ProxyModelPicker({ onPick }) {
@@ -62,43 +63,63 @@ function ModelModal({ model, onClose, onSave }) {
 
   return (
     <Modal title={model ? 'Edit Model' : 'Add Model'} onClose={onClose} onSubmit={() => onSave(form)}>
-      <label>Model Key *</label>
-      <input type="text" className={styles.input} value={form.modelKey}
-        onChange={e => set('modelKey', e.target.value)} required />
-      <label>Provider *</label>
-      <input type="text" className={styles.input} value={form.provider}
-        onChange={e => set('provider', e.target.value)} placeholder="openai / anthropic / google" required />
-      <label>Model Name *</label>
-      <div className={styles.modelNameRow}>
-        <input type="text" className={styles.input} value={form.modelName}
-          onChange={e => set('modelName', e.target.value)} required />
-        <ProxyModelPicker onPick={name => set('modelName', name)} />
+      <div className={styles.field}>
+        <label>Model Key *</label>
+        <input type="text" className={styles.input} value={form.modelKey}
+          onChange={e => set('modelKey', e.target.value)} required />
       </div>
-      <label>Description</label>
-      <input type="text" className={styles.input} value={form.description}
-        onChange={e => set('description', e.target.value)} />
-      <label>Task Type</label>
-      <select className={styles.input} value={form.taskType}
-        onChange={e => set('taskType', e.target.value)}>
-        {['GENERAL', 'CLASSIFICATION', 'MODERATION', 'SUMMARIZATION', 'CHAT'].map(t => (
-          <option key={t}>{t}</option>
-        ))}
-      </select>
-      <label>Input cost / 1k tokens ($)</label>
-      <input type="number" step="0.0001" className={styles.input} value={form.inputCostPer1kTokens}
-        onChange={e => set('inputCostPer1kTokens', parseFloat(e.target.value))} />
-      <label>Output cost / 1k tokens ($)</label>
-      <input type="number" step="0.0001" className={styles.input} value={form.outputCostPer1kTokens}
-        onChange={e => set('outputCostPer1kTokens', parseFloat(e.target.value))} />
-      <label>Context window (tokens)</label>
-      <input type="number" className={styles.input} value={form.contextWindow}
-        onChange={e => set('contextWindow', parseInt(e.target.value, 10))} />
-      <label>Max output tokens</label>
-      <input type="number" className={styles.input} value={form.maxOutputTokens}
-        onChange={e => set('maxOutputTokens', parseInt(e.target.value, 10))} />
-      <label>Priority (lower = preferred)</label>
-      <input type="number" className={styles.input} value={form.priority}
-        onChange={e => set('priority', parseInt(e.target.value, 10))} />
+      <div className={styles.field}>
+        <label>Provider *</label>
+        <input type="text" className={styles.input} value={form.provider}
+          onChange={e => set('provider', e.target.value)} placeholder="openai / anthropic / google" required />
+      </div>
+      <div className={styles.field}>
+        <label>Model Name *</label>
+        <div className={styles.modelNameRow}>
+          <input type="text" className={styles.input} value={form.modelName}
+            onChange={e => set('modelName', e.target.value)} required />
+          <ProxyModelPicker onPick={name => set('modelName', name)} />
+        </div>
+      </div>
+      <div className={styles.field}>
+        <label>Description</label>
+        <input type="text" className={styles.input} value={form.description}
+          onChange={e => set('description', e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label>Task Type</label>
+        <select className={styles.input} value={form.taskType}
+          onChange={e => set('taskType', e.target.value)}>
+          {['GENERAL', 'CLASSIFICATION', 'MODERATION', 'SUMMARIZATION', 'CHAT'].map(t => (
+            <option key={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+      <div className={styles.field}>
+        <label>Input cost / 1k tokens ($)</label>
+        <input type="number" step="0.0001" className={styles.input} value={form.inputCostPer1kTokens}
+          onChange={e => set('inputCostPer1kTokens', parseFloat(e.target.value))} />
+      </div>
+      <div className={styles.field}>
+        <label>Output cost / 1k tokens ($)</label>
+        <input type="number" step="0.0001" className={styles.input} value={form.outputCostPer1kTokens}
+          onChange={e => set('outputCostPer1kTokens', parseFloat(e.target.value))} />
+      </div>
+      <div className={styles.field}>
+        <label>Context window (tokens)</label>
+        <input type="number" className={styles.input} value={form.contextWindow}
+          onChange={e => set('contextWindow', parseInt(e.target.value, 10))} />
+      </div>
+      <div className={styles.field}>
+        <label>Max output tokens</label>
+        <input type="number" className={styles.input} value={form.maxOutputTokens}
+          onChange={e => set('maxOutputTokens', parseInt(e.target.value, 10))} />
+      </div>
+      <div className={styles.field}>
+        <label>Priority (lower = preferred)</label>
+        <input type="number" className={styles.input} value={form.priority}
+          onChange={e => set('priority', parseInt(e.target.value, 10))} />
+      </div>
       <label>
         <input type="checkbox" checked={form.supportsStreaming}
           onChange={e => set('supportsStreaming', e.target.checked)} /> Supports streaming
@@ -129,34 +150,52 @@ function TemplateModal({ template, onClose, onSave }) {
 
   return (
     <Modal title={template ? 'Edit Template' : 'Add Template'} onClose={onClose} onSubmit={() => onSave(form)}>
-      <label>Name *</label>
-      <input type="text" className={styles.input} value={form.name}
-        onChange={e => set('name', e.target.value)} required />
-      <label>Version</label>
-      <input type="text" className={styles.input} value={form.version}
-        onChange={e => set('version', e.target.value)} />
-      <label>Description</label>
-      <input type="text" className={styles.input} value={form.description}
-        onChange={e => set('description', e.target.value)} />
-      <label>Model Provider</label>
-      <input type="text" className={styles.input} value={form.modelProvider}
-        onChange={e => set('modelProvider', e.target.value)} placeholder="openai" />
-      <label>Model Name</label>
-      <input type="text" className={styles.input} value={form.modelName}
-        onChange={e => set('modelName', e.target.value)} placeholder="gpt-4o" />
-      <label>System Prompt *</label>
-      <textarea className={`${styles.input} ${styles.promptTextarea}`} rows={6}
-        value={form.systemPrompt} onChange={e => set('systemPrompt', e.target.value)} required />
-      <label>User Prompt Template</label>
-      <textarea className={`${styles.input} ${styles.promptTextarea}`} rows={4}
-        value={form.userPromptTemplate} onChange={e => set('userPromptTemplate', e.target.value)}
-        placeholder="Use {{variable}} placeholders" />
-      <label>Temperature</label>
-      <input type="number" step="0.1" min="0" max="2" className={styles.input}
-        value={form.temperature} onChange={e => set('temperature', parseFloat(e.target.value))} />
-      <label>Max Tokens</label>
-      <input type="number" className={styles.input} value={form.maxTokens}
-        onChange={e => set('maxTokens', parseInt(e.target.value, 10))} />
+      <div className={styles.field}>
+        <label>Name *</label>
+        <input type="text" className={styles.input} value={form.name}
+          onChange={e => set('name', e.target.value)} required />
+      </div>
+      <div className={styles.field}>
+        <label>Version</label>
+        <input type="text" className={styles.input} value={form.version}
+          onChange={e => set('version', e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label>Description</label>
+        <input type="text" className={styles.input} value={form.description}
+          onChange={e => set('description', e.target.value)} />
+      </div>
+      <div className={styles.field}>
+        <label>Model Provider</label>
+        <input type="text" className={styles.input} value={form.modelProvider}
+          onChange={e => set('modelProvider', e.target.value)} placeholder="openai" />
+      </div>
+      <div className={styles.field}>
+        <label>Model Name</label>
+        <input type="text" className={styles.input} value={form.modelName}
+          onChange={e => set('modelName', e.target.value)} placeholder="gpt-4o" />
+      </div>
+      <div className={styles.field}>
+        <label>System Prompt *</label>
+        <textarea className={`${styles.input} ${styles.promptTextarea}`} rows={6}
+          value={form.systemPrompt} onChange={e => set('systemPrompt', e.target.value)} required />
+      </div>
+      <div className={styles.field}>
+        <label>User Prompt Template</label>
+        <textarea className={`${styles.input} ${styles.promptTextarea}`} rows={4}
+          value={form.userPromptTemplate} onChange={e => set('userPromptTemplate', e.target.value)}
+          placeholder="Use {{variable}} placeholders" />
+      </div>
+      <div className={styles.field}>
+        <label>Temperature</label>
+        <input type="number" step="0.1" min="0" max="2" className={styles.input}
+          value={form.temperature} onChange={e => set('temperature', parseFloat(e.target.value))} />
+      </div>
+      <div className={styles.field}>
+        <label>Max Tokens</label>
+        <input type="number" className={styles.input} value={form.maxTokens}
+          onChange={e => set('maxTokens', parseInt(e.target.value, 10))} />
+      </div>
       <label>
         <input type="checkbox" checked={form.active}
           onChange={e => set('active', e.target.checked)} /> Active
@@ -193,17 +232,23 @@ function ProviderModal({ provider, onClose, onSave }) {
 
   return (
     <Modal title={provider ? 'Edit Provider' : 'Add Provider'} onClose={onClose} onSubmit={() => onSave(form)}>
-      <label>Name *</label>
-      <input type="text" className={styles.input} value={form.name}
-        onChange={e => set('name', e.target.value)} placeholder="local-litellm" required />
-      <label>Base URL *</label>
-      <input type="text" className={styles.input} value={form.baseUrl}
-        onChange={e => { set('baseUrl', e.target.value); setTestResult(null) }}
-        placeholder="http://192.168.1.50:4000" required />
-      <label>API Key (optional — leave blank to keep existing)</label>
-      <input type="password" className={styles.input} value={form.apiKey}
-        onChange={e => { set('apiKey', e.target.value); setTestResult(null) }}
-        placeholder="Leave blank if not required" />
+      <div className={styles.field}>
+        <label>Name *</label>
+        <input type="text" className={styles.input} value={form.name}
+          onChange={e => set('name', e.target.value)} placeholder="local-litellm" required />
+      </div>
+      <div className={styles.field}>
+        <label>Base URL *</label>
+        <input type="text" className={styles.input} value={form.baseUrl}
+          onChange={e => { set('baseUrl', e.target.value); setTestResult(null) }}
+          placeholder="http://192.168.1.50:4000" required />
+      </div>
+      <div className={styles.field}>
+        <label>API Key (optional — leave blank to keep existing)</label>
+        <input type="password" className={styles.input} value={form.apiKey}
+          onChange={e => { set('apiKey', e.target.value); setTestResult(null) }}
+          placeholder="Leave blank if not required" />
+      </div>
       <div className={styles.proxyPicker}>
         <Button type="button" variant="secondary" onClick={testConnection}
           disabled={testing || !form.baseUrl}>
@@ -267,11 +312,8 @@ function ProviderConfigSection() {
 
   return (
     <div className={styles.section}>
-      <div className={styles.sectionHeader}>
-        <h3 className={styles.sectionTitle}>LLM Provider</h3>
-        <Button onClick={() => setModal('add')}>+ Add Provider</Button>
-      </div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
+      <SectionLabel aside={<Button onClick={() => setModal('add')}>+ Add Provider</Button>}>LLM Provider</SectionLabel>
+      {error && <p role="alert" style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }}>{error}</p>}
       <table className={styles.table}>
         <thead>
           <tr><th>Name</th><th>Base URL</th><th>Active</th><th></th></tr>
@@ -364,16 +406,18 @@ export function AIConfig() {
   }
 
   return (
-    <div className={styles.page}>
-      <h2>AI Configuration</h2>
-      {error && <p className={styles.error} role="alert">{error}</p>}
+    <>
+      <div className={styles.pageHeader}>
+        <div>
+          <h2>AI Config</h2>
+          <div className={styles.systemId}>{'\u2726'} llm-orchestrator {'\u00b7'} {models.filter(m => m.active).length} active models</div>
+        </div>
+      </div>
+      {error && <p role="alert" style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }}>{error}</p>}
 
       {/* Models */}
       <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h3 className={styles.sectionTitle}>AI Models</h3>
-          <Button onClick={() => setModelModal('add')}>+ Add Model</Button>
-        </div>
+        <SectionLabel aside={<Button onClick={() => setModelModal('add')}>+ Add Model</Button>}>AI Models</SectionLabel>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -407,10 +451,7 @@ export function AIConfig() {
 
       {/* Templates */}
       <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <h3 className={styles.sectionTitle}>Prompt Templates</h3>
-          <Button onClick={() => setTemplateModal('add')}>+ Add Template</Button>
-        </div>
+        <SectionLabel aside={<Button onClick={() => setTemplateModal('add')}>+ Add Template</Button>}>Prompt Templates</SectionLabel>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -457,6 +498,6 @@ export function AIConfig() {
           onSave={saveTemplate}
         />
       )}
-    </div>
+    </>
   )
 }
