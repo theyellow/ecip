@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Logo } from '../../logo/Logo'
 import { useAuth } from '../../auth/AuthContext'
+import { Button } from '../../components/Button/Button'
 import styles from './Login.module.css'
 
 export function Login({ onSuccess }) {
@@ -33,18 +34,31 @@ export function Login({ onSuccess }) {
           <p className={styles.subtitle}>Community Intelligence Platform</p>
         </div>
         <form onSubmit={handleSubmit} className={styles.form}>
-          {error && <p className={styles.error} role="alert">{error}</p>}
-          <label htmlFor="username" className={styles.label}>Username</label>
-          <input id="username" type="text" value={username}
-            onChange={e => setUsername(e.target.value)}
-            className={styles.input} autoComplete="username" required />
-          <label htmlFor="password" className={styles.label}>Password</label>
-          <input id="password" type="password" value={password}
-            onChange={e => setPassword(e.target.value)}
-            className={styles.input} autoComplete="current-password" required />
-          <button type="submit" className={styles.submit} disabled={loading}>
+          {error && (
+            <p role="alert" style={{
+              color: 'var(--signal-stop-fg)',
+              background: 'rgba(248,113,113,0.08)',
+              border: '1px solid rgba(248,113,113,0.25)',
+              padding: '8px 12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+            }}>{error}</p>
+          )}
+          <div className={styles.field}>
+            <label htmlFor="username">Username</label>
+            <input id="username" type="text" value={username}
+              onChange={e => setUsername(e.target.value)}
+              className={styles.input} autoComplete="username" required />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" value={password}
+              onChange={e => setPassword(e.target.value)}
+              className={styles.input} autoComplete="current-password" required />
+          </div>
+          <Button type="submit" disabled={loading}>
             {loading ? 'Signing in\u2026' : 'Sign In'}
-          </button>
+          </Button>
         </form>
       </div>
     </div>
