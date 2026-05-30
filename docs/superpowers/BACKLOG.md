@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-28 (item 28 in progress — Admin UI v2 design system)
+> Last updated: 2026-05-30 (item 29 complete — all Admin UI v2 page redesigns)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
