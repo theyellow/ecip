@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuthRequest } from '../../auth/AuthContext'
 import { simulateApi } from '../../api/simulate'
 import { Button } from '../../components/Button/Button'
+import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
 import styles from './Simulate.module.css'
 
 export function Simulate() {
@@ -27,9 +28,16 @@ export function Simulate() {
   }
 
   return (
-    <div className={styles.container}>
-      <h2>Simulate Event</h2>
+    <>
+      <div className={styles.pageHeader}>
+        <div>
+          <h2>Simulate Event</h2>
+          <div className={styles.systemId}>{'\u25B6'} intent-classifier {'\u00b7'} trace mode</div>
+        </div>
+      </div>
+
       <p className={styles.subtitle}>Publish a test message into the processing pipeline.</p>
+
       <div className={styles.card}>
         <div className={styles.field}>
           <label htmlFor="chatId">Chat ID *</label>
@@ -53,7 +61,16 @@ export function Simulate() {
           <textarea id="text" value={form.text} onChange={e => set('text', e.target.value)}
             className={styles.input} rows={4} />
         </div>
-        {error && <p className={styles.error} role="alert">{error}</p>}
+        {error && (
+          <p role="alert" style={{
+            color: 'var(--signal-stop-fg)',
+            background: 'rgba(248,113,113,0.08)',
+            border: '1px solid rgba(248,113,113,0.25)',
+            padding: '8px 12px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '12px',
+          }}>{error}</p>
+        )}
         <Button onClick={publish} disabled={loading}>
           {loading ? 'Publishing\u2026' : '\u25b6 Publish Message'}
         </Button>
@@ -64,15 +81,16 @@ export function Simulate() {
           </div>
         )}
       </div>
+
       <div className={styles.pipeline}>
-        <h3>Pipeline Flow</h3>
+        <SectionLabel>Pipeline Flow</SectionLabel>
         <ol>
-          <li><code>telegram.raw.messages</code> \u2192 LLM Orchestrator classifies intent</li>
-          <li><code>messages.classified</code> \u2192 Policy Engine evaluates rules</li>
-          <li><code>policies.decisions</code> \u2192 Moderation Service applies action</li>
+          <li><code>telegram.raw.messages</code> {'\u2192'} LLM Orchestrator classifies intent</li>
+          <li><code>messages.classified</code> {'\u2192'} Policy Engine evaluates rules</li>
+          <li><code>policies.decisions</code> {'\u2192'} Moderation Service applies action</li>
           <li>All steps recorded in Audit Log</li>
         </ol>
       </div>
-    </div>
+    </>
   )
 }

@@ -42,6 +42,7 @@ This applies to: `CLAUDE.md`, `agents/*.md`, `skills/*.md`, `cascade-config.md`
 | 3 | **Lombok** - Use `@Slf4j`, `@RequiredArgsConstructor`, never manual getters | `@spring-boot-jpa.md` |
 | 4 | **Kafka** - Port 14003, use `CommonKafkaConfig` from emcip-core | `@kafka-messaging.md` |
 | 5 | **JPA services** - UUID IDs, `@Column(nullable=false)`, `@Version` for locking; **R2DBC services** - Spring Data R2DBC, `Mono`/`Flux`, no `@Transactional` on reactive | `@spring-boot-jpa.md` / `@spring-reactive.md` |
+| 6 | **Cron timing** - Never schedule at exact round times (`:00.000`). Always use offset seconds/millis (e.g. `03:00:17.891`) to spread load across services | — |
 
 ## Spotless Output Guide
 

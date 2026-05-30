@@ -25,24 +25,10 @@
   width: 100%;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box;
 }
 
 .input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--orb-glow);
-}
-
-.hint {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--fg-3);
-  margin-top: 2px;
-}
-
-.pattern {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: block;
 }

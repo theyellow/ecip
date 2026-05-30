@@ -3,6 +3,9 @@ import { useAuthRequest } from '../../auth/AuthContext'
 import { flagsApi } from '../../api/flags'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { Modal } from '../../components/Modal/Modal'
+import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
+import { SegmentedControl } from '../../components/SegmentedControl/SegmentedControl'
 import styles from './Flags.module.css'
 
 const DECISIONS = ['', 'FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE']
@@ -98,134 +101,138 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
   }
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>Flag Detail</h3>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">&times;</button>
-        </div>
+    <Modal title="Flag Detail" onClose={onClose}>
+      <div className={styles.detailGrid}>
+        <span className={styles.label}>Decision</span>
+        <span><Badge variant={DECISION_VARIANT[flag.decision] ?? 'gray'}>{flag.decision}</Badge></span>
 
-        <div className={styles.modalBody}>
-          <div className={styles.detailGrid}>
-            <span className={styles.label}>Decision</span>
-            <span><Badge variant={DECISION_VARIANT[flag.decision] ?? 'gray'}>{flag.decision}</Badge></span>
+        <span className={styles.label}>Status</span>
+        <span className={styles.statusRow}>
+          <Badge variant={STATUS_VARIANT[status] ?? 'gray'}>{status}</Badge>
+          <span className={styles.statusButtons}>
+            {STATUSES.filter(s => s !== status).map(s => (
+              <Button key={s} variant="secondary" disabled={saving} onClick={() => handleStatusChange(s)}>
+                {s.charAt(0) + s.slice(1).toLowerCase()}
+              </Button>
+            ))}
+          </span>
+        </span>
 
-            <span className={styles.label}>Status</span>
-            <span className={styles.statusRow}>
-              <Badge variant={STATUS_VARIANT[status] ?? 'gray'}>{status}</Badge>
-              <span className={styles.statusButtons}>
-                {STATUSES.filter(s => s !== status).map(s => (
-                  <Button key={s} variant="secondary" disabled={saving} onClick={() => handleStatusChange(s)}>
-                    {s.charAt(0) + s.slice(1).toLowerCase()}
-                  </Button>
-                ))}
-              </span>
-            </span>
+        <span className={styles.label}>Timestamp</span>
+        <span className={styles.mono}>{flag.timestamp ? new Date(flag.timestamp).toLocaleString() : '\u2014'}</span>
 
-            <span className={styles.label}>Timestamp</span>
-            <span className={styles.mono}>{flag.timestamp ? new Date(flag.timestamp).toLocaleString() : '\u2014'}</span>
+        <span className={styles.label}>Intent</span>
+        <span><Badge variant="gray">{flag.originalIntent}</Badge></span>
 
-            <span className={styles.label}>Intent</span>
-            <span><Badge variant="gray">{flag.originalIntent}</Badge></span>
+        <span className={styles.label}>Confidence</span>
+        <span className={styles.mono}>{flag.confidence != null ? (flag.confidence * 100).toFixed(1) + '%' : '\u2014'}</span>
 
-            <span className={styles.label}>Confidence</span>
-            <span className={styles.mono}>{flag.confidence != null ? (flag.confidence * 100).toFixed(1) + '%' : '\u2014'}</span>
+        <span className={styles.label}>Reason</span>
+        <span>{flag.reason || '\u2014'}</span>
 
-            <span className={styles.label}>Reason</span>
-            <span>{flag.reason || '\u2014'}</span>
+        <span className={styles.label}>Message</span>
+        <span className={styles.messageText}>{meta.messageText || '\u2014'}</span>
 
-            <span className={styles.label}>Message</span>
-            <span className={styles.messageText}>{meta.messageText || '\u2014'}</span>
+        {meta.chatId && <>
+          <span className={styles.label}>Chat ID</span>
+          <span className={styles.mono}>{meta.chatId}</span>
+        </>}
 
-            {meta.chatId && <>
-              <span className={styles.label}>Chat ID</span>
-              <span className={styles.mono}>{meta.chatId}</span>
-            </>}
+        {meta.senderId && <>
+          <span className={styles.label}>Sender ID</span>
+          <span className={styles.mono}>{meta.senderId}</span>
+        </>}
 
-            {meta.senderId && <>
-              <span className={styles.label}>Sender ID</span>
-              <span className={styles.mono}>{meta.senderId}</span>
-            </>}
+        <span className={styles.label}>Policy ID</span>
+        <span className={styles.mono}>{flag.policyId || '\u2014'}</span>
 
-            <span className={styles.label}>Policy ID</span>
-            <span className={styles.mono}>{flag.policyId || '\u2014'}</span>
+        <span className={styles.label}>Event ID</span>
+        <span className={styles.mono}>{flag.id}</span>
+      </div>
 
-            <span className={styles.label}>Event ID</span>
-            <span className={styles.mono}>{flag.id}</span>
+      {error && (
+        <p role="alert" style={{
+          color: 'var(--signal-stop-fg)',
+          background: 'rgba(248,113,113,0.08)',
+          border: '1px solid rgba(248,113,113,0.25)',
+          padding: '8px 12px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '12px',
+        }}>{error}</p>
+      )}
+
+      <div className={styles.replyHeader} onClick={() => setShowReply(s => !s)}>
+        <SectionLabel aside={showReply ? '\u25BE' : '\u25B8'}>Reply</SectionLabel>
+      </div>
+
+      {showReply && (
+        <div className={styles.replySection}>
+          <textarea
+            className={styles.replyTextarea}
+            placeholder="Type your response..."
+            value={replyText}
+            onChange={e => setReplyText(e.target.value)}
+            maxLength={4096}
+          />
+
+          <div className={styles.replyOptions}>
+            <SegmentedControl
+              options={[{ value: 'GROUP', label: 'Group' }, { value: 'DM', label: 'DM' }]}
+              value={replyTarget}
+              onChange={setReplyTarget}
+            />
+            <label>
+              <input type="checkbox" checked={replyToOriginal} onChange={e => setReplyToOriginal(e.target.checked)} />
+              Reply to original
+            </label>
+            <label>
+              <input type="checkbox" checked={prefixModerator} onChange={e => setPrefixModerator(e.target.checked)} />
+              Prefix [Moderator]
+            </label>
           </div>
 
-          {error && <p className={styles.error} role="alert">{error}</p>}
+          {accounts && (
+            <select
+              className={styles.accountSelect}
+              value={selectedAccountId ?? ''}
+              onChange={e => setSelectedAccountId(e.target.value || null)}
+            >
+              <option value="">Select account...</option>
+              {accounts.map(a => (
+                <option key={a.id} value={a.id}>{a.displayName} ({a.phoneNumber})</option>
+              ))}
+            </select>
+          )}
 
-          <button className={styles.replyToggle} onClick={() => setShowReply(s => !s)}>
-            {showReply ? '\u25BE Reply' : '\u25B8 Reply'}
-          </button>
+          <div className={styles.replyActions}>
+            <Button onClick={handleReply} disabled={replySending || !replyText.trim()}>
+              {replySending ? 'Sending\u2026' : 'Send'}
+            </Button>
+            {replySuccess && !promptActioned && (
+              <span className={styles.replySuccess}>Sent!</span>
+            )}
+            {promptActioned && (
+              <>
+                <span className={styles.replySuccess}>Sent! Mark as actioned?</span>
+                <Button variant="secondary" onClick={handleMarkActioned}>Yes</Button>
+                <Button variant="secondary" onClick={() => setPromptActioned(false)}>No</Button>
+              </>
+            )}
+          </div>
 
-          {showReply && (
-            <div className={styles.replySection}>
-              <textarea
-                className={styles.replyTextarea}
-                placeholder="Type your response..."
-                value={replyText}
-                onChange={e => setReplyText(e.target.value)}
-                maxLength={4096}
-              />
-
-              <div className={styles.replyOptions}>
-                <div className={styles.targetToggle}>
-                  <button
-                    className={`${styles.targetBtn}${replyTarget === 'GROUP' ? ' ' + styles.active : ''}`}
-                    onClick={() => setReplyTarget('GROUP')}
-                  >Group</button>
-                  <button
-                    className={`${styles.targetBtn}${replyTarget === 'DM' ? ' ' + styles.active : ''}`}
-                    onClick={() => setReplyTarget('DM')}
-                  >DM</button>
-                </div>
-                <label>
-                  <input type="checkbox" checked={replyToOriginal} onChange={e => setReplyToOriginal(e.target.checked)} />
-                  Reply to original
-                </label>
-                <label>
-                  <input type="checkbox" checked={prefixModerator} onChange={e => setPrefixModerator(e.target.checked)} />
-                  Prefix [Moderator]
-                </label>
-              </div>
-
-              {accounts && (
-                <select
-                  className={styles.accountSelect}
-                  value={selectedAccountId ?? ''}
-                  onChange={e => setSelectedAccountId(e.target.value || null)}
-                >
-                  <option value="">Select account...</option>
-                  {accounts.map(a => (
-                    <option key={a.id} value={a.id}>{a.displayName} ({a.phoneNumber})</option>
-                  ))}
-                </select>
-              )}
-
-              <div className={styles.replyActions}>
-                <Button onClick={handleReply} disabled={replySending || !replyText.trim()}>
-                  {replySending ? 'Sending...' : 'Send'}
-                </Button>
-                {replySuccess && !promptActioned && (
-                  <span className={styles.replySuccess}>Sent!</span>
-                )}
-                {promptActioned && (
-                  <>
-                    <span className={styles.replySuccess}>Sent! Mark as actioned?</span>
-                    <Button variant="secondary" onClick={handleMarkActioned}>Yes</Button>
-                    <Button variant="secondary" onClick={() => setPromptActioned(false)}>No</Button>
-                  </>
-                )}
-              </div>
-
-              {replyError && <p className={styles.replyError}>{replyError}</p>}
-            </div>
+          {replyError && (
+            <p role="alert" style={{
+              color: 'var(--signal-stop-fg)',
+              background: 'rgba(248,113,113,0.08)',
+              border: '1px solid rgba(248,113,113,0.25)',
+              padding: '8px 12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+            }}>{replyError}</p>
           )}
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   )
 }
 
@@ -261,9 +268,12 @@ export function Flags() {
   }
 
   return (
-    <div>
-      <div className={styles.header}>
-        <h2>Flags {total > 0 && <small style={{ fontWeight: 'normal', color: 'var(--text-muted)' }}>({total} total)</small>}</h2>
+    <>
+      <div className={styles.pageHeader}>
+        <div>
+          <h2>Flags</h2>
+          <div className={styles.systemId}>{'\u2691'} policy-engine {'\u00b7'} {total} flags</div>
+        </div>
         <div className={styles.filters}>
           <select value={decision} onChange={e => setDecision(e.target.value)} className={styles.select}>
             {DECISIONS.map(d => <option key={d} value={d}>{d || 'All decisions'}</option>)}
@@ -273,7 +283,19 @@ export function Flags() {
           </select>
         </div>
       </div>
-      {error && <p className={styles.error} role="alert">{error}</p>}
+
+      {error && (
+        <p role="alert" style={{
+          color: 'var(--signal-stop-fg)',
+          background: 'rgba(248,113,113,0.08)',
+          border: '1px solid rgba(248,113,113,0.25)',
+          padding: '8px 12px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '12px',
+          marginBottom: 'var(--sp-3)',
+        }}>{error}</p>
+      )}
+
       <table className={styles.table}>
         <thead>
           <tr>
@@ -288,10 +310,10 @@ export function Flags() {
         </thead>
         <tbody>
           {loading && (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>Loading…</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--fg-3)', padding: 'var(--sp-5)' }}>Loading{'\u2026'}</td></tr>
           )}
           {!loading && flags.length === 0 && !error && (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>No flags yet</td></tr>
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--fg-3)', padding: 'var(--sp-5)' }}>No flags yet</td></tr>
           )}
           {flags.map(f => {
             const meta = parseMeta(f.metadata)
@@ -328,6 +350,6 @@ export function Flags() {
           api={api}
         />
       )}
-    </div>
+    </>
   )
 }
