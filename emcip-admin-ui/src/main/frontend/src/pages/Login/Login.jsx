@@ -45,21 +45,22 @@ export function Login({ onSuccess }) {
             }}>{error}</p>
           )}
           <div className={styles.field}>
-            <label htmlFor="username">Username</label>
+            <label htmlFor="username">Operator</label>
             <input id="username" type="text" value={username}
               onChange={e => setUsername(e.target.value)}
               className={styles.input} autoComplete="username" required />
           </div>
           <div className={styles.field}>
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Passphrase</label>
             <input id="password" type="password" value={password}
               onChange={e => setPassword(e.target.value)}
               className={styles.input} autoComplete="current-password" required />
           </div>
           <Button type="submit" disabled={loading}>
-            {loading ? 'Signing in\u2026' : 'Sign In'}
+            {loading ? 'Entering\u2026' : 'Enter the Construct'}
           </Button>
         </form>
+        <p className={styles.footer}>Mostly Harmless.</p>
       </div>
     </div>
   )
