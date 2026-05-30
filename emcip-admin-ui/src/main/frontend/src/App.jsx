@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeContext'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import { AppShell } from './layout/AppShell/AppShell'
+import { SpaceBackground } from './layout/SpaceBackground/SpaceBackground'
 import { Login } from './pages/Login/Login'
 import { Groups } from './pages/Groups/Groups'
 import { Tenants } from './pages/Tenants/Tenants'
@@ -65,6 +66,7 @@ export function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
+          <SpaceBackground />
           <AuthGate />
         </AuthProvider>
       </ThemeProvider>
