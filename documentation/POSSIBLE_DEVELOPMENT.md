@@ -67,6 +67,14 @@ Sort into a proper backlog in a later step.
 - Bulk replies: respond to multiple flagged messages at once (e.g., same response to a spam wave)
 - Message templates: pre-defined response templates (e.g., "Community guidelines warning", "Spam notice") selectable from a dropdown instead of freeform text
 
+## Admin UI v2 Design Handoff Deferred Items
+
+Items from the v2 design handoff prototypes that were intentionally excluded during the page redesigns (PR #94). These are visual/UX enhancements beyond the token restyle.
+
+- **Simulate: two-column layout with animated pipeline trace** — the design handoff shows a split view with real-time pipeline stage visualization (message flowing through `telegram.raw.messages` → `messages.classified` → `policies.decisions` with animated progress). Current production is a simple form + static pipeline description `<ol>`.
+- **Flags: full reply composer v2** — the handoff has a 4-mode SegmentedControl (Public reply / Quote-reply / Private DM / Silent note), ChipRow of pre-fill templates (e.g. "Community guidelines warning"), textarea with `{n} chars · {MODE}` character counter footer, and a Discard button. Current production has 2-mode Group/DM SegmentedControl and plain textarea. Quote-reply and Silent note modes need backend support.
+- **Users: expanded role model and audit columns** — the handoff shows MODERATOR, ANALYST, VIEWER roles (production only has ADMIN/TENANT_ADMIN) and `lastLogin`/`createdAt` columns (not in the current API response). Would require backend role expansion and API changes.
+
 ## Resilience (SC8 follow-ons)
 
 - Retry with exponential backoff on circuit-broken calls before surfacing 503 (currently 30 s half-open re-probe is the only recovery path)

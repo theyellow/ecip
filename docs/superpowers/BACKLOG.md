@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-05-28 (item 28 in progress — Admin UI v2 design system)
+> Last updated: 2026-05-30 (item 29 complete — all Admin UI v2 page redesigns)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -37,6 +37,7 @@
 | 28 | **Admin UI v2: design system + Groups page** | M | ✅ PR #90 — 2026-05-28. v2 token system, font setup, restyle Button/Badge/Modal, new DataTable component, CLAUDE.md project guidance, Groups page redesign as proof-of-concept. Ref: `specs/2026-05-28-admin-ui-v2-design-system-design.md`. |
 | 29 | **Admin UI v2: page redesigns** | L | ✅ All pages complete. Tenants/AuditLog/PolicyRules (PR #91) · ModerationRules/Telegram/Users/Simulate/Login/AIConfig/Flags (PR #94). New shared component: SegmentedControl. Depends on #28. |
 | 30 | **Admin UI v2: remove v1 compat aliases** | XS | After all pages redesigned, remove the `/* v1 compat */` block from `variables.css`. Depends on #29. |
+| 32 | **Admin UI v2: SpaceBackground v3 (Otherland Sky)** | S | Replace SpaceBackground with Claude Design handoff #2: orb/eye sigil over auto-drift particle sky + foggy skyline. Pure canvas+SVG, removes `simplex-noise` dependency. Handoff at `/home/ben/Development/tmp/design_handoff_emcip_sky`. Depends on #29. |
 | 31 | **Admin UI v2: delete design handoff directory** | XS | Remove `emcip-admin-ui/design_handoff_emcip_admin/` once all page redesigns are complete and no reference material is still needed. Depends on #29. |
 | 26 | **Bulk message ingestion + topic clustering + RAG knowledge base** | L | Harvest historical messages from watched groups (backfill via TDLib `getChatHistory`). Cluster into topics (BERTopic, keyBERT, or LiteLLM summarization). Build a per-group queryable knowledge base for RAG retrieval. Goal: quickly surface recurring topics and key facts. Prerequisite for item 27. |
 | 27 | **Deep research operator tool** | XL | Operator-triggered autonomous research agent (wrapper around `langchain-ai/open_deep_research` or similar). Given a flagged message or topic cluster, researches via RAG + web search + LLM reasoning and produces a structured report (facts, sources, risk assessment). Feeds into flag-detail UI (item 23 Phase 2). Depends on item 26. |
