@@ -1,0 +1,100 @@
+/* EMCIP — SpaceBackground v3 (the Otherland Sky)
+ *
+ * Replaces the v2 two-planet / mouse-parallax canvas. A living sigil sky:
+ *   • the Construct orb — a glowing celestial eye wreathed in counter-rotating
+ *     hexagonal ring systems (SVG, themed via design tokens)
+ *   • an automated particle field — drifting twinkling stars (dark) / rising
+ *     warm motes (light), on their own clock; optional EASED parallax only
+ *   • a foggy skyline with a few lit, occasionally-flickering windows
+ *
+ * Global, prefixed `sb-` so it can ship as a plain stylesheet without a CSS
+ * module. All colour comes from theme/variables.css tokens — no hard-coded
+ * palette except a couple of fixed star/window warmths.
+ */
+
+.sb-root {
+  position: fixed; inset: 0; z-index: -1;
+  overflow: hidden; pointer-events: none;
+}
+
+/* ── Sky gradient (the base fill) ─────────────────────────────────────── */
+.sb-grad {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 80% at 84% 12%, var(--sky-bloom-a), transparent 52%),
+    radial-gradient(150% 100% at 50% 116%, var(--sky-bloom-b), transparent 60%),
+    linear-gradient(180deg, var(--sky-grad-1) 0%, var(--sky-grad-2) 48%, var(--sky-grad-3) 100%);
+  transition: background 0.5s ease;
+}
+
+/* ── Particle canvas ──────────────────────────────────────────────────── */
+.sb-canvas { position: absolute; inset: 0; }
+
+/* ── The Orb / Eye sigil ──────────────────────────────────────────────── */
+.sb-orb {
+  position: absolute; top: -16vmin; right: -8vmin;
+  width: 78vmin; height: 78vmin;
+  filter: drop-shadow(0 0 40px var(--orb-glow));
+}
+.sb-orb .sb-ring       { stroke: var(--orb-ring);      fill: none; }
+.sb-orb .sb-ring-soft  { stroke: var(--orb-ring-soft); fill: none; }
+.sb-orb .sb-core-1     { stop-color: var(--orb-core); }
+.sb-orb .sb-core-2     { stop-color: var(--orb-mid); }
+.sb-orb .sb-bloom-1    { stop-color: var(--orb-core); }
+.sb-orb .sb-bloom-2    { stop-color: var(--orb-mid); }
+.sb-orb .sb-eye-iris   { fill: var(--orb-core); }
+.sb-orb .sb-eye-iris-2 { fill: var(--orb-mid); }
+.sb-orb .sb-eye-line   { stroke: var(--orb-ring); fill: none; }
+.sb-orb .sb-eye-pupil  { fill: var(--mono-grad-2); }
+.sb-orb .sb-hot        { fill: var(--orb-core); }
+
+@keyframes sb-spin     { to { transform: rotate(360deg); } }
+@keyframes sb-spin-rev { to { transform: rotate(-360deg); } }
+@keyframes sb-breathe  { 0%,100% { opacity: 0.78; } 50% { opacity: 1; } }
+@keyframes sb-iris     { 0%,100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+/* slow pupil swell, ~19s so it drifts against the 20s wink (never locked) */
+@keyframes sb-pupil {
+  0%,100% { transform: scale(0.92); }
+  45%     { transform: scale(1.26); }
+}
+/* a single quick wink at the start of every 20s cycle (first one ~10s in) */
+@keyframes sb-blink {
+  0%, 2.4% { transform: scaleY(1);    }
+  3.3%     { transform: scaleY(0.06); }
+  4.6%     { transform: scaleY(1);    }
+  100%     { transform: scaleY(1);    }
+}
+.sb-g-spin     { animation: sb-spin 360s linear infinite;       transform-origin: center; transform-box: fill-box; }
+.sb-g-spin-rev { animation: sb-spin-rev 240s linear infinite;   transform-origin: center; transform-box: fill-box; }
+.sb-g-breathe  { animation: sb-breathe 10s ease-in-out infinite; }
+.sb-g-iris     { animation: sb-iris 14s ease-in-out infinite;   transform-origin: center; transform-box: fill-box; }
+.sb-g-pupil    { animation: sb-pupil 19s ease-in-out infinite;  transform-origin: center; transform-box: fill-box; }
+.sb-g-blink    { animation: sb-blink 20s ease-in-out 10s infinite; transform-origin: center; transform-box: fill-box; }
+
+/* ── Foggy skyline + windows ──────────────────────────────────────────── */
+.sb-skyline { position: absolute; left: 0; right: 0; bottom: 0; height: 46vh; }
+.sb-skyline .sb-mono-far  { fill: var(--mono-grad-1); }
+.sb-skyline .sb-mono-near { fill: var(--mono-fill); }
+.sb-skyline .sb-win       { fill: #e0ad52; opacity: 0; }
+.sb-skyline .sb-win.dim   { opacity: 0.28; }
+.sb-skyline .sb-win.lit   { opacity: 0.62; }
+:root[data-theme="light"] .sb-skyline .sb-win     { fill: #9a6f1e; }
+:root[data-theme="light"] .sb-skyline .sb-win.dim { opacity: 0.16; }
+:root[data-theme="light"] .sb-skyline .sb-win.lit { opacity: 0.34; }
+@keyframes sb-light-toggle {
+  0%, 46%  { opacity: 0.6; }
+  50%, 86% { opacity: 0.05; }
+  90%,100% { opacity: 0.6; }
+}
+.sb-skyline .sb-win.toggle { animation: sb-light-toggle var(--d, 30s) ease-in-out infinite; }
+
+.sb-fog {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 42vh;
+  background: linear-gradient(180deg, transparent 0%, var(--fog-tint) 46%, var(--fog-tint-deep) 100%);
+}
+
+/* Respect reduced-motion: freeze the sigil + particles (JS also reads this) */
+@media (prefers-reduced-motion: reduce) {
+  .sb-g-spin, .sb-g-spin-rev, .sb-g-breathe, .sb-g-iris, .sb-g-pupil,
+  .sb-g-blink, .sb-skyline .sb-win.toggle { animation: none !important; }
+}
