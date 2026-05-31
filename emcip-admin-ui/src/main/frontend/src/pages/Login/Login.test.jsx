@@ -1,10 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthProvider } from '../../auth/AuthContext'
+import { ThemeProvider } from '../../theme/ThemeContext'
 import { Login } from './Login'
 
 const renderLogin = (onSuccess = vi.fn()) =>
-  render(<AuthProvider><Login onSuccess={onSuccess} /></AuthProvider>)
+  render(<ThemeProvider><AuthProvider><Login onSuccess={onSuccess} /></AuthProvider></ThemeProvider>)
 
 test('renders operator and passphrase fields', () => {
   renderLogin()

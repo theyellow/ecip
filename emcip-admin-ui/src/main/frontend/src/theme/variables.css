@@ -165,7 +165,7 @@
   --sky-grad-1:    var(--c-void-950);
   --sky-grad-2:    var(--c-void-900);
   --sky-grad-3:    var(--c-void-700);
-  --sky-bloom-a:   rgba(245, 204, 102, 0.20);
+  --sky-bloom-a:   rgba(245, 204, 102, 0.14);
   --sky-bloom-b:   rgba(58, 104, 120, 0.18);
   --mono-fill:     rgb(3, 7, 16);
   --mono-grad-1:   rgba(8, 18, 30, 0.75);
@@ -229,7 +229,7 @@
   --sky-grad-1:    #d8dfdb;
   --sky-grad-2:    #e8eef0;
   --sky-grad-3:    #f5f0e0;
-  --sky-bloom-a:   rgba(245, 204, 102, 0.42);
+  --sky-bloom-a:   rgba(245, 204, 102, 0.26);
   --sky-bloom-b:   rgba(168, 196, 204, 0.30);
   --mono-fill:     rgba(180, 198, 200, 0.55);
   --mono-grad-1:   rgba(210, 224, 228, 0.65);

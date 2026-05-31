@@ -32,8 +32,8 @@
 
 /* ── The Orb / Eye sigil ──────────────────────────────────────────────── */
 .sb-orb {
-  position: absolute; top: -16vmin; right: -8vmin;
-  width: 78vmin; height: 78vmin;
+  position: absolute; top: -23vmin; right: -17vmin;
+  width: 72vmin; height: 72vmin;
   filter: drop-shadow(0 0 40px var(--orb-glow));
 }
 .sb-orb .sb-ring       { stroke: var(--orb-ring);      fill: none; }

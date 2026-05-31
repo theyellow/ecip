@@ -1,2 +1,13 @@
 .shell { display: flex; min-height: 100vh; }
-.main  { flex: 1; padding: 2rem; overflow-y: auto; min-height: 100vh; }
+.main  { flex: 1; padding: var(--sp-6); overflow-y: auto; min-height: 100vh; }
+
+/* Readable content surface — the sky frames it via .main padding */
+.surface {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  padding: var(--sp-6);
+}
