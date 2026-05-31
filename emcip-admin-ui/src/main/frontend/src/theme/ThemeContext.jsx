@@ -4,7 +4,12 @@ const ThemeContext = createContext(null)
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(
-    () => localStorage.getItem('emcip-theme') || 'light'
+    () => {
+      const stored = localStorage.getItem('emcip-theme')
+      if (stored) return stored
+      const h = new Date().getHours()
+      return (h >= 7 && h < 19) ? 'light' : 'dark'
+    }
   )
 
   useEffect(() => {

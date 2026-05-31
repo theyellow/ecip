@@ -8,7 +8,9 @@ export function AppShell() {
       <div className={styles.shell}>
         <Sidebar />
         <main className={styles.main}>
-          <Outlet />
+          <div className={styles.surface}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </>

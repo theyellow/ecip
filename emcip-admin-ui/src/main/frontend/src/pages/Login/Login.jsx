@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Logo } from '../../logo/Logo'
 import { useAuth } from '../../auth/AuthContext'
+import { useTheme } from '../../theme/ThemeContext'
 import { Button } from '../../components/Button/Button'
 import styles from './Login.module.css'
 
 export function Login({ onSuccess }) {
   const { login } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -28,6 +30,15 @@ export function Login({ onSuccess }) {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
+        <button
+          type="button"
+          className={styles.themeToggle}
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+        >
+          {theme === 'light' ? '☽' : '☀'}
+        </button>
         <div className={styles.brand}>
           <Logo size={48} />
           <h1 className="emcip-wordmark">EMCIP</h1>
