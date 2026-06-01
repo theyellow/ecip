@@ -11,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 
 @Component
 @Slf4j
@@ -41,13 +42,23 @@ public class PolicyEngineClient {
     }
 
     public Mono<JsonNode> createRule(JsonNode body) {
-        return webClient
-                .post()
-                .uri("/api/policy-rules")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return Mono.deferContextual(
+                ctx -> {
+                    String tenantId = ReactorTenantContext.getTenantId(ctx);
+                    JsonNode enriched = body;
+                    if (tenantId != null && body.isObject()) {
+                        ObjectNode node = ((ObjectNode) body).deepCopy();
+                        node.put("tenantId", tenantId);
+                        enriched = node;
+                    }
+                    return webClient
+                            .post()
+                            .uri("/api/policy-rules")
+                            .bodyValue(enriched)
+                            .retrieve()
+                            .bodyToMono(JsonNode.class)
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                });
     }
 
     public Mono<JsonNode> updateRule(String id, JsonNode body) {
