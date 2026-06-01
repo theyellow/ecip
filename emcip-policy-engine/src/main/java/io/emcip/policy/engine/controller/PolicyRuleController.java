@@ -44,6 +44,9 @@ public class PolicyRuleController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<PolicyRuleConfig> create(@RequestBody PolicyRuleConfig rule) {
+        if (rule.getTenantId() == null) {
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "tenantId is required"));
+        }
         rule.setId(UUID.randomUUID().toString());
         if (rule.getTargetIntent() == null || rule.getTargetIntent().isBlank()) {
             rule.setTargetIntent("*");
