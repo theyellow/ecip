@@ -29,6 +29,7 @@ class PolicyRuleControllerTest {
     private PolicyRuleConfig rule(String id, String name) {
         PolicyRuleConfig r = new PolicyRuleConfig();
         r.setId(id);
+        r.setTenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"));
         r.setName(name);
         r.setTargetIntent("SPAM");
         r.setAction("BLOCK");
