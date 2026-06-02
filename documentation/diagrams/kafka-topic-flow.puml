@@ -1,0 +1,141 @@
+@startuml kafka-topic-flow
+
+' Purpose: Topic-centric Kafka message flow — every topic is an explicit node.
+'          Shows which service produces/consumes each topic, and which action
+'          topics have no consumer yet (safe side-effect boundary).
+' Companion to: c2-container.puml (which collapses Kafka into one node)
+
+title EMCIP — Kafka Message Flow (topic-centric)
+
+'left to right direction
+
+skinparam BackgroundColor #FAFAFA
+skinparam DefaultFontName Arial
+skinparam DefaultFontSize 10
+skinparam ArrowColor #555555
+skinparam Padding 6
+skinparam RoundCorner 6
+
+skinparam component {
+  BackgroundColor #DAE8FC
+  BorderColor     #6C8EBF
+  FontColor       #1A1A2E
+  FontStyle       bold
+}
+
+skinparam queue {
+  BackgroundColor #D5E8D4
+  BorderColor     #82B366
+  FontColor       #1A2E1A
+}
+
+skinparam actor {
+  BorderColor #888888
+  FontColor   #333333
+}
+
+skinparam package {
+  BackgroundColor #FFF3CD
+  BorderColor     #D4A017
+  FontColor       #5A3E00
+  FontStyle       bold
+}
+
+' ── External ─────────────────────────────────────────────────────────────────
+actor "Telegram\nMessenger" as telegram
+actor "Admin / Simulate UI" as admin
+
+' ── Services ─────────────────────────────────────────────────────────────────
+component "tdlib-adapter\n:9080" as tdlib
+component "admin-api\n:9087"     as api
+component "intent-classifier\n:9082" as clf
+component "moderation-service\n:9085" as mod
+component "conversation-context\n:9081" as ctx   #EAD1DC
+component "audit-service\n:9086"        as audit #EAD1DC
+component "policy-engine\n:9083"        as pe
+component "llm-orchestrator\n:9084"     as llm
+component "LiteLLM Proxy\n192.168.23.40:4000" as litellm #FFF2CC
+
+' ── Pipeline Topics (active — have at least one consumer) ────────────────────
+queue "telegram.raw.messages"  as t_raw
+queue "messages.classified"    as t_classified
+queue "moderation.flags"       as t_flags
+queue "policies.decisions"     as t_decisions
+queue "responses.generated"    as t_generated
+
+' ── Action Topics (produced by policy-engine; no consumers wired yet) ─────────
+package "Action topics — no consumers yet\n(safe: events are produced but nothing acts on them)" {
+  queue "moderation.actions\n  ↳ BLOCK · FLAG" as a_moderation  #FFE6CC
+  queue "responses.pending\n  ↳ RESPOND"       as a_respond     #FFE6CC
+  queue "escalation.human\n  ↳ ESCALATE"       as a_escalation  #FFE6CC
+  queue "commands.execute\n  ↳ EXECUTE"         as a_commands    #FFE6CC
+  queue "review.pending\n  ↳ REVIEW"            as a_review      #FFE6CC
+}
+
+' ── Flow ─────────────────────────────────────────────────────────────────────
+
+' --- Ingestion ---
+telegram --> tdlib : TDLib events (JNI/C++)
+admin    --> api   : POST /api/simulate
+
+tdlib --> t_raw : produce
+api   --> t_raw : produce
+
+' --- Fan-out from telegram.raw.messages ---
+t_raw --> clf   : consume
+t_raw --> mod   : consume
+t_raw --> ctx   : consume (thread tracking)
+t_raw --> audit : consume (observability)
+
+' --- Stage 1 output ---
+clf --> t_classified : produce
+mod --> t_flags      : produce (on rule match)
+
+t_flags --> audit : consume
+
+' --- Stage 2: Policy evaluation ---
+t_classified --> pe : consume
+
+pe --> t_decisions  : produce (all decisions)
+pe --> a_moderation : produce
+pe --> a_respond    : produce
+pe --> a_escalation : produce
+pe --> a_commands   : produce
+pe --> a_review     : produce
+
+' --- Stage 3: LLM action (only for RESPOND / ESCALATE / EXECUTE decisions) ---
+t_decisions --> llm   : consume
+t_decisions --> audit : consume (observability)
+
+llm --> litellm   : HTTPS /v1/chat/completions
+llm --> t_generated : produce
+
+' --- Response loop back to Telegram ---
+t_generated --> tdlib    : consume
+tdlib        --> telegram : send message (JNI/C++)
+
+' ── Legend notes ─────────────────────────────────────────────────────────────
+note bottom of t_raw
+  <b>Fan-out root</b>
+  4 parallel consumers.
+  All pipeline processing
+  starts here.
+end note
+
+note top of t_decisions
+  <b>Policy decision</b>
+  llm-orchestrator checks the
+  <i>decision</i> field and only calls
+  LiteLLM for RESPOND / ESCALATE /
+  EXECUTE. Others are logged only.
+end note
+
+note right of litellm
+  <b>AI side-effect boundary</b>
+  Only RESPOND / ESCALATE /
+  EXECUTE decisions reach here.
+  Model: qwen3.6:35b (active)
+  Provider: active since 2026-06-02
+end note
+
+@enduml
