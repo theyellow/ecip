@@ -46,6 +46,8 @@
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. |
 | 22 | **Admin UI: cross-tenant views** | M | Admin users browse data across all tenants. Requires ADMIN-mode bypass (already implemented) + UI pages. |
 | 24 | **Flag-detail: clickable message links + AI content research** | S | In the flag detail modal, make URLs in the message text clickable. Add an "Investigate" action that sends the message + context to a configured LLM model for content analysis (spam signals, toxicity, intent) and displays the response inline. Lower priority than #23 and Telegram items 10/25. |
+| 33 | **Policy rule: warn on "live-effect" actions in UI** | S | When a user creates/edits a policy rule with action `RESPOND`, `EXECUTE`, or `BLOCK`, the Admin UI should display a visible warning: "This action will take effect in Telegram (sends a message / bans a user). Use FLAG or REVIEW for safe observation-only rules." `ESCALATE`, `REVIEW`, `FLAG`, and `ALLOW` are safe — they only write to internal queues / audit log and have no consumers that touch the Telegram API yet. See `PolicyActionService` for topic routing and `emcip-tdlib-adapter` for what would execute them once consumers are wired. |
+| 34 | **Architecture: rewire moderation-service off `telegram.raw.messages`** | M | `moderation-service` currently consumes `telegram.raw.messages` directly and runs keyword/regex rules before classification has happened. Correct topology: it should consume `policies.decisions` (so rules run on classified, policy-evaluated context) rather than raw messages. Separately, `policies.decisions → llm-orchestrator` coupling needs design: LLM should only be invoked for specific decision types (RESPOND/ESCALATE/EXECUTE), not be a blanket consumer of every decision. Revisit when wiring real Telegram action consumers. See `documentation/diagrams/kafka-topic-flow.puml` for the current as-is topic map. |
 
 ---
 
@@ -82,6 +84,10 @@
 ---
 
 ## Documentation Audit (2026-05-16)
+
+> **New diagram (2026-06-02):** `documentation/diagrams/kafka-topic-flow.puml` — topic-centric Kafka flow showing all 8 topics, which services produce/consume each, and which action topics have no consumers yet. Companion to `c2-container.puml`. See backlog item #34 for identified architectural mismatches.
+
+
 
 Diagrams audited during the LiteLLM integration pass — confirmed current, no update needed:
 
