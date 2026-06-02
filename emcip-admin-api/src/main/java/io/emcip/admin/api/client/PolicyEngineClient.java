@@ -6,8 +6,10 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
@@ -45,16 +47,18 @@ public class PolicyEngineClient {
         return Mono.deferContextual(
                 ctx -> {
                     String tenantId = ReactorTenantContext.getTenantId(ctx);
-                    JsonNode enriched = body;
-                    if (tenantId != null && body.isObject()) {
-                        ObjectNode node = ((ObjectNode) body).deepCopy();
-                        node.put("tenantId", tenantId);
-                        enriched = node;
+                    if (tenantId == null) {
+                        return Mono.error(
+                                new ResponseStatusException(
+                                        HttpStatus.BAD_REQUEST,
+                                        "A tenant must be selected before creating a policy rule"));
                     }
+                    ObjectNode node = ((ObjectNode) body).deepCopy();
+                    node.put("tenantId", tenantId);
                     return webClient
                             .post()
                             .uri("/api/policy-rules")
-                            .bodyValue(enriched)
+                            .bodyValue(node)
                             .retrieve()
                             .bodyToMono(JsonNode.class)
                             .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
