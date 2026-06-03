@@ -241,7 +241,7 @@ function ProviderModal({ provider, onClose, onSave }) {
         <label>Base URL *</label>
         <input type="text" className={styles.input} value={form.baseUrl}
           onChange={e => { set('baseUrl', e.target.value); setTestResult(null) }}
-          placeholder="http://192.168.1.50:4000" required />
+          placeholder="" required />
       </div>
       <div className={styles.field}>
         <label>API Key (optional — leave blank to keep existing)</label>

@@ -29,7 +29,7 @@ export function Users() {
     Promise.all([api.list(), tApi.list()])
       .then(([u, t]) => { setUsers(u); setTenants(t) })
       .catch(e => setError(e.message))
-  }, [api, tApi])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const reload = () => api.list().then(setUsers).catch(e => setError(e.message))
 

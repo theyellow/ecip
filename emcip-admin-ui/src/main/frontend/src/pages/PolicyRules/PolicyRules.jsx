@@ -8,13 +8,13 @@ import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
 import styles from './PolicyRules.module.css'
 
-const ACTIONS = ['FLAG', 'WARN', 'MUTE', 'BAN', 'DELETE', 'ESCALATE']
-const ACTION_VARIANT = { FLAG: 'blue', WARN: 'yellow', MUTE: 'yellow', BAN: 'red', DELETE: 'red', ESCALATE: 'gray' }
+const ACTIONS = ['ALLOW', 'FLAG', 'BLOCK', 'RESPOND', 'ESCALATE', 'EXECUTE', 'REVIEW']
+const ACTION_VARIANT = { ALLOW: 'green', FLAG: 'blue', BLOCK: 'red', RESPOND: 'gray', ESCALATE: 'yellow', EXECUTE: 'red', REVIEW: 'yellow' }
 
 function RuleModal({ rule, onClose, onSave, tenants }) {
   const [form, setForm] = useState({
     name: rule?.name ?? '',
-    targetIntent: rule?.targetIntent ?? 'KEYWORD',
+    targetIntent: rule?.targetIntent ?? '',
     action: rule?.action ?? 'FLAG',
     priority: rule?.priority ?? 0,
     description: rule?.description ?? '',
