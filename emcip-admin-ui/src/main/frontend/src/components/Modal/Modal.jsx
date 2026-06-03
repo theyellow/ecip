@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import styles from './Modal.module.css'
 import { Button } from '../Button/Button'
 
@@ -9,7 +10,7 @@ export function Modal({ title, onClose, onSubmit, submitLabel = 'Save', children
     return () => document.removeEventListener('keydown', handler)
   }, [onClose])
 
-  return (
+  return createPortal(
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.card} role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div className={styles.header}>
@@ -24,6 +25,7 @@ export function Modal({ title, onClose, onSubmit, submitLabel = 'Save', children
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
