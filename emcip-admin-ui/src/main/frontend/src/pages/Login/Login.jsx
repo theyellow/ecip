@@ -85,9 +85,15 @@ export function Login({ onSuccess }) {
           </Button>
         </form>
         <p className={styles.footer}>
-          Mostly Harmless.
-          {showAnswer && <span className={styles.footerAnswer}> The answer is 42.</span>}
+          {showAnswer && <span className={styles.footerAnswer}>The answer is 42.</span>}
         </p>
+      </div>
+      <div className={styles.systemTag}>
+        <span className={styles.systemLabel}>— Mostly Harmless —</span>
+        <span className={styles.systemQuote}>
+          &ldquo;In the beginning the Universe was created. This has made a lot of
+          people very angry and been widely regarded as a bad move.&rdquo;
+        </span>
       </div>
     </div>
   )

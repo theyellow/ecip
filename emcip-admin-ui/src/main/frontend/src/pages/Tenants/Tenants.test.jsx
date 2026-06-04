@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Tenants } from './Tenants'
@@ -74,9 +74,7 @@ describe('Tenants page', () => {
     render(<Tenants />)
     await waitFor(() => screen.getByText('Tenants'))
     await userEvent.click(screen.getByRole('button', { name: /create tenant/i }))
-    // Name is the first textbox inside the dialog (no htmlFor association on labels)
-    const dialog = screen.getByRole('dialog')
-    await userEvent.type(within(dialog).getAllByRole('textbox')[0], 'Acme Corp')
+    await userEvent.type(screen.getByLabelText(/name/i), 'Acme Corp')
     await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() => expect(screen.getByText('Acme Corp')).toBeInTheDocument())
