@@ -26,6 +26,12 @@ test('calls login API on submit', async () => {
   await waitFor(() => expect(onSuccess).toHaveBeenCalled())
 })
 
+test('renders system-tag label and HHGTTG quote below the card', () => {
+  renderLogin()
+  expect(screen.getByText(/mostly harmless/i)).toBeInTheDocument()
+  expect(screen.getByText(/in the beginning the universe was created/i)).toBeInTheDocument()
+})
+
 test('shows error message on invalid credentials', async () => {
   global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401 })
   renderLogin()
