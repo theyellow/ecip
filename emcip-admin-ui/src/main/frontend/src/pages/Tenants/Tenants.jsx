@@ -20,18 +20,18 @@ function TenantModal({ onClose, onSave }) {
   return (
     <Modal title="Create Tenant" onClose={onClose} onSubmit={() => onSave(form)}>
       <div className={styles.field}>
-        <label>Name *</label>
-        <input type="text" className={styles.input} value={form.name}
+        <label htmlFor="tenant-name">Name *</label>
+        <input id="tenant-name" type="text" className={styles.input} value={form.name}
           onChange={e => set('name', e.target.value)} required />
       </div>
       <div className={styles.field}>
-        <label>Description</label>
-        <textarea className={styles.input} value={form.description}
+        <label htmlFor="tenant-description">Description</label>
+        <textarea id="tenant-description" className={styles.input} value={form.description}
           onChange={e => set('description', e.target.value)} rows={3} />
       </div>
       <div className={styles.field}>
-        <label>LLM Model Override</label>
-        <input type="text" className={styles.input} value={form.llmModelOverride}
+        <label htmlFor="tenant-llm">LLM Model Override</label>
+        <input id="tenant-llm" type="text" className={styles.input} value={form.llmModelOverride}
           onChange={e => set('llmModelOverride', e.target.value)}
           placeholder="e.g. gpt-4o, claude-3-5-sonnet" />
       </div>

@@ -127,34 +127,34 @@ export function Users() {
           onSubmit={handleSubmit}
         >
           <div className={styles.field}>
-            <label>Username</label>
-            <input className={styles.input} value={form.username}
+            <label htmlFor="user-username">Username</label>
+            <input id="user-username" className={styles.input} value={form.username}
               onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
               disabled={modal === 'edit'} />
           </div>
           <div className={styles.field}>
-            <label>Email</label>
-            <input type="email" className={styles.input} value={form.email}
+            <label htmlFor="user-email">Email</label>
+            <input id="user-email" type="email" className={styles.input} value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
           </div>
           {modal === 'create' && (
             <div className={styles.field}>
-              <label>Password</label>
-              <input type="password" className={styles.input} value={form.password}
+              <label htmlFor="user-password">Password</label>
+              <input id="user-password" type="password" className={styles.input} value={form.password}
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
             </div>
           )}
           <div className={styles.field}>
-            <label>Role</label>
-            <select className={styles.input} value={form.role}
+            <label htmlFor="user-role">Role</label>
+            <select id="user-role" className={styles.input} value={form.role}
               onChange={e => setForm(f => ({ ...f, role: e.target.value, tenantId: '' }))}>
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           {form.role === 'TENANT_ADMIN' && (
             <div className={styles.field}>
-              <label>Tenant</label>
-              <select className={styles.input} value={form.tenantId}
+              <label htmlFor="user-tenant">Tenant</label>
+              <select id="user-tenant" className={styles.input} value={form.tenantId}
                 onChange={e => setForm(f => ({ ...f, tenantId: e.target.value }))}>
                 <option value="">{'\u2014'} select {'\u2014'}</option>
                 {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -171,8 +171,8 @@ export function Users() {
           onSubmit={handlePasswordReset}
         >
           <div className={styles.field}>
-            <label>New Password</label>
-            <input type="password" className={styles.input} value={newPassword}
+            <label htmlFor="user-new-password">New Password</label>
+            <input id="user-new-password" type="password" className={styles.input} value={newPassword}
               onChange={e => setNewPassword(e.target.value)} autoFocus />
           </div>
         </Modal>
