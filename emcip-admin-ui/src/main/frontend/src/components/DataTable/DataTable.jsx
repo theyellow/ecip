@@ -15,7 +15,7 @@ export function DataTable({
   emptyText = 'No records',
 }) {
   return (
-    <div>
+    <div className={styles.wrapper}>
       <div className={styles.pageHeader}>
         <div>
           <h2>{title}</h2>

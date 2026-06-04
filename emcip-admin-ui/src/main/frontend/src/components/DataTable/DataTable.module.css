@@ -1,3 +1,7 @@
+.wrapper {
+  overflow-x: auto;
+}
+
 .pageHeader {
   display: flex;
   justify-content: space-between;

@@ -296,6 +296,7 @@ export function Flags() {
         }}>{error}</p>
       )}
 
+      <div className={styles.tableWrapper}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -341,6 +342,7 @@ export function Flags() {
           })}
         </tbody>
       </table>
+      </div>
 
       {selected && (
         <FlagDetailModal
