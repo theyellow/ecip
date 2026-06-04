@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Logo } from '../../logo/Logo'
 import { useAuth } from '../../auth/AuthContext'
 import { useTheme } from '../../theme/ThemeContext'
@@ -12,6 +12,19 @@ export function Login({ onSuccess }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showAnswer, setShowAnswer] = useState(false)
+
+  useEffect(() => {
+    const seq = []
+    const handler = e => {
+      if (e.target.tagName === 'INPUT') return
+      seq.push(e.key)
+      if (seq.length > 2) seq.shift()
+      if (seq.join('') === '42') setShowAnswer(true)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -71,7 +84,10 @@ export function Login({ onSuccess }) {
             {loading ? 'Entering\u2026' : 'Enter the Construct'}
           </Button>
         </form>
-        <p className={styles.footer}>Mostly Harmless.</p>
+        <p className={styles.footer}>
+          Mostly Harmless.
+          {showAnswer && <span className={styles.footerAnswer}> The answer is 42.</span>}
+        </p>
       </div>
     </div>
   )
