@@ -1,6 +1,29 @@
 # EMCIP Admin UI — Claude Code Rules
 
-This file provides project-level guidance for the EMCIP Admin UI React app. It codifies the v2 visual + content system.
+Drop this file at the **root of `emcip-admin-ui/`** (the React app). Claude Code reads it on every turn and treats it as project-level guidance. The rules below codify the EMCIP visual + content system and the conventions used in the design prototypes that ship alongside this file (`design_references/`).
+
+---
+
+## Before you start — reading order
+
+Run these reads **before writing any code, handoff, or spec**. Skipping them is how paths go wrong, tokens drift, and component APIs get invented.
+
+| File | When | Why |
+|---|---|---|
+| `emcip-admin-ui/src/main/frontend/src/theme/variables.css` | Always | Token master — never infer or restate token values from memory |
+| `emcip-admin-ui/src/main/frontend/src/auth/permissions.js` | Always | Role definitions and permission constants |
+| `emcip-admin-ui/src/main/frontend/src/layout/Sidebar/Sidebar.jsx` | Adding or changing nav | Current NAV array — what routes and permissions actually exist |
+| `emcip-admin-ui/src/main/frontend/src/App.jsx` | Adding a page | Route registrations |
+| The page file(s) you are modifying | Modifying any page | Read before editing — never guess at existing content |
+| `DataTable.jsx`, `Modal.jsx`, `Button.jsx`, `Badge.jsx`, `ConfirmDialog.jsx` | Changing component behavior or adding props | Actual prop surface — APIs inferred from usage sites drift |
+
+**Path rule (Claude Design sessions):** Run `github_get_tree` on the directory before writing any file path in a handoff. The frontend source lives under `emcip-admin-ui/src/main/frontend/src/` — not `src/` directly. All paths in handoffs are repo-root-relative.
+
+**Token rule:** Handoffs may ADD new tokens (if genuinely new) but must never restate an existing one with a different value. Read production `variables.css` before any token work.
+
+**Design session startup:** Paste or link `emcip-admin-ui/CLAUDE.md` as the first message when opening a Claude Design session for this project.
+
+**Pending handoffs:** Check `emcip-admin-ui/design-handoffs/README.md` for the current queue.
 
 ---
 
@@ -8,7 +31,21 @@ This file provides project-level guidance for the EMCIP Admin UI React app. It c
 
 EMCIP is the **Enterprise Messenger Community Intelligence Platform** — a microservice system that watches Telegram groups as a real TDLib client, classifies intent, and either **Reacts / Summarizes / Moderates / Observes**. This React app is the operator console.
 
-The visual identity is brass-and-ink, hexagonal sigils, a starfield humming behind every screen, narrated by *The Hitchhiker's Guide to the Galaxy* in calm sans. Practical, never decorative; serious, never solemn.
+The visual identity is brass-and-ink, hexagonal sigils, a living sky behind every screen, narrated by *The Hitchhiker's Guide to the Galaxy* in calm sans. Practical, never decorative; serious, never solemn. The sky is **SpaceBackground v3** (`layout/SpaceBackground`) — a full-viewport CSS + canvas layer that renders: the **watching eye-orb** (gold ring systems, iris, blinking pupil) in the top-right corner; a **foggy city skyline** at the bottom; **drifting stars** in dark mode (Otherland); **rising warm motes** in light mode (Parchment). No planets. No violet moon.
+
+---
+
+## Domain glossary — read before naming anything
+
+These three are distinct entities. The word "group" alone is banned in the UI because it blurs them:
+
+| Term | What it is | Lives at |
+|---|---|---|
+| **Watched Group** | A Telegram chat EMCIP watches — keyed by `telegramChatId`, carries `moderationLevel` / `autoRespond` / `welcomeMessage`. | `/groups` (`◈`, `GROUPS_*`) |
+| **Watcher** | A TDLib account (a real Telegram login) that sits inside watched groups and observes. Returned by `/api/groups/{chatId}/watchers`. | `/telegram` (`⌘`, `TELEGRAM_*`) |
+| **Role** | An operator's access level in the console (`ADMIN` / `TENANT_ADMIN`). Today it's a field on a User; a dedicated **Roles** page is planned. | `/users` (`◉`) today → `/roles` (`⬠`) planned |
+
+"Groups a user is in / roles / permissions" is the **Role** concept and belongs to Users/Roles — never to Watched Groups.
 
 ---
 
@@ -16,11 +53,10 @@ The visual identity is brass-and-ink, hexagonal sigils, a starfield humming behi
 
 | Concern | Where to look |
 |---|---|
-| Design tokens (colors, type scale, spacing, radii, shadows) | `src/main/frontend/src/theme/variables.css` |
-| Shared components (Button, Badge, Modal, DataTable, SectionLabel) | `src/main/frontend/src/components/` |
-| Page implementations | `src/main/frontend/src/pages/*/` |
-| Layout (AppShell, Sidebar, SpaceBackground) | `src/main/frontend/src/layout/` |
-| Iconography (Unicode glyphs, no icon library) | Sidebar nav definitions in `src/main/frontend/src/layout/Sidebar/Sidebar.jsx`; full table below |
+| Design tokens (colors, type scale, spacing, radii, shadows) | `design_references/v2/tokens.css` — self-contained, canonical |
+| Component prototypes (React/JSX, plain Babel, **not** production code) | `design_references/ui_kits/admin/*.jsx` |
+| Page-level CSS (composes on top of tokens) | `design_references/ui_kits/admin/styles.css` |
+| Iconography (Unicode glyphs, no icon library) | sidebar nav definitions in `Sidebar.jsx`; full table below |
 | Voice & copy | section *Content rules* below |
 
 **The prototypes are design references, not production code to copy verbatim.** Recreate them using the React app's established patterns (Vite + React + whatever state / routing / data-fetching it already uses). Match semantics, layout, copy, and tokens — not import paths.
@@ -30,7 +66,7 @@ The visual identity is brass-and-ink, hexagonal sigils, a starfield humming behi
 ## Hard rules (never break)
 
 1. **Use semantic tokens only.** Never write hex values in component CSS / styled components / Tailwind arbitrary values. Reach for `var(--accent)`, `var(--fg-1)`, `var(--bg-card)`, `var(--signal-warn-fg)`, etc. If a needed token doesn't exist, add it to `tokens.css` — don't paper over with a one-off color.
-2. **Two brand hues, nothing else.** Gold (`--c-gold-500` / `--accent`) and Violet (`--c-violet-500`). Everything else is parchment, ink, or signal pastels. No new accents.
+2. **Two brand hues, nothing else.** Gold (`--c-gold-500` / `--accent`) and Teal (`--c-teal-500` / `--accent-2`). Everything else is cream, void, or signal pastels. Violet is v1 residue — do not use it. No new accents.
 3. **Display type is Cinzel, uppercase, tracked.** Always `font-family: var(--font-display)`, `text-transform: uppercase`, `letter-spacing: 0.10em` minimum (0.18–0.22em for section labels and page titles). Apply only to headings, page titles, section labels, and button glyphs — **never** to body copy.
 4. **No emoji. Anywhere.** Not in copy, not in toasts, not in empty states. Unicode geometric/symbol glyphs (see icon table) are not emoji and are the only inline glyphs allowed.
 5. **No icon libraries.** No Lucide, Heroicons, Material Icons, FontAwesome. If a new glyph is needed, extend the Unicode table in this file — don't import a sheet.
@@ -49,7 +85,7 @@ Pulled from `tokens.css`. Use these names directly — never the underlying pale
 | Token | Role |
 |---|---|
 | `--fg-1` / `--fg-2` / `--fg-3` | Body text (primary / secondary / tertiary) |
-| `--fg-on-accent` | Text on gold/violet fills |
+| `--fg-on-accent` | Text on gold fills |
 | `--accent` | Gold — headings, focus, primary CTA |
 | `--accent-soft` | Tinted background under hovered/active accent surfaces |
 | `--accent-hover` | Brighter gold for `:hover` |
@@ -68,7 +104,7 @@ Pulled from `tokens.css`. Use these names directly — never the underlying pale
 | `--sp-1 … --sp-7` | Spacing scale (4 / 8 / 12 / 16 / 24 / 32 / 48 px) |
 | `--orb-glow` | Gold halo used in glows (focus rings, hover shadows) |
 
-Themes flip via `<html data-theme="dark|light">`. Default is dark.
+Themes flip via `<html data-theme="dark|light">`, persisted in `localStorage['emcip-theme']`. **First visit auto-picks by local time** (Handoff #4): day (07:00–18:59) → Parchment (light), night → Otherland (dark); a manual toggle is persisted and overrides the time default thereafter. The toggle lives on both the login card and the sidebar footer. The sidebar stays cosmic-ink in both themes.
 
 ---
 
@@ -83,8 +119,8 @@ These describe the **finished React component**, not the prototype's literal JSX
 - **Danger:** transparent fill, `var(--signal-stop-fg)` text and border; hover → `background: rgba(248,113,113,0.08)`.
 - **No radius**, **no scale on press**. Disabled = `opacity: 0.4`, cursor not-allowed.
 
-### `<Badge variant>` — gray / green / blue / yellow / red / violet
-- Uppercase mono 10px, tracked 0.08em, 2px 8px padding, `border-radius: var(--r-pill)`.
+### `<Badge variant>` — gray / green / blue / yellow / red
+- Uppercase mono 10px, tracked 0.08em, 2px 8px padding, `border-radius: var(--r-pill)` (badges are the rare pill; data surfaces stay square).
 - Background + foreground come from the matching `--signal-*-bg` / `--signal-*-fg` pair.
 
 ### `<Modal title onClose onSubmit?>`
@@ -96,7 +132,7 @@ These describe the **finished React component**, not the prototype's literal JSX
 - Esc closes. Click-on-overlay closes.
 
 ### `<DataTable>` — the workhorse
-Pattern: page header → optional filter row → `<table class="tbl">`. See `src/main/frontend/src/components/DataTable/DataTable.jsx` for the exact prop surface (`rows`, `columns: [{ key, label, mono?, width?, render? }]`, `filters`, `onEdit`, `onDelete`, `emptyText`).
+Pattern: page header → optional filter row → `<table class="tbl">`. See `design_references/ui_kits/admin/DataTable.jsx` for the exact prop surface (`rows`, `columns: [{ key, label, mono?, width?, render? }]`, `filters`, `onEdit`, `onDelete`, `emptyText`).
 - Table is full-width, `border-collapse: collapse`, 1px brass border, no radius.
 - Header row: display-font 10px tracked 0.18em uppercase gold.
 - Row hover tints the row `rgba(212, 168, 73, 0.04)`.
@@ -107,7 +143,7 @@ Pattern: page header → optional filter row → `<table class="tbl">`. See `src
 - Cosmic ink fill, never theme-flips.
 - Tenant selector at top, nav list, theme toggle + logout at bottom.
 - Active row: gold left-border `border-left-color: var(--accent)`, active background tint, icon glyph gold.
-- Hover: `rgba(123, 108, 246, 0.10)` — the violet whisper.
+- Hover: `var(--sidebar-bg-hover)` (a faint gold wash) → text `var(--sidebar-fg-active)`. No violet — the old `rgba(123,108,246,…)` hover was v1 residue, removed in Handoff #4.
 
 ### Section labels inside cards/modals
 The signature pattern: a row of mono em-dash-wrapped uppercase gold, 10px tracked 0.18em.
@@ -130,7 +166,7 @@ Lives in `FlagsPage.jsx` under `— Reply —`. Composition:
 4. `<textarea class="input reply-textarea">`.
 5. `.reply-foot`: left = mono `{n} chars · {MODE}` counter, right = Secondary `Discard` + Primary `Send reply` (or `Save note` in silent mode). Disabled until text present; flips to `Sent ✓` after dispatch.
 
-When wiring this into production, the **Send reply** action POSTs to `POST /api/flags/{id}/reply` — see the admin-api FlagController.
+When wiring this into production, the **Send reply** action should POST to the moderation-service reply queue with `{ flagId, mode, body, sender: claimedBy }` — exact endpoint to be confirmed with backend (not covered in this handoff).
 
 ---
 
@@ -145,9 +181,10 @@ When wiring this into production, the **Send reply** action POSTs to `POST /api/
 | `#policy-rules` | `PolicyRulesPage` | v2 redesign complete |
 | `#moderation-rules` | `ModerationRulesPage` | v2 redesign complete |
 | `#flags` | `FlagsPage` | v2 redesign complete (incl. Reply composer) |
-| `#groups` | `GroupsPage` | v2 redesign complete |
+| `#groups` | `GroupsPage` | v2 redesign complete — nav label is **"Watched Groups"** (not "Groups") |
 | `#simulate` | `SimulatePage` | v2 redesign complete |
 | `#users` | `UsersPage` | v2 redesign complete |
+| `#roles` | `RolesPage` | **planned — not built.** Manage operator access levels (`ADMIN` / `TENANT_ADMIN`) as a first-class list instead of a per-user field. Use `⬠`, `ROLES_*` perms; reuse the DataTable + Modal shell. Do **not** fold this into Watched Groups. |
 
 The prototype uses `hashchange` routing because it's a single static HTML file. **In the production app, use the existing router** (probably React Router) — preserve route names so deep links stay stable.
 
@@ -161,12 +198,13 @@ The prototype uses `hashchange` routing because it's a single static HTML file. 
 | `⚖` | U+2696 | Policy Rules |
 | `⊘` | U+2298 | Moderation Rules |
 | `⚑` | U+2691 | Flags |
-| `◈` | U+25C8 | Groups |
+| `◈` | U+25C8 | Watched Groups |
 | `◎` | U+25CE | Audit Log |
 | `▶` | U+25B6 | Simulate Event |
 | `⌘` | U+2318 | Telegram |
 | `✦` | U+2726 | AI Config |
 | `◉` | U+25C9 | Users |
+| `⬠` | U+2B20 | Roles (planned) |
 | `☽` | U+263D | Dark mode |
 | `☀` | U+2600 | Light mode |
 | `⏻` | U+23FB | Logout |
@@ -188,13 +226,14 @@ If a new surface needs a glyph not above, pick one from Unicode geometric/miscel
   - **Body copy:** sentence case.
 - **No exclamation marks. No "Oops". No "Awesome". No "Let's".**
 - **One sentence usually does it.** If a second is needed, it tells the user the next move (`No groups watched. Use Discover to add groups.`).
+- **Say "Watched Group", never bare "Group", in nav and page titles** — the sidebar row and page `<h2>` read `WATCHED GROUPS`. Inside that page, where context is unambiguous, body copy may shorten to "group" (`No groups watched`). "Role" is never "group".
 - **Enums stay raw.** Don't friendly-remap `AWAITING_CODE` to `Waiting for code` — engineers read this.
 
 ---
 
 ## What to do when adding a new page
 
-1. Look at the closest existing page implementation in `src/main/frontend/src/pages/` and lift its layout shell (page header + filter row + DataTable, or page header + cards grid).
+1. Look at the closest existing prototype in `design_references/ui_kits/admin/` and lift its layout shell (page header + filter row + DataTable, or page header + cards grid).
 2. Use `<Button>`, `<Badge>`, `<Modal>`, `<DataTable>` from the codebase's component layer — don't reimplement.
 3. Pick a Unicode glyph from the icon table (or add one) for the sidebar nav item.
 4. Use only semantic tokens for any new CSS.
