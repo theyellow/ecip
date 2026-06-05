@@ -89,7 +89,7 @@ Pulled from `tokens.css`. Use these names directly — never the underlying pale
 | `--accent` | Gold — headings, focus, primary CTA |
 | `--accent-soft` | Tinted background under hovered/active accent surfaces |
 | `--accent-hover` | Brighter gold for `:hover` |
-| `--bg-page` | App background (under sky) |
+| `--bg-app` | App background (under sky) |
 | `--bg-card` | Translucent panel fill (cards, modals, sidebars) |
 | `--bg-input` | Form control fill |
 | `--border` / `--border-strong` / `--rule` | Brass-tinted alpha borders / dividers |
