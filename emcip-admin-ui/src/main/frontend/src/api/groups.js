@@ -9,5 +9,6 @@ export function groupsApi(request) {
       }),
     remove: chatId =>
       request(`/api/groups/${encodeURIComponent(chatId)}`, { method: 'DELETE' }),
+    watchers: chatId => request(`/api/groups/${encodeURIComponent(chatId)}/watchers`),
   }
 }

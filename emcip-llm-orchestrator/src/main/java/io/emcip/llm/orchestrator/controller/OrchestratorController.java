@@ -1,5 +1,7 @@
 package io.emcip.llm.orchestrator.controller;
 
+import io.emcip.llm.orchestrator.client.LlmResponse;
+import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
 import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.PromptTemplate;
@@ -49,6 +51,11 @@ public class OrchestratorController {
     private final PromptTemplateRepository promptTemplateRepository;
     private final LlmProviderConfigService providerConfigService;
     private final LlmProviderConfigRepository providerConfigRepository;
+    private final OpenAiCompatibleLlmClient llmClient;
+
+    public record AnalyseRequest(String prompt, String taskType) {}
+
+    public record AnalyseResponse(boolean success, String analysis, String model) {}
 
     // --- Models ---
 
@@ -262,5 +269,36 @@ public class OrchestratorController {
                         models,
                         "reachable",
                         !models.isEmpty()));
+    }
+
+    @Operation(summary = "Run an ad-hoc LLM analysis using the GENERAL task model")
+    @PostMapping("/analyse")
+    public ResponseEntity<AnalyseResponse> analyse(@RequestBody AnalyseRequest req) {
+        String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+        Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+        if (modelOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(
+                            new AnalyseResponse(
+                                    false, "No model configured for task: " + taskType, null));
+        }
+        ModelConfig model = modelOpt.get();
+        try {
+            LlmResponse response =
+                    llmClient.call(
+                            model.getModelName(),
+                            "You are a moderation analyst for the EMCIP platform. Analyse the"
+                                + " provided flag data and explain the moderation decision clearly"
+                                + " and concisely.",
+                            req.prompt(),
+                            1024,
+                            0.3);
+            return ResponseEntity.ok(
+                    new AnalyseResponse(true, response.content(), response.model()));
+        } catch (Exception e) {
+            log.error("Ad-hoc LLM analysis failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new AnalyseResponse(false, "LLM call failed: " + e.getMessage(), null));
+        }
     }
 }
