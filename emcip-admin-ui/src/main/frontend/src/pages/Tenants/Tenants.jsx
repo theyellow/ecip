@@ -13,16 +13,22 @@ const COLUMNS = [
   { key: 'createdAt', label: 'Created', mono: true, width: 110, render: v => v ? new Date(v).toLocaleDateString() : '\u2014' },
 ]
 
-function TenantModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ name: '', description: '', llmModelOverride: '' })
+function TenantModal({ tenant, onClose, onSave }) {
+  const isEdit = !!tenant
+  const [form, setForm] = useState({
+    name: tenant?.name ?? '',
+    description: tenant?.description ?? '',
+    llmModelOverride: tenant?.llmModelOverride ?? '',
+  })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Modal title="Create Tenant" onClose={onClose} onSubmit={() => onSave(form)}>
+    <Modal title={isEdit ? `Edit \u00b7 ${tenant.name}` : 'Create Tenant'} onClose={onClose} onSubmit={() => onSave(form)}>
       <div className={styles.field}>
-        <label htmlFor="tenant-name">Name *</label>
+        <label htmlFor="tenant-name">Name {isEdit ? '' : '*'}</label>
         <input id="tenant-name" type="text" className={styles.input} value={form.name}
-          onChange={e => set('name', e.target.value)} required />
+          onChange={e => set('name', e.target.value)} required disabled={isEdit} />
+        {isEdit && <p className={styles.hint}>Name cannot be changed.</p>}
       </div>
       <div className={styles.field}>
         <label htmlFor="tenant-description">Description</label>
@@ -42,19 +48,21 @@ function TenantModal({ onClose, onSave }) {
 export function Tenants() {
   const api = tenantsApi(useAuthRequest())
   const [tenants, setTenants] = useState([])
-  const [showModal, setShowModal] = useState(false)
+  const [modal, setModal] = useState(null)
   const [error, setError] = useState('')
 
   const load = () => api.list().then(setTenants).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
 
   const save = async form => {
-    try { await api.create(form); setShowModal(false); load() }
-    catch (e) { setError(e.message) }
+    try {
+      if (modal === 'create') await api.create(form)
+      else await api.update(modal.id, { description: form.description, llmModelOverride: form.llmModelOverride })
+      setModal(null); load()
+    } catch (e) { setError(e.message) }
   }
 
   const remove = async tenant => {
-    if (!confirm(`Delete tenant "${tenant.name}"?`)) return
     try { await api.remove(tenant.id); load() }
     catch (e) { setError(e.message) }
   }
@@ -67,14 +75,22 @@ export function Tenants() {
         title="Tenants"
         systemId={`\u2B21 tenants \u00b7 ${tenants.length} registered`}
         addLabel="+ Create Tenant"
-        onAdd={() => setShowModal(true)}
+        onAdd={() => setModal('create')}
         columns={COLUMNS}
         rows={tenants}
+        onEdit={setModal}
         onDelete={remove}
+        deleteMessage={t => `Delete tenant "${t.name}"? This cannot be undone.`}
         emptyText="No tenants registered"
       />
 
-      {showModal && <TenantModal onClose={() => setShowModal(false)} onSave={save} />}
+      {modal && (
+        <TenantModal
+          tenant={modal === 'create' ? null : modal}
+          onClose={() => setModal(null)}
+          onSave={save}
+        />
+      )}
     </>
   )
 }

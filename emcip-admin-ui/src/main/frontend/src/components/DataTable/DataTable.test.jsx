@@ -40,11 +40,14 @@ describe('DataTable', () => {
     expect(onEdit).toHaveBeenCalledWith(ROWS[0])
   })
 
-  it('calls onDelete when delete button is clicked', async () => {
+  it('calls onDelete when delete button is clicked and confirmed', async () => {
     const onDelete = vi.fn()
     render(<DataTable title="Items" columns={COLUMNS} rows={ROWS} onDelete={onDelete} />)
-    const deleteButtons = screen.getAllByText('Delete')
+    const deleteButtons = screen.getAllByRole('button', { name: /delete/i })
     await userEvent.click(deleteButtons[0])
+    // ConfirmDialog appears — click the danger Delete button inside it
+    const confirmBtn = screen.getAllByRole('button', { name: /delete/i }).at(-1)
+    await userEvent.click(confirmBtn)
     expect(onDelete).toHaveBeenCalledWith(ROWS[0])
   })
 

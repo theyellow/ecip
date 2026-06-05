@@ -62,7 +62,6 @@ export function Users() {
   }
 
   const handleDelete = async user => {
-    if (!confirm(`Delete user "${user.username}"?`)) return
     try { await api.remove(user.id); reload() } catch (e) { setError(e.message) }
   }
 
@@ -117,6 +116,7 @@ export function Users() {
         columns={columns}
         onEdit={openEdit}
         onDelete={handleDelete}
+        deleteMessage={u => `Delete user "${u.username}"? This cannot be undone.`}
         emptyText="No users configured. Add a user to get started."
       />
 

@@ -11,17 +11,6 @@
   border-bottom: 1px solid var(--rule);
 }
 
-.pageHeader h2 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 26px;
-  line-height: 1;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0;
-}
-
 .systemId {
   font-family: var(--font-mono);
   font-size: 10px;

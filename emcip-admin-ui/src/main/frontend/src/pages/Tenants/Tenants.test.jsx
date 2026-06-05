@@ -94,22 +94,25 @@ describe('Tenants page', () => {
   it('deletes a tenant after confirmation', async () => {
     mockApi.list.mockResolvedValue([TENANT])
     mockApi.remove.mockResolvedValue(undefined)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<Tenants />)
     await waitFor(() => screen.getByText('Acme Corp'))
     await userEvent.click(screen.getByRole('button', { name: /delete/i }))
+    // ConfirmDialog appears — click the danger Delete button
+    const confirmBtn = screen.getAllByRole('button', { name: /delete/i }).at(-1)
+    await userEvent.click(confirmBtn)
 
     expect(mockApi.remove).toHaveBeenCalledWith(TENANT.id)
   })
 
   it('does not delete when confirmation is cancelled', async () => {
     mockApi.list.mockResolvedValue([TENANT])
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     render(<Tenants />)
     await waitFor(() => screen.getByText('Acme Corp'))
     await userEvent.click(screen.getByRole('button', { name: /delete/i }))
+    // ConfirmDialog appears — click Cancel
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
 
     expect(mockApi.remove).not.toHaveBeenCalled()
   })

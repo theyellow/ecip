@@ -129,7 +129,6 @@ export function Groups() {
   }
 
   const remove = async group => {
-    if (!confirm(`Stop watching "${group.name}"?`)) return
     try { await api.remove(group.telegramChatId); load() }
     catch (e) { setError(e.message) }
   }
@@ -148,6 +147,7 @@ export function Groups() {
         rowKey={r => r.telegramChatId ?? r.id}
         onEdit={setModal}
         onDelete={remove}
+        deleteMessage={g => `Stop watching "${g.name}"? This cannot be undone.`}
         filters={[{
           value: levelFilter,
           onChange: e => setLevelFilter(e.target.value),

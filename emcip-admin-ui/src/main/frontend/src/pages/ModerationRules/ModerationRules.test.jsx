@@ -124,22 +124,25 @@ describe('ModerationRules page', () => {
   it('deletes a rule after confirmation', async () => {
     mockApi.list.mockResolvedValue([RULE])
     mockApi.remove.mockResolvedValue(undefined)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<ModerationRules />)
     await waitFor(() => screen.getByText('no-spam'))
     await userEvent.click(screen.getByRole('button', { name: /delete/i }))
+    // ConfirmDialog appears — click the danger Delete button
+    const confirmBtn = screen.getAllByRole('button', { name: /delete/i }).at(-1)
+    await userEvent.click(confirmBtn)
 
     expect(mockApi.remove).toHaveBeenCalledWith(RULE.id)
   })
 
   it('does not delete when confirmation is cancelled', async () => {
     mockApi.list.mockResolvedValue([RULE])
-    vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     render(<ModerationRules />)
     await waitFor(() => screen.getByText('no-spam'))
     await userEvent.click(screen.getByRole('button', { name: /delete/i }))
+    // ConfirmDialog appears — click Cancel
+    await userEvent.click(screen.getByRole('button', { name: /cancel/i }))
 
     expect(mockApi.remove).not.toHaveBeenCalled()
   })
