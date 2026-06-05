@@ -3,6 +3,7 @@ package io.emcip.policy.engine.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.atLeastOnce;
 
 import io.emcip.common.events.EventSchemas;
 import io.emcip.policy.engine.entity.PolicyDecision;
@@ -261,6 +262,37 @@ class PolicyEvaluationServiceTest {
     }
 
     @Test
+    @DisplayName("Should include messageText from parameters in published Kafka event")
+    void shouldIncludeMessageTextInPublishedEvent() throws Exception {
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
+                .thenReturn(Collections.emptyList());
+        when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var classification =
+                new EventSchemas.IntentClassifiedEvent(
+                        "evt-classify-002",
+                        Instant.now().toString(),
+                        EventSchemas.INTENT_CLASSIFIED_V1,
+                        "IntentClassified",
+                        "evt-test-002",
+                        "SPAM",
+                        0.9,
+                        Map.of("messageText", "buy now click here"),
+                        List.of());
+
+        policyService.evaluate(classification, null);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<ProducerRecord<String, String>> captor =
+                ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaTemplate, atLeastOnce()).send(captor.capture());
+
+        String json = captor.getValue().value();
+        assertThat(json).contains("messageText");
+        assertThat(json).contains("buy now click here");
+    }
+
+    @Test
     @DisplayName("Should handle wildcards in intent matching")
     void shouldHandleWildcardIntentMatching() {
         // Given - Create rule with wildcard intent
@@ -316,7 +348,7 @@ class PolicyEvaluationServiceTest {
                 "evt-test-001",
                 intent,
                 confidence,
-                Map.of("param1", "value1"),
+                Map.of("param1", "value1", "messageText", "buy now click here"),
                 List.of("rule1", "rule2"));
     }
 }

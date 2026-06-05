@@ -170,7 +170,13 @@ public class PolicyEvaluationService {
                                     "originalIntent", classification.intent(),
                                     "confidence", classification.confidence(),
                                     "matchedRules", classification.matchedRules()),
-                            List.of(decision.toLowerCase()));
+                            List.of(decision.toLowerCase()),
+                            classification.parameters() != null
+                                    ? (String)
+                                            classification
+                                                    .parameters()
+                                                    .getOrDefault("messageText", null)
+                                    : null);
 
             String json = objectMapper.writeValueAsString(decisionEvent);
             ProducerRecord<String, String> producerRecord =

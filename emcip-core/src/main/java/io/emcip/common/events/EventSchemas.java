@@ -101,7 +101,8 @@ public final class EventSchemas {
             String decision,
             String reason,
             java.util.Map<String, Object> context,
-            java.util.List<String> actions)
+            java.util.List<String> actions,
+            String messageText)
             implements Event {
 
         public PolicyDecisionEvent {
