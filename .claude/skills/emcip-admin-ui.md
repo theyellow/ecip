@@ -1,12 +1,13 @@
 ---
 name: emcip-admin-ui
 description: >
-  React frontend design for the EMCIP admin UI — design tokens, component
-  patterns, layout rules, CSS Modules, and design-handoff workflow.
-  Use this skill whenever working on any page, component, or layout in
-  emcip-admin-ui; when implementing a design handoff; when adding a new UI
-  page or component; when debugging a visual/layout bug; or when something
-  looks wrong, overflows, clips, or scrolls in unexpected ways.
+  React frontend design for the EMCIP admin UI — implementation rules,
+  layout gotchas, component APIs, and the design-handoff workflow.
+  Tokens, hard brand rules, and the icon table live in
+  emcip-admin-ui/CLAUDE.md; this skill defers to it and never restates
+  values that could drift. Use whenever working on any page, component,
+  or layout in emcip-admin-ui; implementing a handoff; adding a page;
+  or debugging a visual/layout bug (overflow, clip, unexpected scroll).
 triggers:
   - "admin ui"
   - "frontend"
@@ -21,69 +22,120 @@ triggers:
   - "modal"
   - "table"
   - "css module"
+  - "permission"
+  - "role"
+  - "tenant"
+  - "watched group"
 ---
 
 # EMCIP Admin UI — Frontend Design Skill
 
-## Quick orientation
+## Source of truth — read CLAUDE.md first
+
+`emcip-admin-ui/CLAUDE.md` is the **style bible**: design tokens, the two
+brand hues, type rules, the full icon table, voice/copy rules, and the
+route map. This skill carries only the *implementation* rules and the
+non-obvious gotchas that have bitten us — it deliberately does **not**
+restate token values or hex codes, because the last copy of this skill
+drifted (it still listed "Violet" as a brand hue long after v2 dropped it).
+When in doubt about a colour, token, or glyph, open `CLAUDE.md`.
 
 | Concern | Location |
 |---------|----------|
 | React + Vite source | `emcip-admin-ui/src/main/frontend/src/` |
-| Design tokens | `src/theme/variables.css` |
-| Shared components | `src/components/` |
-| Pages | `src/pages/` |
-| Layout shell | `src/layout/` |
+| Design tokens | `src/main/frontend/src/theme/variables.css` |
+| Shared components | `src/main/frontend/src/components/` |
+| Pages | `src/main/frontend/src/pages/` |
+| Layout shell | `src/main/frontend/src/layout/` |
+| Routing | `src/main/frontend/src/App.jsx` (react-router-dom) |
+| Permissions | `src/main/frontend/src/auth/permissions.js` |
 | Run tests | `cd emcip-admin-ui/src/main/frontend && npm test -- --run` |
 
-The full design-system contract lives in `emcip-admin-ui/CLAUDE.md`. This skill focuses on the implementation rules that matter most during coding — especially the non-obvious ones that have bitten us before.
+---
+
+## Hard rules (the ones most often broken in code)
+
+1. **Semantic tokens only.** Never write hex or raw rgba in component CSS.
+   Use `var(--accent)`, `var(--fg-1)`, `var(--bg-card)`, etc. Missing a
+   token? Add it to `src/main/frontend/src/theme/variables.css` — don't paper over it.
+2. **Two brand hues: Gold (`--accent`) and Teal (`--accent-2` / `--c-teal-500`).**
+   Nothing else. **Violet is v1 residue — do not use it.** There is no
+   `violet` badge variant.
+3. **Display type is Cinzel,** uppercase, `letter-spacing: 0.18em` min.
+   Headings, page titles, section labels, button glyphs only — never body.
+4. **No emoji. No icon libraries.** Unicode geometric glyphs only — extend
+   the table in `CLAUDE.md`, don't import a sheet.
+5. **No rounded corners on data surfaces.** `border-radius: 0` on tables,
+   modals, panels, inputs, buttons. Radii exist only for badges/avatars.
+6. **No `transform: scale()` on press.** Buttons darken on `:active`.
+7. **Slow animation.** Hover 150ms, theme swap 200ms. Nothing faster.
+8. **Sidebar never theme-flips.** Always cosmic ink.
+9. **Never call `window.confirm()`.** Use `ConfirmDialog` for every delete.
 
 ---
 
-## Hard rules (never break)
+## Naming — three things the word "group" blurs
 
-1. **Semantic tokens only.** Never write hex or raw rgba in component CSS. Reach for `var(--accent)`, `var(--fg-1)`, `var(--bg-card)`, etc. If the token you need doesn't exist, add it to `variables.css` — don't paper over with a one-off colour value.
-2. **Two brand hues.** Gold (`--accent`) and Violet (`--c-violet-500`). Nothing else.
-3. **Display type is Cinzel.** `font-family: var(--font-display)`, `text-transform: uppercase`, `letter-spacing: 0.18em` minimum. Headings, page titles, section labels, button glyphs only — never body copy.
-4. **No emoji. No icon libraries.** Unicode geometric/symbol glyphs only (see table at bottom of this file).
-5. **No rounded corners on data surfaces.** `border-radius: 0` on tables, modals, panels, inputs, buttons. Radii (`--r-*`) exist only for badges and avatars.
-6. **No `transform: scale()` on press.** Buttons darken on `:active`, full stop.
-7. **Slow animation.** Hover transitions 150ms, theme swap 200ms. Nothing faster.
-8. **Sidebar never theme-flips.** Always cosmic ink regardless of light/dark mode.
-9. **Never call `window.confirm()`.** Use `ConfirmDialog` for every destructive action.
+Banned: the bare word "group" in nav/titles. These are distinct entities;
+mixing them is the single most common domain bug in this app.
+
+| Term | What it is | Lives at |
+|---|---|---|
+| **Watched Group** (`◈`) | A Telegram chat EMCIP watches — keyed by `telegramChatId`, with `moderationLevel` / `autoRespond` / `welcomeMessage`. | `/groups`, `GROUPS_*` |
+| **Watcher** (`⌘`) | A TDLib account (real Telegram login) sitting inside watched groups. Returned by `GET /api/groups/{chatId}/watchers`. | `/telegram`, `TELEGRAM_*` |
+| **Role** (`◉` today, `⬠` planned) | An operator's console access level (`ADMIN` / `TENANT_ADMIN`). "Groups a user is in / permissions" is *this*. | `/users` today; `/roles` planned |
+
+- Sidebar row and page `<h2>` read **WATCHED GROUPS**, never "Groups".
+- A **Roles** page is planned (`/roles`, `⬠`, `ROLES_*`): manage access
+  levels as a first-class list instead of a per-user field. Reuse the
+  DataTable + Modal shell. Do **not** fold it into Watched Groups.
 
 ---
 
-## Token quick reference
+## Permission-gated nav — every page needs this
 
-| Token | Role |
-|-------|------|
-| `--fg-1` / `--fg-2` / `--fg-3` | Body text — primary / secondary / tertiary |
-| `--fg-on-accent` | Text on gold fills |
-| `--accent` | Gold — headings, focus ring, primary CTA |
-| `--accent-hover` | Brighter gold on `:hover` |
-| `--accent-soft` | Tinted background for hovered/active surfaces |
-| `--bg-card` | Translucent panel fill (cards, modals) |
-| `--bg-input` | Form control fill |
-| `--border` / `--border-strong` | Brass-tinted alpha borders |
-| `--rule` | Divider lines (thinner than border) |
-| `--signal-ok-fg` / `--signal-ok-bg` | Green pair |
-| `--signal-info-fg` / `--signal-info-bg` | Blue pair |
-| `--signal-warn-fg` / `--signal-warn-bg` | Yellow pair |
-| `--signal-stop-fg` / `--signal-stop-bg` | Red pair |
-| `--signal-mute-fg` / `--signal-mute-bg` | Gray pair |
-| `--orb-glow` | Gold halo for focus rings / glows |
-| `--font-display` / `--font-body` / `--font-mono` | Cinzel / Inter / Source Code Pro |
-| `--sp-1…--sp-7` | 4 / 8 / 12 / 16 / 24 / 32 / 48 px |
+The sidebar renders `NAV` filtered by `hasPermission(role, permission)`.
+A page that ships without a permission is invisible or unguarded. Adding a
+page is therefore **three** edits, not one:
+
+```js
+// src/main/frontend/src/auth/permissions.js — add the pair to each role that should see it
+ADMIN:        [ /* … */ 'ROLES_READ', 'ROLES_WRITE' ],
+TENANT_ADMIN: [ /* … */ ],   // omit if tenant admins shouldn't see it
+```
+
+```jsx
+// src/main/frontend/src/layout/Sidebar/Sidebar.jsx — NAV entry carries its permission + glyph
+{ to: '/roles', label: 'Roles', icon: '⬠', permission: 'ROLES_READ' },
+```
+
+```jsx
+// src/main/frontend/src/App.jsx — register the route
+<Route path="/roles" element={<RolesPage />} />
+```
+
+Routing is **react-router-dom** with `/kebab-case` paths and `<NavLink>` —
+not hash routing (that's a prototype artifact). Preserve route names so
+deep links stay stable.
+
+---
+
+## Multi-tenancy — most pages are tenant-scoped
+
+- `ADMIN` sees a tenant `<select>` ("All Tenants" + each tenant) in the
+  sidebar; `TENANT_ADMIN` sees a static single tenant.
+- The active tenant lives in `useAuth().currentTenant`; `useAuthRequest()`
+  carries it to the API. Pages generally don't pass `tenantId` by hand —
+  but list/create payloads may include it (see `Groups.jsx`'s tenant
+  `<select>`).
+- Tests cover this (`Groups.tenant.test.jsx`). When you add a tenant-aware
+  page, add a tenant-scope test alongside it.
 
 ---
 
 ## Layout — the critical patterns
 
 ### AppShell: pin to viewport, never grow with content
-
-The shell must be capped at `100vh` with `overflow: hidden` so the main
-content and sidebar each scroll independently instead of the whole window:
 
 ```css
 /* AppShell.module.css */
@@ -98,14 +150,13 @@ content and sidebar each scroll independently instead of the whole window:
            overflow-y: auto; overflow-x: hidden; }
 ```
 
-`overflow-x: hidden` on the nav is deliberate — the CSS spec promotes
+`overflow-x: hidden` on the nav is deliberate — the spec promotes
 `overflow-x` to `auto` when `overflow-y` is non-`visible`, so omitting it
 creates a phantom horizontal scrollbar from a 1px overflow.
 
 ### Flex children that need `overflow-x: auto` (table wrappers)
 
-A flex item refuses to shrink below its content width by default, so
-`overflow-x: auto` on a table wrapper never engages until you add:
+A flex item won't shrink below its content width until you add `min-width: 0`:
 
 ```css
 .tableWrapper { min-width: 0; overflow-x: auto; }
@@ -113,23 +164,17 @@ A flex item refuses to shrink below its content width by default, so
 
 Wrap every `<table>` in a `<div className={styles.tableWrapper}>`.
 
----
+### Modal pattern — always `createPortal`
 
-## Modal pattern — always `createPortal`
-
-`position: fixed` elements inside an ancestor with `backdrop-filter` get
-trapped in that containing block. Every overlay must portal to `document.body`:
+`position: fixed` inside an ancestor with `backdrop-filter` gets trapped in
+that containing block. Every overlay portals to `document.body`:
 
 ```jsx
 import { createPortal } from 'react-dom'
-
-return createPortal(
-  <div className={styles.overlay}>…</div>,
-  document.body
-)
+return createPortal(<div className={styles.overlay}>…</div>, document.body)
 ```
 
-Both `Modal` and `ConfirmDialog` already do this. Any new overlay must too.
+`Modal` and `ConfirmDialog` already do this. Any new overlay must too.
 
 ---
 
@@ -137,8 +182,6 @@ Both `Modal` and `ConfirmDialog` already do this. Any new overlay must too.
 
 ### Button
 ```jsx
-import { Button } from '../../components/Button/Button'
-
 <Button>Primary action</Button>
 <Button variant="secondary">Cancel</Button>
 <Button variant="danger">Delete</Button>
@@ -146,90 +189,82 @@ import { Button } from '../../components/Button/Button'
 
 ### Badge
 ```jsx
-import { Badge } from '../../components/Badge/Badge'
-
 <Badge variant="green">ACTIVE</Badge>
-// Variants: green | blue | yellow | red | gray | violet
+// Variants: green | blue | yellow | red | gray   (no violet)
 ```
 
-### DataTable
-```jsx
-import { DataTable } from '../../components/DataTable/DataTable'
+### DataTable — the workhorse
 
+```jsx
 const COLUMNS = [
-  { key: 'name', label: 'Name' },
-  { key: 'id', label: 'ID', mono: true, width: 100, render: v => v.slice(0, 8) + '…' },
-  { key: 'status', label: 'Status', render: v => <Badge variant="green">{v}</Badge> },
+  { key: 'name', label: 'Group' },
+  { key: 'telegramChatId', label: 'Chat ID', mono: true, width: 180 },
+  { key: 'moderationLevel', label: 'Mod', width: 100,
+    render: v => <Badge variant={LEVEL_VARIANT[v] ?? 'gray'}>{v}</Badge> },
 ]
 
 <DataTable
-  title="Items"
-  systemId="⬡ service-name · 3 items"
-  addLabel="+ Create Item"
-  onAdd={() => setModal('create')}
+  title="Watched Groups"
+  systemId={`◈ groups · ${rows.length} watched`}   // use the PAGE's own glyph
+  addLabel="+ Add Group"
+  onAdd={() => setModal('add')}
   columns={COLUMNS}
   rows={rows}
-  onEdit={setModal}            // row click + Edit button → opens modal with the row object
-  onDelete={remove}            // DataTable handles ConfirmDialog internally
-  deleteMessage={r => `Delete "${r.name}"? This cannot be undone.`}
-  emptyText="No items found"
+  rowKey={r => r.telegramChatId ?? r.id}            // when the entity isn't keyed by `id`
+  filters={[{                                        // optional filter row
+    value: levelFilter,
+    onChange: e => setLevelFilter(e.target.value),
+    options: [{ value: '', label: 'All moderation levels' }, /* … */],
+  }]}
+  onEdit={setModal}                                  // row click + Edit → modal with the row
+  onDelete={remove}                                  // ConfirmDialog handled internally
+  deleteMessage={g => `Stop watching "${g.name}"? This cannot be undone.`}
+  emptyText="No groups match this filter"
 />
 ```
 
-`deleteMessage` is required whenever `onDelete` is provided — it populates
-the ConfirmDialog. Never also call `window.confirm()`.
+- **`rowKey`** is required whenever the entity isn't keyed by `id`
+  (Watched Groups key on `telegramChatId`).
+- **`filters`** renders the filter dropdown row. Note: adding one shifts
+  every `getAllByRole('combobox')` index in that page's tests by one.
+- **`deleteMessage`** copy uses the **domain verb**: Watched Groups *"Stop
+  watching…"*, owned records *"Delete…"*. Required whenever `onDelete` is set.
 
-### Modal (for create/edit forms)
+### Modal / ConfirmDialog / SectionLabel
+Unchanged — `Modal` takes optional `onSubmit` (omit for detail views);
+`ConfirmDialog` for non-DataTable deletes (e.g. Telegram accounts).
+
+---
+
+## Form field pattern
+
+`htmlFor` and `id` must match — required for a11y and for Vitest
+`getByLabelText` / `getByRole`. **`Users.jsx` follows this; `Groups.jsx`'s
+modal still uses bare labels — fix bare labels when you touch a file rather
+than copying them.** ("Match the existing file" loses to this rule.)
+
 ```jsx
-import { Modal } from '../../components/Modal/Modal'
-
-<Modal title="Edit Item" onClose={onClose} onSubmit={() => onSave(form)}>
-  {/* form fields */}
-</Modal>
+<div className={styles.field}>
+  <label htmlFor="field-id">Label Text</label>
+  <input id="field-id" type="text" className={styles.input}
+    value={form.x} onChange={e => set('x', e.target.value)} />
+  <p className={styles.hint}>Optional hint.</p>
+</div>
 ```
 
-`onSubmit` is optional — omit it if the modal has no Save button (e.g., detail views).
-
-### ConfirmDialog (for non-DataTable deletes — e.g., Telegram accounts)
-```jsx
-import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
-
-const [pendingDelete, setPendingDelete] = useState(null)
-
-// Trigger:
-<Button variant="danger" onClick={() => setPendingDelete(item)}>Delete</Button>
-
-// In JSX:
-{pendingDelete && (
-  <ConfirmDialog
-    title="Delete record"
-    message={`Delete "${pendingDelete.name}"? This cannot be undone.`}
-    onConfirm={() => { remove(pendingDelete); setPendingDelete(null) }}
-    onClose={() => setPendingDelete(null)}
-  />
-)}
-```
-
-### SectionLabel
-```jsx
-import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
-
-<SectionLabel aside={<Button onClick={doThing}>+ Add</Button>}>
-  Section Title
-</SectionLabel>
-```
+Standard CSS for `.field` / `.field label` / `.input` / `.input:focus` /
+`.hint`: copy from any existing page module (they're identical) — or lift
+the block in `CLAUDE.md`'s form-field section.
 
 ---
 
 ## Page structure
 
-Every page follows this shell — replicate it, don't invent a new pattern:
-
 ```jsx
 export function MyPage() {
   const api = myApi(useAuthRequest())
   const [items, setItems] = useState([])
-  const [modal, setModal] = useState(null)  // null | 'create' | rowObject
+  const [modal, setModal] = useState(null)   // null | 'create' | rowObject
   const [error, setError] = useState('')
 
   const load = () => api.list().then(setItems).catch(e => setError(e.message))
@@ -242,154 +277,71 @@ export function MyPage() {
       setModal(null); load()
     } catch (e) { setError(e.message) }
   }
-
   const remove = async item => {
-    try { await api.remove(item.id); load() }
-    catch (e) { setError(e.message) }
+    try { await api.remove(item.id); load() } catch (e) { setError(e.message) }
   }
 
   return (
     <>
       {error && <p role="alert" style={ERROR_STYLE}>{error}</p>}
-
-      <DataTable
-        title="My Page"
-        systemId="⬡ my-service · 0 items"
-        addLabel="+ Create Item"
-        onAdd={() => setModal('create')}
-        columns={COLUMNS}
-        rows={items}
-        onEdit={setModal}
-        onDelete={remove}
+      <DataTable title="My Page" systemId="◉ my-service · 0 items"
+        addLabel="+ Create Item" onAdd={() => setModal('create')}
+        columns={COLUMNS} rows={items} onEdit={setModal} onDelete={remove}
         deleteMessage={r => `Delete "${r.name}"? This cannot be undone.`}
-        emptyText="No items"
-      />
-
+        emptyText="No items" />
       {modal && (
-        <ItemModal
-          item={modal === 'create' ? null : modal}
-          onClose={() => setModal(null)}
-          onSave={save}
-        />
+        <ItemModal item={modal === 'create' ? null : modal}
+          onClose={() => setModal(null)} onSave={save} />
       )}
     </>
   )
 }
 ```
 
-Error style constant (use verbatim for visual consistency):
 ```js
 const ERROR_STYLE = {
   color: 'var(--signal-stop-fg)',
   background: 'rgba(248,113,113,0.08)',
   border: '1px solid rgba(248,113,113,0.25)',
   padding: '8px 12px',
-  fontFamily: 'var(--font-mono)',
-  fontSize: '12px',
+  fontFamily: 'var(--font-mono)', fontSize: '12px',
   marginBottom: 'var(--sp-3)',
 }
 ```
 
 ---
 
-## Form field pattern
+## Design-handoff workflow
 
-`htmlFor` and `id` must match — required for both accessibility and Vitest
-`getByLabelText` / `getByRole` queries:
-
-```jsx
-<div className={styles.field}>
-  <label htmlFor="field-id">Label Text</label>
-  <input
-    id="field-id"
-    type="text"
-    className={styles.input}
-    value={form.x}
-    onChange={e => set('x', e.target.value)}
-  />
-  <p className={styles.hint}>Optional hint.</p>
-</div>
-```
-
-Standard CSS Module rules for these classes (copy to every page/modal module that needs them):
-
-```css
-.field  { display: flex; flex-direction: column; gap: 5px; margin-bottom: var(--sp-2); }
-
-.field label {
-  font-family: var(--font-body);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--fg-2);
-}
-
-.input {
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: 0;
-  background: var(--bg-input);
-  color: var(--fg-1);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--orb-glow);
-}
-
-.hint { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); margin: 0; }
-```
-
----
-
-## Design handoff workflow
-
-When the user pastes a design handoff from their AI design system:
-
-1. **Read the whole handoff first** before opening any files.
-2. **Identify affected files** — pages, components, CSS, `index.html`, and any backend endpoints needed.
-3. **Read every file before editing it.** Don't guess at existing content.
-4. **Implement using project patterns**, not the handoff's literal code. The handoff describes visual intent; use CSS Modules, the existing component API, and established idioms.
-5. **Run tests after all changes:** `cd emcip-admin-ui/src/main/frontend && npm test -- --run`. Common breakage patterns to fix:
-   - Tests that used `window.confirm` spy → update to click the `ConfirmDialog` button instead
-   - Tests that assert on column text that was removed or truncated → update assertions to match new render output
-   - Tests that index into `getAllByRole('combobox')` by position → if you added a filter dropdown, all subsequent indices shift by one
-6. **One PR per handoff batch** unless the user asks to split.
+1. **Read the whole handoff** before opening files.
+2. **Identify affected files** — pages, components, CSS, `index.html`,
+   plus `permissions.js` / `Sidebar.jsx` / `App.jsx` if a page is added.
+3. **Read every file before editing.** Don't guess existing content.
+4. **Implement with project patterns,** not the handoff's literal code —
+   CSS Modules, existing component APIs, established idioms.
+5. **Run tests after changes:** `npm test -- --run`. Common breakage:
+   - `window.confirm` spies → click the `ConfirmDialog` button instead.
+   - Asserting on removed/truncated column text → update assertions.
+   - `getAllByRole('combobox')` by index → adding a `filters` dropdown
+     shifts every later index by one.
+   - Tenant-scope tests → keep `currentTenant` wired in new pages.
+6. **One PR per handoff batch** unless asked to split.
 
 ---
 
 ## Copy and content rules
 
-- Page titles and section labels: ALL CAPS Cinzel
-- Button labels: Title Case (`Create Tenant`, `Send Reply`)
-- Form labels: Title Case (`LLM Model Override`)
-- Status badges: ALL CAPS matching the enum exactly (`ACTIVE`, `AWAITING_CODE`)
-- Body copy: sentence case
-- No exclamation marks, no "Oops", no "Awesome", no "Let's"
-- One sentence usually does it
+- Page titles & section labels: ALL CAPS Cinzel. Nav reads **WATCHED GROUPS**.
+- Buttons: Title Case verb + noun (`Add Group`, `Send Reply`).
+- Form labels: Title Case (`LLM Model Override`).
+- Status badges: ALL CAPS matching the enum exactly (`ACTIVE`, `AWAITING_CODE`).
+- Body copy: sentence case.
+- No exclamation marks, no "Oops"/"Awesome"/"Let's". One sentence usually does it.
 
----
+## Iconography
 
-## Iconography (Unicode glyphs only — extend this table, never import a library)
-
-| Glyph | Code | Page |
-|-------|------|------|
-| `⬡` | U+2B21 | Tenants |
-| `⚖` | U+2696 | Policy Rules |
-| `⊘` | U+2298 | Moderation Rules |
-| `⚑` | U+2691 | Flags |
-| `◈` | U+25C8 | Groups |
-| `◎` | U+25CE | Audit Log |
-| `▶` | U+25B6 | Simulate Event |
-| `⌘` | U+2318 | Telegram |
-| `✦` | U+2726 | AI Config |
-| `◉` | U+25C9 | Users |
-| `☽` / `☀` | U+263D / U+2600 | Dark / Light mode toggle |
-| `⏻` | U+23FB | Logout |
-| `✕` | U+2715 | Close (modals, dialogs) |
+The full table lives in `CLAUDE.md`. Page glyphs in use:
+`⬡` Tenants · `⚖` Policy Rules · `⊘` Moderation Rules · `⚑` Flags ·
+`◈` Watched Groups · `◎` Audit Log · `▶` Simulate · `⌘` Telegram ·
+`✦` AI Config · `◉` Users · `⬠` Roles (planned) · `☽`/`☀` theme · `⏻` Logout · `✕` Close.
+Need a new glyph? Add it to the table in `CLAUDE.md` in the same PR.
