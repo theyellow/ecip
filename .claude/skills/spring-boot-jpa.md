@@ -107,6 +107,22 @@ public class MyEntityService {
 5. **ALWAYS** use `@Slf4j` for logging (never LoggerFactory)
 6. **NEVER** use `var` in lambdas for JPA queries
 
+## After adding a constructor parameter to any service
+
+Some services in this project use a manual constructor instead of `@RequiredArgsConstructor`
+(e.g. when `@Qualifier` is needed for multiple beans of the same type). When you add a field
+to such a service, the compiler won't catch test breakage until CI runs — because unit tests
+often construct the service directly with `new ServiceName(...)`.
+
+**Always do this after adding a constructor parameter:**
+
+```bash
+grep -r "new <ServiceName>(" src/test/
+```
+
+Then add the matching mock and update the constructor call in every test that directly
+instantiates the service. Forgetting this is silent locally but breaks CI.
+
 ## Testing
 
 ```java

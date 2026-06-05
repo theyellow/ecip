@@ -356,7 +356,10 @@ When the user pastes a design handoff from their AI design system:
 2. **Identify affected files** — pages, components, CSS, `index.html`, and any backend endpoints needed.
 3. **Read every file before editing it.** Don't guess at existing content.
 4. **Implement using project patterns**, not the handoff's literal code. The handoff describes visual intent; use CSS Modules, the existing component API, and established idioms.
-5. **Run tests after all changes:** `cd emcip-admin-ui/src/main/frontend && npm test -- --run`. If any tests were using `window.confirm` spy and the feature now uses `ConfirmDialog`, update them to click the dialog's button instead.
+5. **Run tests after all changes:** `cd emcip-admin-ui/src/main/frontend && npm test -- --run`. Common breakage patterns to fix:
+   - Tests that used `window.confirm` spy → update to click the `ConfirmDialog` button instead
+   - Tests that assert on column text that was removed or truncated → update assertions to match new render output
+   - Tests that index into `getAllByRole('combobox')` by position → if you added a filter dropdown, all subsequent indices shift by one
 6. **One PR per handoff batch** unless the user asks to split.
 
 ---
