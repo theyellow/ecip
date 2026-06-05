@@ -314,6 +314,7 @@ function ProviderConfigSection() {
     <div className={styles.section}>
       <SectionLabel aside={<Button onClick={() => setModal('add')}>+ Add Provider</Button>}>LLM Provider</SectionLabel>
       {error && <p role="alert" style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }}>{error}</p>}
+      <div className={styles.tableWrapper}>
       <table className={styles.table}>
         <thead>
           <tr><th>Name</th><th>Base URL</th><th>Active</th><th></th></tr>
@@ -335,6 +336,7 @@ function ProviderConfigSection() {
           ))}
         </tbody>
       </table>
+      </div>
       {status && (
         <div className={styles.connectionStatus}>
           <Badge variant={status.ok ? 'green' : 'red'}>
@@ -418,6 +420,7 @@ export function AIConfig() {
       {/* Models */}
       <div className={styles.section}>
         <SectionLabel aside={<Button onClick={() => setModelModal('add')}>+ Add Model</Button>}>AI Models</SectionLabel>
+        <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -447,11 +450,13 @@ export function AIConfig() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Templates */}
       <div className={styles.section}>
         <SectionLabel aside={<Button onClick={() => setTemplateModal('add')}>+ Add Template</Button>}>Prompt Templates</SectionLabel>
+        <div className={styles.tableWrapper}>
         <table className={styles.table}>
           <thead>
             <tr>
@@ -479,6 +484,7 @@ export function AIConfig() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* LLM Provider */}
