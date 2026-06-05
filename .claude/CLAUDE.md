@@ -102,6 +102,7 @@ All skills in `.claude/skills/` - loaded automatically by trigger keywords:
 - `kafka-events` - Event schema patterns, producer/consumer boilerplate
 - `liquibase-migrations` - Database schema changes
 - `project-topology` - Ports, modules, services
+- `emcip-admin-ui` - React frontend: design tokens, components, layout, handoff workflow
 - `health-indicators` - Custom Actuator health indicators
 - `spring-reactive` - Async Mono/Flux for high-concurrency (use sparingly — project is JPA/blocking)
 

@@ -35,6 +35,7 @@ public class FlagService {
     private final AccountWatchedGroupRepository watchedGroupRepository;
     private final TelegramAccountRepository accountRepository;
     private final WebClient tdlibClient;
+    private final WebClient orchestratorWebClient;
     private final CircuitBreaker tdlibCircuitBreaker;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
@@ -45,6 +46,7 @@ public class FlagService {
             AccountWatchedGroupRepository watchedGroupRepository,
             TelegramAccountRepository accountRepository,
             @Qualifier("tdlibWebClient") WebClient tdlibClient,
+            @Qualifier("orchestratorWebClient") WebClient orchestratorWebClient,
             CircuitBreakerRegistry circuitBreakerRegistry,
             KafkaTemplate<String, String> kafkaTemplate,
             ObjectMapper objectMapper) {
@@ -53,6 +55,7 @@ public class FlagService {
         this.watchedGroupRepository = watchedGroupRepository;
         this.accountRepository = accountRepository;
         this.tdlibClient = tdlibClient;
+        this.orchestratorWebClient = orchestratorWebClient;
         this.tdlibCircuitBreaker = circuitBreakerRegistry.circuitBreaker("tdlib-adapter");
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
@@ -116,6 +119,49 @@ public class FlagService {
                                         target,
                                         replyToOriginal,
                                         prefixModerator));
+    }
+
+    public Mono<FlagController.AnalyseResponse> analyse(String flagId) {
+        return policyEngineClient
+                .getDecision(flagId)
+                .flatMap(
+                        flag -> {
+                            String prompt = buildAnalysisPrompt(flag);
+                            java.util.Map<String, Object> body =
+                                    java.util.Map.of("prompt", prompt, "taskType", "GENERAL");
+                            return orchestratorWebClient
+                                    .post()
+                                    .uri("/api/analyse")
+                                    .bodyValue(body)
+                                    .retrieve()
+                                    .bodyToMono(tools.jackson.databind.JsonNode.class)
+                                    .map(
+                                            result ->
+                                                    new FlagController.AnalyseResponse(
+                                                            result.path("success").asBoolean(false),
+                                                            result.path("analysis").asText(""),
+                                                            result.path("model").asText(null)));
+                        });
+    }
+
+    private String buildAnalysisPrompt(tools.jackson.databind.JsonNode flag) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Analyse this moderation flag:\n\n");
+        sb.append("Intent: ").append(flag.path("originalIntent").asText("unknown")).append("\n");
+        sb.append("Decision: ").append(flag.path("decision").asText("unknown")).append("\n");
+        sb.append("Confidence: ")
+                .append(String.format("%.1f%%", flag.path("confidence").asDouble(0) * 100))
+                .append("\n");
+        sb.append("Reason: ").append(flag.path("reason").asText("none")).append("\n");
+        tools.jackson.databind.JsonNode meta = flag.path("metadata");
+        if (!meta.isMissingNode() && !meta.isNull() && meta.has("messageText")) {
+            sb.append("Message: ").append(meta.path("messageText").asText()).append("\n");
+        }
+        sb.append(
+                "\n"
+                    + "Is the decision appropriate? Explain briefly and suggest any better action"
+                    + " if relevant.");
+        return sb.toString();
     }
 
     private Mono<TelegramAccount> resolveAccount(

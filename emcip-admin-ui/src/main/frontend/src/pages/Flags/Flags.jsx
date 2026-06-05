@@ -38,6 +38,11 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const [showAnalysis, setShowAnalysis] = useState(false)
+  const [analysing, setAnalysing] = useState(false)
+  const [analysisResult, setAnalysisResult] = useState(null)
+  const [analysisCopied, setAnalysisCopied] = useState(false)
+
   const [showReply, setShowReply] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [replyTarget, setReplyTarget] = useState('GROUP')
@@ -88,6 +93,27 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
     } finally {
       setReplySending(false)
     }
+  }
+
+  const handleAnalyse = async () => {
+    setAnalysing(true)
+    setAnalysisResult(null)
+    try {
+      const result = await api.analyse(flag.id)
+      setAnalysisResult(result)
+    } catch (e) {
+      setAnalysisResult({ success: false, analysis: e.message || 'Analysis failed', model: null })
+    } finally {
+      setAnalysing(false)
+    }
+  }
+
+  const copyAnalysis = () => {
+    if (!analysisResult?.analysis) return
+    navigator.clipboard.writeText(analysisResult.analysis).then(() => {
+      setAnalysisCopied(true)
+      setTimeout(() => setAnalysisCopied(false), 1500)
+    })
   }
 
   const handleMarkActioned = async () => {
@@ -229,6 +255,36 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
               fontFamily: 'var(--font-mono)',
               fontSize: '12px',
             }}>{replyError}</p>
+          )}
+        </div>
+      )}
+
+      <div className={styles.replyHeader} onClick={() => setShowAnalysis(s => !s)}>
+        <SectionLabel aside={showAnalysis ? '\u25BE' : '\u25B8'}>AI Analysis</SectionLabel>
+      </div>
+
+      {showAnalysis && (
+        <div className={styles.replySection}>
+          <div className={styles.replyActions}>
+            <Button variant="secondary" onClick={handleAnalyse} disabled={analysing}>
+              {analysing ? 'Analysing\u2026' : analysisResult ? 'Re-analyse' : 'Analyse'}
+            </Button>
+            {analysisResult?.success && (
+              <button
+                className={styles.copyAnalysisBtn}
+                onClick={copyAnalysis}
+              >
+                {analysisCopied ? 'Copied' : 'Copy'}
+              </button>
+            )}
+          </div>
+          {analysisResult && (
+            <div className={analysisResult.success ? styles.analysisBlock : styles.analysisError}>
+              {analysisResult.model && (
+                <p className={styles.analysisModel}>{analysisResult.model}</p>
+              )}
+              <p className={styles.analysisText}>{analysisResult.analysis}</p>
+            </div>
           )}
         </div>
       )}

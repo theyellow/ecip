@@ -19,8 +19,14 @@ const COLUMNS = [
   { key: 'description', label: 'Description', render: v => v || '\u2014' },
 ]
 
-function GroupEditModal({ group, onClose, onSave, tenants }) {
+function GroupEditModal({ group, onClose, onSave, tenants, api }) {
   const isNew = !group
+  const [watchers, setWatchers] = useState([])
+  useEffect(() => {
+    if (group?.telegramChatId) {
+      api.watchers(group.telegramChatId).then(setWatchers).catch(() => {})
+    }
+  }, [group?.telegramChatId])
   const [form, setForm] = useState({
     telegramChatId: group?.telegramChatId ?? '',
     name: group?.name ?? '',
@@ -45,6 +51,20 @@ function GroupEditModal({ group, onClose, onSave, tenants }) {
             {group.tenantId && <>
               <span className={styles.metaLabel}>Tenant</span>
               <span className={styles.metaValue}>{group.tenantId}</span>
+            </>}
+            {group.createdAt && <>
+              <span className={styles.metaLabel}>Created</span>
+              <span className={styles.metaValue}>{new Date(group.createdAt).toLocaleString()}</span>
+            </>}
+            {group.rulesEnabled && <>
+              <span className={styles.metaLabel}>Rules</span>
+              <span className={styles.metaValue}>{group.rulesEnabled}</span>
+            </>}
+            {watchers.length > 0 && <>
+              <span className={styles.metaLabel}>Watched by</span>
+              <span className={styles.metaValue}>
+                {watchers.map(w => w.displayName || w.phoneNumber).join(', ')}
+              </span>
             </>}
           </div>
         </>
@@ -165,6 +185,7 @@ export function Groups() {
           onClose={() => setModal(null)}
           onSave={save}
           tenants={tenants}
+          api={api}
         />
       )}
     </>

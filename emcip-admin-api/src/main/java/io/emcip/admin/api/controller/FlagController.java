@@ -48,6 +48,8 @@ public class FlagController {
 
     public record AccountSelectionRequired(List<AccountOption> accounts) {}
 
+    public record AnalyseResponse(boolean success, String analysis, String model) {}
+
     @Operation(summary = "List recent policy flags")
     @GetMapping
     public Mono<JsonNode> getFlags(
@@ -87,5 +89,16 @@ public class FlagController {
                                                 .body(
                                                         new AccountSelectionRequired(
                                                                 e.getAccounts()))));
+    }
+
+    @Operation(summary = "Analyse a flag with AI")
+    @PostMapping("/{id}/analyse")
+    public Mono<ResponseEntity<AnalyseResponse>> analyse(@PathVariable String id) {
+        return flagService
+                .analyse(id)
+                .map(ResponseEntity::ok)
+                .onErrorReturn(
+                        ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                .body(new AnalyseResponse(false, "Analysis unavailable", null)));
     }
 }

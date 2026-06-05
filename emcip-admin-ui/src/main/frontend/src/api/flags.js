@@ -15,5 +15,7 @@ export function flagsApi(request) {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    analyse: id =>
+      request(`/api/flags/${encodeURIComponent(id)}/analyse`, { method: 'POST' }),
   }
 }

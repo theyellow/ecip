@@ -58,4 +58,10 @@ public class GroupProfileController {
     public Mono<ResponseEntity<Void>> delete(@PathVariable("chatId") Long chatId) {
         return service.delete(chatId).thenReturn(ResponseEntity.<Void>noContent().<Void>build());
     }
+
+    @Operation(summary = "List accounts watching a group")
+    @GetMapping("/{chatId}/watchers")
+    public Flux<java.util.Map<String, Object>> getWatchers(@PathVariable("chatId") Long chatId) {
+        return service.findWatchersByChatId(chatId);
+    }
 }

@@ -39,20 +39,19 @@ describe('AuditLog page', () => {
     expect(screen.getByText('All types')).toBeInTheDocument()
   })
 
-  it('displays event row with type, source, action, resource and outcome', async () => {
+  it('displays event row with type, action, truncated resource and outcome', async () => {
     mockApi.list.mockResolvedValue({ items: [EVENT], total: 1 })
     render(<AuditLog />)
-    await waitFor(() => expect(screen.getByText('POLICY_DECISION')).toBeInTheDocument())
-    expect(screen.getByText('policy-engine')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText('POLICY_DECISION').length).toBeGreaterThanOrEqual(1))
     expect(screen.getByText('decide')).toBeInTheDocument()
-    expect(screen.getByText('msg-12345')).toBeInTheDocument()
+    expect(screen.getByText('msg-1234…')).toBeInTheDocument()
     expect(screen.getByText('OK')).toBeInTheDocument()
   })
 
   it('shows em-dash for missing fields', async () => {
-    mockApi.list.mockResolvedValue({ items: [{ ...EVENT, sourceService: null, resourceId: null, outcome: null, details: null }], total: 1 })
+    mockApi.list.mockResolvedValue({ items: [{ ...EVENT, action: null, resourceId: null, outcome: null }], total: 1 })
     render(<AuditLog />)
-    await waitFor(() => screen.getByText('POLICY_DECISION'))
+    await waitFor(() => screen.getAllByText('POLICY_DECISION'))
     const dashes = screen.getAllByText('—')
     expect(dashes.length).toBeGreaterThanOrEqual(2)
   })
@@ -76,8 +75,8 @@ describe('AuditLog page', () => {
     render(<AuditLog />)
     await waitFor(() => screen.getByText('Audit Log'))
 
-    // Second combobox is the page-size selector
-    const [, sizeSelect] = screen.getAllByRole('combobox')
+    // Third combobox is the page-size selector (event-type, action, page-size)
+    const [,, sizeSelect] = screen.getAllByRole('combobox')
     await userEvent.selectOptions(sizeSelect, '100')
 
     await waitFor(() =>
@@ -94,9 +93,13 @@ describe('AuditLog page', () => {
   it('shows all expected event type options in the filter', async () => {
     render(<AuditLog />)
     await waitFor(() => screen.getByText('All types'))
+    // Event type filter options
     expect(screen.getByRole('option', { name: 'MESSAGE_RECEIVED' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'MESSAGE_CLASSIFIED' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'POLICY_DECISION' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'MODERATION_ACTION' })).toBeInTheDocument()
+    expect(screen.getAllByRole('option', { name: 'POLICY_DECISION' }).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByRole('option', { name: 'MODERATION_ACTION' }).length).toBeGreaterThanOrEqual(1)
+    // Action filter options
+    expect(screen.getByRole('option', { name: 'All actions' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'SEND_MESSAGE' })).toBeInTheDocument()
   })
 })

@@ -31,12 +31,6 @@ function parseDetails(raw) {
   try { return JSON.parse(raw) } catch { return raw }
 }
 
-function detailsPreview(e) {
-  if (e.details == null) return null
-  const raw = typeof e.details === 'object' ? JSON.stringify(e.details) : String(e.details)
-  return raw.length > 80 ? raw.slice(0, 80) + '\u2026' : raw
-}
-
 function DetailsModal({ event, onClose }) {
   const parsedDetails = parseDetails(event.details)
   const prettyDetails = parsedDetails != null ? JSON.stringify(parsedDetails, null, 2) : null
@@ -77,11 +71,10 @@ function DetailsModal({ event, onClose }) {
 }
 
 const COLUMNS = [
-  { key: 'createdAt', label: 'Timestamp', mono: true, width: 170, render: v => v ? new Date(v).toLocaleString() : '\u2014' },
-  { key: 'eventType', label: 'Event Type' },
-  { key: 'sourceService', label: 'Source', mono: true, render: v => v ?? '\u2014' },
+  { key: 'createdAt', label: 'Timestamp', mono: true, width: 160, render: v => v ? new Date(v).toLocaleString() : '\u2014' },
+  { key: 'eventType', label: 'Event Type', width: 190 },
   { key: 'action', label: 'Action', render: v => v ?? '\u2014' },
-  { key: 'resourceId', label: 'Resource', mono: true, render: v => v ?? '\u2014' },
+  { key: 'resourceId', label: 'Resource', mono: true, width: 90, render: v => v ? v.slice(0, 8) + '\u2026' : '\u2014' },
   { key: 'outcome', label: 'Outcome', width: 100, render: v => v ? <Badge variant={OUTCOME_VARIANT[v] ?? 'gray'}>{v}</Badge> : '\u2014' },
 ]
 
@@ -92,6 +85,7 @@ export function AuditLog() {
   const [page] = useState(0)
   const [size, setSize] = useState(50)
   const [eventType, setEventType] = useState('')
+  const [actionFilter, setActionFilter] = useState('')
   const [error, setError] = useState('')
   const [selected, setSelected] = useState(null)
 
@@ -106,16 +100,7 @@ export function AuditLog() {
   }
   useEffect(() => { load() }, [size, eventType])
 
-  const detailsColumn = {
-    key: 'details',
-    label: 'Details',
-    render: (v, row) => {
-      const preview = detailsPreview(row)
-      return preview != null
-        ? <span className={styles.detailsLink} onClick={e => { e.stopPropagation(); setSelected(row) }}>{preview}</span>
-        : '\u2014'
-    },
-  }
+  const displayEvents = actionFilter ? events.filter(e => e.action === actionFilter) : events
 
   return (
     <>
@@ -124,8 +109,8 @@ export function AuditLog() {
       <DataTable
         title="Audit Log"
         systemId={`\u25CE audit-service \u00b7 ${total} events total`}
-        columns={[...COLUMNS, detailsColumn]}
-        rows={events}
+        columns={COLUMNS}
+        rows={displayEvents}
         rowKey={(r, i) => i}
         onEdit={setSelected}
         filters={[
@@ -133,6 +118,17 @@ export function AuditLog() {
             value: eventType,
             onChange: e => setEventType(e.target.value),
             options: EVENT_TYPES.map(t => ({ value: t, label: t || 'All types' })),
+          },
+          {
+            value: actionFilter,
+            onChange: e => setActionFilter(e.target.value),
+            options: [
+              { value: '', label: 'All actions' },
+              { value: 'CLASSIFY', label: 'CLASSIFY' },
+              { value: 'POLICY_DECISION', label: 'POLICY_DECISION' },
+              { value: 'MODERATION_ACTION', label: 'MODERATION_ACTION' },
+              { value: 'SEND_MESSAGE', label: 'SEND_MESSAGE' },
+            ],
           },
           {
             value: String(size),
