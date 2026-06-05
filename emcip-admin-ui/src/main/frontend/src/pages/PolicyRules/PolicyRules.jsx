@@ -10,6 +10,7 @@ import styles from './PolicyRules.module.css'
 
 const ACTIONS = ['ALLOW', 'FLAG', 'BLOCK', 'RESPOND', 'ESCALATE', 'EXECUTE', 'REVIEW']
 const ACTION_VARIANT = { ALLOW: 'green', FLAG: 'blue', BLOCK: 'red', RESPOND: 'gray', ESCALATE: 'yellow', EXECUTE: 'red', REVIEW: 'yellow' }
+const LIVE_EFFECT_ACTIONS = new Set(['RESPOND', 'EXECUTE', 'BLOCK'])
 
 function RuleModal({ rule, onClose, onSave, tenants }) {
   const [form, setForm] = useState({
@@ -42,6 +43,12 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
           onChange={e => set('action', e.target.value)}>
           {ACTIONS.map(a => <option key={a}>{a}</option>)}
         </select>
+        {LIVE_EFFECT_ACTIONS.has(form.action) && (
+          <div className={styles.actionWarn} role="alert">
+            This action will take effect in Telegram (sends a message / bans a user).
+            Use FLAG or REVIEW for safe observation-only rules.
+          </div>
+        )}
       </div>
       <div className={styles.field}>
         <label>Priority</label>

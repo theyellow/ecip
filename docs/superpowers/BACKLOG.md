@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-05 (XS sweep complete: #30/#31/#35 done; #32/#22 done; #24 Phase 2 wired/untested)
+> Last updated: 2026-06-05 (XS sweep #30/#31/#35 done; #32/#22 done; #33 done; #24 Phase 2 wired/untested)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -39,7 +39,7 @@
 | 30 | **Admin UI v2: remove v1 compat aliases** | XS | ✅ 2026-06-05. Already absent — removed during v2 page redesign PRs (#91/#94). |
 | 31 | **Admin UI v2: delete design handoff directory** | XS | ✅ 2026-06-05. `emcip-admin-ui/design_handoff_emcip_admin/` deleted. |
 | 35 | **Self-host Inter Variable font (offline capability)** | XS | ✅ 2026-06-05. `Inter-Variable.ttf` (inter-font 3.19.0) added to `public/fonts/`. `@font-face` block added to `variables.css`. Google Fonts `<link>` tags removed from `index.html`. |
-| 33 | **Policy rule: warn on "live-effect" actions in UI** | S | When a user creates/edits a policy rule with action `RESPOND`, `EXECUTE`, or `BLOCK`, the Admin UI should display a visible warning: "This action will take effect in Telegram (sends a message / bans a user). Use FLAG or REVIEW for safe observation-only rules." `ESCALATE`, `REVIEW`, `FLAG`, and `ALLOW` are safe — they only write to internal queues / audit log and have no consumers that touch the Telegram API yet. See `PolicyActionService` for topic routing and `emcip-tdlib-adapter` for what would execute them once consumers are wired. |
+| 33 | **Policy rule: warn on "live-effect" actions in UI** | S | ✅ 2026-06-05. `LIVE_EFFECT_ACTIONS = {RESPOND, EXECUTE, BLOCK}` constant in `PolicyRules.jsx`; warn block with `role="alert"` and `signal-warn` tokens renders below the action select whenever a live-effect action is chosen. |
 | 32 | **Admin UI v2: SpaceBackground v3 (Otherland Sky)** | S | ✅ 2026-06-05. Replaced SpaceBackground with orb/eye sigil over auto-drift particle sky + foggy skyline. Pure canvas+SVG, removed `simplex-noise` dependency. Depends on #29. |
 | 34 | **Architecture: rewire moderation-service off `telegram.raw.messages`** | M | `moderation-service` currently consumes `telegram.raw.messages` directly and runs keyword/regex rules before classification has happened. Correct topology: it should consume `policies.decisions` (so rules run on classified, policy-evaluated context) rather than raw messages. Separately, `policies.decisions → llm-orchestrator` coupling needs design: LLM should only be invoked for specific decision types (RESPOND/ESCALATE/EXECUTE), not be a blanket consumer of every decision. Revisit when wiring real Telegram action consumers. See `documentation/diagrams/kafka-topic-flow.puml` for the current as-is topic map. |
 | 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
