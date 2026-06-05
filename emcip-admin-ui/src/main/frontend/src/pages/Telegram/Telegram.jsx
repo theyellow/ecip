@@ -3,6 +3,7 @@ import { useAuthRequest } from '../../auth/AuthContext'
 import { telegramApi } from '../../api/telegram'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
 import { Modal } from '../../components/Modal/Modal'
 import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
 import styles from './Telegram.module.css'
@@ -32,6 +33,7 @@ export function Telegram() {
   const [watchedGroups, setWatchedGroups] = useState({})
   const [showDiscover, setShowDiscover] = useState(null)
   const [discoveredChats, setDiscoveredChats] = useState([])
+  const [pendingDelete, setPendingDelete] = useState(null)
   const [discoverLoading, setDiscoverLoading] = useState(false)
   const [discoverError, setDiscoverError] = useState('')
 
@@ -243,7 +245,7 @@ export function Telegram() {
                   <Button variant="secondary" onClick={() => openGroupsPanel(a.id)}>Groups</Button>
                   <Button variant="secondary" onClick={() => handleReconnect(a.id)}>Auth</Button>
                   <Button variant="secondary" onClick={() => handleLogout(a.id)}>Logout</Button>
-                  <Button variant="danger" onClick={() => handleDelete(a.id)}>Delete</Button>
+                  <Button variant="danger" onClick={() => setPendingDelete(a)}>Delete</Button>
                 </td>
               </tr>
               {expandedAccount === a.id && (
@@ -400,6 +402,14 @@ export function Telegram() {
             )}
           </div>
         </Modal>
+      )}
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete account"
+          message={`Delete Telegram account "${pendingDelete.phoneNumber}"? This cannot be undone.`}
+          onConfirm={() => { handleDelete(pendingDelete.id); setPendingDelete(null) }}
+          onClose={() => setPendingDelete(null)}
+        />
       )}
     </>
   )
