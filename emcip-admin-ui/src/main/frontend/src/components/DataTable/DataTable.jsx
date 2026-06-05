@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Button } from '../Button/Button'
+import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog'
 import styles from './DataTable.module.css'
 
 export function DataTable({
@@ -11,9 +13,12 @@ export function DataTable({
   rowKey = r => r.id,
   onEdit,
   onDelete,
+  deleteMessage,
   filters,
   emptyText = 'No records',
 }) {
+  const [confirming, setConfirming] = useState(null)
+
   return (
     <div className={styles.wrapper}>
       <div className={styles.pageHeader}>
@@ -54,7 +59,7 @@ export function DataTable({
               ))}
               {onDelete && (
                 <td className={styles.actions} onClick={e => e.stopPropagation()}>
-                  <Button variant="danger" onClick={() => onDelete(row)}>Delete</Button>
+                  <Button variant="danger" onClick={() => setConfirming(row)}>Delete</Button>
                 </td>
               )}
             </tr>
@@ -68,6 +73,15 @@ export function DataTable({
           )}
         </tbody>
       </table>
+
+      {confirming && (
+        <ConfirmDialog
+          title="Delete record"
+          message={deleteMessage ? deleteMessage(confirming) : 'Delete this record? This cannot be undone.'}
+          onConfirm={() => { onDelete(confirming); setConfirming(null) }}
+          onClose={() => setConfirming(null)}
+        />
+      )}
     </div>
   )
 }

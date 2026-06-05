@@ -118,7 +118,6 @@ export function PolicyRules() {
   }
 
   const remove = async rule => {
-    if (!confirm(`Delete rule "${rule.name}"?`)) return
     try { await api.remove(rule.id); load() }
     catch (e) { setError(e.message) }
   }
@@ -154,6 +153,7 @@ export function PolicyRules() {
         rows={rules}
         onEdit={setModal}
         onDelete={remove}
+        deleteMessage={r => `Delete rule "${r.name}"? This cannot be undone.`}
         emptyText="No policy rules defined"
       />
 

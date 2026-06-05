@@ -4,6 +4,7 @@ import { aiConfigApi } from '../../api/aiConfig'
 import { providerConfigApi } from '../../api/providerConfig'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
 import { Modal } from '../../components/Modal/Modal'
 import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
 import styles from './AIConfig.module.css'
@@ -294,8 +295,9 @@ function ProviderConfigSection() {
     } catch (e) { setError(e.message) }
   }
 
+  const [pendingDelete, setPendingDelete] = useState(null)
+
   const remove = async p => {
-    if (!confirm(`Delete provider "${p.name}"?`)) return
     try { await api.deleteProviderConfig(p.id); load() }
     catch (e) { setError(e.message) }
   }
@@ -321,16 +323,15 @@ function ProviderConfigSection() {
         </thead>
         <tbody>
           {providers.map(p => (
-            <tr key={p.id}>
+            <tr key={p.id} className={styles.clickable} onClick={() => setModal(p)}>
               <td className={styles.mono}>{p.name}</td>
               <td>{p.baseUrl}</td>
               <td><Badge variant={p.active ? 'green' : 'red'}>{p.active ? 'Yes' : 'No'}</Badge></td>
-              <td className={styles.actions}>
-                <Button variant="secondary" onClick={() => setModal(p)}>Edit</Button>
+              <td className={styles.actions} onClick={e => e.stopPropagation()}>
                 {p.active && (
                   <Button variant="secondary" onClick={testConnection}>Test</Button>
                 )}
-                <Button variant="danger" onClick={() => remove(p)}>Delete</Button>
+                <Button variant="danger" onClick={() => setPendingDelete({ kind: 'provider', row: p })}>Delete</Button>
               </td>
             </tr>
           ))}
@@ -356,6 +357,14 @@ function ProviderConfigSection() {
           onSave={save}
         />
       )}
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete record"
+          message={`Delete provider "${pendingDelete.row.name}"? This cannot be undone.`}
+          onConfirm={() => { remove(pendingDelete.row); setPendingDelete(null) }}
+          onClose={() => setPendingDelete(null)}
+        />
+      )}
     </div>
   )
 }
@@ -367,6 +376,7 @@ export function AIConfig() {
   const [templates, setTemplates] = useState([])
   const [modelModal, setModelModal] = useState(null)
   const [templateModal, setTemplateModal] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null)
   const [error, setError] = useState('')
 
   const loadModels = () => api.listModels().then(setModels).catch(e => setError(e.message))
@@ -387,7 +397,6 @@ export function AIConfig() {
   }
 
   const removeModel = async model => {
-    if (!confirm(`Delete model "${model.modelKey}"?`)) return
     try { await api.deleteModel(model.id); loadModels() }
     catch (e) { setError(e.message) }
   }
@@ -402,7 +411,6 @@ export function AIConfig() {
   }
 
   const removeTemplate = async tmpl => {
-    if (!confirm(`Delete template "${tmpl.name}"?`)) return
     try { await api.deleteTemplate(tmpl.id); loadTemplates() }
     catch (e) { setError(e.message) }
   }
@@ -435,16 +443,15 @@ export function AIConfig() {
           </thead>
           <tbody>
             {models.map(m => (
-              <tr key={m.id}>
+              <tr key={m.id} className={styles.clickable} onClick={() => setModelModal(m)}>
                 <td className={styles.mono}>{m.modelKey}</td>
                 <td>{m.provider}</td>
                 <td>{m.modelName}</td>
                 <td><Badge variant="gray">{m.taskType}</Badge></td>
                 <td>{m.priority}</td>
                 <td><Badge variant={m.active ? 'green' : 'red'}>{m.active ? 'Yes' : 'No'}</Badge></td>
-                <td className={styles.actions}>
-                  <Button variant="secondary" onClick={() => setModelModal(m)}>Edit</Button>
-                  <Button variant="danger" onClick={() => removeModel(m)}>Delete</Button>
+                <td className={styles.actions} onClick={e => e.stopPropagation()}>
+                  <Button variant="danger" onClick={() => setPendingDelete({ kind: 'model', row: m })}>Delete</Button>
                 </td>
               </tr>
             ))}
@@ -470,15 +477,14 @@ export function AIConfig() {
           </thead>
           <tbody>
             {templates.map(t => (
-              <tr key={t.id}>
+              <tr key={t.id} className={styles.clickable} onClick={() => setTemplateModal(t)}>
                 <td>{t.name}</td>
                 <td className={styles.mono}>{t.version}</td>
                 <td>{t.modelProvider}</td>
                 <td className={styles.preview} title={t.systemPrompt}>{t.systemPrompt}</td>
                 <td><Badge variant={t.active ? 'green' : 'red'}>{t.active ? 'Yes' : 'No'}</Badge></td>
-                <td className={styles.actions}>
-                  <Button variant="secondary" onClick={() => setTemplateModal(t)}>Edit</Button>
-                  <Button variant="danger" onClick={() => removeTemplate(t)}>Delete</Button>
+                <td className={styles.actions} onClick={e => e.stopPropagation()}>
+                  <Button variant="danger" onClick={() => setPendingDelete({ kind: 'template', row: t })}>Delete</Button>
                 </td>
               </tr>
             ))}
@@ -502,6 +508,22 @@ export function AIConfig() {
           template={templateModal === 'add' ? null : templateModal}
           onClose={() => setTemplateModal(null)}
           onSave={saveTemplate}
+        />
+      )}
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete record"
+          message={
+            pendingDelete.kind === 'model'
+              ? `Delete model "${pendingDelete.row.modelKey}"? This cannot be undone.`
+              : `Delete template "${pendingDelete.row.name}"? This cannot be undone.`
+          }
+          onConfirm={() => {
+            if (pendingDelete.kind === 'model') removeModel(pendingDelete.row)
+            else removeTemplate(pendingDelete.row)
+            setPendingDelete(null)
+          }}
+          onClose={() => setPendingDelete(null)}
         />
       )}
     </>

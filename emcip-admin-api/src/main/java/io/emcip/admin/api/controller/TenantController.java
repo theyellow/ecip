@@ -1,5 +1,6 @@
 package io.emcip.admin.api.controller;
 
+import io.emcip.admin.api.dto.TenantUpdateRequest;
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.service.TenantService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,6 +42,13 @@ public class TenantController {
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Tenant> createTenant(@Valid @RequestBody Tenant tenant) {
         return tenantService.create(tenant);
+    }
+
+    @Operation(summary = "Update a tenant's editable fields")
+    @PutMapping("/{id}")
+    public Mono<Tenant> updateTenant(
+            @PathVariable("id") UUID id, @Valid @RequestBody TenantUpdateRequest request) {
+        return tenantService.update(id, request);
     }
 
     @Operation(summary = "Delete a tenant")

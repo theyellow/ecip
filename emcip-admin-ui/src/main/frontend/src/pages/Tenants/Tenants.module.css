@@ -31,3 +31,10 @@
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--orb-glow);
 }
+
+.hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  margin: 0;
+}

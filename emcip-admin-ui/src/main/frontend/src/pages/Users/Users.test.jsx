@@ -123,11 +123,13 @@ describe('Users page', () => {
   it('deletes user after confirmation', async () => {
     mockUsersApi.list.mockResolvedValue([USER])
     mockUsersApi.remove.mockResolvedValue(undefined)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<Users />)
     await waitFor(() => screen.getByText('admin'))
     await userEvent.click(screen.getByRole('button', { name: /delete/i }))
+    // ConfirmDialog appears — click the danger Delete button
+    const confirmBtn = screen.getAllByRole('button', { name: /delete/i }).at(-1)
+    await userEvent.click(confirmBtn)
 
     expect(mockUsersApi.remove).toHaveBeenCalledWith('user-uuid-1')
   })
