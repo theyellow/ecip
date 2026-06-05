@@ -6,7 +6,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.entity.GroupProfile;
+import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
+import io.emcip.admin.api.repository.TelegramAccountRepository;
 import io.emcip.common.tenant.ReactorTenantContext;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +26,8 @@ import reactor.test.StepVerifier;
 class GroupProfileServiceTest {
 
     @Mock private GroupProfileRepository repository;
+    @Mock private AccountWatchedGroupRepository watchedGroupRepository;
+    @Mock private TelegramAccountRepository accountRepository;
 
     private GroupProfileService service;
 
@@ -32,7 +36,7 @@ class GroupProfileServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new GroupProfileService(repository);
+        service = new GroupProfileService(repository, watchedGroupRepository, accountRepository);
     }
 
     private GroupProfile profile(Long chatId) {

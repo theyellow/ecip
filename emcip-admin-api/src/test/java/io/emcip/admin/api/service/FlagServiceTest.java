@@ -30,6 +30,7 @@ class FlagServiceTest {
     @Mock private AccountWatchedGroupRepository watchedGroupRepository;
     @Mock private TelegramAccountRepository accountRepository;
     @Mock private WebClient tdlibClient;
+    @Mock private WebClient orchestratorWebClient;
     @Mock private CircuitBreakerRegistry circuitBreakerRegistry;
     @Mock private KafkaTemplate<String, String> kafkaTemplate;
 
@@ -47,6 +48,7 @@ class FlagServiceTest {
                         watchedGroupRepository,
                         accountRepository,
                         tdlibClient,
+                        orchestratorWebClient,
                         circuitBreakerRegistry,
                         kafkaTemplate,
                         new ObjectMapper());
