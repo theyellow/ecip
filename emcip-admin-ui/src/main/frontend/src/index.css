@@ -26,9 +26,9 @@ h1, .h1 {
 h2, .h2 {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: var(--fs-2xl);
-  line-height: var(--lh-snug);
-  letter-spacing: var(--tracking-display);
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 0.18em;
   color: var(--accent);
   text-transform: uppercase;
 }

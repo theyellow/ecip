@@ -1,5 +1,5 @@
 .shell { display: flex; min-height: 100vh; }
-.main  { flex: 1; padding: var(--sp-6); overflow-y: auto; min-height: 100vh; }
+.main  { flex: 1; min-width: 0; padding: var(--sp-6); overflow-y: auto; min-height: 100vh; }
 
 /* Readable content surface — the sky frames it via .main padding */
 .surface {
