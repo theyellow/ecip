@@ -31,10 +31,11 @@ public class PolicyDecisionConsumer {
 
     public PolicyDecisionConsumer(
             RuleEvaluationService ruleEvaluationService,
-            KafkaTemplate<String, String> kafkaTemplate) {
+            KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper) {
         this.ruleEvaluationService = ruleEvaluationService;
         this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
     }
 
     @KafkaListener(
@@ -44,6 +45,11 @@ public class PolicyDecisionConsumer {
         try {
             TenantAwareKafkaSupport.bindTenantFromRecord(record);
             String tenantId = TenantContext.getTenantId();
+            if (tenantId == null) {
+                log.warn("No tenant context for policy decision {}, skipping", record.key());
+                acknowledgment.acknowledge();
+                return;
+            }
 
             PolicyDecisionEvent event =
                     objectMapper.readValue(record.value(), PolicyDecisionEvent.class);

@@ -11,12 +11,14 @@ import static org.mockito.Mockito.when;
 import io.emcip.common.events.EventSchemas.PolicyDecisionEvent;
 import io.emcip.moderation.service.service.RuleEvaluationService;
 import io.emcip.moderation.service.service.RuleEvaluationService.EvaluationResult;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,11 +41,21 @@ class PolicyDecisionConsumerTest {
 
     @BeforeEach
     void setUp() {
-        consumer = new PolicyDecisionConsumer(ruleEvaluationService, kafkaTemplate);
+        consumer =
+                new PolicyDecisionConsumer(
+                        ruleEvaluationService, kafkaTemplate, new ObjectMapper());
         objectMapper = new ObjectMapper();
     }
 
     private ConsumerRecord<String, String> toRecord(String key, String value) {
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("policies.decisions", 0, 0L, key, value);
+        record.headers()
+                .add(new RecordHeader("tenant_id", "test-tenant".getBytes(StandardCharsets.UTF_8)));
+        return record;
+    }
+
+    private ConsumerRecord<String, String> toRecordNoTenant(String key, String value) {
         return new ConsumerRecord<>("policies.decisions", 0, 0L, key, value);
     }
 
@@ -108,6 +120,17 @@ class PolicyDecisionConsumerTest {
         String json = policyDecisionJson("evt-003", null);
 
         consumer.consume(toRecord("evt-003", json), acknowledgment);
+
+        verify(ruleEvaluationService, never()).evaluate(any(), any());
+        verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
+        verify(acknowledgment).acknowledge();
+    }
+
+    @Test
+    void consume_noTenantContext_skipsAndAcknowledges() throws Exception {
+        String json = policyDecisionJson("evt-no-tenant", "some message");
+
+        consumer.consume(toRecordNoTenant("evt-no-tenant", json), acknowledgment);
 
         verify(ruleEvaluationService, never()).evaluate(any(), any());
         verify(kafkaTemplate, never()).send(any(ProducerRecord.class));
