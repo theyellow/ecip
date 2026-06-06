@@ -172,10 +172,9 @@ public class PolicyEvaluationService {
                                     "matchedRules", classification.matchedRules()),
                             List.of(decision.toLowerCase()),
                             classification.parameters() != null
-                                    ? (String)
-                                            classification
-                                                    .parameters()
-                                                    .getOrDefault("messageText", null)
+                                            && classification.parameters().get("messageText")
+                                                    instanceof String text
+                                    ? text
                                     : null);
 
             String json = objectMapper.writeValueAsString(decisionEvent);
