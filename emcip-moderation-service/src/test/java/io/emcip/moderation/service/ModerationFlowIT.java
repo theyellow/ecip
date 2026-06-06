@@ -3,18 +3,21 @@ package io.emcip.moderation.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
+import io.emcip.common.events.EventSchemas.PolicyDecisionEvent;
 import io.emcip.moderation.service.entity.ModerationRule;
 import io.emcip.moderation.service.repository.ModerationRuleRepository;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,13 +29,15 @@ import tools.jackson.databind.ObjectMapper;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class ModerationFlowIT extends AbstractModerationIntegrationTest {
 
+    private static final String TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
     @Autowired private KafkaTemplate<String, String> kafkaTemplate;
 
     @Autowired private ModerationRuleRepository ruleRepository;
 
     @Test
-    void telegramMessage_matchingKeywordRule_producesModerationFlagEvent() throws Exception {
-        // Arrange: insert an enabled keyword rule with retry for flaky DB connections
+    void policyDecision_matchingKeywordRule_producesModerationFlagEvent() throws Exception {
+        // Arrange: insert an enabled keyword rule
         ModerationRule rule =
                 ModerationRule.builder()
                         .name("spam-detection-it")
@@ -43,7 +48,7 @@ class ModerationFlowIT extends AbstractModerationIntegrationTest {
                         .enabled(true)
                         .createdAt(Instant.now())
                         .updatedAt(Instant.now())
-                        .tenantId(UUID.fromString("00000000-0000-0000-0000-000000000001"))
+                        .tenantId(UUID.fromString(TENANT_ID))
                         .build();
 
         await().atMost(Duration.ofSeconds(30))
@@ -60,31 +65,29 @@ class ModerationFlowIT extends AbstractModerationIntegrationTest {
                             }
                         });
 
-        // Arrange: build input event
-        TelegramMessageEvent event =
-                new TelegramMessageEvent(
+        // Arrange: build PolicyDecisionEvent with matching messageText
+        PolicyDecisionEvent event =
+                new PolicyDecisionEvent(
                         "evt-mod-flow-001",
                         Instant.now().toString(),
                         null,
                         null,
-                        100L,
-                        200L,
-                        "user-mod-1",
-                        "USER",
-                        "this message contains spam_it_test_keyword_99",
-                        0,
-                        null,
-                        false,
-                        null,
-                        null,
-                        Map.of(),
-                        null,
-                        null,
-                        null,
-                        null);
+                        "evt-mod-flow-001",
+                        "policy-001",
+                        "BLOCK",
+                        "Spam detected",
+                        Map.of(
+                                "originalIntent",
+                                "SPAM",
+                                "confidence",
+                                0.95,
+                                "matchedRules",
+                                List.of()),
+                        List.of("block"),
+                        "this message contains spam_it_test_keyword_99");
         String json = new ObjectMapper().writeValueAsString(event);
 
-        // Arrange: subscribe to output topic with a unique group to capture from the start
+        // Arrange: subscribe to output topic
         Map<String, Object> consumerProps = new HashMap<>();
         consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
         consumerProps.put(
@@ -98,10 +101,13 @@ class ModerationFlowIT extends AbstractModerationIntegrationTest {
                 new DefaultKafkaConsumerFactory<String, String>(consumerProps).createConsumer();
         testConsumer.subscribe(Collections.singletonList("moderation.flags"));
 
-        // Act: publish input event
-        kafkaTemplate.send("telegram.raw.messages", "evt-mod-flow-001", json).get();
+        // Act: publish to policies.decisions with tenant header
+        ProducerRecord<String, String> producerRecord =
+                new ProducerRecord<>("policies.decisions", "evt-mod-flow-001", json);
+        producerRecord.headers().add("tenant_id", TENANT_ID.getBytes(StandardCharsets.UTF_8));
+        kafkaTemplate.send(producerRecord).get();
 
-        // Assert: ModerationFlagEvent appears on output topic within 15 seconds
+        // Assert: ModerationFlagEvent appears on moderation.flags within 15 seconds
         await().atMost(Duration.ofSeconds(15))
                 .untilAsserted(
                         () -> {
