@@ -51,3 +51,13 @@
   font-size: 12px;
   color: var(--fg-2);
 }
+
+.actionWarn {
+  padding: 8px 12px;
+  background: var(--signal-warn-bg);
+  color: var(--signal-warn-fg);
+  border: 1px solid rgba(240, 200, 74, 0.25);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}

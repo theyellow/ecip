@@ -83,7 +83,6 @@ api   --> t_raw : produce
 
 ' --- Fan-out from telegram.raw.messages ---
 t_raw --> clf   : consume
-t_raw --> mod   : consume
 t_raw --> ctx   : consume (thread tracking)
 t_raw --> audit : consume (observability)
 
@@ -103,8 +102,9 @@ pe --> a_escalation : produce
 pe --> a_commands   : produce
 pe --> a_review     : produce
 
-' --- Stage 3: LLM action (only for RESPOND / ESCALATE / EXECUTE decisions) ---
+' --- Stage 3: LLM action + moderation keyword check ---
 t_decisions --> llm   : consume
+t_decisions --> mod   : consume (keyword/regex on messageText)
 t_decisions --> audit : consume (observability)
 
 llm --> litellm   : HTTPS /v1/chat/completions
@@ -117,17 +117,18 @@ tdlib        --> telegram : send message (JNI/C++)
 ' ── Legend notes ─────────────────────────────────────────────────────────────
 note bottom of t_raw
   <b>Fan-out root</b>
-  4 parallel consumers.
+  3 parallel consumers.
   All pipeline processing
   starts here.
 end note
 
 note top of t_decisions
-  <b>Policy decision</b>
-  llm-orchestrator checks the
-  <i>decision</i> field and only calls
-  LiteLLM for RESPOND / ESCALATE /
-  EXECUTE. Others are logged only.
+  <b>Policy decision (+messageText)</b>
+  llm-orchestrator calls LiteLLM only
+  for RESPOND / ESCALATE / EXECUTE.
+  moderation-service applies keyword/
+  regex rules to the enriched
+  messageText field.
 end note
 
 note right of litellm

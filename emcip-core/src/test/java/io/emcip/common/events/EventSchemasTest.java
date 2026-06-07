@@ -51,7 +51,7 @@ class EventSchemasTest {
     void policyDecisionEvent_defaultsSchemaVersionAndEventType() {
         var event =
                 new EventSchemas.PolicyDecisionEvent(
-                        "id", "ts", null, null, "src", "p1", "ALLOW", "ok", null, null);
+                        "id", "ts", null, null, "src", "p1", "ALLOW", "ok", null, null, null);
         assertThat(event.schemaVersion()).isEqualTo(EventSchemas.POLICY_DECISION_V1);
         assertThat(event.eventType()).isEqualTo("PolicyDecision");
     }
