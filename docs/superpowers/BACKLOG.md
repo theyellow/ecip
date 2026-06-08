@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-05 (XS sweep #30/#31/#35 done; #32/#22 done; #33 done; #24 Phase 2 wired/untested; #34 moderation-service rewire done)
+> Last updated: 2026-06-08 (XS sweep #30/#31/#35 done; #32/#22 done; #33 done; #24 Phase 2 wired/untested; #34 moderation-service rewire done; #36 signal detectors done)
 > Single source of truth for all open work.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -42,6 +42,7 @@
 | 33 | **Policy rule: warn on "live-effect" actions in UI** | S | ✅ 2026-06-05. `LIVE_EFFECT_ACTIONS = {RESPOND, EXECUTE, BLOCK}` constant in `PolicyRules.jsx`; warn block with `role="alert"` and `signal-warn` tokens renders below the action select whenever a live-effect action is chosen. |
 | 32 | **Admin UI v2: SpaceBackground v3 (Otherland Sky)** | S | ✅ 2026-06-05. Replaced SpaceBackground with orb/eye sigil over auto-drift particle sky + foggy skyline. Pure canvas+SVG, removed `simplex-noise` dependency. Depends on #29. |
 | 34 | **Architecture: rewire moderation-service off `telegram.raw.messages`** | M | ✅ 2026-06-05. `PolicyDecisionEvent` enriched with top-level `messageText` (extracted from `IntentClassifiedEvent.parameters` in policy-engine). `ModerationEventConsumer` replaced by `PolicyDecisionConsumer` consuming `policies.decisions`. `kafka-topic-flow.puml` updated. |
+| 36 | **Signal detectors: 9 structural/script abuse detectors** | M | ✅ 2026-06-08. `SignalDetector` (9 detectors: foreignScriptRatio, cyrillicRatio, lookalikeSuspicion, zeroWidthAbuse, capsRatio, emojiOnly, stickerOnly, imageOnly, toxicityHint). `contentType` enrichment in tdlib-adapter. Priority chain in intent-classifier. Signal forwarding in policy-engine. Ref: `specs/2026-06-08-signal-detectors-design.md`. |
 | 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
 | 22 | **Admin UI: cross-tenant views** | M | ✅ 2026-06-05. ADMIN sidebar dropdown ("All Tenants" + individual tenants). Selection stored in AuthContext + sessionStorage; `X-Tenant-Id` header auto-injected via `useAuthRequest()` on every API call — all pages covered transparently. |
 | 24 | **Flag-detail: clickable message links + AI content research** | S | **Phase 1 ✅** Flag detail panel with clickable flag line, reply action (backend wired, covered in #23 Phase 1). **Phase 2 ⏳** AI analysis backend wired, not yet tested end-to-end — verify LLM response displays correctly inline. |

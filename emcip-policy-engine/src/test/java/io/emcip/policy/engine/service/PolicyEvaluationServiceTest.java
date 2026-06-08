@@ -338,6 +338,77 @@ class PolicyEvaluationServiceTest {
         verify(ruleConfigRepository).findByActiveTrueOrderByPriorityAsc();
     }
 
+    @Test
+    @DisplayName(
+            "Should forward signal params to PolicyDecision metadata and PolicyDecisionEvent"
+                    + " context")
+    @SuppressWarnings("unchecked")
+    void shouldForwardSignalParamsToDecisionMetadataAndEventContext() {
+        // Given
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
+                .thenReturn(Collections.emptyList());
+        when(decisionRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            PolicyDecision d = inv.getArgument(0);
+                            d.setId("test-signal-id");
+                            return d;
+                        });
+
+        Map<String, Object> params = new java.util.LinkedHashMap<>();
+        params.put("messageText", "Привет мир");
+        params.put("chatId", 100L);
+        params.put("senderId", "user-1");
+        params.put("foreignScriptRatio", 0.8);
+        params.put("cyrillicRatio", 0.8);
+        params.put("lookalikeSuspicion", 0.0);
+        params.put("zeroWidthAbuse", false);
+        params.put("capsRatio", 0.0);
+        params.put("emojiOnly", false);
+        params.put("stickerOnly", false);
+        params.put("imageOnly", false);
+        params.put("toxicityHint", 0.0);
+
+        var classification =
+                new EventSchemas.IntentClassifiedEvent(
+                        "evt-sig-1",
+                        Instant.now().toString(),
+                        EventSchemas.INTENT_CLASSIFIED_V1,
+                        "IntentClassified",
+                        "src-sig-1",
+                        "SCRIPT_FOREIGN",
+                        0.8,
+                        params,
+                        List.of("SCRIPT_FOREIGN"));
+
+        // When
+        PolicyDecision result = policyService.evaluate(classification, null);
+
+        // Then: PolicyDecision.metadata contains all 9 signal scores
+        assertThat(result.getMetadata())
+                .containsKeys(
+                        "foreignScriptRatio",
+                        "cyrillicRatio",
+                        "lookalikeSuspicion",
+                        "zeroWidthAbuse",
+                        "capsRatio",
+                        "emojiOnly",
+                        "stickerOnly",
+                        "imageOnly",
+                        "toxicityHint");
+        assertThat(result.getMetadata().get("foreignScriptRatio")).isEqualTo(0.8);
+
+        // And: PolicyDecisionEvent context serialised to Kafka contains signal scores (key + value)
+        ArgumentCaptor<org.apache.kafka.clients.producer.ProducerRecord<String, String>> captor =
+                ArgumentCaptor.forClass(org.apache.kafka.clients.producer.ProducerRecord.class);
+        verify(kafkaTemplate, atLeastOnce()).send(captor.capture());
+        assertThat(captor.getValue().value()).contains("\"foreignScriptRatio\":0.8");
+
+        // And: original four fields still forwarded
+        assertThat(result.getMetadata()).containsKey("messageText");
+        assertThat(result.getMetadata()).containsKey("chatId");
+    }
+
     private EventSchemas.IntentClassifiedEvent createClassification(
             String intent, double confidence) {
         return new EventSchemas.IntentClassifiedEvent(

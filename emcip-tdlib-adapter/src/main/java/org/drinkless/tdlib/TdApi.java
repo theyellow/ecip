@@ -164,6 +164,42 @@ public class TdApi {
         public FormattedText text;
     }
 
+    public static class MessageSticker extends MessageContent {
+        public static final int CONSTRUCTOR = 1509640442;
+    }
+
+    public static class MessagePhoto extends MessageContent {
+        public static final int CONSTRUCTOR = -1967947295;
+    }
+
+    public static class MessageVideo extends MessageContent {
+        public static final int CONSTRUCTOR = 2021281344;
+    }
+
+    public static class MessageAnimation extends MessageContent {
+        public static final int CONSTRUCTOR = 1834601369;
+    }
+
+    public static class MessageDocument extends MessageContent {
+        public static final int CONSTRUCTOR = 596945583;
+    }
+
+    public static class MessageAudio extends MessageContent {
+        public static final int CONSTRUCTOR = 276722716;
+    }
+
+    public static class MessageVoiceNote extends MessageContent {
+        public static final int CONSTRUCTOR = 527777781;
+    }
+
+    public static class MessageVideoNote extends MessageContent {
+        public static final int CONSTRUCTOR = 1173892267;
+    }
+
+    public static class MessagePoll extends MessageContent {
+        public static final int CONSTRUCTOR = -662504218;
+    }
+
     public static class FormattedText extends Object {
         public static final int CONSTRUCTOR = -252624564;
         public String text;

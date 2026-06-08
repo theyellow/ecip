@@ -1,6 +1,8 @@
 package io.emcip.tdlib.adapter.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,6 +14,7 @@ import org.drinkless.tdlib.TdApi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -60,6 +63,70 @@ class TelegramEventPublisherTest {
                 .verifyComplete();
 
         verify(kafkaTemplate, times(2)).send(any(ProducerRecord.class));
+    }
+
+    @Test
+    void extractMetadata_messageText_setsContentTypeText() {
+        TdApi.UpdateNewMessage update = makeUpdate(100L, 3L, "hello");
+
+        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+                .verifyComplete();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<org.apache.kafka.clients.producer.ProducerRecord<String, String>> captor =
+                ArgumentCaptor.forClass(org.apache.kafka.clients.producer.ProducerRecord.class);
+        verify(kafkaTemplate, atLeastOnce()).send(captor.capture());
+        assertThat(captor.getValue().value()).contains("\"contentType\":\"text\"");
+    }
+
+    @Test
+    void extractMetadata_messageSticker_setsContentTypeSticker() {
+        TdApi.UpdateNewMessage update = makeStickerUpdate(100L, 4L);
+
+        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+                .verifyComplete();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<org.apache.kafka.clients.producer.ProducerRecord<String, String>> captor =
+                ArgumentCaptor.forClass(org.apache.kafka.clients.producer.ProducerRecord.class);
+        verify(kafkaTemplate, atLeastOnce()).send(captor.capture());
+        assertThat(captor.getValue().value()).contains("\"contentType\":\"sticker\"");
+    }
+
+    @Test
+    void extractMetadata_messagePhoto_setsContentTypePhoto() {
+        TdApi.UpdateNewMessage update = makePhotoUpdate(100L, 5L);
+
+        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+                .verifyComplete();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<org.apache.kafka.clients.producer.ProducerRecord<String, String>> captor =
+                ArgumentCaptor.forClass(org.apache.kafka.clients.producer.ProducerRecord.class);
+        verify(kafkaTemplate, atLeastOnce()).send(captor.capture());
+        assertThat(captor.getValue().value()).contains("\"contentType\":\"photo\"");
+    }
+
+    private TdApi.UpdateNewMessage makeStickerUpdate(long chatId, long messageId) {
+        TdApi.MessageSticker content = new TdApi.MessageSticker();
+        TdApi.Message message = new TdApi.Message();
+        message.id = messageId;
+        message.chatId = chatId;
+        message.content = content;
+        TdApi.UpdateNewMessage update = new TdApi.UpdateNewMessage();
+        update.message = message;
+        return update;
+    }
+
+    private TdApi.UpdateNewMessage makePhotoUpdate(long chatId, long messageId) {
+        TdApi.MessagePhoto content = new TdApi.MessagePhoto();
+        TdApi.Message message = new TdApi.Message();
+        message.id = messageId;
+        message.chatId = chatId;
+        message.content = content;
+        TdApi.UpdateNewMessage update = new TdApi.UpdateNewMessage();
+        update.message = message;
+        return update;
     }
 
     private TdApi.UpdateNewMessage makeUpdate(long chatId, long messageId, String text) {
