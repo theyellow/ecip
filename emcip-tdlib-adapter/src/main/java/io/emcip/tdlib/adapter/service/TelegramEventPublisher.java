@@ -221,6 +221,22 @@ public class TelegramEventPublisher {
 
         metadata.put("isChannelPost", message.isChannelPost);
 
+        String contentType =
+                switch (message.content) {
+                    case TdApi.MessageText ignored -> "text";
+                    case TdApi.MessageSticker ignored -> "sticker";
+                    case TdApi.MessagePhoto ignored -> "photo";
+                    case TdApi.MessageVideo ignored -> "video";
+                    case TdApi.MessageAnimation ignored -> "animation";
+                    case TdApi.MessageDocument ignored -> "document";
+                    case TdApi.MessageAudio ignored -> "audio";
+                    case TdApi.MessageVoiceNote ignored -> "voice";
+                    case TdApi.MessageVideoNote ignored -> "video_note";
+                    case TdApi.MessagePoll ignored -> "poll";
+                    default -> "other";
+                };
+        metadata.put("contentType", contentType);
+
         return metadata;
     }
 
