@@ -28,6 +28,18 @@ public class PolicyEvaluationService {
     private static final Logger log = LoggerFactory.getLogger(PolicyEvaluationService.class);
     private static final String TOPIC_OUTPUT = "policies.decisions";
 
+    private static final Set<String> SIGNAL_PARAM_KEYS =
+            Set.of(
+                    "foreignScriptRatio",
+                    "cyrillicRatio",
+                    "lookalikeSuspicion",
+                    "zeroWidthAbuse",
+                    "capsRatio",
+                    "emojiOnly",
+                    "stickerOnly",
+                    "imageOnly",
+                    "toxicityHint");
+
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
     private final PolicyDecisionRepository decisionRepository;
@@ -166,10 +178,7 @@ public class PolicyEvaluationService {
                             matchedPolicyId != null ? matchedPolicyId : "default",
                             decision,
                             reason,
-                            Map.of(
-                                    "originalIntent", classification.intent(),
-                                    "confidence", classification.confidence(),
-                                    "matchedRules", classification.matchedRules()),
+                            buildDecisionContext(classification),
                             List.of(decision.toLowerCase()),
                             classification.parameters() != null
                                             && classification.parameters().get("messageText")
@@ -200,6 +209,20 @@ public class PolicyEvaluationService {
         actionService.executeAction(persistedDecision, actionContext);
 
         return persistedDecision;
+    }
+
+    private Map<String, Object> buildDecisionContext(
+            EventSchemas.IntentClassifiedEvent classification) {
+        Map<String, Object> ctx = new java.util.LinkedHashMap<>();
+        ctx.put("originalIntent", classification.intent());
+        ctx.put("confidence", classification.confidence());
+        ctx.put("matchedRules", classification.matchedRules());
+        Map<String, Object> params =
+                classification.parameters() != null ? classification.parameters() : Map.of();
+        for (String key : SIGNAL_PARAM_KEYS) {
+            if (params.containsKey(key)) ctx.put(key, params.get(key));
+        }
+        return ctx;
     }
 
     /** Check if a rule matches the given intent and confidence. */
@@ -242,6 +265,9 @@ public class PolicyEvaluationService {
         if (params.containsKey("senderId")) meta.put("senderId", params.get("senderId"));
         if (params.containsKey("telegramMessageId"))
             meta.put("telegramMessageId", params.get("telegramMessageId"));
+        for (String key : SIGNAL_PARAM_KEYS) {
+            if (params.containsKey(key)) meta.put(key, params.get(key));
+        }
         policyDecision.setMetadata(meta);
         policyDecision.setTimestamp(Instant.now());
 
