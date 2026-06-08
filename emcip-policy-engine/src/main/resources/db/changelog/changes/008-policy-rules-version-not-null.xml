@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!-- Backfill any NULL version values before adding NOT NULL constraints.
+         Rows with version=NULL cause Hibernate's isNew() to return true, which
+         makes save() call persist() (INSERT) instead of merge() (UPDATE),
+         resulting in a 23505 primary key violation on any update operation. -->
+
+    <changeSet id="008" author="phase5">
+        <sql>UPDATE policy_rules SET version = 0 WHERE version IS NULL</sql>
+
+        <addNotNullConstraint
+            tableName="policy_rules"
+            columnName="version"
+            columnDataType="BIGINT"
+            defaultNullValue="0"/>
+    </changeSet>
+
+    <changeSet id="009" author="phase5">
+        <sql>UPDATE policy_decisions SET version = 0 WHERE version IS NULL</sql>
+
+        <addNotNullConstraint
+            tableName="policy_decisions"
+            columnName="version"
+            columnDataType="BIGINT"
+            defaultNullValue="0"/>
+    </changeSet>
+
+</databaseChangeLog>
