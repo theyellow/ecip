@@ -29,6 +29,7 @@ public class IntentClassificationService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final SignalDetector signalDetector = new SignalDetector();
 
     // Simple rule patterns (Phase 2 - basic rules)
     private final List<IntentRule> rules =
@@ -72,7 +73,7 @@ public class IntentClassificationService {
         return Mono.fromCallable(
                 () -> {
                     String text = message.text();
-                    String matchedIntent = "UNKNOWN";
+                    String matchedIntent = null;
                     double highestConfidence = 0.0;
                     List<String> matchedRules = new ArrayList<>();
 
@@ -87,6 +88,32 @@ public class IntentClassificationService {
                         }
                     }
 
+                    // Detect structural/script signals
+                    Map<String, Object> signals = signalDetector.detect(text, message.metadata());
+
+                    // Apply signal priority chain when no rule matched
+                    if (matchedIntent == null) {
+                        if (Boolean.TRUE.equals(signals.get("stickerOnly"))) {
+                            matchedIntent = "FORMAT_STICKER_ONLY";
+                        } else if (Boolean.TRUE.equals(signals.get("imageOnly"))) {
+                            matchedIntent = "FORMAT_IMAGE_ONLY";
+                        } else if (Boolean.TRUE.equals(signals.get("emojiOnly"))) {
+                            matchedIntent = "FORMAT_EMOJI_ONLY";
+                        } else if ((Double) signals.get("lookalikeSuspicion") > 0.0) {
+                            matchedIntent = "LOOKALIKE_ABUSE";
+                        } else if (Boolean.TRUE.equals(signals.get("zeroWidthAbuse"))) {
+                            matchedIntent = "FORMAT_ABUSE";
+                        } else if ((Double) signals.get("foreignScriptRatio") >= 0.6) {
+                            matchedIntent = "SCRIPT_FOREIGN";
+                        } else if ((Double) signals.get("capsRatio") >= 0.7) {
+                            matchedIntent = "CAPS_HEAVY";
+                        } else if ((Double) signals.get("toxicityHint") > 0.0) {
+                            matchedIntent = "TOXICITY_HINT";
+                        } else {
+                            matchedIntent = "UNKNOWN";
+                        }
+                    }
+
                     // Create classification event
                     Map<String, Object> params = new LinkedHashMap<>();
                     params.put("textLength", text.length());
@@ -96,6 +123,7 @@ public class IntentClassificationService {
                     if (message.telegramMessageId() != null) {
                         params.put("telegramMessageId", message.telegramMessageId());
                     }
+                    params.putAll(signals);
                     var classification =
                             new EventSchemas.IntentClassifiedEvent(
                                     UUID.randomUUID().toString(),

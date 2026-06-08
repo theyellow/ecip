@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.common.events.EventSchemas;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
@@ -135,6 +136,126 @@ class IntentClassificationServiceTest {
         assertThat(result.parameters()).doesNotContainKey("telegramMessageId");
     }
 
+    @Test
+    void signals_mergedIntoParams_forTextMessage() {
+        var event = buildMessage("sig-1", "a regular message");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.parameters())
+                .containsKeys(
+                        "foreignScriptRatio",
+                        "cyrillicRatio",
+                        "lookalikeSuspicion",
+                        "zeroWidthAbuse",
+                        "capsRatio",
+                        "emojiOnly",
+                        "stickerOnly",
+                        "imageOnly",
+                        "toxicityHint");
+    }
+
+    @Test
+    void stickerOnly_signal_overridesNullIntent() {
+        var event = buildMessageWithMetadata("sig-2", "", Map.of("contentType", "sticker"));
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("FORMAT_STICKER_ONLY");
+    }
+
+    @Test
+    void imageOnly_signal_overridesNullIntent() {
+        var event = buildMessageWithMetadata("sig-3", "", Map.of("contentType", "photo"));
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("FORMAT_IMAGE_ONLY");
+    }
+
+    @Test
+    void emojiOnly_signal_overridesNullIntent() {
+        // U+1F600 = 😀
+        var event = buildMessage("sig-4", "\uD83D\uDE00 \uD83D\uDE01");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("FORMAT_EMOJI_ONLY");
+    }
+
+    @Test
+    void lookalikeSuspicion_overridesNullIntent() {
+        // U+0435 is Cyrillic е (lookalike for Latin e), mixed with Latin chars in same word
+        var event = buildMessage("sig-5", "h\u0435llo w\u043Frld");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("LOOKALIKE_ABUSE");
+    }
+
+    @Test
+    void zeroWidthAbuse_overridesNullIntent() {
+        // U+200B = zero-width space
+        var event = buildMessage("sig-6", "normal\u200Btext here");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("FORMAT_ABUSE");
+    }
+
+    @Test
+    void foreignScript_overridesNullIntent() {
+        // Non-lookalike Cyrillic: П(041F) р(0440-lookalike, skip) и(0438) в(0432) е(0435-lookalike)
+        // Use clearly non-lookalike Cyrillic letters: П и б ж щ ю я
+        var event = buildMessage("sig-7", "Пибжщюя пибжщюя пибжщюя");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("SCRIPT_FOREIGN");
+    }
+
+    @Test
+    void capsHeavy_overridesNullIntent() {
+        // >= 5 letters, >= 70% uppercase, no rule match
+        var event = buildMessage("sig-8", "SHOUTING VERY LOUD MESSAGE");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("CAPS_HEAVY");
+    }
+
+    @Test
+    void toxicityHint_overridesNullIntent() {
+        // "cunt" is in the toxicity list; lowercase so no caps signal; plain ASCII so no other
+        // signals
+        var event = buildMessage("sig-9", "you are a cunt");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("TOXICITY_HINT");
+    }
+
+    @Test
+    void llmIntent_winsOverSignals() {
+        // "hello" triggers GREETING rule; signal chain must not override it
+        // Add a zero-width char to ensure a signal would otherwise fire
+        var event = buildMessage("sig-10", "hello\u200B there");
+
+        var result = service.classify(event, null).block();
+
+        assertThat(result).isNotNull();
+        assertThat(result.intent()).isEqualTo("GREETING");
+    }
+
     private EventSchemas.TelegramMessageEvent buildMessage(String eventId, String text) {
         return buildMessageWithTelegramId(eventId, text, 1L);
     }
@@ -157,6 +278,30 @@ class IntentClassificationServiceTest {
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    private EventSchemas.TelegramMessageEvent buildMessageWithMetadata(
+            String eventId, String text, Map<String, Object> metadata) {
+        return new EventSchemas.TelegramMessageEvent(
+                eventId,
+                "2026-05-13T10:00:00Z",
+                null,
+                null,
+                1L,
+                100L,
+                "user-1",
+                "USER",
+                text,
+                1000,
+                null,
+                false,
+                null,
+                null,
+                metadata,
                 null,
                 null,
                 null,
