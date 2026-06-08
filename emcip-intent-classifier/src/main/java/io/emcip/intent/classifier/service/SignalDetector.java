@@ -8,11 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.springframework.stereotype.Component;
 
 /**
  * Structural and script-based signal detectors. All detectors run on every message regardless of
  * lexical rule results. Scores are always returned; callers decide how to use them.
  */
+@Component
 class SignalDetector {
 
     // Cyrillic characters that are visually identical to Latin letters

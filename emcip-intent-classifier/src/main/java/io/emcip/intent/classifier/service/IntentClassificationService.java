@@ -29,7 +29,7 @@ public class IntentClassificationService {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
-    private final SignalDetector signalDetector = new SignalDetector();
+    private final SignalDetector signalDetector;
 
     // Simple rule patterns (Phase 2 - basic rules)
     private final List<IntentRule> rules =
@@ -62,9 +62,12 @@ public class IntentClassificationService {
                             0.95));
 
     public IntentClassificationService(
-            KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
+            KafkaTemplate<String, String> kafkaTemplate,
+            ObjectMapper objectMapper,
+            SignalDetector signalDetector) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
+        this.signalDetector = signalDetector;
     }
 
     /** Classify a Telegram message and publish the result. */
@@ -99,15 +102,17 @@ public class IntentClassificationService {
                             matchedIntent = "FORMAT_IMAGE_ONLY";
                         } else if (Boolean.TRUE.equals(signals.get("emojiOnly"))) {
                             matchedIntent = "FORMAT_EMOJI_ONLY";
-                        } else if ((Double) signals.get("lookalikeSuspicion") > 0.0) {
+                        } else if (signals.get("lookalikeSuspicion") instanceof Double d
+                                && d > 0.0) {
                             matchedIntent = "LOOKALIKE_ABUSE";
                         } else if (Boolean.TRUE.equals(signals.get("zeroWidthAbuse"))) {
                             matchedIntent = "FORMAT_ABUSE";
-                        } else if ((Double) signals.get("foreignScriptRatio") >= 0.6) {
+                        } else if (signals.get("foreignScriptRatio") instanceof Double d
+                                && d >= 0.6) {
                             matchedIntent = "SCRIPT_FOREIGN";
-                        } else if ((Double) signals.get("capsRatio") >= 0.7) {
+                        } else if (signals.get("capsRatio") instanceof Double d && d >= 0.7) {
                             matchedIntent = "CAPS_HEAVY";
-                        } else if ((Double) signals.get("toxicityHint") > 0.0) {
+                        } else if (signals.get("toxicityHint") instanceof Double d && d > 0.0) {
                             matchedIntent = "TOXICITY_HINT";
                         } else {
                             matchedIntent = "UNKNOWN";

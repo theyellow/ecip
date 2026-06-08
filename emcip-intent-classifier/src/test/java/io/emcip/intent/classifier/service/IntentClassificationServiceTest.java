@@ -28,7 +28,9 @@ class IntentClassificationServiceTest {
     void setUp() {
         when(kafkaTemplate.send(any(ProducerRecord.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        service = new IntentClassificationService(kafkaTemplate, new ObjectMapper());
+        service =
+                new IntentClassificationService(
+                        kafkaTemplate, new ObjectMapper(), new SignalDetector());
     }
 
     @Test
@@ -100,6 +102,7 @@ class IntentClassificationServiceTest {
         assertThat(result.intent()).isEqualTo("UNKNOWN");
         assertThat(result.confidence()).isEqualTo(0.0);
         assertThat(result.matchedRules()).isEmpty();
+        assertThat(result.parameters()).containsKey("foreignScriptRatio");
     }
 
     @Test
@@ -245,7 +248,7 @@ class IntentClassificationServiceTest {
     }
 
     @Test
-    void llmIntent_winsOverSignals() {
+    void ruleMatch_preventsSignalChainFromOverridingIntent() {
         // "hello" triggers GREETING rule; signal chain must not override it
         // Add a zero-width char to ensure a signal would otherwise fire
         var event = buildMessage("sig-10", "hello\u200B there");
