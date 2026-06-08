@@ -75,7 +75,7 @@ public class IntentClassificationService {
             EventSchemas.TelegramMessageEvent message, String tenantId) {
         return Mono.fromCallable(
                 () -> {
-                    String text = message.text();
+                    String text = message.text() != null ? message.text() : "";
                     String matchedIntent = null;
                     double highestConfidence = 0.0;
                     List<String> matchedRules = new ArrayList<>();
