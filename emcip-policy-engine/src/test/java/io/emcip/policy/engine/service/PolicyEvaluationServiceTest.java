@@ -384,16 +384,25 @@ class PolicyEvaluationServiceTest {
         // When
         PolicyDecision result = policyService.evaluate(classification, null);
 
-        // Then: PolicyDecision.metadata contains signal scores
-        assertThat(result.getMetadata()).containsKey("foreignScriptRatio");
+        // Then: PolicyDecision.metadata contains all 9 signal scores
+        assertThat(result.getMetadata())
+                .containsKeys(
+                        "foreignScriptRatio",
+                        "cyrillicRatio",
+                        "lookalikeSuspicion",
+                        "zeroWidthAbuse",
+                        "capsRatio",
+                        "emojiOnly",
+                        "stickerOnly",
+                        "imageOnly",
+                        "toxicityHint");
         assertThat(result.getMetadata().get("foreignScriptRatio")).isEqualTo(0.8);
-        assertThat(result.getMetadata()).containsKey("lookalikeSuspicion");
 
-        // And: PolicyDecisionEvent context serialised to Kafka contains signal scores
+        // And: PolicyDecisionEvent context serialised to Kafka contains signal scores (key + value)
         ArgumentCaptor<org.apache.kafka.clients.producer.ProducerRecord<String, String>> captor =
                 ArgumentCaptor.forClass(org.apache.kafka.clients.producer.ProducerRecord.class);
         verify(kafkaTemplate, atLeastOnce()).send(captor.capture());
-        assertThat(captor.getValue().value()).contains("foreignScriptRatio");
+        assertThat(captor.getValue().value()).contains("\"foreignScriptRatio\":0.8");
 
         // And: original four fields still forwarded
         assertThat(result.getMetadata()).containsKey("messageText");

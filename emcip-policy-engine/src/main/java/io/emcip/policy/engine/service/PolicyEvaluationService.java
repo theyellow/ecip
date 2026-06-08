@@ -213,12 +213,13 @@ public class PolicyEvaluationService {
 
     private Map<String, Object> buildDecisionContext(
             EventSchemas.IntentClassifiedEvent classification) {
-        Map<String, Object> ctx = new java.util.LinkedHashMap<>();
+        Map<String, Object> ctx = new LinkedHashMap<>();
         ctx.put("originalIntent", classification.intent());
         ctx.put("confidence", classification.confidence());
         ctx.put("matchedRules", classification.matchedRules());
         Map<String, Object> params =
                 classification.parameters() != null ? classification.parameters() : Map.of();
+        // Signal scores forwarded to Kafka event for downstream policy consumers
         for (String key : SIGNAL_PARAM_KEYS) {
             if (params.containsKey(key)) ctx.put(key, params.get(key));
         }
@@ -257,7 +258,7 @@ public class PolicyEvaluationService {
         policyDecision.setMatchedRules(Map.of("matchedRules", classification.matchedRules()));
         Map<String, Object> params =
                 classification.parameters() != null ? classification.parameters() : Map.of();
-        Map<String, Object> meta = new java.util.LinkedHashMap<>();
+        Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("intent", classification.intent());
         meta.put("confidence", classification.confidence());
         if (params.containsKey("messageText")) meta.put("messageText", params.get("messageText"));
@@ -265,6 +266,7 @@ public class PolicyEvaluationService {
         if (params.containsKey("senderId")) meta.put("senderId", params.get("senderId"));
         if (params.containsKey("telegramMessageId"))
             meta.put("telegramMessageId", params.get("telegramMessageId"));
+        // Signal scores persisted to DB metadata for audit queries
         for (String key : SIGNAL_PARAM_KEYS) {
             if (params.containsKey(key)) meta.put(key, params.get(key));
         }
