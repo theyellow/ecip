@@ -61,8 +61,16 @@ public class FlagService {
         this.objectMapper = objectMapper;
     }
 
-    public Mono<JsonNode> listFlags(int page, int size, String decision) {
-        return policyEngineClient.listDecisions(page, size, decision);
+    public Mono<JsonNode> listFlags(
+            int page,
+            int size,
+            String decision,
+            String intent,
+            String from,
+            String to,
+            Double minConfidence) {
+        return policyEngineClient.listDecisions(
+                page, size, decision, intent, from, to, minConfidence);
     }
 
     public Mono<Void> updateStatus(String id, String status) {

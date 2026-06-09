@@ -5,11 +5,13 @@ import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,16 +53,28 @@ public class PolicyDecisionController {
     public Mono<PageResponse<PolicyDecision>> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
-            @RequestParam(required = false) String decision) {
+            @RequestParam(required = false) String decision,
+            @RequestParam(required = false) String intent,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    Instant from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    Instant to,
+            @RequestParam(required = false) Double minConfidence) {
         int effectiveSize = Math.min(size, 200);
         org.springframework.data.domain.Pageable pageable =
                 PageRequest.of(page, effectiveSize, Sort.by(Sort.Direction.DESC, "timestamp"));
+        String effectiveDecision = (decision != null && !decision.isBlank()) ? decision : null;
+        String effectiveIntent = (intent != null && !intent.isBlank()) ? intent : null;
         return Mono.fromCallable(
                         () -> {
                             Page<PolicyDecision> p =
-                                    (decision != null && !decision.isBlank())
-                                            ? repository.findByDecision(decision, pageable)
-                                            : repository.findAll(pageable);
+                                    repository.findByFilters(
+                                            effectiveDecision,
+                                            effectiveIntent,
+                                            from,
+                                            to,
+                                            minConfidence,
+                                            pageable);
                             return new PageResponse<>(
                                     p.getContent(),
                                     p.getTotalElements(),

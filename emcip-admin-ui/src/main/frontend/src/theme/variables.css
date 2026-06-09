@@ -135,6 +135,7 @@
 /* ─── Otherland v2 (dark, the default) ──────────────────────────────── */
 :root,
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --bg-app:        var(--c-void-900);
   --bg-app-soft:   var(--c-void-800);
   --bg-card:       rgba(12, 26, 40, 0.78);
@@ -199,6 +200,7 @@
 
 /* ─── Parchment v2 (light) ──────────────────────────────────────────── */
 :root[data-theme="light"] {
+  color-scheme: light;
   --bg-app:        #eef0ec;
   --bg-app-soft:   #e2e8e4;
   --bg-card:       rgba(255, 255, 255, 0.78);
