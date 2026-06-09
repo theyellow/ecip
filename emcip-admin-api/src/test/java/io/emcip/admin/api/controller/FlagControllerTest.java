@@ -81,6 +81,21 @@ class FlagControllerTest {
     }
 
     @Test
+    void getFlags_passesDecisionFilter() {
+        when(flagService.listFlags(0, 50, "BLOCK", null, null, null, null))
+                .thenReturn(Mono.just(pageNode()));
+        webTestClient
+                .get()
+                .uri("/api/flags?decision=BLOCK")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.total")
+                .isEqualTo(1);
+    }
+
+    @Test
     void updateStatus_returns204() {
         when(flagService.updateStatus("flag-1", "REVIEWED")).thenReturn(Mono.empty());
         webTestClient

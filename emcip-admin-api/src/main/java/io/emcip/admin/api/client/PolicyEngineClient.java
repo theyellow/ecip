@@ -119,10 +119,10 @@ public class PolicyEngineClient {
                                                 if (intent != null && !intent.isBlank()) {
                                                     uriBuilder.queryParam("intent", intent);
                                                 }
-                                                if (from != null) {
+                                                if (from != null && !from.isBlank()) {
                                                     uriBuilder.queryParam("from", from);
                                                 }
-                                                if (to != null) {
+                                                if (to != null && !to.isBlank()) {
                                                     uriBuilder.queryParam("to", to);
                                                 }
                                                 if (minConfidence != null) {
