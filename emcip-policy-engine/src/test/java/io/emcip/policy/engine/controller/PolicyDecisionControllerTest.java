@@ -1,5 +1,6 @@
 package io.emcip.policy.engine.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -12,6 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -55,11 +57,14 @@ class PolicyDecisionControllerTest {
 
     @Test
     void list_sizeCapAt200() {
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         when(repository.findByFilters(
-                        isNull(), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                        isNull(), isNull(), isNull(), isNull(), isNull(), pageableCaptor.capture()))
                 .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(200), 0L));
 
         client.get().uri("/api/policy-decisions?size=999").exchange().expectStatus().isOk();
+
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(200);
     }
 
     @Test
@@ -78,6 +83,22 @@ class PolicyDecisionControllerTest {
                 .expectBody()
                 .jsonPath("$.items[0].decision")
                 .isEqualTo("FLAG");
+    }
+
+    @Test
+    void list_blankDecisionTreatedAsNoFilter() {
+        when(repository.findByFilters(
+                        isNull(), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(decision("id-blank")), Pageable.ofSize(50), 1L));
+
+        client.get()
+                .uri("/api/policy-decisions?decision=   ")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.total")
+                .isEqualTo(1);
     }
 
     @Test
