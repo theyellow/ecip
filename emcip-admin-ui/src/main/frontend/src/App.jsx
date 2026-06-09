@@ -13,7 +13,7 @@ import { Simulate } from './pages/Simulate/Simulate'
 import { Telegram } from './pages/Telegram/Telegram'
 import { AIConfig } from './pages/AIConfig/AIConfig'
 import { ModerationRules } from './pages/ModerationRules/ModerationRules'
-import { Flags } from './pages/Flags/Flags'
+import { Decisions } from './pages/Flags/Flags'
 import { Users } from './pages/Users/Users'
 
 class PageErrorBoundary extends Component {
@@ -54,7 +54,7 @@ function AuthGate() {
         <Route path="telegram" element={<Telegram />} />
         <Route path="ai-config" element={<AIConfig />} />
         <Route path="moderation-rules" element={<ModerationRules />} />
-        <Route path="flags" element={<Flags />} />
+        <Route path="decisions" element={<Decisions />} />
         <Route path="users" element={<Users />} />
       </Route>
     </Routes>

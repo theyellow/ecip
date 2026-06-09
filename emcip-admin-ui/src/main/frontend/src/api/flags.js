@@ -1,8 +1,12 @@
 export function flagsApi(request) {
   return {
-    list: (page = 0, size = 50, decision = '') => {
+    list: (page = 0, size = 50, decision = '', intent = '', from = null, to = null, minConfidence = null) => {
       const params = new URLSearchParams({ page, size })
       if (decision) params.set('decision', decision)
+      if (intent) params.set('intent', intent)
+      if (from) params.set('from', from)
+      if (to) params.set('to', to)
+      if (minConfidence != null) params.set('minConfidence', minConfidence)
       return request(`/api/flags?${params}`)
     },
     updateStatus: (id, status) =>

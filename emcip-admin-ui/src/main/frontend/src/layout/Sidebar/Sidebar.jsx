@@ -11,7 +11,7 @@ const NAV = [
   { to: '/tenants',          label: 'Tenants',          icon: '⬡', permission: 'TENANTS_READ' },
   { to: '/policy-rules',     label: 'Policy Rules',     icon: '⚖', permission: 'POLICY_RULES_READ' },
   { to: '/moderation-rules', label: 'Moderation Rules', icon: '⊘', permission: 'MODERATION_RULES_READ' },
-  { to: '/flags',            label: 'Flags',            icon: '⚑', permission: 'AUDIT_READ' },
+  { to: '/decisions',        label: 'Decisions',        icon: '⚑', permission: 'AUDIT_READ' },
   { to: '/groups',           label: 'Groups',           icon: '◈', permission: 'GROUPS_READ' },
   { to: '/audit-log',        label: 'Audit Log',        icon: '◎', permission: 'AUDIT_READ' },
   { to: '/simulate',         label: 'Simulate Event',   icon: '▶', permission: 'SIMULATE_WRITE' },
