@@ -66,6 +66,30 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
     List<PolicyDecision> findByDecisionOrderByTimestampDesc(
             @Param("decision") String decision, @Param("limit") int limit);
 
+    /** Multi-field filtered query with optional predicates. Null values disable that filter. */
+    @Query(
+            value =
+                    "SELECT p FROM PolicyDecision p WHERE "
+                            + "(:decision IS NULL OR p.decision = :decision) AND "
+                            + "(:intent IS NULL OR p.originalIntent = :intent) AND "
+                            + "(:from IS NULL OR p.timestamp >= :from) AND "
+                            + "(:to IS NULL OR p.timestamp <= :to) AND "
+                            + "(:minConfidence IS NULL OR p.confidence >= :minConfidence)",
+            countQuery =
+                    "SELECT COUNT(p) FROM PolicyDecision p WHERE "
+                            + "(:decision IS NULL OR p.decision = :decision) AND "
+                            + "(:intent IS NULL OR p.originalIntent = :intent) AND "
+                            + "(:from IS NULL OR p.timestamp >= :from) AND "
+                            + "(:to IS NULL OR p.timestamp <= :to) AND "
+                            + "(:minConfidence IS NULL OR p.confidence >= :minConfidence)")
+    Page<PolicyDecision> findByFilters(
+            @Param("decision") String decision,
+            @Param("intent") String intent,
+            @Param("from") Instant from,
+            @Param("to") Instant to,
+            @Param("minConfidence") Double minConfidence,
+            Pageable pageable);
+
     /** Update the signal status of a decision by id. */
     @Modifying
     @Transactional
