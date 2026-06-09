@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useAuthRequest } from '../../auth/AuthContext'
+import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { policyRulesApi } from '../../api/policyRules'
 import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
@@ -100,6 +100,7 @@ function HistoryModal({ ruleName, history, onClose }) {
 
 export function PolicyRules() {
   const authRequest = useAuthRequest()
+  const { currentTenant } = useAuth()
   const api = policyRulesApi(authRequest)
   const [rules, setRules] = useState([])
   const [modal, setModal] = useState(null)
@@ -115,6 +116,7 @@ export function PolicyRules() {
     try {
       const payload = {
         ...form,
+        tenantId: form.tenantId || null,
         effectiveFrom: form.effectiveFrom ? new Date(form.effectiveFrom).toISOString() : null,
         effectiveTo: form.effectiveTo ? new Date(form.effectiveTo).toISOString() : null,
       }
@@ -166,7 +168,7 @@ export function PolicyRules() {
 
       {modal && (
         <RuleModal
-          rule={modal === 'add' ? null : modal}
+          rule={modal === 'add' ? { tenantId: currentTenant?.id ?? null } : modal}
           onClose={() => setModal(null)}
           onSave={save}
           tenants={tenants}
