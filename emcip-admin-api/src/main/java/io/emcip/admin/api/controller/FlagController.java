@@ -55,8 +55,13 @@ public class FlagController {
     public Mono<JsonNode> getFlags(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "50") int size,
-            @RequestParam(name = "decision", required = false) String decision) {
-        return flagService.listFlags(page, Math.min(size, 200), decision);
+            @RequestParam(name = "decision", required = false) String decision,
+            @RequestParam(name = "intent", required = false) String intent,
+            @RequestParam(name = "from", required = false) String from,
+            @RequestParam(name = "to", required = false) String to,
+            @RequestParam(name = "minConfidence", required = false) Double minConfidence) {
+        return flagService.listFlags(
+                page, Math.min(size, 200), decision, intent, from, to, minConfidence);
     }
 
     @Operation(summary = "Update the status of a policy flag")

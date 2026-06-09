@@ -45,7 +45,8 @@ class FlagControllerTest {
 
     @Test
     void getFlags_returnsPageResponse() {
-        when(flagService.listFlags(0, 50, null)).thenReturn(Mono.just(pageNode()));
+        when(flagService.listFlags(0, 50, null, null, null, null, null))
+                .thenReturn(Mono.just(pageNode()));
         webTestClient
                 .get()
                 .uri("/api/flags")
@@ -59,8 +60,24 @@ class FlagControllerTest {
 
     @Test
     void getFlags_sizeCapAt200() {
-        when(flagService.listFlags(0, 200, null)).thenReturn(Mono.just(pageNode()));
+        when(flagService.listFlags(0, 200, null, null, null, null, null))
+                .thenReturn(Mono.just(pageNode()));
         webTestClient.get().uri("/api/flags?size=999").exchange().expectStatus().isOk();
+    }
+
+    @Test
+    void getFlags_passesIntentFilter() {
+        when(flagService.listFlags(0, 50, null, "SPAM", null, null, null))
+                .thenReturn(Mono.just(pageNode()));
+        webTestClient
+                .get()
+                .uri("/api/flags?intent=SPAM")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.total")
+                .isEqualTo(1);
     }
 
     @Test

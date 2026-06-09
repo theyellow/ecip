@@ -65,16 +65,20 @@ class FlagServiceTest {
 
     @Test
     void listFlags_withoutDecision_delegatesToClient() {
-        when(policyEngineClient.listDecisions(0, 25, null)).thenReturn(Mono.just(pageNode()));
+        when(policyEngineClient.listDecisions(0, 25, null, null, null, null, null))
+                .thenReturn(Mono.just(pageNode()));
 
-        StepVerifier.create(flagService.listFlags(0, 25, null)).expectNextCount(1).verifyComplete();
+        StepVerifier.create(flagService.listFlags(0, 25, null, null, null, null, null))
+                .expectNextCount(1)
+                .verifyComplete();
     }
 
     @Test
     void listFlags_withDecision_passesDecisionThrough() {
-        when(policyEngineClient.listDecisions(0, 10, "SPAM")).thenReturn(Mono.just(pageNode()));
+        when(policyEngineClient.listDecisions(0, 10, "SPAM", null, null, null, null))
+                .thenReturn(Mono.just(pageNode()));
 
-        StepVerifier.create(flagService.listFlags(0, 10, "SPAM"))
+        StepVerifier.create(flagService.listFlags(0, 10, "SPAM", null, null, null, null))
                 .expectNextCount(1)
                 .verifyComplete();
     }

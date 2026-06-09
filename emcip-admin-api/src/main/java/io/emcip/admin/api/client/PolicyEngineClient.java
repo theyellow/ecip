@@ -93,7 +93,14 @@ public class PolicyEngineClient {
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
-    public Mono<JsonNode> listDecisions(int page, int size, String decision) {
+    public Mono<JsonNode> listDecisions(
+            int page,
+            int size,
+            String decision,
+            String intent,
+            String from,
+            String to,
+            Double minConfidence) {
         return Mono.deferContextual(
                 ctx -> {
                     String tenantId = ReactorTenantContext.getTenantId(ctx);
@@ -108,6 +115,19 @@ public class PolicyEngineClient {
                                                         .queryParam("size", size);
                                                 if (decision != null && !decision.isBlank()) {
                                                     uriBuilder.queryParam("decision", decision);
+                                                }
+                                                if (intent != null && !intent.isBlank()) {
+                                                    uriBuilder.queryParam("intent", intent);
+                                                }
+                                                if (from != null) {
+                                                    uriBuilder.queryParam("from", from);
+                                                }
+                                                if (to != null) {
+                                                    uriBuilder.queryParam("to", to);
+                                                }
+                                                if (minConfidence != null) {
+                                                    uriBuilder.queryParam(
+                                                            "minConfidence", minConfidence);
                                                 }
                                                 return uriBuilder.build();
                                             });
