@@ -214,14 +214,7 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
       </div>
 
       {error && (
-        <p role="alert" style={{
-          color: 'var(--signal-stop-fg)',
-          background: 'rgba(248,113,113,0.08)',
-          border: '1px solid rgba(248,113,113,0.25)',
-          padding: '8px 12px',
-          fontFamily: 'var(--font-mono)',
-          fontSize: '12px',
-        }}>{error}</p>
+        <p role="alert" className={styles.alertBanner}>{error}</p>
       )}
 
       <div className={styles.replyHeader} onClick={() => setShowReply(s => !s)}>
@@ -284,14 +277,7 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
           </div>
 
           {replyError && (
-            <p role="alert" style={{
-              color: 'var(--signal-stop-fg)',
-              background: 'rgba(248,113,113,0.08)',
-              border: '1px solid rgba(248,113,113,0.25)',
-              padding: '8px 12px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '12px',
-            }}>{replyError}</p>
+            <p role="alert" className={styles.alertBanner}>{replyError}</p>
           )}
         </div>
       )}
@@ -333,42 +319,53 @@ export function Decisions() {
   const api = flagsApi(useAuthRequest())
   const [flags, setFlags] = useState([])
   const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(0)
-  const [size, setSize] = useState(50)
-  const [decision, setDecision] = useState('')
-  const [intent, setIntent] = useState('')
-  const [minConfidence, setMinConfidence] = useState('')
-  const [timePreset, setTimePreset] = useState('')
-  const [customFrom, setCustomFrom] = useState('')
-  const [customTo, setCustomTo] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
 
-  const computeRange = () => {
-    if (timePreset === 'custom') {
-      return {
-        from: customFrom ? new Date(customFrom).toISOString() : null,
-        to: customTo ? new Date(customTo).toISOString() : null,
-      }
-    }
-    return presetToRange(timePreset)
-  }
+  const [filters, setFilters] = useState({
+    page: 0,
+    size: 50,
+    decision: '',
+    intent: '',
+    minConfidence: '',
+    timePreset: '',
+    customFrom: '',
+    customTo: '',
+  })
 
-  const load = () => {
+  // Helper: update a filter and reset page to 0 atomically (except when navigating pages directly)
+  const setFilter = (key, value) =>
+    setFilters(f => ({ ...f, [key]: value, ...(key !== 'page' ? { page: 0 } : {}) }))
+
+  useEffect(() => {
+    const { page, size, decision, intent, minConfidence, timePreset, customFrom, customTo } = filters
+    const computedRange =
+      timePreset === 'custom'
+        ? {
+            from: customFrom ? new Date(customFrom).toISOString() : null,
+            to: customTo ? new Date(customTo).toISOString() : null,
+          }
+        : presetToRange(timePreset)
+
     setLoading(true)
-    const { from, to } = computeRange()
     api
-      .list(page, size, decision, intent, from, to, minConfidence ? Number(minConfidence) : null)
-      .then(data => { setFlags(data?.items ?? []); setTotal(data?.total ?? 0) })
+      .list(
+        page,
+        size,
+        decision,
+        intent,
+        computedRange.from,
+        computedRange.to,
+        minConfidence ? Number(minConfidence) : null,
+      )
+      .then(data => {
+        setFlags(data?.items ?? [])
+        setTotal(data?.total ?? 0)
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }
-
-  // Reset to page 0 when any filter changes
-  useEffect(() => { setPage(0) }, [size, decision, intent, minConfidence, timePreset, customFrom, customTo])
-
-  useEffect(() => { load() }, [page, size, decision, intent, minConfidence, timePreset, customFrom, customTo])
+  }, [filters])
 
   const updateStatus = async (id, status) => {
     await api.updateStatus(id, status)
@@ -376,7 +373,7 @@ export function Decisions() {
     setSelected(prev => prev?.id === id ? { ...prev, signalStatus: status } : prev)
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / size))
+  const totalPages = Math.max(1, Math.ceil(total / filters.size))
 
   return (
     <>
@@ -386,10 +383,10 @@ export function Decisions() {
           <div className={styles.systemId}>{'\u2691'} policy-engine {'\u00b7'} {total} decisions</div>
         </div>
         <div className={styles.filters}>
-          <select value={decision} onChange={e => setDecision(e.target.value)} className={styles.select}>
+          <select value={filters.decision} onChange={e => setFilter('decision', e.target.value)} className={styles.select}>
             {DECISIONS.map(d => <option key={d} value={d}>{d || 'All decisions'}</option>)}
           </select>
-          <select value={size} onChange={e => setSize(Number(e.target.value))} className={styles.select}>
+          <select value={filters.size} onChange={e => setFilter('size', Number(e.target.value))} className={styles.select}>
             {[25, 50, 100, 200].map(n => <option key={n}>{n}</option>)}
           </select>
         </div>
@@ -400,23 +397,23 @@ export function Decisions() {
           type="text"
           className={styles.filterInput}
           placeholder="Intent (e.g. SPAM)"
-          value={intent}
-          onChange={e => setIntent(e.target.value)}
+          value={filters.intent}
+          onChange={e => setFilter('intent', e.target.value)}
         />
-        <select value={minConfidence} onChange={e => setMinConfidence(e.target.value)} className={styles.select}>
+        <select value={filters.minConfidence} onChange={e => setFilter('minConfidence', e.target.value)} className={styles.select}>
           {CONFIDENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select value={timePreset} onChange={e => setTimePreset(e.target.value)} className={styles.select}>
+        <select value={filters.timePreset} onChange={e => setFilter('timePreset', e.target.value)} className={styles.select}>
           {TIME_PRESETS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        {timePreset === 'custom' && <>
-          <input type="datetime-local" className={styles.filterInput} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
-          <input type="datetime-local" className={styles.filterInput} value={customTo} onChange={e => setCustomTo(e.target.value)} />
+        {filters.timePreset === 'custom' && <>
+          <input type="datetime-local" className={styles.filterInput} value={filters.customFrom} onChange={e => setFilter('customFrom', e.target.value)} />
+          <input type="datetime-local" className={styles.filterInput} value={filters.customTo} onChange={e => setFilter('customTo', e.target.value)} />
         </>}
       </div>
 
       {error && (
-        <p role="alert" style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }}>{error}</p>
+        <p role="alert" className={styles.alertBanner}>{error}</p>
       )}
 
       <div className={styles.tableWrapper}>
@@ -458,9 +455,9 @@ export function Decisions() {
       </div>
 
       <div className={styles.pagination}>
-        <Button variant="secondary" disabled={page === 0} onClick={() => setPage(p => p - 1)}>{'\u2190'} Prev</Button>
-        <span>Page {page + 1} of {totalPages} {'\u00a0\u00b7\u00a0'} {total} total</span>
-        <Button variant="secondary" disabled={page + 1 >= totalPages} onClick={() => setPage(p => p + 1)}>Next {'\u2192'}</Button>
+        <Button variant="secondary" disabled={filters.page === 0} onClick={() => setFilters(f => ({ ...f, page: f.page - 1 }))}>{'\u2190'} Prev</Button>
+        <span>Page {filters.page + 1} of {totalPages} {'\u00a0\u00b7\u00a0'} {total} total</span>
+        <Button variant="secondary" disabled={filters.page + 1 >= totalPages} onClick={() => setFilters(f => ({ ...f, page: f.page + 1 }))}>Next {'\u2192'}</Button>
       </div>
 
       {selected && (

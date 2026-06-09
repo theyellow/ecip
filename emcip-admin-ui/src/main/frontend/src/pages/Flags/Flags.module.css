@@ -62,7 +62,7 @@
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--fg-3);
-  background: rgba(212, 168, 73, 0.04);
+  background: var(--accent-soft);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -74,7 +74,7 @@
 }
 
 .table tr:hover td {
-  background: rgba(212, 168, 73, 0.04);
+  background: var(--accent-soft);
 }
 
 .clickableRow {
@@ -294,6 +294,17 @@
 .filterInput:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--orb-glow);
+}
+
+/* Alert banner */
+.alertBanner {
+  color: var(--signal-stop-fg);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-bottom: var(--sp-3);
 }
 
 /* Pagination bar */
