@@ -47,15 +47,15 @@ Raw ideas not yet in the backlog. Once an item gets a backlog entry it is remove
 
 ## Moderation
 
-- Category-based moderation rules with thresholds — replace keyword/regex rules with ML-scored categories (harassment, hate_speech, sexual_content, self_harm, spam, misinformation), each with a 0–1 threshold and per-category action. Requires new backend data model + ML scoring pipeline. Blocked on backlog #8 (ML toxicity detection).
+- Category-based moderation rules with thresholds — replace keyword/regex rules with ML-scored categories (harassment, hate_speech, sexual_content, self_harm, spam, misinformation), each with a 0–1 threshold and per-category action. Requires new backend data model + ML scoring pipeline.
 
 ## User-Facing / Self-Service
 
-- Public self-service portal — separate service allowing end-users to link their own Telegram accounts without an EMCIP admin login. Prerequisite: backlog #21 (tenant provisioning).
-- Tenant-level user limits and quotas — cap TENANT_ADMIN users per tenant, or Telegram accounts per tenant. Relevant once #21 is in place.
+- Public self-service portal — separate service allowing end-users to link their own Telegram accounts without an EMCIP admin login. Requires tenant provisioning to be in place first.
+- Tenant-level user limits and quotas — cap TENANT_ADMIN users per tenant, or Telegram accounts per tenant.
 - SSO / OAuth2 / OIDC for admin login — replace username/password with Keycloak, Auth0, or Google Workspace. Requires replacing `JwtService` + `admin_users` with OIDC token exchange.
 
-## Operator Reply Enhancements (follow-ons to backlog #23)
+## Operator Reply Enhancements
 
 - Media/file replies: images, documents, or voice messages as operator responses (Phase 1 is text-only)
 - Edit or delete sent operator messages
