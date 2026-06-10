@@ -26,11 +26,11 @@ function RuleModal({ rule, onClose, onSave, tenants }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   return (
-    <Modal title={rule ? 'Edit Rule' : 'Create Rule'} onClose={onClose} onSubmit={() => onSave(form)}>
+    <Modal title={rule?.id ? 'Edit Rule' : 'Create Rule'} onClose={onClose} onSubmit={() => onSave(form)}>
       <div className={styles.field}>
         <label>Rule Name *</label>
         <input type="text" className={styles.input} value={form.name}
-          onChange={e => set('name', e.target.value)} required disabled={!!rule} />
+          onChange={e => set('name', e.target.value)} required disabled={!!rule?.id} />
       </div>
       <div className={styles.field}>
         <label>Target Intent</label>

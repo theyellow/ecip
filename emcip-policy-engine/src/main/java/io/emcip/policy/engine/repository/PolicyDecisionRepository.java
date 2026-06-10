@@ -72,21 +72,21 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
                     "SELECT p FROM PolicyDecision p WHERE "
                             + "(:decision IS NULL OR p.decision = :decision) AND "
                             + "(:intent IS NULL OR p.originalIntent = :intent) AND "
-                            + "(:from IS NULL OR p.timestamp >= :from) AND "
-                            + "(:to IS NULL OR p.timestamp <= :to) AND "
+                            + "(:fromTs IS NULL OR p.timestamp >= :fromTs) AND "
+                            + "(:toTs IS NULL OR p.timestamp <= :toTs) AND "
                             + "(:minConfidence IS NULL OR p.confidence >= :minConfidence)",
             countQuery =
                     "SELECT COUNT(p) FROM PolicyDecision p WHERE "
                             + "(:decision IS NULL OR p.decision = :decision) AND "
                             + "(:intent IS NULL OR p.originalIntent = :intent) AND "
-                            + "(:from IS NULL OR p.timestamp >= :from) AND "
-                            + "(:to IS NULL OR p.timestamp <= :to) AND "
+                            + "(:fromTs IS NULL OR p.timestamp >= :fromTs) AND "
+                            + "(:toTs IS NULL OR p.timestamp <= :toTs) AND "
                             + "(:minConfidence IS NULL OR p.confidence >= :minConfidence)")
     Page<PolicyDecision> findByFilters(
             @Param("decision") String decision,
             @Param("intent") String intent,
-            @Param("from") Instant from,
-            @Param("to") Instant to,
+            @Param("fromTs") Instant fromTs,
+            @Param("toTs") Instant toTs,
             @Param("minConfidence") Double minConfidence,
             Pageable pageable);
 
