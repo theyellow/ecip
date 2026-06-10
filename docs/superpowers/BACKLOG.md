@@ -32,14 +32,14 @@
 |---|------|------|-------|
 | SC6b | **Audit-log page: filters + pagination** | S | Same problem Decisions page had (#39). audit-service needs `page`/`size` + time-range + tenant filters on `GET /api/audit/events`; thread through `AuditServiceClient` → `AuditController` (admin-api) → UI. Spec: `docs/superpowers/specs/2026-05-20-sc6-sc7-sc8-design.md §SC6`. |
 | 40 | **SC8 resilience follow-ons** | S | Two gaps after PR #73: (1) retry with exponential backoff on circuit-broken calls before surfacing 503; (2) per-service fallback responses (empty list / degraded payload) so the UI stays functional when one downstream is down. |
-| 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
-| 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
 | 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | Phase 1 ✅ PR #89. Phase 2: chat-style UI backed by a configured LiteLLM model so the operator can research/draft a response with AI assistance before sending. |
 | 24 | **Flag-detail: AI analysis end-to-end test** | S | Backend wired (PR #89), not yet verified end-to-end. Confirm LLM response renders correctly in the detail modal's AI Analysis section. |
-| 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. |
+| 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
+| 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. **Scope to be redefined/refined before picking up** — the full design for complex rule logic has not been settled. |
 | 26 | **Bulk message ingestion + topic clustering + RAG** | L | Backfill historical messages via TDLib `getChatHistory`, cluster into topics (BERTopic / LiteLLM summarization), build a per-group queryable knowledge base. Prerequisite for #27. |
 | 27 | **Deep research operator tool** | XL | Operator-triggered autonomous research agent. Given a flagged message or topic cluster, researches via RAG + web search + LLM reasoning → structured report. Depends on #26. |
 | 8 | **ML toxicity detection** | XL | Replace keyword/regex moderation rules with a model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed before implementation. |
+| 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
 
 ---
 
