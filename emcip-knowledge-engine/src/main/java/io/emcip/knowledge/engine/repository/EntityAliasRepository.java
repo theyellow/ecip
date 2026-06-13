@@ -9,4 +9,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface EntityAliasRepository extends JpaRepository<EntityAlias, UUID> {
     Optional<EntityAlias> findByConceptTypeAndAlias(String conceptType, String alias);
+
+    Optional<EntityAlias> findByConceptTypeAndAliasAndTenantId(
+            String conceptType, String alias, UUID tenantId);
 }
