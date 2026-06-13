@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-8" author="knowledge-engine">
+        <createTable tableName="ke_graph_node_embeddings" remarks="Vector embeddings for graph nodes (shadow table)">
+            <column name="node_id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="concept_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_ke_node_emb_type_tenant" tableName="ke_graph_node_embeddings">
+            <column name="concept_type"/>
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="ke-8b" author="knowledge-engine">
+        <sql>ALTER TABLE ke_graph_node_embeddings ADD COLUMN embedding vector(1536);</sql>
+        <sql>CREATE INDEX idx_ke_node_emb_vector ON ke_graph_node_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);</sql>
+    </changeSet>
+
+</databaseChangeLog>

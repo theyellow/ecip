@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-6" author="knowledge-engine" context="!test">
+        <!-- Concept Types -->
+        <insert tableName="ke_concept_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="Person"/>
+            <column name="description" value="A person identified in messages"/>
+            <column name="properties" value='[{"key":"displayName","valueType":"STRING","required":false}]'/>
+            <column name="shared" valueBoolean="false"/>
+        </insert>
+        <insert tableName="ke_concept_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="Topic"/>
+            <column name="description" value="A discussion topic or subject"/>
+            <column name="properties" value='[{"key":"category","valueType":"STRING","required":false}]'/>
+            <column name="shared" valueBoolean="false"/>
+        </insert>
+        <insert tableName="ke_concept_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="Message"/>
+            <column name="description" value="A chat message reference"/>
+            <column name="properties" value='[{"key":"messageId","valueType":"STRING","required":true}]'/>
+            <column name="shared" valueBoolean="false"/>
+        </insert>
+        <insert tableName="ke_concept_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="Source"/>
+            <column name="description" value="An external information source"/>
+            <column name="properties" value='[{"key":"url","valueType":"STRING","required":false}]'/>
+            <column name="shared" valueBoolean="true"/>
+        </insert>
+        <insert tableName="ke_concept_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="Document"/>
+            <column name="description" value="An ingested document"/>
+            <column name="properties" value='[{"key":"format","valueType":"STRING","required":false}]'/>
+            <column name="shared" valueBoolean="true"/>
+        </insert>
+
+        <!-- Relationship Types -->
+        <insert tableName="ke_relationship_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="DISCUSSES"/>
+            <column name="description" value="Person discusses a topic"/>
+            <column name="source_types" value='["Person"]'/>
+            <column name="target_types" value='["Topic"]'/>
+            <column name="properties" value='[{"key":"frequency","valueType":"INTEGER"}]'/>
+        </insert>
+        <insert tableName="ke_relationship_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="AUTHORED"/>
+            <column name="description" value="Person authored a message"/>
+            <column name="source_types" value='["Person"]'/>
+            <column name="target_types" value='["Message"]'/>
+            <column name="properties" value='[]'/>
+        </insert>
+        <insert tableName="ke_relationship_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="MENTIONS"/>
+            <column name="description" value="Message mentions a topic"/>
+            <column name="source_types" value='["Message"]'/>
+            <column name="target_types" value='["Topic"]'/>
+            <column name="properties" value='[]'/>
+        </insert>
+        <insert tableName="ke_relationship_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="CITES"/>
+            <column name="description" value="Document cites a source"/>
+            <column name="source_types" value='["Document"]'/>
+            <column name="target_types" value='["Source"]'/>
+            <column name="properties" value='[]'/>
+        </insert>
+        <insert tableName="ke_relationship_types">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="name" value="RELATED_TO"/>
+            <column name="description" value="Topic is related to another topic"/>
+            <column name="source_types" value='["Topic"]'/>
+            <column name="target_types" value='["Topic"]'/>
+            <column name="properties" value='[{"key":"strength","valueType":"DOUBLE"}]'/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
