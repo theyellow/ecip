@@ -105,6 +105,7 @@ All skills in `.claude/skills/` - loaded automatically by trigger keywords:
 - `emcip-admin-ui` - React frontend: design tokens, components, layout, handoff workflow
 - `health-indicators` - Custom Actuator health indicators
 - `spring-reactive` - Async Mono/Flux for high-concurrency (use sparingly — project is JPA/blocking)
+- `documentation-checklist` - Mapping of which docs/diagrams to update for any code change
 
 ## Documentation
 
