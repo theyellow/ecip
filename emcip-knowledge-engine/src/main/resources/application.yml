@@ -1,0 +1,68 @@
+server:
+  port: 9088
+
+spring:
+  application:
+    name: emcip-knowledge-engine
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:14005/emcip}
+    username: ${SPRING_DATASOURCE_USERNAME:emcip}
+    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
+    consumer:
+      group-id: knowledge-engine
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+knowledge:
+  embedding:
+    dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:1536}
+  llm-orchestrator:
+    base-url: ${LLM_ORCHESTRATOR_URL:http://localhost:9084}
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+admin:
+  service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
+
+logging:
+  structured:
+    format:
+      console: logstash
+  level:
+    io.emcip: INFO
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
