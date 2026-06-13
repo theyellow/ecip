@@ -175,6 +175,30 @@ enum ActionTaken {
     REPORTED
 }
 
+' Knowledge Events
+class KnowledgeExtractionEvent {
+    + KnowledgePayload payload
+    + UUID documentId
+    + String sourceType
+    + List<ExtractedEntity> entities
+    + List<ExtractedRelationship> relationships
+    + Integer entitiesExtracted
+    + Integer relationshipsCreated
+}
+
+class KnowledgeEnrichmentRequest {
+    + UUID messageId
+    + Long chatId
+    + String query
+    + String searchType
+}
+
+class KnowledgeEnrichmentResponse {
+    + UUID requestId
+    + List<GraphNode> graphResults
+    + List<KnowledgeDocument> documentResults
+}
+
 ' Audit Events
 class AuditEvent {
     + AuditPayload payload
@@ -226,6 +250,9 @@ EMCIPEvent <|-- IntentClassifiedEvent
 EMCIPEvent <|-- PolicyDecisionEvent
 EMCIPEvent <|-- ResponseGeneratedEvent
 EMCIPEvent <|-- ModerationFlagEvent
+EMCIPEvent <|-- KnowledgeExtractionEvent
+EMCIPEvent <|-- KnowledgeEnrichmentRequest
+EMCIPEvent <|-- KnowledgeEnrichmentResponse
 EMCIPEvent <|-- AuditEvent
 
 ' Composition

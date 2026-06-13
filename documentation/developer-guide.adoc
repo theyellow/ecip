@@ -79,6 +79,10 @@ The project is a Maven multi-module build with a single parent POM (`community-i
 |Service
 |REST management API (tenants, policy rules, audit, auth). Also called "Controller" in module context — the sole management entry point; delegates to domain services via REST proxy clients, never via shared DB.
 
+|`emcip-knowledge-engine`
+|Service
+|Ontology-driven knowledge management; graph (Apache AGE) + vector (pgvector) search, `knowledge.raw.messages` consumer, `knowledge.events` producer.
+
 |`emcip-admin-ui`
 |Service
 |Spring Boot wrapper serving the React SPA on port 14009.

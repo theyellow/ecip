@@ -1,0 +1,76 @@
+@startuml C3_Knowledge_Engine
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+' Purpose: Component-level view of the Knowledge Engine service
+' Used in: architecture-guide.adoc - Knowledge Engine section
+
+LAYOUT_WITH_LEGEND()
+
+Container_Boundary(ke, "Knowledge Engine (emcip-knowledge-engine) — Port 9088") {
+
+    ' Ingestion Layer
+    Component(consumer, "KnowledgeMessageConsumer", "Kafka Consumer", "Consumes knowledge.raw.messages\nStores raw content + embedding\nTriggers LLM extraction")
+    Component(ingest, "DocumentIngestionService", "Spring Service", "URL fetch, file upload\nHTML/PDF text extraction\nChunking (~500 tokens)")
+    Component(backfill, "BackfillService", "Spring Service", "Triggers TDLib getChatHistory\nBatched extraction (10-20 msgs)\nProgress tracking")
+
+    ' Extraction Layer
+    Component(extraction, "KnowledgeExtractionService", "Spring Service", "Ontology-driven LLM extraction\nStructured JSON parsing\nEntity + relationship output")
+    Component(resolution, "EntityResolutionService", "Spring Service", "3-level dedup:\n1. Exact match\n2. Alias table\n3. Embedding similarity")
+
+    ' Ontology Layer
+    Component(ontology, "OntologyService", "Spring Service", "ConceptType + RelationshipType\nCRUD + validation\nDrives extraction prompts")
+
+    ' Storage Layer
+    Component(graph_repo, "AgeGraphRepository", "GraphRepository impl", "Apache AGE (openCypher)\nGraphNode + GraphEdge\nTraversal queries")
+    Component(vector_repo, "PgVectorSearchRepository", "VectorSearchRepository impl", "pgvector extension\nKnowledgeDocument + embedding\nCosine similarity search")
+
+    ' Query Layer
+    Component(query, "KnowledgeQueryService", "Spring Service", "GRAPH / VECTOR / HYBRID search\nMerge + rank results\nTenant isolation")
+    Component(controller, "KnowledgeController", "REST Controller", "Search, ontology, ingest,\nbackfill, graph exploration\nendpoints")
+    Component(events, "KnowledgeEventPublisher", "Kafka Producer", "Publishes to knowledge.events\nExtraction results\nEnrichment responses")
+}
+
+' External dependencies
+ContainerDb(postgres, "PostgreSQL 16", "pgvector + Apache AGE", "Graph nodes/edges\nVector embeddings\nOntology definitions")
+ContainerQueue(kafka, "Apache Kafka", "Event Backbone", "knowledge.raw.messages\nknowledge.events")
+Container(llm_orch, "LLM Orchestrator", "Port 9084", "EMBED / EXTRACT / RESOLVE\ntask types")
+Container(admin_api, "Admin API", "Port 9087", "Forwards operator requests")
+Container(tdlib, "TDLib Adapter", "Port 9080", "getChatHistory for backfill")
+
+' Ingestion flow
+Rel(kafka, consumer, "knowledge.raw.messages", "Async/JSON")
+Rel(admin_api, controller, "Ingest URL/file, search, backfill", "REST")
+Rel(controller, ingest, "Document ingestion")
+Rel(controller, backfill, "Trigger backfill")
+Rel(backfill, tdlib, "getChatHistory", "REST")
+
+' Extraction flow
+Rel(consumer, extraction, "Extract entities")
+Rel(ingest, extraction, "Extract from chunks")
+Rel(extraction, llm_orch, "EXTRACT task", "REST")
+Rel(extraction, resolution, "Resolve entities")
+
+' Storage flow
+Rel(resolution, graph_repo, "Create/merge nodes + edges")
+Rel(consumer, vector_repo, "Store document + embedding")
+Rel(ingest, vector_repo, "Store chunks + embeddings")
+Rel(vector_repo, llm_orch, "EMBED task", "REST")
+Rel(resolution, llm_orch, "RESOLVE task", "REST")
+
+' Query flow
+Rel(controller, query, "Search requests")
+Rel(query, graph_repo, "Graph traversal")
+Rel(query, vector_repo, "Semantic search")
+Rel(ontology, extraction, "Drives prompts")
+Rel(controller, ontology, "CRUD")
+
+' Output
+Rel(events, kafka, "knowledge.events", "Async/JSON")
+
+' Database
+Rel(graph_repo, postgres, "AGE graph queries", "JPA + AGE")
+Rel(vector_repo, postgres, "Vector similarity", "JPA + pgvector")
+Rel(ontology, postgres, "Ontology tables", "JPA")
+
+SHOW_LEGEND()
+@enduml

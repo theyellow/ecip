@@ -92,6 +92,19 @@ class ConversationContextConsumer <<Service>> {
     - buildConversationHistory(Long chatId): List<Message>
 }
 
+class KnowledgeMessageConsumer <<Service>> {
+    - KnowledgeExtractionService extractionService
+    - EntityResolutionService entityResolver
+    - VectorSearchRepository vectorRepo
+    - GraphRepository graphRepo
+    - KafkaTemplate<String, String> producer
+    + processEvent(EMCIPEvent event): void
+    - storeAndEmbed(TelegramRawMessageEvent event): KnowledgeDocument
+    - extractEntities(String content): ExtractionResult
+    - resolveAndStoreGraph(ExtractionResult result): void
+    - publishExtractionComplete(UUID documentId): void
+}
+
 ' Supporting Services
 class IntentClassificationService {
     - RuleBasedClassifier ruleClassifier
@@ -131,6 +144,13 @@ class ContextTrackingService {
     + getContext(Long chatId): ConversationContext
 }
 
+class KnowledgeExtractionService {
+    - LlmOrchestratorClient llmClient
+    - OntologyService ontologyService
+    + extract(String content): ExtractionResult
+    + extractBatch(List<String> contents): List<ExtractionResult>
+}
+
 ' Retry and Error Handling
 class RetryableKafkaConsumer {
     - RetryTemplate retryTemplate
@@ -153,6 +173,7 @@ AbstractKafkaConsumer <|-- LlmOrchestratorConsumer
 AbstractKafkaConsumer <|-- ModerationConsumer
 AbstractKafkaConsumer <|-- AuditConsumer
 AbstractKafkaConsumer <|-- ConversationContextConsumer
+AbstractKafkaConsumer <|-- KnowledgeMessageConsumer
 
 AbstractKafkaConsumer --> EventDeserializer : uses >
 IntentClassifierConsumer --> IntentClassificationService : uses >
@@ -161,6 +182,7 @@ LlmOrchestratorConsumer --> LlmOrchestrationService : uses >
 ModerationConsumer --> ContentModerationService : uses >
 AuditConsumer --> AuditLogService : uses >
 ConversationContextConsumer --> ContextTrackingService : uses >
+KnowledgeMessageConsumer --> KnowledgeExtractionService : uses >
 
 AbstractKafkaConsumer ..> KafkaConsumerConfig : configured by >
 RetryableKafkaConsumer --> AbstractKafkaConsumer : wraps >

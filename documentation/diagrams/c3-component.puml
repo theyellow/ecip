@@ -38,6 +38,17 @@ Container_Boundary(audit, "Audit/Observability Service") {
   Component(audit_metrics, "Metrics Exporter", "Java", "Prometheus/OpenTelemetry integration")
 }
 
+Container_Boundary(knowledge, "Knowledge Engine") {
+  Component(knowledge_consumer, "KnowledgeMessageConsumer", "Java", "Consumes knowledge.raw.messages")
+  Component(knowledge_extraction, "KnowledgeExtractionService", "Java", "LLM-based entity/relationship extraction")
+  Component(knowledge_resolution, "EntityResolutionService", "Java", "Entity deduplication (exact, alias, embedding)")
+  Component(knowledge_ontology, "OntologyService", "Java", "Concept types, relationship types, properties")
+  Component(knowledge_graph, "GraphRepository", "Java/AGE", "Apache AGE graph storage (openCypher)")
+  Component(knowledge_vector, "VectorSearchRepository", "Java/pgvector", "Vector similarity search")
+  Component(knowledge_query, "KnowledgeQueryService", "Java", "Hybrid search (graph + vector)")
+  Component(knowledge_ingest, "DocumentIngestionService", "Java", "URL fetch, file upload, chunking")
+}
+
 Container_Boundary(admin, "Admin API") {
   Component(admin_endpoints, "Admin Endpoints", "Java", "Admin operations, JWT security")
 }

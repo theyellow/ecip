@@ -20,9 +20,12 @@ System_Boundary(ecip_platform, "EMCIP Platform") {
     Container(audit_service, "Audit Service", "Java 21 / Spring Boot 4 / Port 9086", "Structured logging<br/>Cost tracking<br/>Observability metrics")
     Container(admin_api, "Admin API", "Java 21 / Spring Boot 4 / Port 9087", "Admin endpoints<br/>JWT security<br/>Policy configuration")
 
+    ' Knowledge Layer
+    Container(knowledge_engine, "Knowledge Engine", "Java 21 / Spring Boot 4 / Port 9088", "Ontology-driven knowledge management<br/>Graph (Apache AGE) + Vector (pgvector)<br/>Community + Factual knowledge")
+
     ' Infrastructure (bottom)
-    ContainerDb(postgres, "PostgreSQL 16", "Database", "Persistent storage<br/>JSONB for event payloads")
-    ContainerQueue(kafka, "Apache Kafka", "Event Backbone", "8 core topics<br/>telegram.raw.messages → messages.classified → policies.decisions")
+    ContainerDb(postgres, "PostgreSQL 16", "Database", "Persistent storage<br/>JSONB for event payloads<br/>pgvector + Apache AGE extensions")
+    ContainerQueue(kafka, "Apache Kafka", "Event Backbone", "10 core topics<br/>telegram.raw.messages → messages.classified → policies.decisions<br/>knowledge.raw.messages → knowledge.events")
 }
 
 ' External Systems
@@ -65,6 +68,13 @@ Rel(admin_api, moderation_service, "Configure rules", "REST")
 Rel(admin_api, audit_service, "Query logs", "REST")
 Rel(admin_api, llm_orchestrator, "Provider config + model management", "REST")
 
+' Knowledge Engine
+Rel(tdlib_adapter, kafka, "Publish: knowledge.raw.messages", "Async/JSON")
+Rel(kafka, knowledge_engine, "Consume: knowledge.raw.messages", "Async/JSON")
+Rel(knowledge_engine, kafka, "Publish: knowledge.events", "Async/JSON")
+Rel(knowledge_engine, llm_orchestrator, "EMBED / EXTRACT / RESOLVE tasks", "REST")
+Rel(admin_api, knowledge_engine, "Search + ingest + ontology", "REST")
+
 ' Database connections
 Rel(tdlib_adapter, postgres, "Store messages", "R2DBC")
 Rel(intent_classifier, postgres, "Store classifications", "R2DBC")
@@ -73,6 +83,7 @@ Rel(llm_orchestrator, postgres, "Store costs/responses", "JPA")
 Rel(moderation_service, postgres, "Store flags", "R2DBC")
 Rel(conversation_context, postgres, "Store context", "R2DBC")
 Rel(audit_service, postgres, "Store audit logs", "R2DBC")
+Rel(knowledge_engine, postgres, "Store knowledge graph + vectors", "JPA + AGE + pgvector")
 
 ' Response loop
 Rel(kafka, tdlib_adapter, "Consume: responses.generated", "Async/JSON")
