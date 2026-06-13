@@ -9,10 +9,8 @@ import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.annotation.Transactional;
 
 @IntegrationTest
-@Transactional
 class PgVectorSearchRepositoryTest {
 
     @Autowired private VectorSearchRepository vectorSearchRepository;
@@ -29,10 +27,16 @@ class PgVectorSearchRepositoryTest {
         doc.setMetadata(Map.of("author", "testUser"));
         KnowledgeDocument saved = documentRepository.save(doc);
 
-        float[] embedding = new float[] {0.1f, 0.2f, 0.3f};
+        float[] embedding = new float[1536];
+        embedding[0] = 0.1f;
+        embedding[1] = 0.2f;
+        embedding[2] = 0.3f;
         vectorSearchRepository.storeEmbedding(saved.getId(), embedding);
 
-        float[] queryEmbedding = new float[] {0.1f, 0.2f, 0.29f};
+        float[] queryEmbedding = new float[1536];
+        queryEmbedding[0] = 0.1f;
+        queryEmbedding[1] = 0.2f;
+        queryEmbedding[2] = 0.29f;
         List<KnowledgeDocument> results =
                 vectorSearchRepository.search(queryEmbedding, 5, saved.getTenantId());
 

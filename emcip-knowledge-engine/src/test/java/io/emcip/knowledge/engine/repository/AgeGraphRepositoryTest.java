@@ -7,10 +7,14 @@ import io.emcip.knowledge.engine.model.GraphEdge;
 import io.emcip.knowledge.engine.model.GraphNode;
 import java.util.Map;
 import java.util.UUID;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 @IntegrationTest
+@Disabled(
+        "Requires Apache AGE extension — not available in pgvector/pgvector:pg16 Testcontainers"
+                + " image")
 class AgeGraphRepositoryTest {
 
     @Autowired private GraphRepository graphRepository;
