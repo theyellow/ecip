@@ -298,7 +298,7 @@ microk8s.kubectl rollout restart deployment \
   emcip-admin-api emcip-admin-ui emcip-audit-service \
   emcip-intent-classifier emcip-moderation-service \
   emcip-conversation-context emcip-llm-orchestrator \
-  emcip-policy-engine \
+  emcip-policy-engine emcip-knowledge-engine \
   -n emcip
 
 # Restart tdlib-adapter StatefulSet separately
