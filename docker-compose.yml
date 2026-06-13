@@ -51,7 +51,9 @@ services:
 
   # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./docker/postgres-knowledge
+      dockerfile: Dockerfile
     container_name: ecip-postgres
     environment:
       POSTGRES_USER: emcip
