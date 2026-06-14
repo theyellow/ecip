@@ -1,0 +1,14 @@
+spring:
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+
+knowledge:
+  embedding:
+    dimension: 3
+  llm-orchestrator:
+    base-url: http://localhost:${mockwebserver.port:9999}
+
+logging:
+  level:
+    io.emcip: DEBUG

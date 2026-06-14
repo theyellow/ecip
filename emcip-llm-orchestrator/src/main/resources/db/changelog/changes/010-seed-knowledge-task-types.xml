@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Model config for EXTRACT task type -->
+    <changeSet id="010-seed-model-knowledge-extract" author="knowledge-engine">
+        <insert tableName="model_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="model_key" value="knowledge-extract"/>
+            <column name="provider" value="litellm"/>
+            <column name="model_name" value="qwen3-30b-a3b"/>
+            <column name="description" value="Entity/relationship extraction for knowledge engine"/>
+            <column name="task_type" value="EXTRACT"/>
+            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="context_window" valueNumeric="40000"/>
+            <column name="max_output_tokens" valueNumeric="4096"/>
+            <column name="avg_latency_ms" valueNumeric="1200.0"/>
+            <column name="supports_streaming" valueBoolean="false"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <!-- Model config for EMBED task type -->
+    <changeSet id="010-seed-model-knowledge-embed" author="knowledge-engine">
+        <insert tableName="model_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="model_key" value="knowledge-embed"/>
+            <column name="provider" value="litellm"/>
+            <column name="model_name" value="qwen3-14b"/>
+            <column name="description" value="Text embedding for knowledge engine vector search"/>
+            <column name="task_type" value="EMBED"/>
+            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="context_window" valueNumeric="40000"/>
+            <column name="max_output_tokens" valueNumeric="2048"/>
+            <column name="avg_latency_ms" valueNumeric="500.0"/>
+            <column name="supports_streaming" valueBoolean="false"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <!-- Model config for RESOLVE task type -->
+    <changeSet id="010-seed-model-knowledge-resolve" author="knowledge-engine">
+        <insert tableName="model_configs">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="model_key" value="knowledge-resolve"/>
+            <column name="provider" value="litellm"/>
+            <column name="model_name" value="qwen3-14b"/>
+            <column name="description" value="Entity resolution disambiguation for knowledge engine"/>
+            <column name="task_type" value="RESOLVE"/>
+            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="context_window" valueNumeric="40000"/>
+            <column name="max_output_tokens" valueNumeric="256"/>
+            <column name="avg_latency_ms" valueNumeric="400.0"/>
+            <column name="supports_streaming" valueBoolean="false"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <!-- Prompt template for knowledge entity extraction -->
+    <changeSet id="010-seed-prompt-template-knowledge-extraction" author="knowledge-engine">
+        <insert tableName="prompt_templates">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="tenant_id" value="00000000-0000-0000-0000-000000000000"/>
+            <column name="name" value="knowledge_extraction"/>
+            <column name="version" value="1.0.0"/>
+            <column name="description" value="Extract entities and relationships from text"/>
+            <column name="model_provider" value="litellm"/>
+            <column name="model_name" value="qwen3-30b-a3b"/>
+            <column name="system_prompt" value="You are an entity extraction engine. Given text, extract entities and relationships. Return valid JSON with 'entities' (array of {type, label}) and 'relationships' (array of {type, source, target})."/>
+            <column name="user_prompt_template" value="{{content}}"/>
+            <column name="temperature" valueNumeric="0.1"/>
+            <column name="max_tokens" valueNumeric="4096"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

@@ -15,6 +15,7 @@ scrape_configs:
           - 'moderation-service:9085'
           - 'audit-service:9086'
           - 'admin-api:9087'
+          - 'knowledge-engine:9088'
     relabel_configs:
       - source_labels: [__address__]
         regex: '([^:]+):\d+'

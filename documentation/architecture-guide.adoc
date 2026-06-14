@@ -64,7 +64,7 @@ See the _Operations Guide_ for the full Kubernetes deployment diagram and instru
 include::diagrams/c2-container.puml[]
 ----
 
-The platform comprises 8 application microservices, each independently deployable:
+The platform comprises 9 application microservices, each independently deployable:
 
 [cols="1,1,3"]
 |===
@@ -101,6 +101,10 @@ The platform comprises 8 application microservices, each independently deployabl
 |`emcip-admin-api`
 |9087
 |REST management API for tenants, policy rules, audit queries; R2DBC / WebFlux.
+
+|`emcip-knowledge-engine`
+|9088
+|Ontology-driven knowledge management; graph (Apache AGE) + vector (pgvector) search; consumes `knowledge.raw.messages`, publishes `knowledge.events`. JPA / PostgreSQL.
 |===
 
 Infrastructure services (Kafka, PostgreSQL, Grafana, Loki, Admin UI) are defined in `docker-compose.yml` for local development and in the Helm chart (`helm/emcip/`) for production.
@@ -139,6 +143,21 @@ include::diagrams/c3-llm-orchestrator.puml[]
 The LLM Orchestrator (`emcip-llm-orchestrator`) generates AI responses for `RESPOND` policy decisions. `PolicyDecisionConsumer` listens on `policies.decisions` and delegates to `LlmCallService`, which: selects a `ModelConfig` for the task type, renders a `PromptTemplate` with message variables, reads the active `LlmProviderConfig` (base URL + optional API key) from the database, and calls `OpenAiCompatibleLlmClient` which POSTs to `{baseUrl}/v1/chat/completions`. Cost is logged via `CostTrackingService` after each successful call.
 
 The LLM provider URL is not an environment variable — it is stored in the `llm_provider_configs` table and managed at runtime via Admin UI → AI Config → LLM Provider. The `OrchestratorController` exposes REST endpoints for provider-config CRUD, a connectivity test (`GET /v1/models`), model config management, prompt template management, and cost queries.
+
+=== Knowledge Engine
+
+[plantuml,c3-knowledge-engine,png]
+----
+include::diagrams/c3-knowledge-engine.puml[]
+----
+
+The Knowledge Engine (`emcip-knowledge-engine`) provides ontology-driven knowledge management with two knowledge layers: *Community Knowledge* (extracted from Telegram chat messages) and *Factual Knowledge* (ingested from external documents via URL or file upload). `KnowledgeMessageConsumer` listens on `knowledge.raw.messages` and delegates to `KnowledgeExtractionService`, which: stores raw content as a `KnowledgeDocument` with a vector embedding (via pgvector) for immediate semantic search, then calls `emcip-llm-orchestrator` for entity/relationship extraction using ontology-driven prompts. Extracted entities are deduplicated via `EntityResolutionService` (exact match → alias table → embedding similarity) and stored as `GraphNode`/`GraphEdge` entries in the Apache AGE graph layer.
+
+The ontology (concept types, relationship types, and their properties) is a first-class configuration artifact stored in the database and managed via REST endpoints. New entity types or relationships are added by extending the ontology — no schema migrations or code changes required. The initial seed ontology defines Person, Topic, Message, Source, and Document concept types with DISCUSSES, AUTHORED, MENTIONS, CITES, and RELATED_TO relationships.
+
+Query capabilities include vector-based semantic search (pgvector cosine similarity), graph traversal (Apache AGE / openCypher), and hybrid search combining both. The service exposes REST endpoints for search, ontology management, document ingestion, and bulk backfill. Service-to-service enrichment uses the `knowledge.events` Kafka topic.
+
+Repository interfaces (`GraphRepository`, `VectorSearchRepository`) provide an abstraction layer so the underlying storage can be swapped to dedicated graph or vector databases (e.g., Neo4j, Qdrant) without changing business logic.
 
 === Admin API
 
@@ -245,6 +264,18 @@ include::diagrams/c4-kafka-consumers.puml[]
 |all services
 |audit-service
 |`eventId`, `eventType`, `sourceService`, `timestamp`, `payload` (JSONB)
+
+|`knowledge.raw.messages`
+|3
+|tdlib-adapter
+|knowledge-engine
+|Same schema as `telegram.raw.messages`. Separate topic to isolate knowledge extraction from the live moderation pipeline.
+
+|`knowledge.events`
+|3
+|knowledge-engine
+|admin-api, llm-orchestrator
+|`eventId`, `eventType` (EXTRACTION_COMPLETE, ENRICHMENT_REQUEST, ENRICHMENT_RESPONSE, BACKFILL_PROGRESS), `payload` (JSONB)
 |===
 
 NOTE: For sequence-level pipeline detail showing the full message lifecycle, see the _Developer Guide_.
@@ -340,6 +371,11 @@ Each service owns its own tables. No cross-service table access is permitted.
 |R2DBC
 |`tenants`, `users` (auth), `telegram_accounts`
 |Simple CRUD, interactive requests; non-blocking keeps latency low.
+
+|knowledge-engine
+|JPA
+|`concept_types`, `relationship_types`, `graph_nodes`, `graph_edges`, `knowledge_documents`
+|Complex domain model: ontology + graph (Apache AGE) + vector (pgvector). Entity resolution and extraction require transaction management.
 |===
 
 NOTE: All R2DBC services still include `spring-boot-starter-jdbc` as `runtime` scope for Liquibase migrations only.
@@ -354,7 +390,7 @@ NOTE: All R2DBC services still include `spring-boot-starter-jdbc` as `runtime` s
 
 === Distributed Tracing
 
-All 8 services use *Micrometer Tracing* with the OpenTelemetry bridge (`micrometer-tracing-bridge-otel`).
+All 9 services use *Micrometer Tracing* with the OpenTelemetry bridge (`micrometer-tracing-bridge-otel`).
 Traces are exported via OTLP/HTTP to *Grafana Tempo* on port 4318. Tempo stores spans with a 14-day
 retention window.
 
@@ -410,7 +446,7 @@ NOTE: For deployment configuration and port assignments, see the _Operations Gui
 
 *Decision:* All inter-service communication uses Kafka topics (JSON, 3 partitions each). No synchronous HTTP between pipeline services. At-least-once delivery with idempotent consumers.
 
-*Context:* Multi-stage pipeline (ingest → classify → evaluate → respond → audit) requires backpressure handling, independent scaling, and replay capability. Eight topics defined (see §6 Kafka Topic Reference).
+*Context:* Multi-stage pipeline (ingest → classify → evaluate → respond → audit) requires backpressure handling, independent scaling, and replay capability. Ten topics defined (see §6 Kafka Topic Reference).
 
 *Alternatives rejected:* RabbitMQ (no replay), Pulsar (smaller ecosystem), NATS (less durable), HTTP/gRPC (tight coupling).
 
@@ -433,3 +469,14 @@ NOTE: For deployment configuration and port assignments, see the _Operations Gui
 *Relationship to ADR-003:* ADR-003 remains authoritative for Phase 2/3 services. ADR-004 extends it for Phase 4 services only. The rule is: JPA for complex domain models; R2DBC for flat schemas + WebFlux.
 
 *Consequence:* All R2DBC services include `spring-boot-starter-jdbc` as `runtime` scope for Liquibase only.
+
+[appendix]
+== ADR-008: Knowledge Management with PostgreSQL Extensions
+
+*Status:* Accepted (2026-06-13).
+
+*Decision:* Use pgvector (vector similarity search) and Apache AGE (graph database with openCypher) as PostgreSQL extensions instead of dedicated database engines (Neo4j, Qdrant). Business logic accesses capabilities through abstraction interfaces (`GraphRepository`, `VectorSearchRepository`) to preserve migration path to dedicated engines.
+
+*Context:* Knowledge management (#26, #27) requires graph and vector capabilities. Adding dedicated servers would increase operational overhead on the single-node microk8s cluster. PostgreSQL extensions provide both capabilities within the existing instance. Apache AGE uses the same openCypher query language as Neo4j, making future migration straightforward.
+
+*Alternatives rejected:* Neo4j + Qdrant (ops overhead), Neo4j only (no vector search), Qdrant only (no graph traversal).

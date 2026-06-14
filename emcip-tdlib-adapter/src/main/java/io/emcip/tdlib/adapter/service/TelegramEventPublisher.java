@@ -23,6 +23,7 @@ public class TelegramEventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(TelegramEventPublisher.class);
     private static final String TOPIC_TELEGRAM_RAW = "telegram.raw.messages";
+    private static final String TOPIC_KNOWLEDGE_RAW = "knowledge.raw.messages";
     private static final String TOPIC_TELEGRAM_UPDATES = "telegram.raw.updates";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -89,6 +90,21 @@ public class TelegramEventPublisher {
                                                 effectiveTenantId.getBytes(
                                                         java.nio.charset.StandardCharsets.UTF_8));
                             }
+                            org.apache.kafka.clients.producer.ProducerRecord<String, String>
+                                    knowledgeRecord =
+                                            new org.apache.kafka.clients.producer.ProducerRecord<>(
+                                                    TOPIC_KNOWLEDGE_RAW,
+                                                    String.valueOf(message.chatId),
+                                                    json);
+                            if (effectiveTenantId != null) {
+                                knowledgeRecord
+                                        .headers()
+                                        .add(
+                                                io.emcip.common.tenant.TenantContext.KAFKA_HEADER,
+                                                effectiveTenantId.getBytes(
+                                                        java.nio.charset.StandardCharsets.UTF_8));
+                            }
+                            kafkaTemplate.send(knowledgeRecord);
                             return kafkaTemplate.send(kafkaRecord);
                         })
                 .flatMap(future -> Mono.fromFuture(future.toCompletableFuture()))

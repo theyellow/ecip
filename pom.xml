@@ -43,6 +43,7 @@
     <module>emcip-audit-service</module>
     <module>emcip-admin-api</module>
     <module>emcip-admin-ui</module>
+    <module>emcip-knowledge-engine</module>
     <module>gatling-tests</module>
   </modules>
 

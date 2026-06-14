@@ -49,7 +49,9 @@ class TelegramEventPublisherTest {
         StepVerifier.create(publisher.publishMessage(update2.message, update2, null))
                 .verifyComplete();
 
-        verify(kafkaTemplate, times(1)).send(any(ProducerRecord.class));
+        // First message sends to both telegram.raw.messages and knowledge.raw.messages (2 sends).
+        // Duplicate is suppressed by deduplication cache (0 additional sends).
+        verify(kafkaTemplate, times(2)).send(any(ProducerRecord.class));
     }
 
     @Test
@@ -62,7 +64,24 @@ class TelegramEventPublisherTest {
         StepVerifier.create(publisher.publishMessage(update2.message, update2, null))
                 .verifyComplete();
 
-        verify(kafkaTemplate, times(2)).send(any(ProducerRecord.class));
+        // Each distinct message sends to both telegram.raw.messages and knowledge.raw.messages.
+        verify(kafkaTemplate, times(4)).send(any(ProducerRecord.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishMessage_sendsToTelegramAndKnowledgeTopics() {
+        TdApi.UpdateNewMessage update = makeUpdate(100L, 10L, "hello");
+
+        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+                .verifyComplete();
+
+        ArgumentCaptor<ProducerRecord<String, String>> recordCaptor =
+                ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaTemplate, times(2)).send(recordCaptor.capture());
+        var records = recordCaptor.getAllValues();
+        assertThat(records.stream().map(ProducerRecord::topic).toList())
+                .containsExactlyInAnyOrder("telegram.raw.messages", "knowledge.raw.messages");
     }
 
     @Test

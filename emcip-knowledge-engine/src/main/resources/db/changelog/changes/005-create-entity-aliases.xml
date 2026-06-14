@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-5" author="knowledge-engine">
+        <createTable tableName="ke_entity_aliases" remarks="Entity alias table for resolution">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="concept_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="alias" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="canonical_label" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMPTZ" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint tableName="ke_entity_aliases"
+            columnNames="concept_type,alias,tenant_id"
+            constraintName="uk_ke_entity_aliases_type_alias_tenant"/>
+
+        <createIndex indexName="idx_ke_aliases_lookup" tableName="ke_entity_aliases">
+            <column name="concept_type"/>
+            <column name="alias"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

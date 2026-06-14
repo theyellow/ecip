@@ -54,6 +54,7 @@ component "conversation-context\n:9081" as ctx   #EAD1DC
 component "audit-service\n:9086"        as audit #EAD1DC
 component "policy-engine\n:9083"        as pe
 component "llm-orchestrator\n:9084"     as llm
+component "knowledge-engine\n:9088"  as ke
 component "LiteLLM Proxy\n192.168.23.40:4000" as litellm #FFF2CC
 
 ' ── Pipeline Topics (active — have at least one consumer) ────────────────────
@@ -62,6 +63,10 @@ queue "messages.classified"    as t_classified
 queue "moderation.flags"       as t_flags
 queue "policies.decisions"     as t_decisions
 queue "responses.generated"    as t_generated
+
+' ── Knowledge Topics ──────────────────────────────────────────────────────────
+queue "knowledge.raw.messages"  as t_knowledge_raw
+queue "knowledge.events"        as t_knowledge_events
 
 ' ── Action Topics (produced by policy-engine; no consumers wired yet) ─────────
 package "Action topics — no consumers yet\n(safe: events are produced but nothing acts on them)" {
@@ -110,6 +115,13 @@ t_decisions --> audit : consume (observability)
 llm --> litellm   : HTTPS /v1/chat/completions
 llm --> t_generated : produce
 
+' --- Knowledge pipeline ---
+tdlib --> t_knowledge_raw   : produce (live fork)
+t_knowledge_raw --> ke      : consume
+ke --> t_knowledge_events   : produce
+ke --> llm                  : REST (EMBED / EXTRACT / RESOLVE)
+t_knowledge_events --> api  : consume (progress, results)
+
 ' --- Response loop back to Telegram ---
 t_generated --> tdlib    : consume
 tdlib        --> telegram : send message (JNI/C++)
@@ -129,6 +141,15 @@ note top of t_decisions
   moderation-service applies keyword/
   regex rules to the enriched
   messageText field.
+end note
+
+note bottom of t_knowledge_raw
+  <b>Knowledge pipeline</b>
+  Separate from moderation pipeline.
+  Same message format as
+  telegram.raw.messages but
+  only knowledge-engine consumes.
+  Backfill also publishes here.
 end note
 
 note right of litellm

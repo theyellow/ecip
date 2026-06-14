@@ -17,6 +17,8 @@
   "commands.execute"
   "escalation.human"
   "review.pending"
+  "knowledge.raw.messages"
+  "knowledge.events"
 }}
 {{- range $topics }}
 ---

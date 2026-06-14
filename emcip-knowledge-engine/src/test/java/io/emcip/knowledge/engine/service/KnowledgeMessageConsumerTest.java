@@ -1,0 +1,61 @@
+package io.emcip.knowledge.engine.service;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+
+import java.util.UUID;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
+
+@ExtendWith(MockitoExtension.class)
+class KnowledgeMessageConsumerTest {
+
+    @Mock private KnowledgeExtractionService extractionService;
+    @Mock private KnowledgeEventPublisher eventPublisher;
+
+    private KnowledgeMessageConsumer consumer;
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        objectMapper = new ObjectMapper();
+        consumer = new KnowledgeMessageConsumer(extractionService, eventPublisher, objectMapper);
+    }
+
+    @Test
+    void shouldProcessTelegramMessageEvent() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        String eventJson =
+                """
+                {
+                  "eventId": "evt-1",
+                  "timestamp": "2026-06-13T10:00:00Z",
+                  "schemaVersion": "1.0.0",
+                  "eventType": "TelegramMessage",
+                  "telegramMessageId": 42,
+                  "chatId": 100,
+                  "senderId": "999",
+                  "senderType": "USER",
+                  "text": "AI is transforming everything",
+                  "date": 1718272800,
+                  "isOutgoing": false,
+                  "senderDisplayName": "TestUser",
+                  "chatTitle": "TestGroup"
+                }
+                """;
+
+        var record = new ConsumerRecord<>("knowledge.raw.messages", 0, 0L, "100", eventJson);
+        record.headers().add("tenant_id", tenantId.toString().getBytes());
+
+        consumer.consume(record);
+
+        verify(extractionService)
+                .processMessage(eq("AI is transforming everything"), any(), eq(tenantId));
+    }
+}

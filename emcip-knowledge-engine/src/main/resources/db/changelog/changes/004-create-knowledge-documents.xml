@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-4" author="knowledge-engine">
+        <createTable tableName="ke_knowledge_documents" remarks="Vector-searchable knowledge documents">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+            <column name="source_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_ref" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="chunk_index" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metadata" type="JSONB">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMPTZ" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_ke_docs_tenant" tableName="ke_knowledge_documents">
+            <column name="tenant_id"/>
+        </createIndex>
+        <createIndex indexName="idx_ke_docs_source_type" tableName="ke_knowledge_documents">
+            <column name="source_type"/>
+        </createIndex>
+        <createIndex indexName="idx_ke_docs_source_ref" tableName="ke_knowledge_documents">
+            <column name="source_ref"/>
+        </createIndex>
+        <createIndex indexName="idx_ke_docs_created_at" tableName="ke_knowledge_documents">
+            <column name="created_at"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add vector column via raw SQL (Liquibase has no vector type) -->
+    <changeSet id="ke-4b" author="knowledge-engine">
+        <sql>ALTER TABLE ke_knowledge_documents ADD COLUMN embedding vector(1536);</sql>
+        <sql>CREATE INDEX idx_ke_docs_embedding ON ke_knowledge_documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);</sql>
+    </changeSet>
+
+</databaseChangeLog>
