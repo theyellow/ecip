@@ -5,7 +5,7 @@
 
 ## STOP - Configuration Protection Rule
 
-**🚫 NEVER edit files in `.claude/` or `.windsurf/` directories without explicit user approval.**
+**🚫 NEVER edit files in `.claude/` or `.windsurf/` or `.opencode/` directories without explicit user approval.**
 
 These files define Claude's behavior and project rules. Before proposing changes:
 1. State what you want to change and why
@@ -22,6 +22,12 @@ This applies to: `CLAUDE.md`, `agents/*.md`, `skills/*.md`, `cascade-config.md`
 2. **No Hacks** - Fix root causes, never work around problems.
 3. **Verify First** - Read code, run tests before changes.
 4. **Respect Boundaries** - Scoped changes only, no random files.
+
+## OpenCode Separation
+This repository contains OpenCode-specific configuration under: `.opencode/`
+Claude Code must not modify, execute, optimize, reinterpret, migrate, or delete files inside `.opencode` unless explicitly instructed.
+All agent definitions, prompts, commands, routing logic, and OpenCode workflows belong exclusively to OpenCode.
+But you should look if there are discrepancies and ask the user what to do (e.g. migrate in one direction, update, etc.)
 
 ## Project Overview
 
