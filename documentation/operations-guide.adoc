@@ -557,7 +557,7 @@ Each microservice owns its own database tables. No service reads or writes anoth
 |Pipeline events: fire-and-forget, at-least-once, replayable. Use for all data that flows downstream (classified messages, moderation flags, audit events, etc.).
 
 |REST via admin-api
-|Management operations: synchronous queries from operators or the Admin UI. `emcip-admin-api` holds typed `WebClient` proxy clients for each domain service and authenticates with `X-Service-Token`.
+|Management operations: synchronous queries from operators or the Admin UI. `emcip-admin-api` holds typed `WebClient` proxy clients for each domain service and authenticates with `X-Service-Token`. All downstream calls are protected by Resilience4j retry (3 attempts, exponential backoff) and circuit breaker. Read endpoints fall back to empty responses when a service is down; write endpoints propagate errors.
 |===
 
 If you are debugging a data discrepancy, always query the *owning service's* tables — never join across service boundaries in a single query. If you need cross-service data in a report, fetch each service's API individually.

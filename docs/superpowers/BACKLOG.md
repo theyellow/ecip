@@ -31,7 +31,7 @@
 | # | Item | Size | Notes |
 |---|------|------|-------|
 | SC6b | **Audit-log page: filters + pagination** | S | ✅ Done. Operational time presets (10m–72h), custom datetime picker, working pagination, loading state. Spec: `docs/superpowers/specs/2026-06-14-audit-log-filters-pagination-design.md`. |
-| 40 | **SC8 resilience follow-ons** | S | Two gaps after PR #73: (1) retry with exponential backoff on circuit-broken calls before surfacing 503; (2) per-service fallback responses (empty list / degraded payload) so the UI stays functional when one downstream is down. |
+| 40 | **SC8 resilience follow-ons** | S | ✅ Done. Retry (3 attempts, exponential backoff) + read fallbacks on all admin-api downstream clients. Spec: `docs/superpowers/specs/2026-06-14-sc8-resilience-follow-ons-design.md`. |
 | 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | Phase 1 ✅ PR #89. Phase 2: chat-style UI backed by a configured LiteLLM model so the operator can research/draft a response with AI assistance before sending. |
 | 24 | **Flag-detail: AI analysis end-to-end test** | S | Backend wired (PR #89), not yet verified end-to-end. Confirm LLM response renders correctly in the detail modal's AI Analysis section. |
 | 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
@@ -98,6 +98,7 @@
 | 39 | Decisions page: filters, pagination, rename from Flags | ✅ PR #117 — 2026-06-09 |
 | 26 | Knowledge Foundation — `emcip-knowledge-engine` service skeleton | ✅ PR #122/#123 — 2026-06-13. Spec: `specs/2026-06-13-knowledge-management-platform-design.md` |
 | SC6b | Audit-log page: filters + pagination | ✅ 2026-06-14. Spec: `specs/2026-06-14-audit-log-filters-pagination-design.md` |
+| 40 | SC8 resilience follow-ons: retry + read fallbacks | ✅ 2026-06-14. Spec: `specs/2026-06-14-sc8-resilience-follow-ons-design.md` |
 
 ---
 
