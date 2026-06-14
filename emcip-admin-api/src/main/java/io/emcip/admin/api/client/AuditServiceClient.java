@@ -4,6 +4,7 @@ import io.emcip.common.tenant.ReactorTenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
+import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -30,7 +31,8 @@ public class AuditServiceClient {
         this.circuitBreaker = registry.circuitBreaker("audit-service");
     }
 
-    public Mono<JsonNode> listEvents(int page, int size, String eventType) {
+    public Mono<JsonNode> listEvents(
+            int page, int size, String eventType, Instant from, Instant to) {
         return Mono.deferContextual(
                 ctx -> {
                     String tenantId = ReactorTenantContext.getTenantId(ctx);
@@ -45,6 +47,12 @@ public class AuditServiceClient {
                                                         .queryParam("size", size);
                                                 if (eventType != null && !eventType.isBlank()) {
                                                     uriBuilder.queryParam("eventType", eventType);
+                                                }
+                                                if (from != null) {
+                                                    uriBuilder.queryParam("from", from.toString());
+                                                }
+                                                if (to != null) {
+                                                    uriBuilder.queryParam("to", to.toString());
                                                 }
                                                 return uriBuilder.build();
                                             });
