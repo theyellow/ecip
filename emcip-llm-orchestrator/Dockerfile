@@ -26,6 +26,7 @@ COPY emcip-moderation-service/pom.xml ./emcip-moderation-service/pom.xml
 COPY emcip-audit-service/pom.xml ./emcip-audit-service/pom.xml
 COPY emcip-admin-api/pom.xml ./emcip-admin-api/pom.xml
 COPY emcip-admin-ui/pom.xml ./emcip-admin-ui/pom.xml
+COPY emcip-knowledge-engine/pom.xml ./emcip-knowledge-engine/pom.xml
 COPY gatling-tests/pom.xml ./gatling-tests/pom.xml
 
 # Install parent POM and emcip-core into local Maven repo
