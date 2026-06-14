@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-10
+> Last updated: 2026-06-13
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -36,8 +36,9 @@
 | 24 | **Flag-detail: AI analysis end-to-end test** | S | Backend wired (PR #89), not yet verified end-to-end. Confirm LLM response renders correctly in the detail modal's AI Analysis section. |
 | 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. **Scope to be redefined/refined before picking up** — the full design for complex rule logic has not been settled. |
-| 26 | **Bulk message ingestion + topic clustering + RAG** | L | Backfill historical messages via TDLib `getChatHistory`, cluster into topics (BERTopic / LiteLLM summarization), build a per-group queryable knowledge base. Prerequisite for #27. |
-| 27 | **Deep research operator tool** | XL | Operator-triggered autonomous research agent. Given a flagged message or topic cluster, researches via RAG + web search + LLM reasoning → structured report. Depends on #26. |
+| 26 | **Knowledge Foundation** — new `emcip-knowledge-engine` service | XL | ✅ Foundation complete (PR #122/#123). Service skeleton, Liquibase migrations (pgvector + AGE), Kafka consumers/producers, vector search, graph repository, health indicator, Helm/Prometheus/Grafana. Remaining user stories (US-26.4–26.10) tracked as follow-up work. Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. ADR-008. Prerequisite for #27. |
+| 27 | **Deep Research Agent** | XL | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. Depends on #26. |
+| 42 | **Structured feed connectors for Factual Knowledge** | M | Predefined source connectors (Wikipedia API, arXiv, PubMed) for automated periodic ingestion into the knowledge base. Depends on #26. |
 | 8 | **ML toxicity detection** | XL | Replace keyword/regex moderation rules with a model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed before implementation. |
 | 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
 
@@ -95,12 +96,14 @@
 | 35 | Self-host Inter Variable font | ✅ 2026-06-05 |
 | 36 | Signal detectors: 9 structural/script abuse detectors | ✅ PR #115 — 2026-06-08. Spec: `specs/2026-06-08-signal-detectors-design.md` |
 | 39 | Decisions page: filters, pagination, rename from Flags | ✅ PR #117 — 2026-06-09 |
+| 26 | Knowledge Foundation — `emcip-knowledge-engine` service skeleton | ✅ PR #122/#123 — 2026-06-13. Spec: `specs/2026-06-13-knowledge-management-platform-design.md` |
 
 ---
 
 ## Documentation Audit (2026-05-16)
 
-> **New diagram (2026-06-02):** `documentation/diagrams/kafka-topic-flow.puml` — topic-centric Kafka flow, all 8 topics, producer/consumer mapping.
+> **New diagram (2026-06-02):** `documentation/diagrams/kafka-topic-flow.puml` — topic-centric Kafka flow, all 10 topics, producer/consumer mapping.
+> **New diagram (2026-06-13):** `documentation/diagrams/c3-knowledge-engine.puml` — Knowledge Engine component view.
 
 Diagrams confirmed current during LiteLLM integration pass:
 
