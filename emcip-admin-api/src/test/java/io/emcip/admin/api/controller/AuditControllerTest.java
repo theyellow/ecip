@@ -4,6 +4,7 @@ import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.client.AuditServiceClient;
 import io.emcip.admin.api.config.GlobalExceptionHandler;
+import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,11 +36,33 @@ class AuditControllerTest {
         page.put("total", 0L);
         page.put("page", 0);
         page.put("size", 50);
-        when(auditServiceClient.listEvents(0, 50, null)).thenReturn(Mono.just(page));
+        when(auditServiceClient.listEvents(0, 50, null, null, null)).thenReturn(Mono.just(page));
 
         webTestClient
                 .get()
                 .uri("/api/audit/events")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.total")
+                .isEqualTo(0);
+    }
+
+    @Test
+    void getEvents_forwardsFromAndToParams() {
+        ObjectNode page = JsonNodeFactory.instance.objectNode();
+        page.putArray("items");
+        page.put("total", 0L);
+        page.put("page", 0);
+        page.put("size", 50);
+        Instant from = Instant.parse("2026-06-14T00:00:00Z");
+        Instant to = Instant.parse("2026-06-14T23:59:59Z");
+        when(auditServiceClient.listEvents(0, 50, null, from, to)).thenReturn(Mono.just(page));
+
+        webTestClient
+                .get()
+                .uri("/api/audit/events?from=2026-06-14T00:00:00Z&to=2026-06-14T23:59:59Z")
                 .exchange()
                 .expectStatus()
                 .isOk()

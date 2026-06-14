@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-13
+> Last updated: 2026-06-14
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -30,7 +30,7 @@
 
 | # | Item | Size | Notes |
 |---|------|------|-------|
-| SC6b | **Audit-log page: filters + pagination** | S | Same problem Decisions page had (#39). audit-service needs `page`/`size` + time-range + tenant filters on `GET /api/audit/events`; thread through `AuditServiceClient` → `AuditController` (admin-api) → UI. Spec: `docs/superpowers/specs/2026-05-20-sc6-sc7-sc8-design.md §SC6`. |
+| SC6b | **Audit-log page: filters + pagination** | S | ✅ Done. Operational time presets (10m–72h), custom datetime picker, working pagination, loading state. Spec: `docs/superpowers/specs/2026-06-14-audit-log-filters-pagination-design.md`. |
 | 40 | **SC8 resilience follow-ons** | S | Two gaps after PR #73: (1) retry with exponential backoff on circuit-broken calls before surfacing 503; (2) per-service fallback responses (empty list / degraded payload) so the UI stays functional when one downstream is down. |
 | 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | Phase 1 ✅ PR #89. Phase 2: chat-style UI backed by a configured LiteLLM model so the operator can research/draft a response with AI assistance before sending. |
 | 24 | **Flag-detail: AI analysis end-to-end test** | S | Backend wired (PR #89), not yet verified end-to-end. Confirm LLM response renders correctly in the detail modal's AI Analysis section. |
@@ -97,6 +97,7 @@
 | 36 | Signal detectors: 9 structural/script abuse detectors | ✅ PR #115 — 2026-06-08. Spec: `specs/2026-06-08-signal-detectors-design.md` |
 | 39 | Decisions page: filters, pagination, rename from Flags | ✅ PR #117 — 2026-06-09 |
 | 26 | Knowledge Foundation — `emcip-knowledge-engine` service skeleton | ✅ PR #122/#123 — 2026-06-13. Spec: `specs/2026-06-13-knowledge-management-platform-design.md` |
+| SC6b | Audit-log page: filters + pagination | ✅ 2026-06-14. Spec: `specs/2026-06-14-audit-log-filters-pagination-design.md` |
 
 ---
 
