@@ -95,3 +95,28 @@ resilience4j:
         baseConfig: default
       orchestrator:
         baseConfig: default
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException$BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException$NotFound
+          - org.springframework.web.reactive.function.client.WebClientResponseException$Forbidden
+    instances:
+      policy-engine:
+        baseConfig: default
+      audit-service:
+        baseConfig: default
+      moderation-service:
+        baseConfig: default
+      tdlib-adapter:
+        baseConfig: default
+      orchestrator:
+        baseConfig: default
