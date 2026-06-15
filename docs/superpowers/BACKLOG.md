@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-14
+> Last updated: 2026-06-15
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -32,7 +32,7 @@
 |---|------|------|-------|
 | SC6b | **Audit-log page: filters + pagination** | S | ✅ Done. Operational time presets (10m–72h), custom datetime picker, working pagination, loading state. Spec: `docs/superpowers/specs/2026-06-14-audit-log-filters-pagination-design.md`. |
 | 40 | **SC8 resilience follow-ons** | S | ✅ Done. Retry (3 attempts, exponential backoff) + read fallbacks on all admin-api downstream clients. Spec: `docs/superpowers/specs/2026-06-14-sc8-resilience-follow-ons-design.md`. |
-| 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | Phase 1 ✅ PR #89. Phase 2: chat-style UI backed by a configured LiteLLM model so the operator can research/draft a response with AI assistance before sending. |
+| 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | ✅ Done. Multi-turn AI Research chat in Flag Detail modal. Spec: `docs/superpowers/specs/2026-06-15-ai-research-chat-design.md`. |
 | 24 | **Flag-detail: AI analysis end-to-end test** | S | ✅ Done. Missing `GENERAL` task-type model seed added (migration 011). Spec: `docs/superpowers/specs/2026-06-14-ai-analysis-e2e-design.md`. |
 | 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. **Scope to be redefined/refined before picking up** — the full design for complex rule logic has not been settled. |
@@ -100,6 +100,7 @@
 | SC6b | Audit-log page: filters + pagination | ✅ 2026-06-14. Spec: `specs/2026-06-14-audit-log-filters-pagination-design.md` |
 | 40 | SC8 resilience follow-ons: retry + read fallbacks | ✅ 2026-06-14. Spec: `specs/2026-06-14-sc8-resilience-follow-ons-design.md` |
 | 24 | Flag-detail: AI analysis end-to-end fix | ✅ 2026-06-15. Spec: `specs/2026-06-14-ai-analysis-e2e-design.md` |
+| 23 | Flag-detail: AI Research chat (Phase 2) | ✅ 2026-06-15. Spec: `specs/2026-06-15-ai-research-chat-design.md` |
 
 ---
 
