@@ -119,18 +119,10 @@ export function ReplyComposer({ flagId, api, onActioned }) {
 
       {mode !== 'NOTE' && mode !== 'QUOTE' && (
         <div className={styles.options}>
-          {mode === 'GROUP' && (
-            <label>
-              <input type="checkbox" checked={replyToOriginal} onChange={e => setReplyToOriginal(e.target.checked)} />
-              Reply to original
-            </label>
-          )}
-          {mode === 'DM' && (
-            <label>
-              <input type="checkbox" checked={replyToOriginal} onChange={e => setReplyToOriginal(e.target.checked)} />
-              Reply to original
-            </label>
-          )}
+          <label>
+            <input type="checkbox" checked={replyToOriginal} onChange={e => setReplyToOriginal(e.target.checked)} />
+            Reply to original
+          </label>
           <label>
             <input type="checkbox" checked={prefixModerator} onChange={e => setPrefixModerator(e.target.checked)} />
             Prefix [Moderator]
