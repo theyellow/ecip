@@ -153,21 +153,6 @@
 }
 
 /* AI Analysis section */
-.analysisBlock {
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.analysisError {
-  background: rgba(248,113,113,0.06);
-  border: 1px solid rgba(248,113,113,0.20);
-  padding: 12px 14px;
-}
-
 .analysisModel {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -175,16 +160,6 @@
   text-transform: uppercase;
   letter-spacing: 0.10em;
   margin: 0;
-}
-
-.analysisText {
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--fg-1);
-  line-height: 1.6;
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .copyAnalysisBtn {
