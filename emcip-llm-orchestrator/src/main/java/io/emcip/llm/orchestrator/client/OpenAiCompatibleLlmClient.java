@@ -105,4 +105,72 @@ public class OpenAiCompatibleLlmClient {
                     e);
         }
     }
+
+    /**
+     * Call the OpenAI-compatible chat completions endpoint with a pre-built messages array.
+     * Supports multi-turn conversations.
+     */
+    public LlmResponse chat(
+            String model, List<Map<String, String>> messages, int maxTokens, double temperature) {
+
+        LlmProviderConfig provider =
+                providerConfigService
+                        .getActiveProvider()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "No active LLM provider configured — set one via"
+                                                        + " Admin UI > AI Config > LLM Provider"));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("max_tokens", maxTokens);
+        body.put("temperature", temperature);
+        body.put("messages", messages);
+
+        log.debug(
+                "Calling LiteLLM chat: url={}, model={}, turns={}, maxTokens={}",
+                provider.getBaseUrl(),
+                model,
+                messages.size(),
+                maxTokens);
+
+        try {
+            String apiKey = provider.getApiKey();
+            RestClient restClient = RestClient.create();
+            String responseJson =
+                    restClient
+                            .post()
+                            .uri(provider.getBaseUrl() + "/v1/chat/completions")
+                            .headers(
+                                    h -> {
+                                        h.setContentType(MediaType.APPLICATION_JSON);
+                                        if (apiKey != null && !apiKey.isBlank()) {
+                                            h.setBearerAuth(apiKey);
+                                        }
+                                    })
+                            .body(body)
+                            .retrieve()
+                            .body(String.class);
+
+            JsonNode root = objectMapper.readTree(responseJson);
+            String content = root.path("choices").get(0).path("message").path("content").asText();
+            int inputTokens = root.path("usage").path("prompt_tokens").asInt();
+            int outputTokens = root.path("usage").path("completion_tokens").asInt();
+            String modelUsed = root.path("model").asText(model);
+
+            log.debug(
+                    "LiteLLM chat response: model={}, input_tokens={}, output_tokens={}",
+                    modelUsed,
+                    inputTokens,
+                    outputTokens);
+
+            return new LlmResponse(content, inputTokens, outputTokens, modelUsed);
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "LiteLLM API call failed [" + provider.getBaseUrl() + "]: " + e.getMessage(),
+                    e);
+        }
+    }
 }
