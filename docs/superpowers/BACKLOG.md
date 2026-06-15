@@ -34,7 +34,7 @@
 | 40 | **SC8 resilience follow-ons** | S | ✅ Done. Spec: `docs/superpowers/specs/2026-06-14-sc8-resilience-follow-ons-design.md`. |
 | 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | ✅ Done. Spec: `docs/superpowers/specs/2026-06-15-ai-research-chat-design.md`. |
 | 24 | **Flag-detail: AI analysis end-to-end test** | S | ✅ Done. Spec: `docs/superpowers/specs/2026-06-14-ai-analysis-e2e-design.md`. |
-| 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Needed before adding more LLM-heavy features. |
+| 7 | **LLM cost analytics dashboard** | M | ✅ Done. Costs page with summary cards, CSS bar chart, model breakdown table. Spec: `docs/superpowers/specs/2026-06-15-llm-cost-analytics-design.md`. |
 | 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
 | 42 | **Structured feed connectors for Factual Knowledge** | M | Predefined source connectors (Wikipedia API, arXiv, PubMed) for automated periodic ingestion into the knowledge base. Depends on #26. |
 | 27 | **Deep Research Agent** | XL | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. Depends on #26. |
@@ -101,6 +101,7 @@
 | 40 | SC8 resilience follow-ons: retry + read fallbacks | ✅ 2026-06-14. Spec: `specs/2026-06-14-sc8-resilience-follow-ons-design.md` |
 | 24 | Flag-detail: AI analysis end-to-end fix | ✅ 2026-06-15. Spec: `specs/2026-06-14-ai-analysis-e2e-design.md` |
 | 23 | Flag-detail: AI Research chat (Phase 2) | ✅ 2026-06-15. Spec: `specs/2026-06-15-ai-research-chat-design.md` |
+| 7 | LLM cost analytics dashboard | ✅ 2026-06-15. Spec: `specs/2026-06-15-llm-cost-analytics-design.md` |
 
 ---
 
