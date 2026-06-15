@@ -33,7 +33,7 @@
 | SC6b | **Audit-log page: filters + pagination** | S | ✅ Done. Operational time presets (10m–72h), custom datetime picker, working pagination, loading state. Spec: `docs/superpowers/specs/2026-06-14-audit-log-filters-pagination-design.md`. |
 | 40 | **SC8 resilience follow-ons** | S | ✅ Done. Retry (3 attempts, exponential backoff) + read fallbacks on all admin-api downstream clients. Spec: `docs/superpowers/specs/2026-06-14-sc8-resilience-follow-ons-design.md`. |
 | 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | Phase 1 ✅ PR #89. Phase 2: chat-style UI backed by a configured LiteLLM model so the operator can research/draft a response with AI assistance before sending. |
-| 24 | **Flag-detail: AI analysis end-to-end test** | S | Backend wired (PR #89), not yet verified end-to-end. Confirm LLM response renders correctly in the detail modal's AI Analysis section. |
+| 24 | **Flag-detail: AI analysis end-to-end test** | S | ✅ Done. Missing `GENERAL` task-type model seed added (migration 011). Spec: `docs/superpowers/specs/2026-06-14-ai-analysis-e2e-design.md`. |
 | 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. **Scope to be redefined/refined before picking up** — the full design for complex rule logic has not been settled. |
 | 26 | **Knowledge Foundation** — new `emcip-knowledge-engine` service | XL | ✅ Foundation complete (PR #122/#123). Service skeleton, Liquibase migrations (pgvector + AGE), Kafka consumers/producers, vector search, graph repository, health indicator, Helm/Prometheus/Grafana. Remaining user stories (US-26.4–26.10) tracked as follow-up work. Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. ADR-008. Prerequisite for #27. |
@@ -99,6 +99,7 @@
 | 26 | Knowledge Foundation — `emcip-knowledge-engine` service skeleton | ✅ PR #122/#123 — 2026-06-13. Spec: `specs/2026-06-13-knowledge-management-platform-design.md` |
 | SC6b | Audit-log page: filters + pagination | ✅ 2026-06-14. Spec: `specs/2026-06-14-audit-log-filters-pagination-design.md` |
 | 40 | SC8 resilience follow-ons: retry + read fallbacks | ✅ 2026-06-14. Spec: `specs/2026-06-14-sc8-resilience-follow-ons-design.md` |
+| 24 | Flag-detail: AI analysis end-to-end fix | ✅ 2026-06-15. Spec: `specs/2026-06-14-ai-analysis-e2e-design.md` |
 
 ---
 
