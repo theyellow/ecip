@@ -5,7 +5,7 @@ import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
 import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
-import { SegmentedControl } from '../../components/SegmentedControl/SegmentedControl'
+import { ReplyComposer } from './ReplyComposer'
 import styles from './Flags.module.css'
 
 const DECISIONS = ['', 'ALLOW', 'BLOCK', 'FLAG', 'RESPOND', 'ESCALATE', 'REVIEW', 'EXECUTE']
@@ -82,16 +82,6 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
   const [chatError, setChatError] = useState(null)
 
   const [showReply, setShowReply] = useState(false)
-  const [replyText, setReplyText] = useState('')
-  const [replyTarget, setReplyTarget] = useState('GROUP')
-  const [replyToOriginal, setReplyToOriginal] = useState(true)
-  const [prefixModerator, setPrefixModerator] = useState(false)
-  const [replySending, setReplySending] = useState(false)
-  const [replyError, setReplyError] = useState('')
-  const [replySuccess, setReplySuccess] = useState(false)
-  const [accounts, setAccounts] = useState(null)
-  const [selectedAccountId, setSelectedAccountId] = useState(null)
-  const [promptActioned, setPromptActioned] = useState(false)
 
   const handleStatusChange = async newStatus => {
     setSaving(true)
@@ -103,33 +93,6 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
       setError(e.message)
     } finally {
       setSaving(false)
-    }
-  }
-
-  const handleReply = async () => {
-    setReplySending(true)
-    setReplyError('')
-    setReplySuccess(false)
-    try {
-      await api.reply(flag.id, {
-        text: replyText,
-        target: replyTarget,
-        replyToOriginal,
-        prefixModerator,
-        accountId: selectedAccountId,
-      })
-      setReplySuccess(true)
-      setPromptActioned(true)
-      setReplyText('')
-    } catch (e) {
-      if (e.status === 409 && e.body?.accounts) {
-        setAccounts(e.body.accounts)
-        setReplyError('Multiple accounts watch this chat \u2014 select one below.')
-      } else {
-        setReplyError(e.message || 'Failed to send reply')
-      }
-    } finally {
-      setReplySending(false)
     }
   }
 
@@ -185,16 +148,6 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
     setChatMessages([])
     setChatError(null)
     setChatInput('')
-  }
-
-  const handleMarkActioned = async () => {
-    try {
-      await onStatusChange(flag.id, 'ACTIONED')
-      setStatus('ACTIONED')
-      setPromptActioned(false)
-    } catch (e) {
-      setReplyError(e.message)
-    }
   }
 
   return (
@@ -256,64 +209,11 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
       </div>
 
       {showReply && (
-        <div className={styles.replySection}>
-          <textarea
-            className={styles.replyTextarea}
-            placeholder="Type your response..."
-            value={replyText}
-            onChange={e => setReplyText(e.target.value)}
-            maxLength={4096}
-          />
-
-          <div className={styles.replyOptions}>
-            <SegmentedControl
-              options={[{ value: 'GROUP', label: 'Group' }, { value: 'DM', label: 'DM' }]}
-              value={replyTarget}
-              onChange={setReplyTarget}
-            />
-            <label>
-              <input type="checkbox" checked={replyToOriginal} onChange={e => setReplyToOriginal(e.target.checked)} />
-              Reply to original
-            </label>
-            <label>
-              <input type="checkbox" checked={prefixModerator} onChange={e => setPrefixModerator(e.target.checked)} />
-              Prefix [Moderator]
-            </label>
-          </div>
-
-          {accounts && (
-            <select
-              className={styles.accountSelect}
-              value={selectedAccountId ?? ''}
-              onChange={e => setSelectedAccountId(e.target.value || null)}
-            >
-              <option value="">Select account...</option>
-              {accounts.map(a => (
-                <option key={a.id} value={a.id}>{a.displayName} ({a.phoneNumber})</option>
-              ))}
-            </select>
-          )}
-
-          <div className={styles.replyActions}>
-            <Button onClick={handleReply} disabled={replySending || !replyText.trim()}>
-              {replySending ? 'Sending\u2026' : 'Send'}
-            </Button>
-            {replySuccess && !promptActioned && (
-              <span className={styles.replySuccess}>Sent!</span>
-            )}
-            {promptActioned && (
-              <>
-                <span className={styles.replySuccess}>Sent! Mark as actioned?</span>
-                <Button variant="secondary" onClick={handleMarkActioned}>Yes</Button>
-                <Button variant="secondary" onClick={() => setPromptActioned(false)}>No</Button>
-              </>
-            )}
-          </div>
-
-          {replyError && (
-            <p role="alert" className={styles.alertBanner}>{replyError}</p>
-          )}
-        </div>
+        <ReplyComposer
+          flagId={flag.id}
+          api={api}
+          onActioned={() => onStatusChange(flag.id, 'ACTIONED')}
+        />
       )}
 
       <div className={styles.replyHeader} onClick={() => setShowResearch(s => !s)}>
