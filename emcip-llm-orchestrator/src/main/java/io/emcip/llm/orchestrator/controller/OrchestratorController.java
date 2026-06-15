@@ -182,6 +182,33 @@ public class OrchestratorController {
                 "totalCostUsd", totalCost);
     }
 
+    @Operation(summary = "Get aggregated LLM cost totals for a time range")
+    @GetMapping("/costs/totals")
+    public Map<String, Object> costTotals(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+        Map<String, Object> totals = costTrackingService.getTotals(from, to);
+        totals.put("from", from.toString());
+        totals.put("to", to.toString());
+        return totals;
+    }
+
+    @Operation(summary = "Get LLM costs aggregated by model for a time range")
+    @GetMapping("/costs/by-model")
+    public List<Map<String, Object>> costByModel(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+        return costTrackingService.getByModel(from, to);
+    }
+
+    @Operation(summary = "Get LLM costs aggregated by day for a time range")
+    @GetMapping("/costs/by-day")
+    public List<Map<String, Object>> costByDay(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+        return costTrackingService.getByDay(from, to);
+    }
+
     // --- Provider Config ---
 
     private Map<String, Object> maskConfig(LlmProviderConfig p) {

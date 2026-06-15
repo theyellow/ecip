@@ -9,6 +9,8 @@ import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.ModelCostLog;
 import io.emcip.llm.orchestrator.repository.ModelCostLogRepository;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -178,5 +180,75 @@ class CostTrackingServiceTest {
         double result = service.estimateCost(model, 500, 1000);
 
         assertThat(result).isCloseTo(2.5, within(0.0001));
+    }
+
+    // --- getTotals tests ---
+
+    @Test
+    void getTotals_returnsAggregatedData() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant end = Instant.parse("2026-01-31T23:59:59Z");
+        Object[] row = new Object[] {42.5, 120000L, 210L, 795.0, 205L, 5L};
+        when(costLogRepository.calculateTotals(start, end)).thenReturn(row);
+
+        Map<String, Object> result = service.getTotals(start, end);
+
+        assertThat(result.get("totalCostUsd")).isEqualTo(42.5);
+        assertThat(result.get("totalTokens")).isEqualTo(120000L);
+        assertThat(result.get("callCount")).isEqualTo(210L);
+        assertThat(result.get("avgLatencyMs")).isEqualTo(795.0);
+        assertThat(result.get("successCount")).isEqualTo(205L);
+        assertThat(result.get("failureCount")).isEqualTo(5L);
+    }
+
+    @Test
+    void getTotals_nullRow_returnsZeros() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant end = Instant.parse("2026-01-31T23:59:59Z");
+        Object[] row = new Object[] {null, null, 0L, null, 0L, 0L};
+        when(costLogRepository.calculateTotals(start, end)).thenReturn(row);
+
+        Map<String, Object> result = service.getTotals(start, end);
+
+        assertThat(result.get("totalCostUsd")).isEqualTo(0.0);
+        assertThat(result.get("totalTokens")).isEqualTo(0L);
+    }
+
+    // --- getByModel tests ---
+
+    @Test
+    void getByModel_returnsMappedResults() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        Instant end = Instant.parse("2026-01-31T23:59:59Z");
+        Object[] rowData = new Object[] {"qwen3-30b-a3b", 142L, 60000L, 25000L, 85000L, 0.0, 812.0};
+        List<Object[]> rows = java.util.Collections.singletonList(rowData);
+        when(costLogRepository.aggregateByModel(start, end)).thenReturn(rows);
+
+        List<Map<String, Object>> result = service.getByModel(start, end);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().get("modelName")).isEqualTo("qwen3-30b-a3b");
+        assertThat(result.getFirst().get("callCount")).isEqualTo(142L);
+        assertThat(result.getFirst().get("totalTokens")).isEqualTo(85000L);
+    }
+
+    // --- getByDay tests ---
+
+    @Test
+    void getByDay_returnsMappedResults() {
+        Instant start = Instant.parse("2026-06-14T00:00:00Z");
+        Instant end = Instant.parse("2026-06-15T23:59:59Z");
+        List<Object[]> rows =
+                java.util.Arrays.asList(
+                        new Object[] {java.time.LocalDate.of(2026, 6, 14), 0.0, 47L, 28000L},
+                        new Object[] {java.time.LocalDate.of(2026, 6, 15), 0.0, 63L, 35000L});
+        when(costLogRepository.aggregateByDay(start, end)).thenReturn(rows);
+
+        List<Map<String, Object>> result = service.getByDay(start, end);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).get("date")).isEqualTo("2026-06-14");
+        assertThat(result.get(0).get("callCount")).isEqualTo(47L);
+        assertThat(result.get(1).get("date")).isEqualTo("2026-06-15");
     }
 }

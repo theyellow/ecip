@@ -17,6 +17,7 @@ const NAV = [
   { to: '/simulate',         label: 'Simulate Event',   icon: '▶', permission: 'SIMULATE_WRITE' },
   { to: '/telegram',         label: 'Telegram',         icon: '⌘', permission: 'TELEGRAM_READ' },
   { to: '/ai-config',        label: 'AI Config',        icon: '✦', permission: 'AI_CONFIG_READ' },
+  { to: '/costs',            label: 'LLM Costs',         icon: '\u229B', permission: 'COSTS_READ' },
   { to: '/users',            label: 'Users',            icon: '◉', permission: 'USERS_READ' },
 ]
 

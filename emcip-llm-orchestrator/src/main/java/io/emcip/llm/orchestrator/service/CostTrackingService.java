@@ -4,6 +4,9 @@ import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.ModelCostLog;
 import io.emcip.llm.orchestrator.repository.ModelCostLogRepository;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -184,5 +187,55 @@ public class CostTrackingService {
         double outputCost =
                 (estimatedOutputTokens / 1000.0) * modelConfig.getOutputCostPer1kTokens();
         return inputCost + outputCost;
+    }
+
+    /** Get aggregated totals for a time period. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getTotals(Instant start, Instant end) {
+        Object[] row = costLogRepository.calculateTotals(start, end);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalCostUsd", row[0] != null ? ((Number) row[0]).doubleValue() : 0.0);
+        result.put("totalTokens", row[1] != null ? ((Number) row[1]).longValue() : 0L);
+        result.put("callCount", ((Number) row[2]).longValue());
+        result.put("avgLatencyMs", row[3] != null ? ((Number) row[3]).doubleValue() : 0.0);
+        result.put("successCount", ((Number) row[4]).longValue());
+        result.put("failureCount", ((Number) row[5]).longValue());
+        return result;
+    }
+
+    /** Get per-model aggregation for a time period. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getByModel(Instant start, Instant end) {
+        return costLogRepository.aggregateByModel(start, end).stream()
+                .map(
+                        row -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            m.put("modelName", row[0]);
+                            m.put("callCount", ((Number) row[1]).longValue());
+                            m.put("inputTokens", ((Number) row[2]).longValue());
+                            m.put("outputTokens", ((Number) row[3]).longValue());
+                            m.put("totalTokens", ((Number) row[4]).longValue());
+                            m.put("totalCostUsd", ((Number) row[5]).doubleValue());
+                            m.put("avgLatencyMs", ((Number) row[6]).doubleValue());
+                            return m;
+                        })
+                .toList();
+    }
+
+    /** Get per-day aggregation for a time period. */
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getByDay(Instant start, Instant end) {
+        return costLogRepository.aggregateByDay(start, end).stream()
+                .map(
+                        row -> {
+                            Map<String, Object> m = new LinkedHashMap<>();
+                            // Native query returns java.sql.Date for DATE()
+                            m.put("date", row[0].toString());
+                            m.put("totalCostUsd", ((Number) row[1]).doubleValue());
+                            m.put("callCount", ((Number) row[2]).longValue());
+                            m.put("totalTokens", ((Number) row[3]).longValue());
+                            return m;
+                        })
+                .toList();
     }
 }

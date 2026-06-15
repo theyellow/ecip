@@ -30,17 +30,17 @@
 
 | # | Item | Size | Notes |
 |---|------|------|-------|
-| SC6b | **Audit-log page: filters + pagination** | S | ✅ Done. Operational time presets (10m–72h), custom datetime picker, working pagination, loading state. Spec: `docs/superpowers/specs/2026-06-14-audit-log-filters-pagination-design.md`. |
-| 40 | **SC8 resilience follow-ons** | S | ✅ Done. Retry (3 attempts, exponential backoff) + read fallbacks on all admin-api downstream clients. Spec: `docs/superpowers/specs/2026-06-14-sc8-resilience-follow-ons-design.md`. |
-| 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | ✅ Done. Multi-turn AI Research chat in Flag Detail modal. Spec: `docs/superpowers/specs/2026-06-15-ai-research-chat-design.md`. |
-| 24 | **Flag-detail: AI analysis end-to-end test** | S | ✅ Done. Missing `GENERAL` task-type model seed added (migration 011). Spec: `docs/superpowers/specs/2026-06-14-ai-analysis-e2e-design.md`. |
+| SC6b | **Audit-log page: filters + pagination** | S | ✅ Done. Spec: `docs/superpowers/specs/2026-06-14-audit-log-filters-pagination-design.md`. |
+| 40 | **SC8 resilience follow-ons** | S | ✅ Done. Spec: `docs/superpowers/specs/2026-06-14-sc8-resilience-follow-ons-design.md`. |
+| 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | ✅ Done. Spec: `docs/superpowers/specs/2026-06-15-ai-research-chat-design.md`. |
+| 24 | **Flag-detail: AI analysis end-to-end test** | S | ✅ Done. Spec: `docs/superpowers/specs/2026-06-14-ai-analysis-e2e-design.md`. |
+| 7 | **LLM cost analytics dashboard** | M | ✅ Done. Costs page with summary cards, CSS bar chart, model breakdown table. Spec: `docs/superpowers/specs/2026-06-15-llm-cost-analytics-design.md`. |
 | 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
-| 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). Time-based and context-aware rule evaluation not yet implemented. **Scope to be redefined/refined before picking up** — the full design for complex rule logic has not been settled. |
-| 26 | **Knowledge Foundation** — new `emcip-knowledge-engine` service | XL | ✅ Foundation complete (PR #122/#123). Service skeleton, Liquibase migrations (pgvector + AGE), Kafka consumers/producers, vector search, graph repository, health indicator, Helm/Prometheus/Grafana. Remaining user stories (US-26.4–26.10) tracked as follow-up work. Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. ADR-008. Prerequisite for #27. |
-| 27 | **Deep Research Agent** | XL | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. Depends on #26. |
 | 42 | **Structured feed connectors for Factual Knowledge** | M | Predefined source connectors (Wikipedia API, arXiv, PubMed) for automated periodic ingestion into the knowledge base. Depends on #26. |
+| 27 | **Deep Research Agent** | XL | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. Depends on #26. |
+| 26 | **Knowledge Foundation** — new `emcip-knowledge-engine` service | XL | ✅ Foundation complete (PR #122/#123). Remaining user stories (US-26.4–26.10) tracked as follow-up work. Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. ADR-008. Prerequisite for #27. |
+| 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). **Scope to be redefined/refined before picking up** — the full design for complex rule logic has not been settled. |
 | 8 | **ML toxicity detection** | XL | Replace keyword/regex moderation rules with a model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed before implementation. |
-| 7 | **LLM cost analytics dashboard** | M | Admin UI page: per-tenant call counts + token spend. Data already in `model_cost_logs`. Ref: `specs/2026-04-24-admin-ui-phase2-design.md`. |
 
 ---
 
@@ -101,6 +101,7 @@
 | 40 | SC8 resilience follow-ons: retry + read fallbacks | ✅ 2026-06-14. Spec: `specs/2026-06-14-sc8-resilience-follow-ons-design.md` |
 | 24 | Flag-detail: AI analysis end-to-end fix | ✅ 2026-06-15. Spec: `specs/2026-06-14-ai-analysis-e2e-design.md` |
 | 23 | Flag-detail: AI Research chat (Phase 2) | ✅ 2026-06-15. Spec: `specs/2026-06-15-ai-research-chat-design.md` |
+| 7 | LLM cost analytics dashboard | ✅ 2026-06-15. Spec: `specs/2026-06-15-llm-cost-analytics-design.md` |
 
 ---
 

@@ -6,3 +6,4 @@ Focus on:
 - observability
 - performance
 - concurrency
+- security

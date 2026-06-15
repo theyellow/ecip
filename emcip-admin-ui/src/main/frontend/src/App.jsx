@@ -15,6 +15,7 @@ import { AIConfig } from './pages/AIConfig/AIConfig'
 import { ModerationRules } from './pages/ModerationRules/ModerationRules'
 import { Decisions } from './pages/Flags/Flags'
 import { Users } from './pages/Users/Users'
+import { Costs } from './pages/Costs/Costs'
 
 class PageErrorBoundary extends Component {
   state = { error: null }
@@ -56,6 +57,7 @@ function AuthGate() {
         <Route path="moderation-rules" element={<ModerationRules />} />
         <Route path="decisions" element={<Decisions />} />
         <Route path="users" element={<Users />} />
+        <Route path="costs" element={<Costs />} />
       </Route>
     </Routes>
   )
