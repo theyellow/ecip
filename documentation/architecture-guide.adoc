@@ -172,6 +172,8 @@ Domain data (moderation rules, audit events, policy decisions) is accessed via R
 
 All downstream REST calls are protected by a three-layer Resilience4j stack: *retry* (3 attempts with exponential backoff: 500ms → 1s → 2s), then *circuit breaker* (sliding window of 10 calls, 50% failure threshold, 30s open state), then *fallback* on read operations. When a downstream service is temporarily unavailable, list endpoints (`listEvents`, `listRules`, `listDecisions`) return empty responses so the UI stays navigable. Write operations propagate errors as 503 so operators know their action did not succeed.
 
+The admin-api also provides an *AI Research chat* — a multi-turn conversation endpoint (`POST /api/flags/{id}/chat`) that prepends the flag context as a system prompt and forwards the messages array to the LLM Orchestrator's `POST /api/chat` endpoint. This lets operators interactively investigate flagged messages with LLM assistance before deciding on a response.
+
 The admin-api also supports *operator actions* — currently, operators can reply to flagged messages directly from the Flag Detail modal. The reply flow resolves the Telegram account watching the flagged chat (via `GroupProfile` → `AccountWatchedGroup` → `TelegramAccount`), sends the message through `emcip-tdlib-adapter`'s `POST /internal/send-message/{accountId}` endpoint (with Resilience4j circuit breaker + retry), and publishes an `OPERATOR_REPLY` audit event to the `audit.events` Kafka topic.
 
 == Domain & Code Model (C4)

@@ -320,3 +320,95 @@
   font-size: 12px;
   color: var(--fg-2);
 }
+
+/* AI Research chat */
+.chatMessages {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+}
+
+.chatMessage {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chatMessageUser {
+  align-self: flex-end;
+  max-width: 85%;
+}
+
+.chatMessageAssistant {
+  align-self: flex-start;
+  max-width: 85%;
+}
+
+.chatMessageRole {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+}
+
+.chatMessageContent {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--fg-1);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+}
+
+.chatMessageUser .chatMessageContent {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.chatMessageMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.chatInputRow {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-end;
+}
+
+.chatInput {
+  flex: 1;
+  min-height: 40px;
+  max-height: 100px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--bg-input);
+  color: var(--fg-1);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  resize: vertical;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.chatInput:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 12px var(--orb-glow);
+}
+
+.chatThinking {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-3);
+  padding: var(--sp-2) 0;
+}

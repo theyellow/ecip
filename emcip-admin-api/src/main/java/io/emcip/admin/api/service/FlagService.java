@@ -152,6 +152,59 @@ public class FlagService {
                         });
     }
 
+    public Mono<JsonNode> chat(String flagId, JsonNode body) {
+        return policyEngineClient
+                .getDecision(flagId)
+                .flatMap(
+                        flag -> {
+                            String systemPrompt = buildChatSystemPrompt(flag);
+                            JsonNode clientMessages = body.get("messages");
+
+                            tools.jackson.databind.node.ArrayNode messages =
+                                    JsonNodeFactory.instance.arrayNode();
+                            ObjectNode systemMsg = JsonNodeFactory.instance.objectNode();
+                            systemMsg.put("role", "system");
+                            systemMsg.put("content", systemPrompt);
+                            messages.add(systemMsg);
+                            if (clientMessages != null && clientMessages.isArray()) {
+                                for (JsonNode msg : clientMessages) {
+                                    messages.add(msg);
+                                }
+                            }
+
+                            ObjectNode chatBody = JsonNodeFactory.instance.objectNode();
+                            chatBody.set("messages", messages);
+                            chatBody.put("taskType", "GENERAL");
+
+                            return orchestratorWebClient
+                                    .post()
+                                    .uri("/api/chat")
+                                    .bodyValue(chatBody)
+                                    .retrieve()
+                                    .bodyToMono(JsonNode.class);
+                        });
+    }
+
+    private String buildChatSystemPrompt(JsonNode flag) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(
+                "You are a moderation analyst for the EMCIP platform. You are assisting an"
+                        + " operator investigating a flagged message.\n\n");
+        sb.append("Context:\n");
+        sb.append("- Intent: ").append(flag.path("originalIntent").asText("unknown")).append("\n");
+        sb.append("- Decision: ").append(flag.path("decision").asText("unknown")).append("\n");
+        sb.append("- Confidence: ")
+                .append(String.format("%.1f%%", flag.path("confidence").asDouble(0) * 100))
+                .append("\n");
+        sb.append("- Reason: ").append(flag.path("reason").asText("none")).append("\n");
+        JsonNode meta = flag.path("metadata");
+        if (!meta.isMissingNode() && !meta.isNull() && meta.has("messageText")) {
+            sb.append("- Message text: ").append(meta.path("messageText").asText()).append("\n");
+        }
+        sb.append("\nHelp the operator understand this flag and research appropriate responses.");
+        return sb.toString();
+    }
+
     private String buildAnalysisPrompt(tools.jackson.databind.JsonNode flag) {
         StringBuilder sb = new StringBuilder();
         sb.append("Analyse this moderation flag:\n\n");

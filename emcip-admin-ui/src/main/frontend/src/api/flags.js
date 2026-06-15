@@ -21,5 +21,10 @@ export function flagsApi(request) {
       }),
     analyse: id =>
       request(`/api/flags/${encodeURIComponent(id)}/analyse`, { method: 'POST' }),
+    chat: (id, messages) =>
+      request(`/api/flags/${encodeURIComponent(id)}/chat`, {
+        method: 'POST',
+        body: JSON.stringify({ messages }),
+      }),
   }
 }

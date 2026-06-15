@@ -75,10 +75,11 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const [showAnalysis, setShowAnalysis] = useState(false)
-  const [analysing, setAnalysing] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState(null)
-  const [analysisCopied, setAnalysisCopied] = useState(false)
+  const [showResearch, setShowResearch] = useState(false)
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatError, setChatError] = useState(null)
 
   const [showReply, setShowReply] = useState(false)
   const [replyText, setReplyText] = useState('')
@@ -132,25 +133,58 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
     }
   }
 
-  const handleAnalyse = async () => {
-    setAnalysing(true)
-    setAnalysisResult(null)
+  const buildFirstMessage = () => {
+    const parts = [`Analyse this moderation flag:`]
+    parts.push(`- Intent: ${flag.originalIntent || 'unknown'}`)
+    parts.push(`- Decision: ${flag.decision || 'unknown'}`)
+    parts.push(`- Confidence: ${flag.confidence != null ? (flag.confidence * 100).toFixed(1) + '%' : 'unknown'}`)
+    parts.push(`- Reason: ${flag.reason || 'none'}`)
+    if (meta.messageText) parts.push(`- Message: ${meta.messageText}`)
+    parts.push('', 'Is the decision appropriate? Explain briefly and suggest any better action if relevant.')
+    return parts.join('\n')
+  }
+
+  const sendChat = async (newMessages) => {
+    setChatMessages(newMessages)
+    setChatLoading(true)
+    setChatError(null)
     try {
-      const result = await api.analyse(flag.id)
-      setAnalysisResult(result)
+      const res = await api.chat(flag.id, newMessages)
+      setChatMessages(prev => [...prev, { role: 'assistant', content: res.content, model: res.model }])
     } catch (e) {
-      setAnalysisResult({ success: false, analysis: e.message || 'Analysis failed', model: null })
+      setChatError(e.message || 'Chat failed')
     } finally {
-      setAnalysing(false)
+      setChatLoading(false)
     }
   }
 
-  const copyAnalysis = () => {
-    if (!analysisResult?.analysis) return
-    navigator.clipboard.writeText(analysisResult.analysis).then(() => {
-      setAnalysisCopied(true)
-      setTimeout(() => setAnalysisCopied(false), 1500)
-    })
+  const handleAnalyse = () => {
+    const userMsg = { role: 'user', content: buildFirstMessage() }
+    sendChat([userMsg])
+  }
+
+  const handleChatSend = () => {
+    if (!chatInput.trim()) return
+    const userMsg = { role: 'user', content: chatInput.trim() }
+    setChatInput('')
+    sendChat([...chatMessages, userMsg])
+  }
+
+  const handleChatKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleChatSend()
+    }
+  }
+
+  const copyMessage = (content) => {
+    navigator.clipboard.writeText(content)
+  }
+
+  const clearChat = () => {
+    setChatMessages([])
+    setChatError(null)
+    setChatInput('')
   }
 
   const handleMarkActioned = async () => {
@@ -282,32 +316,69 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
         </div>
       )}
 
-      <div className={styles.replyHeader} onClick={() => setShowAnalysis(s => !s)}>
-        <SectionLabel aside={showAnalysis ? '\u25BE' : '\u25B8'}>AI Analysis</SectionLabel>
+      <div className={styles.replyHeader} onClick={() => setShowResearch(s => !s)}>
+        <SectionLabel aside={showResearch ? '\u25BE' : '\u25B8'}>AI Research</SectionLabel>
       </div>
 
-      {showAnalysis && (
+      {showResearch && (
         <div className={styles.replySection}>
-          <div className={styles.replyActions}>
-            <Button variant="secondary" onClick={handleAnalyse} disabled={analysing}>
-              {analysing ? 'Analysing\u2026' : analysisResult ? 'Re-analyse' : 'Analyse'}
-            </Button>
-            {analysisResult?.success && (
-              <button
-                className={styles.copyAnalysisBtn}
-                onClick={copyAnalysis}
-              >
-                {analysisCopied ? 'Copied' : 'Copy'}
-              </button>
-            )}
-          </div>
-          {analysisResult && (
-            <div className={analysisResult.success ? styles.analysisBlock : styles.analysisError}>
-              {analysisResult.model && (
-                <p className={styles.analysisModel}>{analysisResult.model}</p>
-              )}
-              <p className={styles.analysisText}>{analysisResult.analysis}</p>
+          {chatMessages.length === 0 && (
+            <div className={styles.replyActions}>
+              <Button variant="secondary" onClick={handleAnalyse} disabled={chatLoading}>
+                Analyse
+              </Button>
             </div>
+          )}
+
+          {chatMessages.length > 0 && (
+            <div className={styles.chatMessages}>
+              {chatMessages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`${styles.chatMessage} ${msg.role === 'user' ? styles.chatMessageUser : styles.chatMessageAssistant}`}
+                >
+                  <div className={styles.chatMessageMeta}>
+                    <span className={styles.chatMessageRole}>{msg.role === 'user' ? 'You' : 'Assistant'}</span>
+                    {msg.role === 'assistant' && msg.model && (
+                      <span className={styles.analysisModel}>{msg.model}</span>
+                    )}
+                    {msg.role === 'assistant' && (
+                      <button className={styles.copyAnalysisBtn} onClick={() => copyMessage(msg.content)}>
+                        Copy
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.chatMessageContent}>{msg.content}</div>
+                </div>
+              ))}
+              {chatLoading && <div className={styles.chatThinking}>Thinking{'\u2026'}</div>}
+            </div>
+          )}
+
+          {chatError && <p role="alert" className={styles.alertBanner}>{chatError}</p>}
+
+          {chatMessages.length > 0 && (
+            <>
+              <div className={styles.chatInputRow}>
+                <textarea
+                  className={styles.chatInput}
+                  placeholder="Ask a follow-up question..."
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={handleChatKeyDown}
+                  disabled={chatLoading}
+                  rows={2}
+                />
+                <Button onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()}>
+                  Send
+                </Button>
+              </div>
+              <div className={styles.replyActions}>
+                <Button variant="secondary" onClick={clearChat} disabled={chatLoading}>
+                  Clear
+                </Button>
+              </div>
+            </>
           )}
         </div>
       )}

@@ -57,6 +57,12 @@ public class OrchestratorController {
 
     public record AnalyseResponse(boolean success, String analysis, String model) {}
 
+    public record ChatMessage(String role, String content) {}
+
+    public record ChatRequest(List<ChatMessage> messages, String taskType) {}
+
+    public record ChatResponse(boolean success, String content, String model) {}
+
     // --- Models ---
 
     @Operation(summary = "List all model configurations")
@@ -299,6 +305,32 @@ public class OrchestratorController {
             log.error("Ad-hoc LLM analysis failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(new AnalyseResponse(false, "LLM call failed: " + e.getMessage(), null));
+        }
+    }
+
+    @Operation(summary = "Multi-turn chat using the specified task model")
+    @PostMapping("/chat")
+    public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest req) {
+        String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+        Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+        if (modelOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(
+                            new ChatResponse(
+                                    false, "No model configured for task: " + taskType, null));
+        }
+        ModelConfig model = modelOpt.get();
+        try {
+            List<Map<String, String>> messages =
+                    req.messages().stream()
+                            .map(m -> Map.of("role", m.role(), "content", m.content()))
+                            .toList();
+            LlmResponse response = llmClient.chat(model.getModelName(), messages, 1024, 0.3);
+            return ResponseEntity.ok(new ChatResponse(true, response.content(), response.model()));
+        } catch (Exception e) {
+            log.error("Chat call failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new ChatResponse(false, "LLM call failed: " + e.getMessage(), null));
         }
     }
 }

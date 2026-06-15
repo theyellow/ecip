@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.JsonNodeFactory;
 
 @RestController
 @RequestMapping("/api/flags")
@@ -105,5 +106,22 @@ public class FlagController {
                 .onErrorReturn(
                         ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                                 .body(new AnalyseResponse(false, "Analysis unavailable", null)));
+    }
+
+    @Operation(summary = "Multi-turn AI research chat about a flag")
+    @PostMapping("/{id}/chat")
+    public Mono<ResponseEntity<JsonNode>> chat(
+            @PathVariable String id, @RequestBody JsonNode body) {
+        return flagService
+                .chat(id, body)
+                .map(ResponseEntity::ok)
+                .onErrorReturn(
+                        ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                .body(
+                                        (JsonNode)
+                                                JsonNodeFactory.instance
+                                                        .objectNode()
+                                                        .put("success", false)
+                                                        .put("content", "Chat unavailable")));
     }
 }
