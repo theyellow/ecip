@@ -8,6 +8,7 @@ import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -111,5 +112,27 @@ class FlagServiceTest {
         StepVerifier.create(flagService.reply("flag-1", "Hello", "GROUP", true, false, null))
                 .expectError(IllegalArgumentException.class)
                 .verify();
+    }
+
+    @Test
+    void reply_noteTarget_skipsAccountResolutionAndReturnsSuccess() {
+        ObjectNode flag = JsonNodeFactory.instance.objectNode();
+        ObjectNode meta = flag.putObject("metadata");
+        meta.put("chatId", 12345L);
+        meta.put("senderId", "user:999");
+        when(policyEngineClient.getDecision("flag-1")).thenReturn(Mono.just(flag));
+
+        StepVerifier.create(
+                        flagService.reply("flag-1", "Internal note", "NOTE", false, false, null))
+                .expectNextMatches(
+                        resp ->
+                                resp.messageId() == 0L
+                                        && "NOTE".equals(resp.target())
+                                        && !resp.markedActioned())
+                .verifyComplete();
+
+        org.mockito.Mockito.verify(kafkaTemplate)
+                .send(org.mockito.ArgumentMatchers.any(ProducerRecord.class));
+        org.mockito.Mockito.verifyNoInteractions(groupProfileRepository);
     }
 }
