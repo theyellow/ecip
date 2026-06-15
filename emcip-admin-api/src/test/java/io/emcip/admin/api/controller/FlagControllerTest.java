@@ -136,6 +136,33 @@ class FlagControllerTest {
     }
 
     @Test
+    void chat_returnsOrchestratorResponse() {
+        ObjectNode response = JsonNodeFactory.instance.objectNode();
+        response.put("success", true);
+        response.put("content", "Here is my analysis");
+        response.put("model", "qwen3-30b-a3b");
+
+        when(flagService.chat(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any(JsonNode.class)))
+                .thenReturn(Mono.just(response));
+
+        webTestClient
+                .post()
+                .uri("/api/flags/test-id/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"messages\":[{\"role\":\"user\",\"content\":\"Analyse this\"}]}")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.success")
+                .isEqualTo(true)
+                .jsonPath("$.content")
+                .isEqualTo("Here is my analysis");
+    }
+
+    @Test
     void reply_multipleAccounts_returns409() {
         UUID id1 = UUID.randomUUID();
         UUID id2 = UUID.randomUUID();
