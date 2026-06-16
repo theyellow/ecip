@@ -50,12 +50,6 @@ public class KnowledgeMessageConsumer {
                     event.chatId(),
                     event.telegramMessageId());
 
-        } catch (Exception e) {
-            log.error(
-                    "Failed to process knowledge message: key={}, error={}",
-                    record.key(),
-                    e.getMessage(),
-                    e);
         } finally {
             TenantContext.clear();
         }

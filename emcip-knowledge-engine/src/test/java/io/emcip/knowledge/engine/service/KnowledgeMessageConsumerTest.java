@@ -1,7 +1,9 @@
 package io.emcip.knowledge.engine.service;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import java.util.UUID;
@@ -57,5 +59,38 @@ class KnowledgeMessageConsumerTest {
 
         verify(extractionService)
                 .processMessage(eq("AI is transforming everything"), any(), eq(tenantId));
+    }
+
+    @Test
+    void shouldPropagateExceptionFromExtractionService() throws Exception {
+        UUID tenantId = UUID.randomUUID();
+        String eventJson =
+                """
+                {
+                  "eventId": "evt-err",
+                  "timestamp": "2026-06-16T10:00:00Z",
+                  "schemaVersion": "1.0.0",
+                  "eventType": "TelegramMessage",
+                  "telegramMessageId": 99,
+                  "chatId": 200,
+                  "senderId": "111",
+                  "senderType": "USER",
+                  "text": "trigger failure",
+                  "date": 1718272800,
+                  "isOutgoing": false,
+                  "senderDisplayName": "FailUser",
+                  "chatTitle": "FailGroup"
+                }
+                """;
+        var record = new ConsumerRecord<>("knowledge.raw.messages", 0, 0L, "200", eventJson);
+        record.headers().add("tenant_id", tenantId.toString().getBytes());
+
+        doThrow(new RuntimeException("LLM failure"))
+                .when(extractionService)
+                .processMessage(any(), any(), any());
+
+        assertThatThrownBy(() -> consumer.consume(record))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("LLM failure");
     }
 }
