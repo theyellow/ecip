@@ -41,7 +41,15 @@ public class KnowledgeMessageConsumer {
 
             String sourceRef = String.format("tg:%d:%d", event.chatId(), event.telegramMessageId());
 
-            extractionService.processMessage(event.text(), sourceRef, tenantId);
+            extractionService.processMessage(
+                    event.text(),
+                    sourceRef,
+                    tenantId,
+                    event.chatId(),
+                    event.senderId(),
+                    event.senderDisplayName(),
+                    event.chatTitle(),
+                    event.date());
 
             eventPublisher.publishExtractionComplete(sourceRef, tenantId);
 
@@ -50,12 +58,6 @@ public class KnowledgeMessageConsumer {
                     event.chatId(),
                     event.telegramMessageId());
 
-        } catch (Exception e) {
-            log.error(
-                    "Failed to process knowledge message: key={}, error={}",
-                    record.key(),
-                    e.getMessage(),
-                    e);
         } finally {
             TenantContext.clear();
         }

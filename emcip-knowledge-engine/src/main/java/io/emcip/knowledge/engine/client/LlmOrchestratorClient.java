@@ -1,5 +1,7 @@
 package io.emcip.knowledge.engine.client;
 
+import io.emcip.knowledge.engine.entity.ConceptType;
+import io.emcip.knowledge.engine.entity.RelationshipType;
 import io.emcip.knowledge.engine.model.ExtractionResult;
 import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedEntity;
 import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedRelationship;
@@ -7,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.RestClient;
@@ -38,22 +41,57 @@ public class LlmOrchestratorClient {
         return parseEmbedding(response.analysis());
     }
 
-    public ExtractionResult extract(String text, String conceptTypes, String relationshipTypes) {
-        String prompt =
-                String.format(
-                        """
-                        Extract entities and relationships from the following text.
-                        Concept types: %s
-                        Relationship types: %s
+    public ExtractionResult extract(
+            String text, List<ConceptType> conceptTypes, List<RelationshipType> relationshipTypes) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Extract structured knowledge from the text below.\n\n");
 
-                        Return JSON with "entities" (array of {type, label}) and \
-                        "relationships" (array of {type, source, target}).
+        prompt.append("CONCEPT TYPES:\n");
+        for (ConceptType ct : conceptTypes) {
+            prompt.append("- ")
+                    .append(ct.getName())
+                    .append(": ")
+                    .append(ct.getDescription() != null ? ct.getDescription() : "")
+                    .append("\n");
+            if (ct.getProperties() != null && !ct.getProperties().isEmpty()) {
+                String propNames =
+                        ct.getProperties().stream()
+                                .map(p -> (String) p.get("key"))
+                                .filter(k -> k != null)
+                                .collect(Collectors.joining(", "));
+                prompt.append("  Properties: ")
+                        .append(propNames.isEmpty() ? "none" : propNames)
+                        .append("\n");
+            }
+        }
 
-                        Text: %s
-                        """,
-                        conceptTypes, relationshipTypes, text);
+        prompt.append("\nRELATIONSHIP TYPES:\n");
+        for (RelationshipType rt : relationshipTypes) {
+            prompt.append("- ")
+                    .append(rt.getName())
+                    .append(": ")
+                    .append(rt.getDescription() != null ? rt.getDescription() : "")
+                    .append("\n");
+            String src =
+                    rt.getSourceTypes() != null ? String.join(", ", rt.getSourceTypes()) : "any";
+            String tgt =
+                    rt.getTargetTypes() != null ? String.join(", ", rt.getTargetTypes()) : "any";
+            prompt.append("  Direction: ").append(src).append(" \u2192 ").append(tgt).append("\n");
+        }
 
-        Map<String, String> request = Map.of("prompt", prompt, "taskType", "EXTRACT");
+        prompt.append("\nTEXT:\n")
+                .append(text)
+                .append("\n\nReturn JSON:\n")
+                .append(
+                        "{\n"
+                                + "  \"entities\": [{\"type\": \"<ConceptType name>\","
+                                + " \"label\": \"<text>\", \"properties\": {}}],\n"
+                                + "  \"relationships\": [{\"type\": \"<RelationshipType name>\","
+                                + " \"source\": \"<label>\", \"target\": \"<label>\","
+                                + " \"properties\": {}}]\n"
+                                + "}");
+
+        Map<String, String> request = Map.of("prompt", prompt.toString(), "taskType", "EXTRACT");
 
         var response =
                 restClient
