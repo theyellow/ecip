@@ -2,6 +2,9 @@ package io.emcip.knowledge.engine.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.emcip.knowledge.engine.entity.ConceptType;
+import io.emcip.knowledge.engine.entity.RelationshipType;
+import java.util.List;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -32,20 +35,65 @@ class LlmOrchestratorClientTest {
 
     @Test
     void shouldExtractEntitiesFromText() throws Exception {
-        String responseJson =
-                """
-{"success":true,"analysis":"{\\"entities\\":[{\\"type\\":\\"Person\\",\\"label\\":\\"Alice\\"},{\\"type\\":\\"Topic\\",\\"label\\":\\"AI\\"}],\\"relationships\\":[{\\"type\\":\\"DISCUSSES\\",\\"source\\":\\"Alice\\",\\"target\\":\\"AI\\"}]}","model":"test-model"}
-""";
         mockWebServer.enqueue(
                 new MockResponse()
-                        .setBody(responseJson)
+                        .setBody(
+                                "{\"success\":true,\"analysis\":\"{\\\"entities\\\":[{\\\"type\\\":\\\"Person\\\",\\\"label\\\":\\\"Alice\\\"},{\\\"type\\\":\\\"Topic\\\",\\\"label\\\":\\\"AI\\\"}],\\\"relationships\\\":[{\\\"type\\\":\\\"DISCUSSES\\\",\\\"source\\\":\\\"Alice\\\",\\\"target\\\":\\\"AI\\\"}]}\",\"model\":\"test-model\"}")
                         .addHeader("Content-Type", "application/json"));
 
-        var result = client.extract("Alice discussed AI in the chat", "Person,Topic", "DISCUSSES");
+        ConceptType person = new ConceptType();
+        person.setName("Person");
+        person.setDescription("A human");
+        person.setShared(false);
+        ConceptType topic = new ConceptType();
+        topic.setName("Topic");
+        topic.setDescription("A subject");
+        topic.setShared(false);
+        RelationshipType discusses = new RelationshipType();
+        discusses.setName("DISCUSSES");
+        discusses.setDescription("Connects a person to a topic");
+        discusses.setSourceTypes(List.of("Person"));
+        discusses.setTargetTypes(List.of("Topic"));
+
+        var result =
+                client.extract(
+                        "Alice discussed AI in the chat",
+                        List.of(person, topic),
+                        List.of(discusses));
 
         assertThat(result).isNotNull();
         assertThat(result.entities()).isNotEmpty();
         assertThat(result.relationships()).isNotEmpty();
+    }
+
+    @Test
+    void shouldBuildOntologyDrivenPromptWithDescriptions() throws Exception {
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setBody(
+                                "{\"success\":true,\"analysis\":\"{\\\"entities\\\":[],\\\"relationships\\\":[]}\",\"model\":\"test\"}")
+                        .addHeader("Content-Type", "application/json"));
+
+        ConceptType person = new ConceptType();
+        person.setName("PERSON");
+        person.setDescription("A human individual");
+        person.setShared(false);
+
+        RelationshipType knows = new RelationshipType();
+        knows.setName("KNOWS");
+        knows.setDescription("One person knows another");
+        knows.setSourceTypes(List.of("PERSON"));
+        knows.setTargetTypes(List.of("PERSON"));
+
+        client.extract("Alice knows Bob", List.of(person), List.of(knows));
+
+        var request = mockWebServer.takeRequest();
+        String body = request.getBody().readUtf8();
+        assertThat(body).contains("PERSON");
+        assertThat(body).contains("A human individual");
+        assertThat(body).contains("KNOWS");
+        assertThat(body).contains("One person knows another");
+        assertThat(body).contains("EXTRACT");
     }
 
     @Test

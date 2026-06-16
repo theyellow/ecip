@@ -1,16 +1,18 @@
 package io.emcip.knowledge.engine.service;
 
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
+import io.emcip.knowledge.engine.entity.ConceptType;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
+import io.emcip.knowledge.engine.entity.RelationshipType;
 import io.emcip.knowledge.engine.model.ExtractionResult;
 import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedEntity;
 import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedRelationship;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,16 +68,10 @@ public class KnowledgeExtractionService {
         }
 
         // Step 3: LLM-based entity/relationship extraction
-        String conceptTypes =
-                ontologyService.getAllConceptTypes().stream()
-                        .map(ct -> ct.getName())
-                        .collect(Collectors.joining(","));
-        String relationshipTypes =
-                ontologyService.getAllRelationshipTypes().stream()
-                        .map(rt -> rt.getName())
-                        .collect(Collectors.joining(","));
+        List<ConceptType> conceptTypes = ontologyService.getAllConceptTypes();
+        List<RelationshipType> relTypes = ontologyService.getAllRelationshipTypes();
 
-        ExtractionResult result = llmClient.extract(text, conceptTypes, relationshipTypes);
+        ExtractionResult result = llmClient.extract(text, conceptTypes, relTypes);
 
         // Step 4: Entity resolution + graph storage
         for (ExtractedEntity entity : result.entities()) {
