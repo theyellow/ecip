@@ -58,7 +58,15 @@ class KnowledgeMessageConsumerTest {
         consumer.consume(record);
 
         verify(extractionService)
-                .processMessage(eq("AI is transforming everything"), any(), eq(tenantId));
+                .processMessage(
+                        eq("AI is transforming everything"),
+                        eq("tg:100:42"),
+                        eq(tenantId),
+                        eq(100L),
+                        eq("999"),
+                        eq("TestUser"),
+                        eq("TestGroup"),
+                        eq(1718272800));
     }
 
     @Test
@@ -87,7 +95,7 @@ class KnowledgeMessageConsumerTest {
 
         doThrow(new RuntimeException("LLM failure"))
                 .when(extractionService)
-                .processMessage(any(), any(), any());
+                .processMessage(any(), any(), any(), any(), any(), any(), any(), any());
 
         assertThatThrownBy(() -> consumer.consume(record))
                 .isInstanceOf(RuntimeException.class)

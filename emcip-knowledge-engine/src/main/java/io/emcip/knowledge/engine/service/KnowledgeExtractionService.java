@@ -8,6 +8,7 @@ import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedRelationship;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,15 @@ public class KnowledgeExtractionService {
     private final OntologyService ontologyService;
 
     @Transactional
-    public void processMessage(String text, String sourceRef, UUID tenantId) {
+    public void processMessage(
+            String text,
+            String sourceRef,
+            UUID tenantId,
+            Long chatId,
+            String senderId,
+            String senderDisplayName,
+            String chatTitle,
+            Integer messageDate) {
         if (text == null || text.isBlank()) {
             log.debug("Skipping empty message: {}", sourceRef);
             return;
@@ -40,6 +49,13 @@ public class KnowledgeExtractionService {
         doc.setSourceType("CHAT_MESSAGE");
         doc.setSourceRef(sourceRef);
         doc.setContent(text);
+        doc.setMetadata(
+                Map.of(
+                        "chatId", chatId,
+                        "senderId", senderId,
+                        "senderDisplayName", senderDisplayName,
+                        "chatTitle", chatTitle,
+                        "messageDate", messageDate));
         doc.setChunkIndex(0);
         KnowledgeDocument saved = documentRepository.save(doc);
 

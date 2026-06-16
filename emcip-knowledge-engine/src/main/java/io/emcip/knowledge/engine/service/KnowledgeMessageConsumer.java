@@ -41,7 +41,15 @@ public class KnowledgeMessageConsumer {
 
             String sourceRef = String.format("tg:%d:%d", event.chatId(), event.telegramMessageId());
 
-            extractionService.processMessage(event.text(), sourceRef, tenantId);
+            extractionService.processMessage(
+                    event.text(),
+                    sourceRef,
+                    tenantId,
+                    event.chatId(),
+                    event.senderId(),
+                    event.senderDisplayName(),
+                    event.chatTitle(),
+                    event.date());
 
             eventPublisher.publishExtractionComplete(sourceRef, tenantId);
 
