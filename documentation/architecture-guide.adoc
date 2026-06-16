@@ -178,6 +178,8 @@ The admin-api exposes *LLM cost analytics* via `CostsProxyController` — three 
 
 The admin-api also supports *operator actions* — currently, operators can reply to flagged messages directly from the Flag Detail modal. The reply flow resolves the Telegram account watching the flagged chat (via `GroupProfile` → `AccountWatchedGroup` → `TelegramAccount`), sends the message through `emcip-tdlib-adapter`'s `POST /internal/send-message/{accountId}` endpoint (with Resilience4j circuit breaker + retry), and publishes an `OPERATOR_REPLY` audit event to the `audit.events` Kafka topic.
 
+`FlagService.reply()` supports a `NOTE` target for internal operator notes. When the reply `target` equals `"NOTE"`, the service skips TDLib send entirely and publishes an `OPERATOR_NOTE` audit event to the `audit.events` Kafka topic with the note text in the event details. The response returns `messageId: 0`, `target: "NOTE"`, and `markedActioned: false`. No Telegram account resolution is performed for notes.
+
 == Domain & Code Model (C4)
 
 [plantuml,c4-code,png]

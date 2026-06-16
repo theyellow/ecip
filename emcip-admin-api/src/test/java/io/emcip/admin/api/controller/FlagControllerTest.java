@@ -136,6 +136,35 @@ class FlagControllerTest {
     }
 
     @Test
+    void reply_noteTarget_returns201WithMessageIdZero() {
+        when(flagService.reply("flag-1", "Internal note", "NOTE", false, false, null))
+                .thenReturn(Mono.just(new FlagController.ReplyResponse(0L, "NOTE", false)));
+
+        webTestClient
+                .post()
+                .uri("/api/flags/flag-1/reply")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(
+                        Map.of(
+                                "text",
+                                "Internal note",
+                                "target",
+                                "NOTE",
+                                "replyToOriginal",
+                                false,
+                                "prefixModerator",
+                                false))
+                .exchange()
+                .expectStatus()
+                .isCreated()
+                .expectBody()
+                .jsonPath("$.messageId")
+                .isEqualTo(0)
+                .jsonPath("$.target")
+                .isEqualTo("NOTE");
+    }
+
+    @Test
     void chat_returnsOrchestratorResponse() {
         ObjectNode response = JsonNodeFactory.instance.objectNode();
         response.put("success", true);

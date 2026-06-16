@@ -95,6 +95,13 @@ public class FlagService {
                                         new IllegalArgumentException("Flag has no metadata"));
                             }
                             long chatId = meta.get("chatId").asLong();
+
+                            if ("NOTE".equalsIgnoreCase(target)) {
+                                publishNoteAuditEvent(flagId, text, chatId);
+                                return Mono.<FlagController.ReplyResponse>just(
+                                        new FlagController.ReplyResponse(0L, "NOTE", false));
+                            }
+
                             String senderId =
                                     meta.has("senderId") ? meta.get("senderId").asText() : null;
                             long telegramMessageId =
@@ -116,17 +123,17 @@ public class FlagService {
                                                             account,
                                                             chatId,
                                                             senderId,
-                                                            telegramMessageId));
-                        })
-                .flatMap(
-                        awm ->
-                                sendAndAudit(
-                                        awm,
-                                        flagId,
-                                        text,
-                                        target,
-                                        replyToOriginal,
-                                        prefixModerator));
+                                                            telegramMessageId))
+                                    .flatMap(
+                                            awm ->
+                                                    sendAndAudit(
+                                                            awm,
+                                                            flagId,
+                                                            text,
+                                                            target,
+                                                            replyToOriginal,
+                                                            prefixModerator));
+                        });
     }
 
     public Mono<FlagController.AnalyseResponse> analyse(String flagId) {
@@ -357,6 +364,27 @@ public class FlagService {
             kafkaTemplate.send(new ProducerRecord<>("audit.events", flagId, json));
         } catch (JacksonException e) {
             log.error("Failed to publish audit event for flag {}", flagId, e);
+        }
+    }
+
+    private void publishNoteAuditEvent(String flagId, String noteText, long chatId) {
+        try {
+            ObjectNode event = JsonNodeFactory.instance.objectNode();
+            event.put("eventType", "OPERATOR_NOTE");
+            event.put("action", "ADD_NOTE");
+            event.put("sourceService", "admin-api");
+            event.put("resourceId", flagId);
+            event.put("outcome", "SUCCESS");
+
+            ObjectNode details = event.putObject("details");
+            details.put("target", "NOTE");
+            details.put("noteText", noteText);
+            details.put("chatId", chatId);
+
+            String json = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send(new ProducerRecord<>("audit.events", flagId, json));
+        } catch (JacksonException e) {
+            log.error("Failed to publish note audit event for flag {}", flagId, e);
         }
     }
 
