@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-15
+> Last updated: 2026-06-16
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 
@@ -35,10 +35,22 @@
 | 23 | **Flag-detail: AI-research prompt interface (Phase 2)** | M | ✅ Done. Spec: `docs/superpowers/specs/2026-06-15-ai-research-chat-design.md`. |
 | 24 | **Flag-detail: AI analysis end-to-end test** | S | ✅ Done. Spec: `docs/superpowers/specs/2026-06-14-ai-analysis-e2e-design.md`. |
 | 7 | **LLM cost analytics dashboard** | M | ✅ Done. Costs page with summary cards, CSS bar chart, model breakdown table. Spec: `docs/superpowers/specs/2026-06-15-llm-cost-analytics-design.md`. |
-| 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) **Decisions** reply composer v2 — 4-mode SegmentedControl, chip-row templates, char counter; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
+| 41 | **Admin UI: design-handoff deferred UX** | M | Three items deferred from v2 handoff (PR #94): (1) **Simulate** two-column layout with real-time animated pipeline trace; (2) ~~**Decisions** reply composer v2~~ ✅ PR #130; (3) **Users** expanded roles (MODERATOR, ANALYST, VIEWER) + `lastLogin`/`createdAt` columns — needs backend role expansion first. |
 | 42 | **Structured feed connectors for Factual Knowledge** | M | Predefined source connectors (Wikipedia API, arXiv, PubMed) for automated periodic ingestion into the knowledge base. Depends on #26. |
 | 27 | **Deep Research Agent** | XL | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. Depends on #26. |
-| 26 | **Knowledge Foundation** — new `emcip-knowledge-engine` service | XL | ✅ Foundation complete (PR #122/#123). Remaining user stories (US-26.4–26.10) tracked as follow-up work. Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. ADR-008. Prerequisite for #27. |
+| 26 | **Knowledge Foundation** — remaining pipeline user stories | XL | Foundation (US-26.1–26.3) ✅ PR #122/#123. US-26.4–26.10 open — see sub-table below. Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. ADR-008. Prerequisite for #27 and #42. |
+
+**#26 open user stories:**
+
+| US | Title | Size | Summary |
+|----|-------|------|---------|
+| 26.4 | **Knowledge Extraction Pipeline** | L | Process incoming messages into graph entities and vector embeddings. Kafka consumer on `telegram.raw.messages`, extract via LLM (EXTRACT task type), persist to graph + vector store. DLQ for failures. |
+| 26.5 | **Entity Resolution** | M | Deduplicate and merge extracted entities. Similarity threshold + LLM-assisted resolution (RESOLVE task type). Scheduled or triggered. |
+| 26.6 | **Live Message Fork** | S | Fork live Telegram messages into the knowledge pipeline alongside existing processing. Per-tenant opt-in. |
+| 26.7 | **Bulk Backfill** | M | Operator-triggered historical backfill for a group. Admin-api endpoint + admin-ui trigger button + progress indicator. |
+| 26.8 | **Document Ingestion** | M | Submit URLs or upload documents for factual knowledge. URL fetch/parse + file upload pipeline. Admin-ui: URL input + file upload form. |
+| 26.9 | **Knowledge Query API** | L | Natural language, graph traversal, and hybrid search. REST endpoints: semantic search, graph exploration (topics, persons, neighbors). |
+| 26.10 | **Knowledge Enrichment for LLM** | M | Enrich llm-orchestrator prompts with knowledge context. Context retrieval + injection before LLM call. Configurable relevance threshold. |
 | 6 | **Policy versioning — complex rule logic (Epic 5.3)** | L | DB schema exists (`005-policy-rule-versioning.xml`). **Scope to be redefined/refined before picking up** — the full design for complex rule logic has not been settled. |
 | 8 | **ML toxicity detection** | XL | Replace keyword/regex moderation rules with a model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed before implementation. |
 
@@ -96,12 +108,13 @@
 | 35 | Self-host Inter Variable font | ✅ 2026-06-05 |
 | 36 | Signal detectors: 9 structural/script abuse detectors | ✅ PR #115 — 2026-06-08. Spec: `specs/2026-06-08-signal-detectors-design.md` |
 | 39 | Decisions page: filters, pagination, rename from Flags | ✅ PR #117 — 2026-06-09 |
-| 26 | Knowledge Foundation — `emcip-knowledge-engine` service skeleton | ✅ PR #122/#123 — 2026-06-13. Spec: `specs/2026-06-13-knowledge-management-platform-design.md` |
+| 26 | Knowledge Foundation — US-26.1 extensions, US-26.2 service bootstrap, US-26.3 ontology model | ✅ PR #122/#123 — 2026-06-13. US-26.4–26.10 open (see §2). Spec: `specs/2026-06-13-knowledge-management-platform-design.md` |
 | SC6b | Audit-log page: filters + pagination | ✅ 2026-06-14. Spec: `specs/2026-06-14-audit-log-filters-pagination-design.md` |
 | 40 | SC8 resilience follow-ons: retry + read fallbacks | ✅ 2026-06-14. Spec: `specs/2026-06-14-sc8-resilience-follow-ons-design.md` |
 | 24 | Flag-detail: AI analysis end-to-end fix | ✅ 2026-06-15. Spec: `specs/2026-06-14-ai-analysis-e2e-design.md` |
 | 23 | Flag-detail: AI Research chat (Phase 2) | ✅ 2026-06-15. Spec: `specs/2026-06-15-ai-research-chat-design.md` |
 | 7 | LLM cost analytics dashboard | ✅ 2026-06-15. Spec: `specs/2026-06-15-llm-cost-analytics-design.md` |
+| 41b | Decisions reply composer v2 — 4-mode SegmentedControl, chip-row, char counter, NOTE backend | ✅ PR #130 — 2026-06-16. Spec: `specs/2026-06-15-reply-composer-v2-design.md` |
 
 ---
 
