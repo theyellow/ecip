@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,12 +72,7 @@ public class KafkaConfig {
 
     @Bean
     public DefaultErrorHandler knowledgeErrorHandler(KafkaTemplate<String, String> kafkaTemplate) {
-        var recoverer =
-                new DeadLetterPublishingRecoverer(
-                        kafkaTemplate,
-                        (record, ex) ->
-                                new TopicPartition(
-                                        "knowledge.raw.messages.DLT", record.partition()));
+        var recoverer = new DeadLetterPublishingRecoverer(kafkaTemplate);
         var backOff = new FixedBackOff(1_000L, 3L);
         return new DefaultErrorHandler(recoverer, backOff);
     }

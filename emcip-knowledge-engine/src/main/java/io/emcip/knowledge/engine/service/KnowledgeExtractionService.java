@@ -10,6 +10,7 @@ import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedRelationship;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -53,13 +54,13 @@ public class KnowledgeExtractionService {
         doc.setSourceType("CHAT_MESSAGE");
         doc.setSourceRef(sourceRef);
         doc.setContent(text);
-        doc.setMetadata(
-                Map.of(
-                        "chatId", chatId,
-                        "senderId", senderId,
-                        "senderDisplayName", senderDisplayName,
-                        "chatTitle", chatTitle,
-                        "messageDate", messageDate));
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("chatId", chatId);
+        metadata.put("senderId", senderId != null ? senderId : "");
+        metadata.put("senderDisplayName", senderDisplayName != null ? senderDisplayName : "");
+        metadata.put("chatTitle", chatTitle != null ? chatTitle : "");
+        metadata.put("messageDate", messageDate);
+        doc.setMetadata(metadata);
         doc.setChunkIndex(0);
         KnowledgeDocument saved = documentRepository.save(doc);
 
@@ -168,6 +169,7 @@ public class KnowledgeExtractionService {
             var types = isSource ? relType.getSourceTypes() : relType.getTargetTypes();
             return types.isEmpty() ? "Topic" : types.getFirst();
         } catch (Exception e) {
+            log.debug("inferType fallback for rel type {}: {}", rel.type(), e.getMessage());
             return "Topic";
         }
     }
