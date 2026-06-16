@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-9" author="knowledge-engine">
+        <createTable tableName="ke_resolution_flags"
+                     remarks="Ambiguous entity resolution cases for operator review">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="candidate_label" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="candidate_node_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="similar_label" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="similar_node_id" type="UUID">
+                <constraints nullable="false"/>
+            </column>
+            <column name="concept_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="similarity_score" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_ke_res_flags_status_tenant"
+                     tableName="ke_resolution_flags">
+            <column name="status"/>
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="ke-9b" author="knowledge-engine">
+        <!-- Unique constraint required for upsert in GraphNodeEmbeddingRepository -->
+        <addUniqueConstraint
+            tableName="ke_graph_node_embeddings"
+            columnNames="label, concept_type, tenant_id"
+            constraintName="uq_ke_node_emb_label_type_tenant"/>
+    </changeSet>
+
+</databaseChangeLog>
