@@ -12,7 +12,9 @@ import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -73,12 +75,77 @@ public class KnowledgeExtractionService {
 
         ExtractionResult result = llmClient.extract(text, conceptTypes, relTypes);
 
+        // Build known-type sets for validation
+        Set<String> knownConceptNames =
+                conceptTypes.stream().map(ConceptType::getName).collect(Collectors.toSet());
+        Set<String> knownRelNames =
+                relTypes.stream().map(RelationshipType::getName).collect(Collectors.toSet());
+
+        // Validate and filter entities
+        List<ExtractedEntity> validEntities =
+                result.entities().stream()
+                        .filter(
+                                e -> {
+                                    if (e.type() == null
+                                            || e.type().isBlank()
+                                            || e.label() == null
+                                            || e.label().isBlank()) {
+                                        log.warn(
+                                                "Skipping invalid entity: type={}, label={}",
+                                                e.type(),
+                                                e.label());
+                                        return false;
+                                    }
+                                    if (!knownConceptNames.contains(e.type())) {
+                                        log.warn(
+                                                "Skipping entity with unknown type: type={},"
+                                                        + " label={}",
+                                                e.type(),
+                                                e.label());
+                                        return false;
+                                    }
+                                    return true;
+                                })
+                        .toList();
+
+        // Validate and filter relationships
+        List<ExtractedRelationship> validRelationships =
+                result.relationships().stream()
+                        .filter(
+                                r -> {
+                                    if (r.type() == null
+                                            || r.type().isBlank()
+                                            || r.source() == null
+                                            || r.source().isBlank()
+                                            || r.target() == null
+                                            || r.target().isBlank()) {
+                                        log.warn(
+                                                "Skipping invalid relationship: type={}, source={},"
+                                                        + " target={}",
+                                                r.type(),
+                                                r.source(),
+                                                r.target());
+                                        return false;
+                                    }
+                                    if (!knownRelNames.contains(r.type())) {
+                                        log.warn(
+                                                "Skipping relationship with unknown type: type={},"
+                                                        + " source={}, target={}",
+                                                r.type(),
+                                                r.source(),
+                                                r.target());
+                                        return false;
+                                    }
+                                    return true;
+                                })
+                        .toList();
+
         // Step 4: Entity resolution + graph storage
-        for (ExtractedEntity entity : result.entities()) {
+        for (ExtractedEntity entity : validEntities) {
             entityResolutionService.resolve(entity.label(), entity.type(), tenantId);
         }
 
-        for (ExtractedRelationship rel : result.relationships()) {
+        for (ExtractedRelationship rel : validRelationships) {
             UUID sourceId =
                     entityResolutionService.resolve(rel.source(), inferType(rel, true), tenantId);
             UUID targetId =
@@ -91,8 +158,8 @@ public class KnowledgeExtractionService {
         log.info(
                 "Processed message {}: {} entities, {} relationships",
                 sourceRef,
-                result.entities().size(),
-                result.relationships().size());
+                validEntities.size(),
+                validRelationships.size());
     }
 
     private String inferType(ExtractedRelationship rel, boolean isSource) {
