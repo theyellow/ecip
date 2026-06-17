@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-16
+> Last updated: 2026-06-17 (26.5 done PR #133)
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
@@ -33,14 +33,13 @@
 |---|------|------|-------|-------|
 | 41a | **Simulate page: two-column pipeline trace** | M | — | Two-column layout with real-time animated pipeline trace. Sub-item of #41. |
 | 41c | **Users: expanded roles + lastLogin/createdAt** | M | Backend role expansion | Add MODERATOR, ANALYST, VIEWER roles; `lastLogin`/`createdAt` columns. Sub-item of #41. Backend role expansion needed first. |
-| 26.4 | **Knowledge extraction pipeline** | L | — | Kafka consumer on `telegram.raw.messages` → LLM extract (EXTRACT task type) → graph + vector store. DLQ for failures. Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. |
-| 26.5 | **Entity resolution** | M | 26.4 | Deduplicate and merge extracted entities. Similarity threshold + LLM-assisted resolution (RESOLVE task type). |
 | 26.6 | **Live message fork** | S | 26.4 | Fork live Telegram messages into the knowledge pipeline alongside existing processing. Per-tenant opt-in. |
 | 26.7 | **Bulk backfill** | M | 26.4 | Operator-triggered historical backfill for a group. Admin-api endpoint + admin-ui trigger button + progress indicator. |
 | 26.8 | **Document ingestion (factual knowledge)** | M | — | Submit URLs or upload documents. URL fetch/parse + file upload pipeline. Admin-ui: URL input + file upload form. |
 | 26.9 | **Knowledge query API** | L | 26.4, 26.8 | Natural language, graph traversal, and hybrid search. REST endpoints: semantic search, graph exploration (topics, persons, neighbors). |
 | 26.10 | **Knowledge enrichment for LLM responses** | M | 26.9 | Enrich llm-orchestrator prompts with knowledge context before LLM call. Configurable relevance threshold. |
 | 42 | **Structured feed connectors** | M | 26.8 | Predefined source connectors (Wikipedia API, arXiv, PubMed) for automated periodic ingestion into the knowledge base. |
+| 43 | **Entity resolution review UI** | S | 26.5 | Admin page listing PENDING `ke_resolution_flags` rows. Operator can merge (delete candidate node, reroute relationships) or dismiss (mark as REVIEWED). |
 | 27 | **Deep Research Agent** | XL | 26.9, 26.10 | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. |
 | 6 | **Policy versioning — complex rule logic** | L | Scope decision | DB schema exists (`005-policy-rule-versioning.xml`). Full design not settled — **redefine scope before picking up**. |
 | 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed first. |
@@ -106,6 +105,8 @@
 | 23 | Flag-detail: AI Research chat (Phase 2) | ✅ 2026-06-15. Spec: `specs/2026-06-15-ai-research-chat-design.md` |
 | 7 | LLM cost analytics dashboard | ✅ 2026-06-15. Spec: `specs/2026-06-15-llm-cost-analytics-design.md` |
 | 41b | Decisions reply composer v2 — 4-mode SegmentedControl, chip-row, char counter, NOTE backend | ✅ PR #130 — 2026-06-16. Spec: `specs/2026-06-15-reply-composer-v2-design.md` |
+| 26.4 | Knowledge extraction pipeline — DLQ, metadata preservation, ontology-driven prompt, result validation | ✅ PR #132 — 2026-06-16. Spec: `specs/2026-06-16-knowledge-extraction-pipeline-design.md` |
+| 26.5 | Entity resolution — embedding similarity (merge ≥ 0.92, flag ≥ 0.80), `ke_resolution_flags` queue | ✅ PR #133 — 2026-06-17. Spec: `specs/2026-06-16-entity-resolution-design.md` |
 
 ---
 
