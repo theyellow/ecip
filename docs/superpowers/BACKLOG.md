@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-16 (26.4 done PR #132; #43 added)
+> Last updated: 2026-06-17 (26.5 done PR #133)
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
@@ -33,7 +33,6 @@
 |---|------|------|-------|-------|
 | 41a | **Simulate page: two-column pipeline trace** | M | — | Two-column layout with real-time animated pipeline trace. Sub-item of #41. |
 | 41c | **Users: expanded roles + lastLogin/createdAt** | M | Backend role expansion | Add MODERATOR, ANALYST, VIEWER roles; `lastLogin`/`createdAt` columns. Sub-item of #41. Backend role expansion needed first. |
-| 26.5 | **Entity resolution** | M | 26.4 | Deduplicate and merge extracted entities. Two-threshold embedding similarity (merge ≥ 0.92, flag ≥ 0.80). Operator review queue (`ke_resolution_flags`). Spec: `specs/2026-06-16-entity-resolution-design.md`. |
 | 26.6 | **Live message fork** | S | 26.4 | Fork live Telegram messages into the knowledge pipeline alongside existing processing. Per-tenant opt-in. |
 | 26.7 | **Bulk backfill** | M | 26.4 | Operator-triggered historical backfill for a group. Admin-api endpoint + admin-ui trigger button + progress indicator. |
 | 26.8 | **Document ingestion (factual knowledge)** | M | — | Submit URLs or upload documents. URL fetch/parse + file upload pipeline. Admin-ui: URL input + file upload form. |
@@ -107,6 +106,7 @@
 | 7 | LLM cost analytics dashboard | ✅ 2026-06-15. Spec: `specs/2026-06-15-llm-cost-analytics-design.md` |
 | 41b | Decisions reply composer v2 — 4-mode SegmentedControl, chip-row, char counter, NOTE backend | ✅ PR #130 — 2026-06-16. Spec: `specs/2026-06-15-reply-composer-v2-design.md` |
 | 26.4 | Knowledge extraction pipeline — DLQ, metadata preservation, ontology-driven prompt, result validation | ✅ PR #132 — 2026-06-16. Spec: `specs/2026-06-16-knowledge-extraction-pipeline-design.md` |
+| 26.5 | Entity resolution — embedding similarity (merge ≥ 0.92, flag ≥ 0.80), `ke_resolution_flags` queue | ✅ PR #133 — 2026-06-17. Spec: `specs/2026-06-16-entity-resolution-design.md` |
 
 ---
 
