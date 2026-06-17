@@ -80,6 +80,10 @@ public class AuditService {
                 });
     }
 
+    public Flux<AuditEventEntity> findByCorrelationId(String correlationId) {
+        return repository.findByCorrelationId(correlationId);
+    }
+
     public Mono<AuditEventEntity> findByEventId(String eventId) {
         return Mono.deferContextual(
                 ctx -> {

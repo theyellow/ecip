@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,6 +26,25 @@ class AuditControllerTest {
     @BeforeEach
     void setUp() {
         client = WebTestClient.bindToController(new AuditController(auditService)).build();
+    }
+
+    @Test
+    void getEvents_withCorrelationId_returnsMatchingEvents() {
+        AuditEventEntity e = new AuditEventEntity();
+        e.setEventId("cls-001");
+        e.setCorrelationId("evt-root");
+        when(auditService.findByCorrelationId("evt-root")).thenReturn(Flux.just(e));
+
+        client.get()
+                .uri("/api/audit/events?correlationId=evt-root")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.items[0].correlationId")
+                .isEqualTo("evt-root")
+                .jsonPath("$.total")
+                .isEqualTo(1);
     }
 
     @Test

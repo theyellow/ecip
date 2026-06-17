@@ -159,6 +159,70 @@ class AuditEventConsumerTest {
         verify(acknowledgment).acknowledge();
     }
 
+    // --- correlationId ---
+
+    @Test
+    void handleTelegramMessage_setsCorrelationIdToOwnEventId() throws Exception {
+        TelegramMessageEvent event =
+                new TelegramMessageEvent(
+                        "evt-root",
+                        "2026-06-17T10:00:00Z",
+                        null,
+                        null,
+                        1L,
+                        100L,
+                        "user-1",
+                        "USER",
+                        "hello",
+                        0,
+                        null,
+                        false,
+                        null,
+                        null,
+                        Map.of(),
+                        "",
+                        null,
+                        null,
+                        null);
+        String json = objectMapper.writeValueAsString(event);
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "key", json);
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
+        ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
+        when(auditService.save(captor.capture()))
+                .thenReturn(Mono.just(AuditEventEntity.builder().id(1L).build()));
+
+        consumer.handleTelegramMessage(record, acknowledgment);
+
+        assertThat(captor.getValue().getCorrelationId()).isEqualTo("evt-root");
+    }
+
+    @Test
+    void handleIntentClassified_setsCorrelationIdToSourceEventId() throws Exception {
+        io.emcip.common.events.EventSchemas.IntentClassifiedEvent event =
+                new io.emcip.common.events.EventSchemas.IntentClassifiedEvent(
+                        "cls-001",
+                        "2026-06-17T10:00:00Z",
+                        null,
+                        null,
+                        "evt-root", // sourceEventId — this should become correlationId
+                        "SPAM",
+                        0.95,
+                        null,
+                        java.util.List.of("SPAM"));
+        String json = objectMapper.writeValueAsString(event);
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("messages.classified", 0, 0L, "key", json);
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
+        ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
+        when(auditService.save(captor.capture()))
+                .thenReturn(Mono.just(AuditEventEntity.builder().id(2L).build()));
+
+        consumer.handleIntentClassified(record, acknowledgment);
+
+        assertThat(captor.getValue().getCorrelationId()).isEqualTo("evt-root");
+    }
+
     // --- handleModerationFlag ---
 
     @Test

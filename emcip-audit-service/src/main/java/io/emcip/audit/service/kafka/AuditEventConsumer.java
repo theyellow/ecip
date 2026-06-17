@@ -45,6 +45,7 @@ public class AuditEventConsumer {
                 "TelegramMessage",
                 e -> e.telegramMessageId() != null ? e.telegramMessageId().toString() : null,
                 EventSchemas.TelegramMessageEvent::senderId,
+                EventSchemas.TelegramMessageEvent::eventId,
                 e -> {
                     Map<String, Object> d = new LinkedHashMap<>();
                     d.put("telegramMessageId", e.telegramMessageId());
@@ -69,6 +70,7 @@ public class AuditEventConsumer {
                 "Intent",
                 EventSchemas.IntentClassifiedEvent::sourceEventId,
                 e -> null,
+                EventSchemas.IntentClassifiedEvent::sourceEventId,
                 e -> {
                     Map<String, Object> d = new LinkedHashMap<>();
                     d.put("sourceEventId", e.sourceEventId());
@@ -93,6 +95,7 @@ public class AuditEventConsumer {
                 "Policy",
                 EventSchemas.PolicyDecisionEvent::policyId,
                 e -> null,
+                EventSchemas.PolicyDecisionEvent::sourceEventId,
                 e -> {
                     Map<String, Object> d = new LinkedHashMap<>();
                     d.put("sourceEventId", e.sourceEventId());
@@ -118,6 +121,7 @@ public class AuditEventConsumer {
                 "LlmResponse",
                 EventSchemas.ResponseGeneratedEvent::sourceEventId,
                 e -> null,
+                EventSchemas.ResponseGeneratedEvent::sourceEventId,
                 e -> {
                     Map<String, Object> d = new LinkedHashMap<>();
                     d.put("sourceEventId", e.sourceEventId());
@@ -141,6 +145,7 @@ public class AuditEventConsumer {
                 "ModerationFlag",
                 EventSchemas.ModerationFlagEvent::sourceEventId,
                 e -> null,
+                EventSchemas.ModerationFlagEvent::sourceEventId,
                 e -> {
                     Map<String, Object> d = new LinkedHashMap<>();
                     d.put("sourceEventId", e.sourceEventId());
@@ -159,6 +164,7 @@ public class AuditEventConsumer {
             String resourceType,
             Function<T, String> resourceIdFn,
             Function<T, String> actorIdFn,
+            Function<T, String> correlationIdFn,
             Function<T, Map<String, Object>> detailsFn) {
         try {
             TenantAwareKafkaSupport.bindTenantFromRecord(record);
@@ -178,7 +184,7 @@ public class AuditEventConsumer {
                     AuditEventEntity.builder()
                             .eventId(event.eventId())
                             .eventType(event.eventType())
-                            .correlationId(event.eventId())
+                            .correlationId(correlationIdFn.apply(event))
                             .sourceService(sourceService)
                             .action(event.eventType())
                             .actorType("SYSTEM")
