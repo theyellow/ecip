@@ -30,6 +30,16 @@ public class WebClientConfig {
         return buildWebClient(WebClient.builder(), orchestratorUrl, Duration.ofSeconds(60));
     }
 
+    @Bean("knowledgeWebClient")
+    public WebClient knowledgeWebClient(
+            @Value("${service.knowledge.url}") String knowledgeUrl,
+            @Value("${admin.service-token}") String serviceToken) {
+        return buildWebClient(
+                WebClient.builder().defaultHeader("X-Service-Token", serviceToken),
+                knowledgeUrl,
+                Duration.ofSeconds(30));
+    }
+
     private WebClient buildWebClient(
             WebClient.Builder builder, String baseUrl, Duration responseTimeout) {
         HttpClient httpClient =
