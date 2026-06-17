@@ -2,10 +2,10 @@ package io.emcip.admin.api.controller;
 
 import io.emcip.admin.api.dto.SimulateMessageRequest;
 import io.emcip.admin.api.service.SimulationService;
+import io.emcip.admin.api.service.SimulationService.SimulateTraceResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,16 +26,8 @@ public class SimulateController {
     @Operation(summary = "Simulate a Telegram message through the processing pipeline")
     @PostMapping("/message")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Mono<Map<String, Object>> simulateMessage(
+    public Mono<SimulateTraceResult> simulateMessage(
             @Valid @RequestBody SimulateMessageRequest req) {
-        return simulationService
-                .simulate(req)
-                .map(
-                        result ->
-                                Map.of(
-                                        "eventId", result.eventId(),
-                                        "topic", result.topic(),
-                                        "chatId", req.getChatId(),
-                                        "status", "published"));
+        return simulationService.simulate(req);
     }
 }
