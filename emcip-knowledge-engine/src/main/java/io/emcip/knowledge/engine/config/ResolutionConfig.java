@@ -9,10 +9,5 @@ import org.springframework.context.annotation.Configuration;
 public class ResolutionConfig {
 
     @ConfigurationProperties(prefix = "knowledge.resolution")
-    public record ResolutionProperties(double mergeThreshold, double flagThreshold) {
-        public ResolutionProperties {
-            if (mergeThreshold == 0.0) mergeThreshold = 0.92;
-            if (flagThreshold == 0.0) flagThreshold = 0.80;
-        }
-    }
+    public record ResolutionProperties(double mergeThreshold, double flagThreshold) {}
 }

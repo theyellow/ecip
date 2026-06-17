@@ -29,7 +29,6 @@ public class GraphNodeEmbeddingRepository {
             String raw =
                     jdbcTemplate.queryForObject(
                             sql, String.class, label, conceptType, tenantId, tenantId);
-            if (raw == null) return Optional.empty();
             return Optional.of(parseVector(raw));
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return Optional.empty();
@@ -95,7 +94,12 @@ ON CONFLICT (label, concept_type, tenant_id)
         StringBuilder sb = new StringBuilder("[");
         for (int i = 0; i < embedding.length; i++) {
             if (i > 0) sb.append(",");
-            sb.append(embedding[i]);
+            float value = embedding[i];
+            if (!Float.isFinite(value)) {
+                throw new IllegalArgumentException(
+                        "Embedding contains non-finite value at index " + i + ": " + value);
+            }
+            sb.append(value);
         }
         return sb.append("]").toString();
     }
