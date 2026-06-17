@@ -68,33 +68,59 @@ Add one method to the interface:
 void mergeNodes(UUID candidateNodeId, UUID targetNodeId);
 ```
 
-### 1.3 `AgeGraphRepository` implementation of `mergeNodes()`
+### 1.3 AGE version requirement
 
-Three Cypher statements executed via the existing `executeCypher()` helper, wrapped in a Spring `@Transactional` block at the service layer (not here — `AgeGraphRepository` is not a `@Transactional` component):
+**Apache AGE 1.5.0** is the release that targets PostgreSQL 16. All AGE usage (Dockerfile, Helm chart, pgvector Testcontainers image selection) must pin to AGE 1.5.0 for PG16.
 
-```cypher
--- Step 1: reroute outgoing edges from candidate to target
-MATCH (c {node_id: '<candidateId>'})-[r]->(n)
-WHERE NOT n.node_id = '<targetId>'
-WITH c, r, n, type(r) AS rtype, properties(r) AS props
-CALL ag_catalog.create_relationship('<targetId>', n.node_id, rtype, props)
+The existing `pgvector/pgvector:pg16` test image does not include AGE. This is already handled in integration tests by always using `@MockitoBean GraphRepository`. The production image (Helm/k8s) must have AGE 1.5.0 installed — this is a deployment concern tracked separately; do not block this story on it.
 
--- Step 2: reroute incoming edges to candidate → target
-MATCH (n)-[r]->(c {node_id: '<candidateId>'})
-WHERE NOT n.node_id = '<targetId>'
-WITH c, r, n, type(r) AS rtype, properties(r) AS props
-CALL ag_catalog.create_relationship(n.node_id, '<targetId>', rtype, props)
+### 1.4 `AgeGraphRepository` implementation of `mergeNodes()`
 
--- Step 3: delete candidate (DETACH removes all remaining self-edges)
-MATCH (c {node_id: '<candidateId>'})
-DETACH DELETE c
+AGE 1.5.0 Cypher does not support dynamic relationship types in a `CREATE` clause (i.e., you cannot write `CREATE (a)-[:rtype]->(b)` where `rtype` is a variable). The edge-rerouting must therefore be done at the **Java level**: query edges first via `queryEdges()`, then create each replacement edge individually via the existing `createRelationship()`, then delete the candidate.
+
+Add a private `queryEdges(String cypher)` helper to `AgeGraphRepository` (similar to the existing `queryNodes()` helper) that returns `List<GraphEdge>`.
+
+`mergeNodes()` algorithm (all wrapped in a try/catch that rethrows as `RuntimeException` to propagate to the `@Transactional` service):
+
+```java
+@Override
+public void mergeNodes(UUID candidateNodeId, UUID targetNodeId) {
+    // Step 1: collect outgoing edges from candidate
+    List<GraphEdge> outgoing = queryEdges(String.format(
+        "MATCH (c {node_id: '%s'})-[r]->(n) WHERE NOT n.node_id = '%s' RETURN r",
+        candidateNodeId, targetNodeId));
+
+    // Step 2: collect incoming edges to candidate
+    List<GraphEdge> incoming = queryEdges(String.format(
+        "MATCH (n)-[r]->(c {node_id: '%s'}) WHERE NOT n.node_id = '%s' RETURN r",
+        candidateNodeId, targetNodeId));
+
+    // Step 3: recreate outgoing edges from target
+    for (GraphEdge e : outgoing) {
+        createRelationship(e.relationshipType(), targetNodeId,
+            e.targetNodeId(), e.properties(), e.sourceMessageId());
+    }
+
+    // Step 4: recreate incoming edges to target
+    for (GraphEdge e : incoming) {
+        createRelationship(e.relationshipType(), e.sourceNodeId(),
+            targetNodeId, e.properties(), e.sourceMessageId());
+    }
+
+    // Step 5: delete candidate node (DETACH removes any remaining self-edges)
+    executeCypher(String.format(
+        "MATCH (c {node_id: '%s'}) DETACH DELETE c", candidateNodeId));
+
+    log.info("Merged AGE node {} into {}: {} outgoing + {} incoming edges rerouted",
+        candidateNodeId, targetNodeId, outgoing.size(), incoming.size());
+}
 ```
 
-**Note:** AGE's Cypher dialect does not support `CREATE` with dynamic relationship types in a single statement. Use three sequential `executeCypher()` calls. If AGE does not support `ag_catalog.create_relationship()` (version-dependent), fall back to storing edge type+properties in a local variable and using `CREATE (a)-[:TYPE {props}]->(b)` with type inlined. The implementer must verify which form the deployed AGE version supports and document it in a code comment.
+`queryEdges(String cypher)` follows the same pattern as the existing `queryNodes()` but maps `GraphEdge` from the agtype result. It must parse `sourceNodeId`, `targetNodeId`, `relationshipType`, and `properties` from the agtype row — using the existing `parseEdgeFromAgtype()` helper if it exists, or a new one following the same pattern as `parseNodeFromAgtype()`.
 
 If any step throws, the exception propagates to the service layer which is `@Transactional(rollbackFor = Exception.class)` — the flag status update is rolled back.
 
-### 1.4 `ResolutionReviewService`
+### 1.5 `ResolutionReviewService`
 
 ```java
 @Service
@@ -142,7 +168,7 @@ public class ResolutionReviewService {
 }
 ```
 
-### 1.5 `ResolutionReviewController`
+### 1.6 `ResolutionReviewController`
 
 ```java
 @RestController
@@ -180,7 +206,7 @@ public class ResolutionReviewController {
 
 No Spring Security on the knowledge-engine controller — it uses `X-Service-Token` header validation already present in the existing `KnowledgeSearchController` pattern (internal-only service, not exposed to the internet).
 
-### 1.6 Response shape
+### 1.7 Response shape
 
 `GET /api/resolution-review` returns Spring `Page<ResolutionFlag>` serialised to:
 
@@ -387,10 +413,22 @@ Wire into the existing API factory (wherever `flagsApi`, `costsApi`, etc. are as
 | Actions | — | Merge + Dismiss buttons (disabled when status ≠ PENDING) |
 
 **Per-row action buttons:**
-- `Merge` — `<Button variant="primary">` — calls `api.merge(id)`, on success re-fetches
-- `Dismiss` — `<Button variant="secondary">` — calls `api.dismiss(id)`, on success re-fetches
+- `Merge` — `<Button variant="primary">` — opens `<ConfirmDialog>` before acting
+- `Dismiss` — `<Button variant="secondary">` — opens `<ConfirmDialog>` before acting
 
-On action: disable both buttons for that row immediately (optimistic), then re-fetch list.
+Both actions are irreversible and require confirmation. Use the existing `<ConfirmDialog>` component (`components/ConfirmDialog/ConfirmDialog.jsx`):
+
+- **Merge confirm:**
+  - Title: `Merge Entity`
+  - Body: `Merge "{candidateLabel}" into "{similarLabel}"? This will delete the candidate node and reroute all its graph relationships. This cannot be undone.`
+  - Confirm button: `Merge` (primary)
+
+- **Dismiss confirm:**
+  - Title: `Dismiss Flag`
+  - Body: `Dismiss this resolution flag for "{candidateLabel}"? The candidate node will be kept as a separate entity.`
+  - Confirm button: `Dismiss` (secondary)
+
+On confirm: disable both row buttons immediately (optimistic), call the API, then re-fetch list on settle.
 
 On error: show inline error toast (follow the pattern used in Decisions page for errors).
 
