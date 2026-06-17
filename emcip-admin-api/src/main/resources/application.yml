@@ -62,6 +62,8 @@ service:
     url: ${SERVICE_TDLIB_URL:http://localhost:9080}
   orchestrator:
     url: ${SERVICE_ORCHESTRATOR_URL:http://localhost:9084}
+  knowledge:
+    url: ${SERVICE_KNOWLEDGE_URL:http://localhost:9088}
 
 services:
   moderation-service:
@@ -95,6 +97,8 @@ resilience4j:
         baseConfig: default
       orchestrator:
         baseConfig: default
+      knowledge:
+        baseConfig: default
   retry:
     configs:
       default:
@@ -119,4 +123,6 @@ resilience4j:
       tdlib-adapter:
         baseConfig: default
       orchestrator:
+        baseConfig: default
+      knowledge:
         baseConfig: default

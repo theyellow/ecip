@@ -24,4 +24,10 @@ public interface GraphRepository {
     Optional<GraphNode> findByLabelAndType(String label, String conceptType, UUID tenantId);
 
     List<GraphNode> findNodesByType(String conceptType, UUID tenantId, int limit);
+
+    /**
+     * Reroutes all edges from candidateNodeId to targetNodeId in the AGE graph, then deletes the
+     * candidate node. Throws RuntimeException on any failure (triggers rollback at service layer).
+     */
+    void mergeNodes(UUID candidateNodeId, UUID targetNodeId);
 }

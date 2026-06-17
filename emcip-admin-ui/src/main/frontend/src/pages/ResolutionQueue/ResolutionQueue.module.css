@@ -1,0 +1,36 @@
+.scoreWarn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--signal-warn-fg);
+}
+
+.scoreNormal {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.actions {
+  display: flex;
+  gap: var(--sp-2);
+  white-space: nowrap;
+}
+
+.error {
+  color: var(--signal-stop-fg);
+  font-size: 13px;
+  padding: var(--sp-3) 0;
+}
+
+.createdAt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.emptyState {
+  text-align: center;
+  font-style: italic;
+  color: var(--fg-3);
+  padding: var(--sp-6);
+}

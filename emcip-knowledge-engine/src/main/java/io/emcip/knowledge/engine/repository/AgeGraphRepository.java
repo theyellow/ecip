@@ -124,6 +124,130 @@ public class AgeGraphRepository implements GraphRepository {
         return queryNodes(cypher);
     }
 
+    @Override
+    public void mergeNodes(UUID candidateNodeId, UUID targetNodeId) {
+        // Query outgoing edges: candidate -> n (excluding edges to target itself)
+        List<GraphEdge> outgoing =
+                queryEdges(
+                        String.format(
+                                "MATCH (c {node_id: '%s'})-[r]->(n)"
+                                        + " WHERE NOT n.node_id = '%s'"
+                                        + " RETURN {source_node_id: c.node_id,"
+                                        + " target_node_id: n.node_id,"
+                                        + " relationship_type: type(r),"
+                                        + " edge_id: r.edge_id,"
+                                        + " source_message_id: r.source_message_id}",
+                                candidateNodeId, targetNodeId));
+
+        // Query incoming edges: n -> candidate (excluding edges from target itself)
+        List<GraphEdge> incoming =
+                queryEdges(
+                        String.format(
+                                "MATCH (n)-[r]->(c {node_id: '%s'})"
+                                        + " WHERE NOT n.node_id = '%s'"
+                                        + " RETURN {source_node_id: n.node_id,"
+                                        + " target_node_id: c.node_id,"
+                                        + " relationship_type: type(r),"
+                                        + " edge_id: r.edge_id,"
+                                        + " source_message_id: r.source_message_id}",
+                                candidateNodeId, targetNodeId));
+
+        // Recreate outgoing edges from target node
+        for (GraphEdge e : outgoing) {
+            createRelationship(
+                    e.relationshipType(),
+                    targetNodeId,
+                    e.targetNodeId(),
+                    e.properties(),
+                    e.sourceMessageId());
+        }
+
+        // Recreate incoming edges to target node
+        for (GraphEdge e : incoming) {
+            createRelationship(
+                    e.relationshipType(),
+                    e.sourceNodeId(),
+                    targetNodeId,
+                    e.properties(),
+                    e.sourceMessageId());
+        }
+
+        // Delete candidate node (DETACH removes any remaining self-edges)
+        executeCypher(String.format("MATCH (c {node_id: '%s'}) DETACH DELETE c", candidateNodeId));
+
+        log.info(
+                "Merged AGE node {} into {}: {} outgoing + {} incoming edges rerouted",
+                candidateNodeId,
+                targetNodeId,
+                outgoing.size(),
+                incoming.size());
+    }
+
+    private List<GraphEdge> queryEdges(String cypher) {
+        String sql =
+                String.format(
+                        "SELECT * FROM ag_catalog.cypher('%s', $$ %s $$) AS (result"
+                                + " ag_catalog.agtype)",
+                        GRAPH_NAME, cypher);
+        try {
+            jdbcTemplate.execute("SET search_path = ag_catalog, \"$user\", public");
+            jdbcTemplate.execute("LOAD 'age'");
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
+            List<GraphEdge> edges = new ArrayList<>();
+            for (Map<String, Object> row : rows) {
+                GraphEdge edge = parseEdgeFromAgtype(row.get("result"));
+                if (edge != null) edges.add(edge);
+            }
+            return edges;
+        } catch (Exception e) {
+            log.error("AGE edge query failed: {}", e.getMessage(), e);
+            return List.of();
+        }
+    }
+
+    private GraphEdge parseEdgeFromAgtype(Object agtype) {
+        if (agtype == null) return null;
+        String str = agtype.toString();
+        try {
+            Map<String, Object> props = parseAgtypeProperties(str);
+            UUID edgeId =
+                    props.containsKey("edge_id")
+                            ? UUID.fromString((String) props.get("edge_id"))
+                            : UUID.randomUUID();
+            UUID sourceNodeId =
+                    props.containsKey("source_node_id")
+                            ? UUID.fromString((String) props.get("source_node_id"))
+                            : null;
+            UUID targetNodeId =
+                    props.containsKey("target_node_id")
+                            ? UUID.fromString((String) props.get("target_node_id"))
+                            : null;
+            UUID sourceMessageId =
+                    props.containsKey("source_message_id")
+                            ? UUID.fromString((String) props.get("source_message_id"))
+                            : null;
+            String relType = (String) props.getOrDefault("relationship_type", "RELATED");
+            Map<String, Object> edgeProps = new java.util.HashMap<>(props);
+            edgeProps.remove("edge_id");
+            edgeProps.remove("source_node_id");
+            edgeProps.remove("target_node_id");
+            edgeProps.remove("source_message_id");
+            edgeProps.remove("relationship_type");
+            edgeProps.remove("created_at");
+            return new GraphEdge(
+                    edgeId,
+                    relType,
+                    sourceNodeId,
+                    targetNodeId,
+                    edgeProps,
+                    sourceMessageId,
+                    Instant.now());
+        } catch (Exception e) {
+            log.warn("Failed to parse agtype edge: {}", str, e);
+            return null;
+        }
+    }
+
     private void executeCypher(String cypher) {
         String sql =
                 String.format(
