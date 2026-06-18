@@ -116,6 +116,9 @@ public class BackfillService {
                                 startedAt,
                                 null));
 
+                eventPublisher.publishBackfillProgress(
+                        String.valueOf(chatId), processed, -1, tenantId);
+
                 log.debug(
                         "Backfill {}: published {} messages so far for chatId={}",
                         backfillId,
