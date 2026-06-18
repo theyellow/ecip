@@ -118,12 +118,12 @@ Async execution flow:
 <dependency>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-core</artifactId>
-    <version>2.9.2</version>
+    <version>3.3.1</version>
 </dependency>
 <dependency>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-parsers-standard-package</artifactId>
-    <version>2.9.2</version>
+    <version>3.3.1</version>
 </dependency>
 ```
 
