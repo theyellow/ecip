@@ -52,6 +52,12 @@ public class GroupProfile {
     private boolean autoRespond;
 
     @Schema(
+            description =
+                    "Whether live messages from this group are forked to the knowledge pipeline")
+    @Column("knowledge_fork_enabled")
+    private boolean knowledgeForkEnabled;
+
+    @Schema(
             description = "Moderation aggressiveness level",
             example = "MEDIUM",
             allowableValues = {"LOW", "MEDIUM", "HIGH"})
