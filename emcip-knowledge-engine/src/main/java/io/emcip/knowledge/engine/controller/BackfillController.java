@@ -28,7 +28,10 @@ public class BackfillController {
             @RequestBody BackfillRequest request) {
         String backfillId =
                 backfillService.triggerBackfill(
-                        request.accountId(), request.chatId(), request.tenantId());
+                        request.accountId(),
+                        request.chatId(),
+                        request.fromDate(),
+                        request.tenantId());
         return ResponseEntity.accepted()
                 .body(Map.of("backfillId", backfillId, "status", "RUNNING"));
     }
@@ -39,5 +42,5 @@ public class BackfillController {
         return backfillService.getStatus(backfillId);
     }
 
-    public record BackfillRequest(String accountId, long chatId, UUID tenantId) {}
+    public record BackfillRequest(UUID accountId, long chatId, long fromDate, UUID tenantId) {}
 }
