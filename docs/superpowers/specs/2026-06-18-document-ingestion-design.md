@@ -98,7 +98,18 @@ New endpoints (existing controller extended):
 
 ### 4.3 Modified: `DocumentIngestionService.java`
 
-Replace current `HttpClient` + regex `stripHtml()` with **Apache Tika** (`AutoDetectParser`) for both URL fetching and file parsing. Tika handles HTML, plain text, PDF, and DOCX transparently.
+Replace current `HttpClient` + regex `stripHtml()` with **Apache Tika** (`Tika` facade) for both URL fetching and file parsing. Tika handles HTML, plain text, PDF, and DOCX transparently.
+
+Declare a shared `@Bean` in configuration:
+```java
+@Bean
+public Tika tika() {
+    Tika tika = new Tika();
+    tika.setMaxStringLength(-1); // disable 100k-char default truncation
+    return tika;
+}
+```
+Use `tika.parseToString(inputStream, metadata)` — thread-safe, safe to share as singleton.
 
 Async execution flow:
 1. Create and save `IngestionJob` (status=QUEUED)
@@ -120,10 +131,12 @@ Async execution flow:
     <artifactId>tika-core</artifactId>
     <version>3.3.1</version>
 </dependency>
+<!-- type=pom required in Tika 3.x — artifact is a BOM, not a JAR -->
 <dependency>
     <groupId>org.apache.tika</groupId>
     <artifactId>tika-parsers-standard-package</artifactId>
     <version>3.3.1</version>
+    <type>pom</type>
 </dependency>
 ```
 
