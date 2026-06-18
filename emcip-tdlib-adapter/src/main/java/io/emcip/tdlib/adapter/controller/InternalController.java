@@ -45,8 +45,13 @@ public class InternalController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> updateWatchedGroups(
             @PathVariable UUID accountId, @RequestBody WatchedGroupsRequest req) {
-        manager.updateWatchedChats(accountId, new HashSet<>(req.chatIds()));
-        log.info("[{}] Watched chat IDs updated: {}", accountId, req.chatIds());
+        manager.updateWatchedChats(
+                accountId, new HashSet<>(req.chatIds()), new HashSet<>(req.knowledgeChatIds()));
+        log.info(
+                "[{}] Watched chat IDs updated: {}, knowledge fork: {}",
+                accountId,
+                req.chatIds(),
+                req.knowledgeChatIds());
         return Mono.empty();
     }
 
@@ -208,7 +213,11 @@ public class InternalController {
                         });
     }
 
-    public record WatchedGroupsRequest(List<Long> chatIds) {}
+    public record WatchedGroupsRequest(List<Long> chatIds, List<Long> knowledgeChatIds) {
+        public WatchedGroupsRequest {
+            if (knowledgeChatIds == null) knowledgeChatIds = List.of();
+        }
+    }
 
     public record ChatInfo(long chatId, String title, String type) {}
 
