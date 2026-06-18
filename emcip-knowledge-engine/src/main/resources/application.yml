@@ -35,6 +35,8 @@ knowledge:
     dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:1536}
   llm-orchestrator:
     base-url: ${LLM_ORCHESTRATOR_URL:http://localhost:9084}
+  tdlib-adapter:
+    base-url: ${TDLIB_ADAPTER_URL:http://localhost:9080}
   resolution:
     merge-threshold: ${KNOWLEDGE_RESOLUTION_MERGE_THRESHOLD:0.92}
     flag-threshold: ${KNOWLEDGE_RESOLUTION_FLAG_THRESHOLD:0.80}

@@ -3,15 +3,17 @@ import { useAuthRequest } from '../../auth/AuthContext'
 import { groupsApi } from '../../api/groups'
 import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
+import { Button } from '../../components/Button/Button'
 import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
 import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
+import { BackfillModal } from './BackfillModal'
 import styles from './Groups.module.css'
 
 const LEVELS = ['LOW', 'MEDIUM', 'HIGH', 'STRICT']
 const LEVEL_VARIANT = { LOW: 'green', MEDIUM: 'blue', HIGH: 'yellow', STRICT: 'red' }
 
-const COLUMNS = [
+const BASE_COLUMNS = [
   { key: 'name', label: 'Group' },
   { key: 'telegramChatId', label: 'Chat ID', mono: true, width: 180 },
   { key: 'moderationLevel', label: 'Mod', width: 100, render: v => <Badge variant={LEVEL_VARIANT[v] ?? 'gray'}>{v}</Badge> },
@@ -137,9 +139,28 @@ export function Groups() {
   const api = groupsApi(authRequest)
   const [groups, setGroups] = useState([])
   const [modal, setModal] = useState(null)
+  const [backfillGroup, setBackfillGroup] = useState(null)
   const [error, setError] = useState('')
   const [tenants, setTenants] = useState([])
   const [levelFilter, setLevelFilter] = useState('')
+
+  const COLUMNS = [
+    ...BASE_COLUMNS,
+    {
+      key: '_backfill',
+      label: '',
+      width: 80,
+      render: (_, row) => (
+        <Button
+          variant="secondary"
+          onClick={e => { e.stopPropagation(); setBackfillGroup(row) }}
+          style={{ fontSize: '10px', padding: '3px 8px' }}
+        >
+          &#x25B6; Backfill
+        </Button>
+      ),
+    },
+  ]
 
   const load = () => api.list().then(setGroups).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
@@ -193,6 +214,14 @@ export function Groups() {
           onClose={() => setModal(null)}
           onSave={save}
           tenants={tenants}
+          api={api}
+        />
+      )}
+
+      {backfillGroup && (
+        <BackfillModal
+          group={backfillGroup}
+          onClose={() => setBackfillGroup(null)}
           api={api}
         />
       )}

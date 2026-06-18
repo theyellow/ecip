@@ -378,4 +378,30 @@ public class TdApi {
             this.force = force;
         }
     }
+
+    // Messages (list of messages)
+    public static class Messages extends Object {
+        public static final int CONSTRUCTOR = -16498391;
+        public int totalCount;
+        public Message[] messages;
+    }
+
+    // GetChatHistory function
+    public static class GetChatHistory extends Function<Messages> {
+        public static final int CONSTRUCTOR = -799960451;
+        public long chatId;
+        public long fromMessageId;
+        public int offset;
+        public int limit;
+        public boolean onlyLocal;
+
+        public GetChatHistory(
+                long chatId, long fromMessageId, int offset, int limit, boolean onlyLocal) {
+            this.chatId = chatId;
+            this.fromMessageId = fromMessageId;
+            this.offset = offset;
+            this.limit = limit;
+            this.onlyLocal = onlyLocal;
+        }
+    }
 }

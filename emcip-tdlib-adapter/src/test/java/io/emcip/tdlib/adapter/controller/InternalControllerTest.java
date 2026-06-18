@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.test.StepVerifier;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class InternalControllerTest {
@@ -29,7 +30,7 @@ class InternalControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new InternalController(manager);
+        controller = new InternalController(manager, new ObjectMapper());
     }
 
     @Test
@@ -136,6 +137,107 @@ class InternalControllerTest {
 
         StepVerifier.create(controller.sendMessage(accountId, req))
                 .assertNext(resp -> assertThat(resp.getStatusCode().value()).isEqualTo(500))
+                .verifyComplete();
+    }
+
+    // ── getChatHistory tests ──────────────────────────────────────────────────
+
+    @Test
+    void getChatHistory_accountNotFound_returnsNotFound() {
+        UUID accountId = UUID.randomUUID();
+        when(manager.hasClient(accountId)).thenReturn(false);
+
+        StepVerifier.create(controller.getChatHistory(accountId, -1001234567890L, 0L, 100, 0L))
+                .assertNext(resp -> assertThat(resp.getStatusCode().value()).isEqualTo(404))
+                .verifyComplete();
+    }
+
+    @Test
+    void getChatHistory_returnsMessagesAfterFromDate() {
+        UUID accountId = UUID.randomUUID();
+        when(manager.hasClient(accountId)).thenReturn(true);
+        when(manager.getClient(accountId)).thenReturn(client);
+        when(client.isAuthorized()).thenReturn(true);
+
+        TdApi.Message msg = new TdApi.Message();
+        msg.id = 999L;
+        msg.chatId = -1001234567890L;
+        msg.date = 1_700_000_100; // after fromDate
+        msg.senderId = new TdApi.MessageSenderUser();
+        ((TdApi.MessageSenderUser) msg.senderId).userId = 42L;
+        TdApi.MessageText content = new TdApi.MessageText();
+        content.text = new TdApi.FormattedText();
+        content.text.text = "hello backfill";
+        content.text.entities = new TdApi.TextEntity[0];
+        msg.content = content;
+
+        TdApi.Messages tdMessages = new TdApi.Messages();
+        tdMessages.messages = new TdApi.Message[] {msg};
+        tdMessages.totalCount = 1;
+
+        doAnswer(
+                        invocation -> {
+                            Client.ResultHandler handler = invocation.getArgument(1);
+                            handler.onResult(tdMessages);
+                            return null;
+                        })
+                .when(client)
+                .sendRequest(any(TdApi.GetChatHistory.class), any(Client.ResultHandler.class));
+
+        StepVerifier.create(
+                        controller.getChatHistory(
+                                accountId, -1001234567890L, 1_700_000_000L, 100, 0L))
+                .assertNext(
+                        resp -> {
+                            assertThat(resp.getStatusCode().value()).isEqualTo(200);
+                            assertThat(resp.getBody()).isNotNull();
+                            assertThat(resp.getBody().messages()).hasSize(1);
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void getChatHistory_stopsAtOlderMessage() {
+        UUID accountId = UUID.randomUUID();
+        when(manager.hasClient(accountId)).thenReturn(true);
+        when(manager.getClient(accountId)).thenReturn(client);
+        when(client.isAuthorized()).thenReturn(true);
+
+        TdApi.Message oldMsg = new TdApi.Message();
+        oldMsg.id = 1L;
+        oldMsg.chatId = -1001234567890L;
+        oldMsg.date = 1_699_999_999; // BEFORE fromDate = 1_700_000_000
+        oldMsg.senderId = new TdApi.MessageSenderUser();
+        ((TdApi.MessageSenderUser) oldMsg.senderId).userId = 1L;
+        TdApi.MessageText content = new TdApi.MessageText();
+        content.text = new TdApi.FormattedText();
+        content.text.text = "old message";
+        content.text.entities = new TdApi.TextEntity[0];
+        oldMsg.content = content;
+
+        TdApi.Messages tdMessages = new TdApi.Messages();
+        tdMessages.messages = new TdApi.Message[] {oldMsg};
+        tdMessages.totalCount = 1;
+
+        doAnswer(
+                        invocation -> {
+                            Client.ResultHandler handler = invocation.getArgument(1);
+                            handler.onResult(tdMessages);
+                            return null;
+                        })
+                .when(client)
+                .sendRequest(any(TdApi.GetChatHistory.class), any(Client.ResultHandler.class));
+
+        StepVerifier.create(
+                        controller.getChatHistory(
+                                accountId, -1001234567890L, 1_700_000_000L, 100, 0L))
+                .assertNext(
+                        resp -> {
+                            assertThat(resp.getStatusCode().value()).isEqualTo(200);
+                            assertThat(resp.getBody()).isNotNull();
+                            assertThat(resp.getBody().messages()).isEmpty();
+                            assertThat(resp.getBody().hasMore()).isFalse();
+                        })
                 .verifyComplete();
     }
 }
