@@ -47,7 +47,10 @@ public class TelegramEventPublisher {
     }
 
     public Mono<Void> publishMessage(
-            TdApi.Message message, TdApi.UpdateNewMessage update, String tenantId) {
+            TdApi.Message message,
+            TdApi.UpdateNewMessage update,
+            String tenantId,
+            boolean knowledgeFork) {
         String dedupKey = message.chatId + ":" + message.id;
         AtomicBoolean shouldPublish = new AtomicBoolean(false);
         deduplicationCache.get(
@@ -90,21 +93,26 @@ public class TelegramEventPublisher {
                                                 effectiveTenantId.getBytes(
                                                         java.nio.charset.StandardCharsets.UTF_8));
                             }
-                            org.apache.kafka.clients.producer.ProducerRecord<String, String>
-                                    knowledgeRecord =
-                                            new org.apache.kafka.clients.producer.ProducerRecord<>(
-                                                    TOPIC_KNOWLEDGE_RAW,
-                                                    String.valueOf(message.chatId),
-                                                    json);
-                            if (effectiveTenantId != null) {
-                                knowledgeRecord
-                                        .headers()
-                                        .add(
-                                                io.emcip.common.tenant.TenantContext.KAFKA_HEADER,
-                                                effectiveTenantId.getBytes(
-                                                        java.nio.charset.StandardCharsets.UTF_8));
+                            if (knowledgeFork) {
+                                org.apache.kafka.clients.producer.ProducerRecord<String, String>
+                                        knowledgeRecord =
+                                                new org.apache.kafka.clients.producer
+                                                        .ProducerRecord<>(
+                                                        TOPIC_KNOWLEDGE_RAW,
+                                                        String.valueOf(message.chatId),
+                                                        json);
+                                if (effectiveTenantId != null) {
+                                    knowledgeRecord
+                                            .headers()
+                                            .add(
+                                                    io.emcip.common.tenant.TenantContext
+                                                            .KAFKA_HEADER,
+                                                    effectiveTenantId.getBytes(
+                                                            java.nio.charset.StandardCharsets
+                                                                    .UTF_8));
+                                }
+                                kafkaTemplate.send(knowledgeRecord);
                             }
-                            kafkaTemplate.send(knowledgeRecord);
                             return kafkaTemplate.send(kafkaRecord);
                         })
                 .flatMap(future -> Mono.fromFuture(future.toCompletableFuture()))
