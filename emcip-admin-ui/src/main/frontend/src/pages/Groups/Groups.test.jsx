@@ -6,7 +6,7 @@ import { Groups } from './Groups'
 
 const mockGroups = [
   { telegramChatId: -1001234567890, name: 'Test Group', moderationLevel: 'MEDIUM',
-    autoRespond: true, description: 'A test group' },
+    autoRespond: true, knowledgeForkEnabled: false, description: 'A test group' },
 ]
 
 beforeEach(() => {
