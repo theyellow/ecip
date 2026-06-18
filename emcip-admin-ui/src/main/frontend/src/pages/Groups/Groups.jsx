@@ -16,6 +16,7 @@ const COLUMNS = [
   { key: 'telegramChatId', label: 'Chat ID', mono: true, width: 180 },
   { key: 'moderationLevel', label: 'Mod', width: 100, render: v => <Badge variant={LEVEL_VARIANT[v] ?? 'gray'}>{v}</Badge> },
   { key: 'autoRespond', label: 'Auto-respond', width: 120, render: v => <Badge variant={v ? 'green' : 'gray'}>{v ? 'YES' : 'NO'}</Badge> },
+  { key: 'knowledgeForkEnabled', label: 'Knowledge Fork', width: 130, render: v => <Badge variant={v ? 'green' : 'gray'}>{v ? 'YES' : 'NO'}</Badge> },
   { key: 'description', label: 'Description', render: v => v || '\u2014' },
 ]
 
@@ -33,6 +34,7 @@ function GroupEditModal({ group, onClose, onSave, tenants, api }) {
     description: group?.description ?? '',
     moderationLevel: group?.moderationLevel ?? 'LOW',
     autoRespond: group?.autoRespond ?? false,
+    knowledgeForkEnabled: group?.knowledgeForkEnabled ?? false,
     welcomeMessage: group?.welcomeMessage ?? '',
     tenantId: group?.tenantId ?? '',
   })
@@ -102,6 +104,12 @@ function GroupEditModal({ group, onClose, onSave, tenants, api }) {
         <input type="checkbox" checked={form.autoRespond}
           onChange={e => set('autoRespond', e.target.checked)} />
         Auto-respond
+      </div>
+
+      <div className={styles.checkboxRow}>
+        <input type="checkbox" checked={form.knowledgeForkEnabled}
+          onChange={e => set('knowledgeForkEnabled', e.target.checked)} />
+        Knowledge Fork
       </div>
 
       <div className={styles.field}>

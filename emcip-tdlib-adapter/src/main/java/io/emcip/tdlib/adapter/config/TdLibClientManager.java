@@ -24,6 +24,7 @@ public class TdLibClientManager {
     private final TelegramUpdateHandler updateHandler;
     private final ConcurrentMap<UUID, TdLibClient> clients = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Set<Long>> watchedChatIds;
+    private final ConcurrentMap<UUID, Set<Long>> knowledgeForkChatIds = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, String> tenantIds = new ConcurrentHashMap<>();
     private final ConcurrentMap<Integer, RateLimiter> rateLimiters = new ConcurrentHashMap<>();
     private final int requestsPerSecond;
@@ -127,16 +128,26 @@ public class TdLibClientManager {
             }
         }
         watchedChatIds.remove(accountId);
+        knowledgeForkChatIds.remove(accountId);
         tenantIds.remove(accountId);
     }
 
-    public void updateWatchedChats(UUID accountId, Set<Long> chatIds) {
+    public void updateWatchedChats(UUID accountId, Set<Long> chatIds, Set<Long> knowledgeChatIds) {
         watchedChatIds.put(accountId, chatIds);
-        log.debug("[{}] Watched chat IDs updated: {}", accountId, chatIds);
+        knowledgeForkChatIds.put(accountId, knowledgeChatIds);
+        log.debug(
+                "[{}] Watched chat IDs updated: {}, knowledge fork: {}",
+                accountId,
+                chatIds,
+                knowledgeChatIds);
     }
 
     public Set<Long> getWatchedChatIds(UUID accountId) {
         return watchedChatIds.getOrDefault(accountId, Set.of());
+    }
+
+    public boolean isKnowledgeForkEnabled(UUID accountId, long chatId) {
+        return knowledgeForkChatIds.getOrDefault(accountId, Set.of()).contains(chatId);
     }
 
     private void onAuthStateChange(UUID accountId, TdApi.AuthorizationState state) {

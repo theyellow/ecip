@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { Groups } from './Groups'
 
 const mockGroups = [
-  { telegramChatId: -1001234567890, name: 'Test Group', moderationLevel: 'LOW', autoRespond: false }
+  { telegramChatId: -1001234567890, name: 'Test Group', moderationLevel: 'LOW', autoRespond: false, knowledgeForkEnabled: false }
 ]
 const mockTenants = [
   { id: '11111111-0000-0000-0000-000000000000', name: 'Acme Corp' },

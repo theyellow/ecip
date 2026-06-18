@@ -64,8 +64,9 @@ public class TelegramUpdateHandler {
                         : "[non-text]");
 
         String tenantId = manager.getTenantId(accountId);
+        boolean knowledgeFork = manager.isKnowledgeForkEnabled(accountId, chatId);
         eventPublisher
-                .publishMessage(newMessage.message, newMessage, tenantId)
+                .publishMessage(newMessage.message, newMessage, tenantId, knowledgeFork)
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         null,

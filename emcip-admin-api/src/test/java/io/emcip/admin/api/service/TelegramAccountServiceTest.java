@@ -2,9 +2,11 @@ package io.emcip.admin.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.entity.AccountWatchedGroup;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
@@ -13,7 +15,10 @@ import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import io.emcip.common.tenant.ReactorTenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +27,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClient.RequestBodySpec;
+import org.springframework.web.reactive.function.client.WebClient.RequestBodyUriSpec;
+import org.springframework.web.reactive.function.client.WebClient.RequestHeadersSpec;
+import org.springframework.web.reactive.function.client.WebClient.ResponseSpec;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -34,6 +43,10 @@ class TelegramAccountServiceTest {
     @Mock private GroupProfileRepository groupProfileRepository;
     @Mock private R2dbcEntityTemplate r2dbcEntityTemplate;
     @Mock private WebClient tdlibClient;
+    @Mock private RequestBodyUriSpec requestBodyUriSpec;
+    @Mock private RequestBodySpec requestBodySpec;
+    @Mock private RequestHeadersSpec<?> requestHeadersSpec;
+    @Mock private ResponseSpec responseSpec;
 
     private TelegramAccountService service;
 
@@ -131,5 +144,56 @@ class TelegramAccountServiceTest {
         StepVerifier.create(service.findWatchedGroups(accountId))
                 .assertNext(p -> assertThat(p.getTelegramChatId()).isEqualTo(100L))
                 .verifyComplete();
+    }
+
+    @Test
+    void pushWatchedGroups_includesKnowledgeChatIdsSubset() {
+        UUID accountId = UUID.randomUUID();
+
+        GroupProfile gp1 =
+                GroupProfile.builder()
+                        .id(1L)
+                        .telegramChatId(-1001L)
+                        .name("g1")
+                        .knowledgeForkEnabled(true)
+                        .build();
+        GroupProfile gp2 =
+                GroupProfile.builder()
+                        .id(2L)
+                        .telegramChatId(-1002L)
+                        .name("g2")
+                        .knowledgeForkEnabled(false)
+                        .build();
+
+        AccountWatchedGroup awg1 = new AccountWatchedGroup();
+        awg1.setGroupProfileId(1L);
+        AccountWatchedGroup awg2 = new AccountWatchedGroup();
+        awg2.setGroupProfileId(2L);
+
+        when(watchedGroupRepository.findByAccountId(accountId)).thenReturn(Flux.just(awg1, awg2));
+        when(groupProfileRepository.findById(1L)).thenReturn(Mono.just(gp1));
+        when(groupProfileRepository.findById(2L)).thenReturn(Mono.just(gp2));
+
+        AtomicReference<Map<String, Object>> capturedBody = new AtomicReference<>();
+        when(tdlibClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(anyString(), any(UUID.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.bodyValue(any()))
+                .thenAnswer(
+                        inv -> {
+                            capturedBody.set((Map<String, Object>) inv.getArgument(0));
+                            return requestHeadersSpec;
+                        });
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.bodyToMono(Void.class)).thenReturn(Mono.empty());
+
+        StepVerifier.create(service.pushWatchedGroups(accountId)).verifyComplete();
+
+        @SuppressWarnings("unchecked")
+        List<Long> knowledgeChatIds = (List<Long>) capturedBody.get().get("knowledgeChatIds");
+        assertThat(knowledgeChatIds).containsExactly(-1001L);
+
+        @SuppressWarnings("unchecked")
+        List<Long> allChatIds = (List<Long>) capturedBody.get().get("chatIds");
+        assertThat(allChatIds).containsExactlyInAnyOrder(-1001L, -1002L);
     }
 }

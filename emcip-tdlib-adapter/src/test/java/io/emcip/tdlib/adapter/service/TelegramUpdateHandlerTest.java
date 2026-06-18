@@ -1,6 +1,7 @@
 package io.emcip.tdlib.adapter.service;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -48,11 +49,38 @@ class TelegramUpdateHandlerTest {
     void handleNewMessage_chatWatched_publishes() {
         UUID accountId = UUID.randomUUID();
         watchedChatIds.put(accountId, Set.of(111L));
-        when(publisher.publishMessage(any(), any(), any())).thenReturn(Mono.empty());
+        when(publisher.publishMessage(any(), any(), any(), any(Boolean.class)))
+                .thenReturn(Mono.empty());
 
         handler.handleNewMessage(accountId, makeUpdate(111L, 1L));
 
-        verify(publisher).publishMessage(any(), any(), any());
+        verify(publisher).publishMessage(any(), any(), any(), any(Boolean.class));
+    }
+
+    @Test
+    void handleNewMessage_knowledgeForkEnabled_publishesWithForkTrue() {
+        UUID accountId = UUID.randomUUID();
+        long chatId = 111L;
+        watchedChatIds.put(accountId, Set.of(chatId));
+        when(manager.isKnowledgeForkEnabled(accountId, chatId)).thenReturn(true);
+        when(publisher.publishMessage(any(), any(), any(), eq(true))).thenReturn(Mono.empty());
+
+        handler.handleNewMessage(accountId, makeUpdate(chatId, 1L));
+
+        verify(publisher).publishMessage(any(), any(), any(), eq(true));
+    }
+
+    @Test
+    void handleNewMessage_knowledgeForkDisabled_publishesWithForkFalse() {
+        UUID accountId = UUID.randomUUID();
+        long chatId = 111L;
+        watchedChatIds.put(accountId, Set.of(chatId));
+        when(manager.isKnowledgeForkEnabled(accountId, chatId)).thenReturn(false);
+        when(publisher.publishMessage(any(), any(), any(), eq(false))).thenReturn(Mono.empty());
+
+        handler.handleNewMessage(accountId, makeUpdate(chatId, 1L));
+
+        verify(publisher).publishMessage(any(), any(), any(), eq(false));
     }
 
     @Test

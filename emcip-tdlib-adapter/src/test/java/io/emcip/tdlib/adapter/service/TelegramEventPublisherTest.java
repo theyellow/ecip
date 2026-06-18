@@ -44,9 +44,9 @@ class TelegramEventPublisherTest {
         TdApi.UpdateNewMessage update1 = makeUpdate(100L, 42L, "hello");
         TdApi.UpdateNewMessage update2 = makeUpdate(100L, 42L, "hello"); // same chatId + messageId
 
-        StepVerifier.create(publisher.publishMessage(update1.message, update1, null))
+        StepVerifier.create(publisher.publishMessage(update1.message, update1, null, true))
                 .verifyComplete();
-        StepVerifier.create(publisher.publishMessage(update2.message, update2, null))
+        StepVerifier.create(publisher.publishMessage(update2.message, update2, null, true))
                 .verifyComplete();
 
         // First message sends to both telegram.raw.messages and knowledge.raw.messages (2 sends).
@@ -59,9 +59,9 @@ class TelegramEventPublisherTest {
         TdApi.UpdateNewMessage update1 = makeUpdate(100L, 1L, "hello");
         TdApi.UpdateNewMessage update2 = makeUpdate(100L, 2L, "world"); // different messageId
 
-        StepVerifier.create(publisher.publishMessage(update1.message, update1, null))
+        StepVerifier.create(publisher.publishMessage(update1.message, update1, null, true))
                 .verifyComplete();
-        StepVerifier.create(publisher.publishMessage(update2.message, update2, null))
+        StepVerifier.create(publisher.publishMessage(update2.message, update2, null, true))
                 .verifyComplete();
 
         // Each distinct message sends to both telegram.raw.messages and knowledge.raw.messages.
@@ -73,7 +73,7 @@ class TelegramEventPublisherTest {
     void publishMessage_sendsToTelegramAndKnowledgeTopics() {
         TdApi.UpdateNewMessage update = makeUpdate(100L, 10L, "hello");
 
-        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+        StepVerifier.create(publisher.publishMessage(update.message, update, null, true))
                 .verifyComplete();
 
         ArgumentCaptor<ProducerRecord<String, String>> recordCaptor =
@@ -85,10 +85,39 @@ class TelegramEventPublisherTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void publishMessage_knowledgeForkFalse_sendsOnlyToTelegramTopic() {
+        TdApi.UpdateNewMessage update = makeUpdate(100L, 20L, "hello");
+
+        StepVerifier.create(publisher.publishMessage(update.message, update, null, false))
+                .verifyComplete();
+
+        ArgumentCaptor<ProducerRecord<String, String>> captor =
+                ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaTemplate, times(1)).send(captor.capture());
+        assertThat(captor.getValue().topic()).isEqualTo("telegram.raw.messages");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishMessage_knowledgeForkTrue_sendsToBothTopics() {
+        TdApi.UpdateNewMessage update = makeUpdate(100L, 21L, "hello");
+
+        StepVerifier.create(publisher.publishMessage(update.message, update, null, true))
+                .verifyComplete();
+
+        ArgumentCaptor<ProducerRecord<String, String>> captor =
+                ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaTemplate, times(2)).send(captor.capture());
+        assertThat(captor.getAllValues().stream().map(ProducerRecord::topic).toList())
+                .containsExactlyInAnyOrder("telegram.raw.messages", "knowledge.raw.messages");
+    }
+
+    @Test
     void extractMetadata_messageText_setsContentTypeText() {
         TdApi.UpdateNewMessage update = makeUpdate(100L, 3L, "hello");
 
-        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+        StepVerifier.create(publisher.publishMessage(update.message, update, null, true))
                 .verifyComplete();
 
         @SuppressWarnings("unchecked")
@@ -102,7 +131,7 @@ class TelegramEventPublisherTest {
     void extractMetadata_messageSticker_setsContentTypeSticker() {
         TdApi.UpdateNewMessage update = makeStickerUpdate(100L, 4L);
 
-        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+        StepVerifier.create(publisher.publishMessage(update.message, update, null, true))
                 .verifyComplete();
 
         @SuppressWarnings("unchecked")
@@ -116,7 +145,7 @@ class TelegramEventPublisherTest {
     void extractMetadata_messagePhoto_setsContentTypePhoto() {
         TdApi.UpdateNewMessage update = makePhotoUpdate(100L, 5L);
 
-        StepVerifier.create(publisher.publishMessage(update.message, update, null))
+        StepVerifier.create(publisher.publishMessage(update.message, update, null, true))
                 .verifyComplete();
 
         @SuppressWarnings("unchecked")
