@@ -1,20 +1,26 @@
 package io.emcip.knowledge.engine.service;
 
-import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
-import io.emcip.knowledge.engine.entity.KnowledgeDocument;
-import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
-import io.emcip.knowledge.engine.repository.VectorSearchRepository;
+import io.emcip.knowledge.engine.entity.IngestionJob;
+import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
+import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
+import io.emcip.knowledge.engine.repository.IngestionJobRepository;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.InputStream;
+import java.net.URL;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.tika.Tika;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,95 +31,129 @@ public class DocumentIngestionService {
 
     private static final int CHUNK_SIZE = 500;
     private static final int CHUNK_OVERLAP = 50;
+    private static final ExecutorService INGESTION_EXECUTOR =
+            Executors.newVirtualThreadPerTaskExecutor();
 
-    private final KnowledgeDocumentRepository documentRepository;
-    private final VectorSearchRepository vectorSearchRepository;
+    private final IngestionJobRepository jobRepository;
     private final KnowledgeExtractionService extractionService;
-    private final LlmOrchestratorClient llmClient;
+    private final Tika tika;
 
-    @Transactional
-    public List<UUID> ingestUrl(String url, UUID tenantId) {
-        log.info("Ingesting URL: {}", url);
+    /** Submit a URL for async ingestion. Returns the job ID immediately. */
+    public String submitUrlIngestion(String url, UUID tenantId) {
+        IngestionJob job = createAndSaveJob(SourceType.URL, url, tenantId);
+        UUID jobId = job.getId();
+        INGESTION_EXECUTOR.submit(() -> processUrlAsync(jobId, url, tenantId));
+        return jobId.toString();
+    }
 
-        String content = fetchUrl(url);
-        String text = stripHtml(content);
+    /**
+     * Submit a file for async ingestion. Reads all bytes immediately (before HTTP request ends),
+     * then processes asynchronously. Returns the job ID immediately.
+     */
+    public String submitFileIngestion(InputStream inputStream, String filename, UUID tenantId)
+            throws IOException {
+        byte[] bytes = inputStream.readAllBytes();
+        IngestionJob job = createAndSaveJob(SourceType.FILE_UPLOAD, filename, tenantId);
+        UUID jobId = job.getId();
+        INGESTION_EXECUTOR.submit(() -> processFileAsync(jobId, bytes, filename, tenantId));
+        return jobId.toString();
+    }
 
-        List<String> chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
-        List<UUID> documentIds = new ArrayList<>();
+    public IngestionJob getJob(UUID jobId) {
+        return jobRepository
+                .findById(jobId)
+                .orElseThrow(
+                        () -> new IllegalArgumentException("Ingestion job not found: " + jobId));
+    }
 
-        for (int i = 0; i < chunks.size(); i++) {
-            KnowledgeDocument doc = new KnowledgeDocument();
-            doc.setTenantId(tenantId);
-            doc.setSourceType("URL");
-            doc.setSourceRef(url);
-            doc.setContent(chunks.get(i));
-            doc.setChunkIndex(i);
-            doc.setMetadata(Map.of("url", url, "chunkTotal", chunks.size()));
-            KnowledgeDocument saved = documentRepository.save(doc);
-
-            float[] embedding = llmClient.embed(chunks.get(i));
-            if (embedding.length > 0) {
-                vectorSearchRepository.storeEmbedding(saved.getId(), embedding);
-            }
-
-            documentIds.add(saved.getId());
+    public Page<IngestionJob> listJobs(UUID tenantId, Pageable pageable) {
+        if (tenantId != null) {
+            return jobRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId, pageable);
         }
+        return jobRepository.findAllByOrderByCreatedAtDesc(pageable);
+    }
 
-        log.info("Ingested URL {} as {} chunks", url, chunks.size());
-        return documentIds;
+    // ── private async workers ────────────────────────────────────────────────
+
+    private void processUrlAsync(UUID jobId, String url, UUID tenantId) {
+        updateJobStatus(jobId, IngestionStatus.RUNNING, null, null);
+        try {
+            String text = tika.parseToString(new URL(url));
+            int chunkCount = processChunks(text, url, tenantId);
+            updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
+            log.info(
+                    "URL ingestion COMPLETED: jobId={}, url={}, chunks={}", jobId, url, chunkCount);
+        } catch (Exception e) {
+            log.error("URL ingestion FAILED: jobId={}, url={}: {}", jobId, url, e.getMessage(), e);
+            updateJobStatus(jobId, IngestionStatus.FAILED, null, e.getMessage());
+        }
+    }
+
+    private void processFileAsync(UUID jobId, byte[] fileBytes, String filename, UUID tenantId) {
+        updateJobStatus(jobId, IngestionStatus.RUNNING, null, null);
+        try {
+            String text = tika.parseToString(new ByteArrayInputStream(fileBytes));
+            int chunkCount = processChunks(text, filename, tenantId);
+            updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
+            log.info(
+                    "File ingestion COMPLETED: jobId={}, file={}, chunks={}",
+                    jobId,
+                    filename,
+                    chunkCount);
+        } catch (Exception e) {
+            log.error(
+                    "File ingestion FAILED: jobId={}, file={}: {}",
+                    jobId,
+                    filename,
+                    e.getMessage(),
+                    e);
+            updateJobStatus(jobId, IngestionStatus.FAILED, null, e.getMessage());
+        }
+    }
+
+    private int processChunks(String text, String sourceRef, UUID tenantId) {
+        List<String> chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
+        for (String chunk : chunks) {
+            extractionService.processDocument(chunk, sourceRef, tenantId);
+        }
+        return chunks.size();
     }
 
     @Transactional
-    public List<UUID> ingestText(String text, String sourceName, UUID tenantId) {
-        List<String> chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
-        List<UUID> documentIds = new ArrayList<>();
+    IngestionJob createAndSaveJob(SourceType sourceType, String sourceRef, UUID tenantId) {
+        IngestionJob job = new IngestionJob();
+        job.setSourceType(sourceType);
+        job.setSourceRef(sourceRef);
+        job.setTenantId(tenantId);
+        job.setStatus(IngestionStatus.QUEUED);
+        job.setCreatedAt(OffsetDateTime.now());
+        return jobRepository.save(job);
+    }
 
-        for (int i = 0; i < chunks.size(); i++) {
-            KnowledgeDocument doc = new KnowledgeDocument();
-            doc.setTenantId(tenantId);
-            doc.setSourceType("FILE_UPLOAD");
-            doc.setSourceRef(sourceName);
-            doc.setContent(chunks.get(i));
-            doc.setChunkIndex(i);
-            KnowledgeDocument saved = documentRepository.save(doc);
-
-            float[] embedding = llmClient.embed(chunks.get(i));
-            if (embedding.length > 0) {
-                vectorSearchRepository.storeEmbedding(saved.getId(), embedding);
-            }
-
-            documentIds.add(saved.getId());
+    private void updateJobStatus(
+            UUID jobId, IngestionStatus status, Integer chunkCount, String errorMessage) {
+        Optional<IngestionJob> opt = jobRepository.findById(jobId);
+        if (opt.isEmpty()) {
+            log.warn("updateJobStatus: job not found: {}", jobId);
+            return;
         }
-
-        log.info("Ingested text '{}' as {} chunks", sourceName, chunks.size());
-        return documentIds;
+        IngestionJob job = opt.get();
+        job.setStatus(status);
+        if (chunkCount != null) job.setChunkCount(chunkCount);
+        if (errorMessage != null) job.setErrorMessage(errorMessage);
+        jobRepository.save(job);
     }
 
     List<String> chunkText(String text, int chunkSize, int overlap) {
         List<String> chunks = new ArrayList<>();
         String[] words = text.split("\\s+");
+        if (words.length == 0 || (words.length == 1 && words[0].isBlank())) return chunks;
         int start = 0;
         while (start < words.length) {
             int end = Math.min(start + chunkSize, words.length);
-            chunks.add(String.join(" ", java.util.Arrays.copyOfRange(words, start, end)));
+            chunks.add(String.join(" ", Arrays.copyOfRange(words, start, end)));
             start += chunkSize - overlap;
         }
         return chunks;
-    }
-
-    private String fetchUrl(String url) {
-        try {
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();
-            HttpResponse<String> response =
-                    client.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.body();
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Failed to fetch URL: " + url, e);
-        }
-    }
-
-    private String stripHtml(String html) {
-        return html.replaceAll("<[^>]*>", " ").replaceAll("\\s+", " ").trim();
     }
 }

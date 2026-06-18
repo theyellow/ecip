@@ -3,7 +3,6 @@ package io.emcip.knowledge.engine.controller;
 import io.emcip.knowledge.engine.service.DocumentIngestionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -25,23 +24,15 @@ public class DocumentIngestionController {
     @Operation(summary = "Ingest a URL into the knowledge base")
     @PostMapping("/url")
     public ResponseEntity<Map<String, Object>> ingestUrl(@RequestBody UrlRequest request) {
-        List<UUID> ids = ingestionService.ingestUrl(request.url(), request.tenantId());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of("url", request.url(), "chunks", ids.size(), "documentIds", ids));
+        String jobId = ingestionService.submitUrlIngestion(request.url(), request.tenantId());
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("jobId", jobId));
     }
 
     @Operation(summary = "Ingest uploaded text content")
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> ingestUpload(@RequestBody UploadRequest request) {
-        List<UUID> ids =
-                ingestionService.ingestText(
-                        request.content(), request.sourceName(), request.tenantId());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(
-                        Map.of(
-                                "sourceName", request.sourceName(),
-                                "chunks", ids.size(),
-                                "documentIds", ids));
+        // TODO(Task 5): replace with file-upload multipart endpoint
+        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
     }
 
     public record UrlRequest(String url, UUID tenantId) {}
