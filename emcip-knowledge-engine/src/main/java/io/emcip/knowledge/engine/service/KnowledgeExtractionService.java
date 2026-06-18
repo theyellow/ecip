@@ -163,6 +163,85 @@ public class KnowledgeExtractionService {
                 validRelationships.size());
     }
 
+    @Transactional
+    public void processDocument(String chunk, String sourceRef, UUID tenantId) {
+        if (chunk == null || chunk.isBlank()) {
+            log.debug("Skipping empty chunk for: {}", sourceRef);
+            return;
+        }
+
+        // Step 1: Store chunk as KnowledgeDocument (no chat metadata)
+        KnowledgeDocument doc = new KnowledgeDocument();
+        doc.setTenantId(tenantId);
+        doc.setSourceType("DOCUMENT");
+        doc.setSourceRef(sourceRef);
+        doc.setContent(chunk);
+        doc.setChunkIndex(0);
+        doc.setMetadata(Map.of("sourceRef", sourceRef != null ? sourceRef : ""));
+        KnowledgeDocument saved = documentRepository.save(doc);
+
+        // Step 2: Generate and store embedding
+        float[] embedding = llmClient.embed(chunk);
+        if (embedding.length > 0) {
+            vectorSearchRepository.storeEmbedding(saved.getId(), embedding);
+        }
+
+        // Step 3: LLM entity/relationship extraction
+        List<ConceptType> conceptTypes = ontologyService.getAllConceptTypes();
+        List<RelationshipType> relTypes = ontologyService.getAllRelationshipTypes();
+        ExtractionResult result = llmClient.extract(chunk, conceptTypes, relTypes);
+
+        // Step 4: Filter invalid entries (same logic as processMessage)
+        Set<String> knownConceptNames =
+                conceptTypes.stream().map(ConceptType::getName).collect(Collectors.toSet());
+        Set<String> knownRelNames =
+                relTypes.stream().map(RelationshipType::getName).collect(Collectors.toSet());
+
+        List<ExtractedEntity> validEntities =
+                result.entities().stream()
+                        .filter(
+                                e ->
+                                        e.type() != null
+                                                && !e.type().isBlank()
+                                                && e.label() != null
+                                                && !e.label().isBlank()
+                                                && knownConceptNames.contains(e.type()))
+                        .toList();
+
+        List<ExtractedRelationship> validRelationships =
+                result.relationships().stream()
+                        .filter(
+                                r ->
+                                        r.type() != null
+                                                && !r.type().isBlank()
+                                                && r.source() != null
+                                                && !r.source().isBlank()
+                                                && r.target() != null
+                                                && !r.target().isBlank()
+                                                && knownRelNames.contains(r.type()))
+                        .toList();
+
+        // Step 5: Entity resolution + graph storage
+        for (ExtractedEntity entity : validEntities) {
+            entityResolutionService.resolve(entity.label(), entity.type(), tenantId);
+        }
+
+        for (ExtractedRelationship rel : validRelationships) {
+            UUID sourceId =
+                    entityResolutionService.resolve(rel.source(), inferType(rel, true), tenantId);
+            UUID targetId =
+                    entityResolutionService.resolve(rel.target(), inferType(rel, false), tenantId);
+            graphRepository.createRelationship(
+                    rel.type(), sourceId, targetId, rel.properties(), saved.getId());
+        }
+
+        log.info(
+                "processDocument complete: sourceRef={}, entities={}, relationships={}",
+                sourceRef,
+                validEntities.size(),
+                validRelationships.size());
+    }
+
     private String inferType(ExtractedRelationship rel, boolean isSource) {
         try {
             var relType = ontologyService.getRelationshipType(rel.type());
