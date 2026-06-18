@@ -42,8 +42,16 @@ public class AuditController {
             @RequestParam(required = false) String eventType,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
+            @RequestParam(required = false) String correlationId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
+
+        if (correlationId != null && !correlationId.isBlank()) {
+            return auditService
+                    .findByCorrelationId(correlationId)
+                    .collectList()
+                    .map(items -> new PageResponse<>(items, (long) items.size(), 0, items.size()));
+        }
 
         Instant fromInstant =
                 from != null ? Instant.parse(from) : Instant.now().minus(24, ChronoUnit.HOURS);

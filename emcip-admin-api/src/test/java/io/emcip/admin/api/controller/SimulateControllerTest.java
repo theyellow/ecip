@@ -8,7 +8,10 @@ import static org.mockito.Mockito.when;
 import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.dto.SimulateMessageRequest;
 import io.emcip.admin.api.service.SimulationService;
-import io.emcip.admin.api.service.SimulationService.SimulateResult;
+import io.emcip.admin.api.service.SimulationService.SimulateTraceResult;
+import io.emcip.admin.api.service.SimulationService.TraceStage;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +33,49 @@ class SimulateControllerTest {
     private SimulateController controller;
     private WebTestClient webTestClient;
 
+    private static final SimulateTraceResult FULL_TRACE =
+            new SimulateTraceResult(
+                    "test-event-id",
+                    SimulationService.TOPIC,
+                    false,
+                    List.of(
+                            new TraceStage(
+                                    "PUBLISH",
+                                    Map.of(
+                                            "topic",
+                                            SimulationService.TOPIC,
+                                            "eventId",
+                                            "test-event-id")),
+                            new TraceStage(
+                                    "CLASSIFIER",
+                                    Map.of(
+                                            "intent",
+                                            "SPAM",
+                                            "confidence",
+                                            0.95,
+                                            "matchedRules",
+                                            List.of("SPAM"))),
+                            new TraceStage(
+                                    "POLICY",
+                                    Map.of(
+                                            "policyId",
+                                            "spam-policy",
+                                            "decision",
+                                            "BLOCK",
+                                            "actions",
+                                            List.of("BLOCK"),
+                                            "reason",
+                                            "keyword match")),
+                            new TraceStage(
+                                    "MODERATION",
+                                    Map.of(
+                                            "flagType",
+                                            "SPAM",
+                                            "severity",
+                                            "HIGH",
+                                            "reason",
+                                            "blocked by policy"))));
+
     @BeforeEach
     void setUp() {
         controller = new SimulateController(simulationService);
@@ -37,9 +83,7 @@ class SimulateControllerTest {
                 WebTestClient.bindToController(controller)
                         .controllerAdvice(new GlobalExceptionHandler())
                         .build();
-        when(simulationService.simulate(any()))
-                .thenReturn(
-                        Mono.just(new SimulateResult("test-event-id", SimulationService.TOPIC)));
+        when(simulationService.simulate(any())).thenReturn(Mono.just(FULL_TRACE));
     }
 
     private SimulateMessageRequest request(long chatId) {
@@ -50,33 +94,21 @@ class SimulateControllerTest {
     }
 
     @Test
-    void simulateMessage_returnsPublishedResponse() {
+    void simulateMessage_returnsTraceResult() {
         StepVerifier.create(controller.simulateMessage(request(12345L)))
                 .assertNext(
-                        response -> {
-                            assertThat(response.get("topic")).isEqualTo("telegram.raw.messages");
-                            assertThat(response.get("chatId")).isEqualTo(12345L);
-                            assertThat(response.get("status")).isEqualTo("published");
-                            assertThat(response.get("eventId")).isNotNull();
+                        result -> {
+                            assertThat(result.eventId()).isEqualTo("test-event-id");
+                            assertThat(result.partial()).isFalse();
+                            assertThat(result.stages()).hasSize(4);
                         })
                 .verifyComplete();
     }
 
     @Test
-    void simulateMessage_publishesToKafka() {
+    void simulateMessage_delegatesToService() {
         controller.simulateMessage(request(99L)).block();
-
         verify(simulationService).simulate(any());
-    }
-
-    @Test
-    void simulateMessage_usesDefaultsForNullFields() {
-        SimulateMessageRequest req = new SimulateMessageRequest();
-        req.setChatId(77L);
-
-        StepVerifier.create(controller.simulateMessage(req))
-                .assertNext(response -> assertThat(response.get("status")).isEqualTo("published"))
-                .verifyComplete();
     }
 
     @Test
@@ -84,6 +116,7 @@ class SimulateControllerTest {
         webTestClient
                 .post()
                 .uri("/api/simulate/message")
+                .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request(555L))
                 .exchange()
                 .expectStatus()
@@ -91,23 +124,28 @@ class SimulateControllerTest {
     }
 
     @Test
-    void simulateMessage_returnsCorrectResponseBody() {
+    void simulateMessage_responseBodyContainsStages() {
         webTestClient
                 .post()
                 .uri("/api/simulate/message")
+                .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(request(666L))
                 .exchange()
                 .expectStatus()
                 .isAccepted()
                 .expectBody()
-                .jsonPath("$.topic")
-                .isEqualTo("telegram.raw.messages")
-                .jsonPath("$.chatId")
-                .isEqualTo(666L)
-                .jsonPath("$.status")
-                .isEqualTo("published")
                 .jsonPath("$.eventId")
-                .isNotEmpty();
+                .isEqualTo("test-event-id")
+                .jsonPath("$.partial")
+                .isEqualTo(false)
+                .jsonPath("$.stages[0].stage")
+                .isEqualTo("PUBLISH")
+                .jsonPath("$.stages[1].stage")
+                .isEqualTo("CLASSIFIER")
+                .jsonPath("$.stages[2].stage")
+                .isEqualTo("POLICY")
+                .jsonPath("$.stages[3].stage")
+                .isEqualTo("MODERATION");
     }
 
     @Test

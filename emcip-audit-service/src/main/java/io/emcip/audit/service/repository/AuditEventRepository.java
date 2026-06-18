@@ -22,6 +22,8 @@ public interface AuditEventRepository extends R2dbcRepository<AuditEventEntity, 
 
     Mono<AuditEventEntity> findByEventId(String eventId);
 
+    Flux<AuditEventEntity> findByCorrelationId(String correlationId);
+
     Flux<AuditEventEntity> findByEventTypeAndTenantId(String eventType, UUID tenantId);
 
     Flux<AuditEventEntity> findByCreatedAtBetweenAndTenantId(

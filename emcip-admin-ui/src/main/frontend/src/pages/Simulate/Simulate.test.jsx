@@ -10,11 +10,22 @@ beforeEach(() => {
 
 const wrap = ui => render(<ThemeProvider><AuthProvider>{ui}</AuthProvider></ThemeProvider>)
 
+const FULL_TRACE = {
+  eventId: 'abc-123',
+  partial: false,
+  stages: [
+    { stage: 'PUBLISH',    data: { topic: 'telegram.raw.messages', eventId: 'abc-123' } },
+    { stage: 'CLASSIFIER', data: { intent: 'SPAM', confidence: 0.95, matchedRules: ['SPAM'] } },
+    { stage: 'POLICY',     data: { policyId: 'spam-policy', decision: 'BLOCK', actions: ['BLOCK'], reason: 'keyword match' } },
+    { stage: 'MODERATION', data: { flagType: 'SPAM', severity: 'HIGH', reason: 'blocked' } },
+  ],
+}
+
 test('publishes via POST to /api/simulate/message', async () => {
   fetch.mockResolvedValueOnce({
     ok: true,
     status: 202,
-    json: async () => ({ eventId: 'abc', status: 'published' }),
+    json: async () => FULL_TRACE,
   })
 
   wrap(<Simulate />)
@@ -27,9 +38,6 @@ test('publishes via POST to /api/simulate/message', async () => {
     const call = fetch.mock.calls.find(c => c[0].includes('/api/simulate/message'))
     expect(call).toBeDefined()
     expect(call[1].method).toBe('POST')
-    // Verify it goes through makeRequest (not a hardcoded relative URL bypassing API_BASE)
-    // In test env, VITE_API_BASE is '' so full URL is just '/api/simulate/message'
-    // The key: no fetch call to a different path like '/api/simulate' without '/message'
     expect(call[0]).toMatch(/\/api\/simulate\/message$/)
   })
 })
@@ -40,4 +48,29 @@ test('shows error when fields are empty', async () => {
   await waitFor(() =>
     expect(screen.getByRole('alert')).toHaveTextContent(/required/i)
   )
+})
+
+test('shows pipeline trace stages after successful publish', async () => {
+  fetch.mockResolvedValueOnce({
+    ok: true,
+    status: 202,
+    json: async () => FULL_TRACE,
+  })
+
+  wrap(<Simulate />)
+
+  await userEvent.type(screen.getByLabelText(/chat id/i), '12345')
+  await userEvent.type(screen.getByLabelText(/message text/i), 'test spam message')
+  await userEvent.click(screen.getByRole('button', { name: /publish/i }))
+
+  await waitFor(() => {
+    expect(screen.getByText(/INTENT CLASSIFIER/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/SPAM/).length).toBeGreaterThan(0)
+  })
+})
+
+test('pipeline trace panel is always visible', () => {
+  wrap(<Simulate />)
+  expect(screen.getByText(/PIPELINE TRACE/i)).toBeInTheDocument()
+  expect(screen.getByText(/INTENT CLASSIFIER/i)).toBeInTheDocument()
 })

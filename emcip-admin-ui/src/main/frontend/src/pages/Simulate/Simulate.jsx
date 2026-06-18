@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuthRequest } from '../../auth/AuthContext'
 import { simulateApi } from '../../api/simulate'
 import { Button } from '../../components/Button/Button'
-import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
+import { PipelineTrace } from './PipelineTrace'
 import styles from './Simulate.module.css'
 
 export function Simulate() {
@@ -38,58 +38,46 @@ export function Simulate() {
 
       <p className={styles.subtitle}>Publish a test message into the processing pipeline.</p>
 
-      <div className={styles.card}>
-        <div className={styles.field}>
-          <label htmlFor="chatId">Chat ID *</label>
-          <input id="chatId" type="number" value={form.chatId}
-            onChange={e => set('chatId', e.target.value)} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="senderId">Sender ID</label>
-          <input id="senderId" type="text" value={form.senderId}
-            onChange={e => set('senderId', e.target.value)} className={styles.input} />
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="senderType">Sender Type</label>
-          <select id="senderType" value={form.senderType}
-            onChange={e => set('senderType', e.target.value)} className={styles.input}>
-            {['USER', 'BOT', 'ADMIN'].map(t => <option key={t}>{t}</option>)}
-          </select>
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="text">Message Text *</label>
-          <textarea id="text" value={form.text} onChange={e => set('text', e.target.value)}
-            className={styles.input} rows={4} />
-        </div>
-        {error && (
-          <p role="alert" style={{
-            color: 'var(--signal-stop-fg)',
-            background: 'rgba(248,113,113,0.08)',
-            border: '1px solid rgba(248,113,113,0.25)',
-            padding: '8px 12px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '12px',
-          }}>{error}</p>
-        )}
-        <Button onClick={publish} disabled={loading}>
-          {loading ? 'Publishing\u2026' : '\u25b6 Publish Message'}
-        </Button>
-        {result && (
-          <div className={styles.result}>
-            <p className={styles.success}>Published successfully</p>
-            <pre>{JSON.stringify(result, null, 2)}</pre>
+      <div className={styles.columns}>
+        <div className={styles.card}>
+          <div className={styles.field}>
+            <label htmlFor="chatId">Chat ID *</label>
+            <input id="chatId" type="number" value={form.chatId}
+              onChange={e => set('chatId', e.target.value)} className={styles.input} />
           </div>
-        )}
-      </div>
+          <div className={styles.field}>
+            <label htmlFor="senderId">Sender ID</label>
+            <input id="senderId" type="text" value={form.senderId}
+              onChange={e => set('senderId', e.target.value)} className={styles.input} />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="senderType">Sender Type</label>
+            <select id="senderType" value={form.senderType}
+              onChange={e => set('senderType', e.target.value)} className={styles.input}>
+              {['USER', 'BOT', 'ADMIN'].map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="text">Message Text *</label>
+            <textarea id="text" value={form.text} onChange={e => set('text', e.target.value)}
+              className={styles.input} rows={4} />
+          </div>
+          {error && (
+            <p role="alert" style={{
+              color: 'var(--signal-stop-fg)',
+              background: 'rgba(248,113,113,0.08)',
+              border: '1px solid rgba(248,113,113,0.25)',
+              padding: '8px 12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '12px',
+            }}>{error}</p>
+          )}
+          <Button onClick={publish} disabled={loading}>
+            {loading ? 'Publishing\u2026' : '\u25b6 Publish Message'}
+          </Button>
+        </div>
 
-      <div className={styles.pipeline}>
-        <SectionLabel>Pipeline Flow</SectionLabel>
-        <ol>
-          <li><code>telegram.raw.messages</code> {'\u2192'} LLM Orchestrator classifies intent</li>
-          <li><code>messages.classified</code> {'\u2192'} Policy Engine evaluates rules</li>
-          <li><code>policies.decisions</code> {'\u2192'} Moderation Service applies action</li>
-          <li>All steps recorded in Audit Log</li>
-        </ol>
+        <PipelineTrace result={result} loading={loading} />
       </div>
     </>
   )
