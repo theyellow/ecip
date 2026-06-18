@@ -83,6 +83,36 @@ public class AuditServiceClient {
                         });
     }
 
+    public Mono<JsonNode> findByCorrelationId(String correlationId) {
+        return Mono.deferContextual(
+                        ctx -> {
+                            String tenantId = ReactorTenantContext.getTenantId(ctx);
+                            var spec =
+                                    webClient
+                                            .get()
+                                            .uri(
+                                                    uriBuilder ->
+                                                            uriBuilder
+                                                                    .path("/api/audit/events")
+                                                                    .queryParam(
+                                                                            "correlationId",
+                                                                            correlationId)
+                                                                    .queryParam("size", 20)
+                                                                    .build());
+                            return (tenantId != null ? spec.header("X-Tenant-Id", tenantId) : spec)
+                                    .retrieve()
+                                    .bodyToMono(JsonNode.class);
+                        })
+                .transformDeferred(RetryOperator.of(retry))
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorResume(
+                        e -> {
+                            log.warn(
+                                    "audit-service correlationId query failed: {}", e.getMessage());
+                            return emptyPage();
+                        });
+    }
+
     private Mono<JsonNode> emptyPage() {
         ObjectNode node = JsonNodeFactory.instance.objectNode();
         node.putArray("items");
