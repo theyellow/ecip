@@ -14,5 +14,6 @@
     <include file="changes/007-create-age-graph.sql" relativeToChangelogFile="true"/>
     <include file="changes/008-create-graph-node-embeddings.xml" relativeToChangelogFile="true"/>
     <include file="changes/009-entity-resolution.xml" relativeToChangelogFile="true"/>
+    <include file="changes/010-ingestion-jobs.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-10" author="knowledge-engine">
+        <createTable tableName="ke_ingestion_jobs"
+                     remarks="Tracks async document ingestion jobs">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+            <column name="source_type" type="VARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_ref" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="QUEUED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="chunk_count" type="INT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="error_message" type="TEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_ke_ingestion_jobs_tenant_created"
+                     tableName="ke_ingestion_jobs">
+            <column name="tenant_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <createIndex indexName="idx_ke_ingestion_jobs_status"
+                     tableName="ke_ingestion_jobs">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
