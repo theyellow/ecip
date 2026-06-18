@@ -137,6 +137,9 @@ public class InternalController {
                                         }))
                 .map(
                         messages -> {
+                            if (messages.messages == null || messages.messages.length == 0) {
+                                return new ChatHistoryResponse(List.of(), false, 0L);
+                            }
                             List<String> jsons = new ArrayList<>();
                             boolean hasMore = messages.messages.length == limit;
                             long lastId = 0L;
