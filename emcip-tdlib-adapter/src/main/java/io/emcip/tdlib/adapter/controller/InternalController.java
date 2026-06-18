@@ -1,9 +1,12 @@
 package io.emcip.tdlib.adapter.controller;
 
+import io.emcip.common.events.EventSchemas;
 import io.emcip.tdlib.adapter.config.TdLibClient;
 import io.emcip.tdlib.adapter.config.TdLibClientManager;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -20,10 +23,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @RestController
@@ -32,6 +38,7 @@ import reactor.core.publisher.Mono;
 public class InternalController {
 
     private final TdLibClientManager manager;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.adapter-id:default}")
     private String adapterId;
@@ -76,6 +83,158 @@ public class InternalController {
                         });
     }
 
+    @GetMapping("/chat-history/{accountId}/{chatId}")
+    public Mono<ResponseEntity<ChatHistoryResponse>> getChatHistory(
+            @PathVariable UUID accountId,
+            @PathVariable long chatId,
+            @RequestParam(defaultValue = "0") long fromDate,
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestParam(defaultValue = "0") long offsetMessageId) {
+        if (!manager.hasClient(accountId)) {
+            log.warn("[{}] getChatHistory: no client found", accountId);
+            return Mono.just(ResponseEntity.notFound().<ChatHistoryResponse>build());
+        }
+        TdLibClient client = manager.getClient(accountId);
+        if (!client.isAuthorized()) {
+            log.warn("[{}] getChatHistory: client not authorized", accountId);
+            return Mono.just(ResponseEntity.badRequest().<ChatHistoryResponse>build());
+        }
+        return loadChatHistory(client, accountId, chatId, fromDate, limit, offsetMessageId)
+                .map(ResponseEntity::ok)
+                .onErrorResume(
+                        e -> {
+                            log.error(
+                                    "[{}] getChatHistory error chatId={}: {}",
+                                    accountId,
+                                    chatId,
+                                    e.getMessage());
+                            return Mono.just(
+                                    ResponseEntity.internalServerError()
+                                            .<ChatHistoryResponse>build());
+                        });
+    }
+
+    private Mono<ChatHistoryResponse> loadChatHistory(
+            TdLibClient client,
+            UUID accountId,
+            long chatId,
+            long fromDate,
+            int limit,
+            long offsetMessageId) {
+        return Mono.<TdApi.Messages>create(
+                        sink ->
+                                client.sendRequest(
+                                        new TdApi.GetChatHistory(
+                                                chatId, offsetMessageId, 0, limit, false),
+                                        result -> {
+                                            if (result instanceof TdApi.Messages messages)
+                                                sink.success(messages);
+                                            else if (result instanceof TdApi.Error err)
+                                                sink.error(
+                                                        new RuntimeException(
+                                                                "GetChatHistory error: "
+                                                                        + err.message));
+                                        }))
+                .map(
+                        messages -> {
+                            List<String> jsons = new ArrayList<>();
+                            boolean hasMore = messages.messages.length == limit;
+                            long lastId = 0L;
+
+                            for (TdApi.Message msg : messages.messages) {
+                                if (msg.date < fromDate) {
+                                    hasMore = false;
+                                    break;
+                                }
+                                try {
+                                    EventSchemas.TelegramMessageEvent event =
+                                            toHistoricalEvent(msg);
+                                    jsons.add(objectMapper.writeValueAsString(event));
+                                    lastId = msg.id;
+                                } catch (JacksonException e) {
+                                    log.warn(
+                                            "[{}] Failed to serialize message {}: {}",
+                                            accountId,
+                                            msg.id,
+                                            e.getMessage());
+                                }
+                            }
+
+                            return new ChatHistoryResponse(jsons, hasMore, lastId);
+                        });
+    }
+
+    private EventSchemas.TelegramMessageEvent toHistoricalEvent(TdApi.Message message) {
+        return new EventSchemas.TelegramMessageEvent(
+                UUID.randomUUID().toString(),
+                Instant.now().toString(),
+                null,
+                null,
+                message.id,
+                message.chatId,
+                message.senderId != null ? getSenderId(message.senderId) : null,
+                getSenderType(message.senderId),
+                extractText(message),
+                message.date,
+                message.editDate,
+                message.isOutgoing,
+                extractReplyToMessageId(message),
+                extractReplyInChatId(message),
+                Map.of(
+                        "contentType",
+                        contentTypeOf(message),
+                        "isChannelPost",
+                        message.isChannelPost),
+                Instant.now().toString(),
+                null,
+                null,
+                null);
+    }
+
+    private static String contentTypeOf(TdApi.Message message) {
+        return switch (message.content) {
+            case TdApi.MessageText ignored -> "text";
+            case TdApi.MessageSticker ignored -> "sticker";
+            case TdApi.MessagePhoto ignored -> "photo";
+            case TdApi.MessageVideo ignored -> "video";
+            case TdApi.MessageDocument ignored -> "document";
+            default -> "other";
+        };
+    }
+
+    private static String extractText(TdApi.Message message) {
+        if (message.content instanceof TdApi.MessageText mt) {
+            return mt.text != null ? mt.text.text : "";
+        }
+        return "";
+    }
+
+    private static long extractReplyToMessageId(TdApi.Message message) {
+        if (message.replyTo instanceof TdApi.MessageReplyToMessage reply) {
+            return reply.messageId;
+        }
+        return 0L;
+    }
+
+    private static long extractReplyInChatId(TdApi.Message message) {
+        if (message.replyTo instanceof TdApi.MessageReplyToMessage reply) {
+            return reply.chatId;
+        }
+        return 0L;
+    }
+
+    private static String getSenderId(TdApi.MessageSender sender) {
+        if (sender instanceof TdApi.MessageSenderUser user) return String.valueOf(user.userId);
+        if (sender instanceof TdApi.MessageSenderChat chat) return String.valueOf(chat.chatId);
+        return null;
+    }
+
+    private static String getSenderType(TdApi.MessageSender sender) {
+        if (sender instanceof TdApi.MessageSenderUser) return "USER";
+        if (sender instanceof TdApi.MessageSenderChat) return "CHAT";
+        return "UNKNOWN";
+    }
+
     private Mono<List<ChatInfo>> loadChats(TdLibClient client) {
         return Mono.<TdApi.Chats>create(
                         sink ->
@@ -91,11 +250,11 @@ public class InternalController {
                                         }))
                 .flatMapMany(chats -> Flux.fromStream(Arrays.stream(chats.chatIds).boxed()))
                 .flatMap(
-                        chatId ->
+                        cId ->
                                 Mono.<TdApi.Chat>create(
                                         sink ->
                                                 client.sendRequest(
-                                                        new TdApi.GetChat(chatId),
+                                                        new TdApi.GetChat(cId),
                                                         result -> {
                                                             if (result instanceof TdApi.Chat chat)
                                                                 sink.success(chat);
@@ -103,7 +262,7 @@ public class InternalController {
                                                                 sink.error(
                                                                         new RuntimeException(
                                                                                 "GetChat error for "
-                                                                                        + chatId));
+                                                                                        + cId));
                                                         })))
                 .filter(
                         chat ->
@@ -133,7 +292,6 @@ public class InternalController {
             return Mono.just(ResponseEntity.badRequest().build());
         }
 
-        // If recipientUserId is set, open a private chat (DM); otherwise send to chatId (group)
         Mono<Long> chatIdMono;
         if (req.recipientUserId() != null && req.recipientUserId() > 0) {
             chatIdMono =
@@ -225,4 +383,6 @@ public class InternalController {
             long chatId, @NotBlank String text, long replyToMessageId, Long recipientUserId) {}
 
     public record SendMessageResponse(boolean success, long messageId) {}
+
+    public record ChatHistoryResponse(List<String> messages, boolean hasMore, long lastMessageId) {}
 }
