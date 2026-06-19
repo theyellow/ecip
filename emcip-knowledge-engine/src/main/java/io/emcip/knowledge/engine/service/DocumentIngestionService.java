@@ -4,6 +4,7 @@ import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
 import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
+import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
@@ -73,6 +75,20 @@ public class DocumentIngestionService {
         return jobRepository.findAllByOrderByCreatedAtDesc(pageable);
     }
 
+    @PreDestroy
+    void shutdown() {
+        INGESTION_EXECUTOR.shutdown();
+        try {
+            if (!INGESTION_EXECUTOR.awaitTermination(30, TimeUnit.SECONDS)) {
+                log.warn("Ingestion executor did not terminate gracefully; forcing shutdown");
+                INGESTION_EXECUTOR.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            INGESTION_EXECUTOR.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
+
     // ── private async workers ────────────────────────────────────────────────
 
     private void processUrlAsync(UUID jobId, String url, UUID tenantId) {
@@ -119,8 +135,7 @@ public class DocumentIngestionService {
         return chunks.size();
     }
 
-    @Transactional
-    IngestionJob createAndSaveJob(SourceType sourceType, String sourceRef, UUID tenantId) {
+    private IngestionJob createAndSaveJob(SourceType sourceType, String sourceRef, UUID tenantId) {
         IngestionJob job = new IngestionJob();
         job.setSourceType(sourceType);
         job.setSourceRef(sourceRef);
@@ -130,6 +145,7 @@ public class DocumentIngestionService {
         return jobRepository.save(job);
     }
 
+    @Transactional
     private void updateJobStatus(
             UUID jobId, IngestionStatus status, Integer chunkCount, String errorMessage) {
         Optional<IngestionJob> opt = jobRepository.findById(jobId);
@@ -144,10 +160,10 @@ public class DocumentIngestionService {
         jobRepository.save(job);
     }
 
-    List<String> chunkText(String text, int chunkSize, int overlap) {
+    private List<String> chunkText(String text, int chunkSize, int overlap) {
         List<String> chunks = new ArrayList<>();
+        if (text == null || text.isBlank()) return chunks;
         String[] words = text.split("\\s+");
-        if (words.length == 0 || (words.length == 1 && words[0].isBlank())) return chunks;
         int start = 0;
         while (start < words.length) {
             int end = Math.min(start + chunkSize, words.length);
