@@ -76,26 +76,26 @@ public class EnrichmentPipelineService {
                 mode);
 
         // Stage 1: resolve connector
-        KnowledgeConnector connector =
-                connectorRegistry
-                        .find(source.getVendorId())
-                        .orElseThrow(
-                                () ->
-                                        new ConnectorException(
-                                                "No connector registered for vendor: "
-                                                        + source.getVendorId()));
+        var connectorOpt = connectorRegistry.find(source.getVendorId());
+        if (connectorOpt.isEmpty()) {
+            String msg = "No connector registered for vendor: " + source.getVendorId();
+            log.warn("Enrichment pipeline Stage 1 failed: {}", msg);
+            finalizeRun(run, RunStatus.FAILURE, 0, 0, msg);
+            return;
+        }
+        KnowledgeConnector connector = connectorOpt.get();
 
         // Stage 2: resolve API key if required
         String apiKey = null;
         if (connector.requiresApiKey()) {
-            apiKey =
-                    apiKeyResolver
-                            .resolve(source.getVendorId(), tenantId)
-                            .orElseThrow(
-                                    () ->
-                                            new ConnectorException(
-                                                    "No API key available for vendor: "
-                                                            + source.getVendorId()));
+            var apiKeyOpt = apiKeyResolver.resolve(source.getVendorId(), tenantId);
+            if (apiKeyOpt.isEmpty()) {
+                String msg = "No API key available for vendor: " + source.getVendorId();
+                log.warn("Enrichment pipeline Stage 2 failed: {}", msg);
+                finalizeRun(run, RunStatus.FAILURE, 0, 0, msg);
+                return;
+            }
+            apiKey = apiKeyOpt.get();
         }
 
         ConnectorContext ctx = new ConnectorContext(apiKey, tenantId, source.getLastRunAt());
