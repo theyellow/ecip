@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../../components/Modal/Modal'
+import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import styles from './IngestionModal.module.css'
 
@@ -135,13 +136,19 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
       {phase === 'polling' && (
         <div className={styles.status}>
           <div className={styles.spinner} aria-hidden="true" />
-          <span>Processing...</span>
+          <div>
+            <div>Processing...</div>
+            <div className={styles.sourceRef}>{mode === 'url' ? url : file?.name}</div>
+          </div>
         </div>
       )}
 
       {phase === 'done' && (
         <>
-          <p className={styles.done}>Done — {jobStatus?.chunkCount ?? 0} chunks extracted.</p>
+          <div className={styles.doneRow}>
+            <Badge variant="green">COMPLETED</Badge>
+            <span className={styles.done}>{jobStatus?.chunkCount ?? 0} chunks extracted.</span>
+          </div>
           <div className={styles.footer}>
             <Button variant="secondary" onClick={onClose}>
               Close

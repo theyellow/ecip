@@ -110,11 +110,25 @@
   }
 }
 
+.doneRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0;
+}
+
 .done {
   color: var(--signal-ok-fg);
   font-family: var(--font-body);
   font-size: 13px;
-  margin: var(--sp-4) 0;
+}
+
+.sourceRef {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  margin-top: var(--sp-1);
+  word-break: break-all;
 }
 
 .error {

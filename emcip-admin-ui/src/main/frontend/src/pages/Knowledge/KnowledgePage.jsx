@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { DataTable } from '../../components/DataTable/DataTable'
 import { knowledgeApi } from '../../api/knowledge'
+import { tenantsApi } from '../../api/tenants'
 import { IngestionModal } from './IngestionModal'
 import styles from './KnowledgePage.module.css'
 
@@ -38,6 +39,7 @@ export function Knowledge() {
   const [page, setPage] = useState(0)
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [tenants, setTenants] = useState([])
 
   const rawFetch = useCallback(
     (path, options = {}) => {
@@ -55,6 +57,13 @@ export function Knowledge() {
 
   const api = knowledgeApi(request, rawFetch)
 
+  useEffect(() => {
+    tenantsApi(request)
+      .list()
+      .then(setTenants)
+      .catch(() => {})
+  }, [])
+
   const loadJobs = useCallback(async () => {
     setLoading(true)
     try {
@@ -62,7 +71,9 @@ export function Knowledge() {
       setJobs(
         (data?.content ?? []).map(j => ({
           ...j,
-          tenantId: j.tenantId ?? 'Global',
+          tenantId: j.tenantId
+            ? (tenants.find(t => t.id === j.tenantId)?.name ?? j.tenantId)
+            : 'Global',
           createdAt: j.createdAt ? new Date(j.createdAt).toLocaleString() : '\u2014',
         }))
       )
@@ -72,7 +83,7 @@ export function Knowledge() {
     } finally {
       setLoading(false)
     }
-  }, [page])
+  }, [page, tenants])
 
   useEffect(() => {
     loadJobs()
@@ -121,7 +132,7 @@ export function Knowledge() {
       {showModal && (
         <IngestionModal
           api={api}
-          tenants={[]}
+          tenants={tenants}
           onClose={() => setShowModal(false)}
           onJobCreated={loadJobs}
         />
