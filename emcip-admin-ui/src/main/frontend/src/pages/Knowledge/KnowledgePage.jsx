@@ -273,9 +273,9 @@ export function Knowledge() {
                         </span>
                       </div>
                       <div className={styles.entityLabel}>{r.node.label}</div>
-                      {r.connections.length > 0 && (
+                      {(r.connections?.length ?? 0) > 0 && (
                         <div className={styles.entityConnections}>
-                          {r.connections.slice(0, 3).map(c => (
+                          {(r.connections?.slice(0, 3) ?? []).map(c => (
                             <div key={c.id} className={styles.connectionLine}>
                               → {c.conceptType} · {c.label}
                             </div>
