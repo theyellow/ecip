@@ -59,7 +59,7 @@ public class DocumentIngestionProxyController {
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
+                .map(responseBody -> ResponseEntity.accepted().<String>body(responseBody))
                 .onErrorResume(
                         e -> {
                             log.error("Ingest URL proxy error: {}", e.getMessage());
@@ -102,7 +102,7 @@ public class DocumentIngestionProxyController {
                                     .body(BodyInserters.fromMultipartData(parts))
                                     .retrieve()
                                     .bodyToMono(String.class)
-                                    .map(ResponseEntity::ok)
+                                    .map(body -> ResponseEntity.accepted().<String>body(body))
                                     .onErrorResume(
                                             e -> {
                                                 log.error(

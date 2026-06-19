@@ -146,7 +146,7 @@ public class DocumentIngestionService {
     }
 
     @Transactional
-    private void updateJobStatus(
+    void updateJobStatus(
             UUID jobId, IngestionStatus status, Integer chunkCount, String errorMessage) {
         Optional<IngestionJob> opt = jobRepository.findById(jobId);
         if (opt.isEmpty()) {

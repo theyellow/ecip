@@ -34,8 +34,21 @@ public class DocumentIngestionController {
 
     @Operation(summary = "Submit a URL for async ingestion")
     @PostMapping("/url")
-    public ResponseEntity<Map<String, Object>> ingestUrl(@RequestBody UrlRequest request) {
-        String jobId = ingestionService.submitUrlIngestion(request.url(), request.tenantId());
+    public ResponseEntity<Map<String, Object>> ingestUrl(@RequestBody UrlRequest req) {
+        if (req.url() == null || req.url().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "URL must not be blank"));
+        }
+        String scheme;
+        try {
+            scheme = new java.net.URI(req.url()).getScheme();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid URL"));
+        }
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Only http and https URLs are allowed"));
+        }
+        String jobId = ingestionService.submitUrlIngestion(req.url(), req.tenantId());
         return ResponseEntity.accepted().body(Map.of("jobId", jobId));
     }
 

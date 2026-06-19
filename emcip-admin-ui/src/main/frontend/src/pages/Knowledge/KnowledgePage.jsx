@@ -62,7 +62,7 @@ export function Knowledge() {
       .list()
       .then(setTenants)
       .catch(() => {})
-  }, [])
+  }, [request])
 
   const loadJobs = useCallback(async () => {
     setLoading(true)

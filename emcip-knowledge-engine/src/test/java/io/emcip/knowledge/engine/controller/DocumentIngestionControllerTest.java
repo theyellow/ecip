@@ -10,9 +10,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
 import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
@@ -30,7 +27,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -44,14 +40,9 @@ class DocumentIngestionControllerTest {
 
     @BeforeEach
     void setUp() {
-        ObjectMapper objectMapper =
-                new ObjectMapper()
-                        .registerModule(new JavaTimeModule())
-                        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         mvc =
                 MockMvcBuilders.standaloneSetup(new DocumentIngestionController(ingestionService))
                         .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
-                        .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                         .build();
     }
 
