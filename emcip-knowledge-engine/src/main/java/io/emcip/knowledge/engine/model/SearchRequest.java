@@ -1,10 +1,11 @@
 package io.emcip.knowledge.engine.model;
 
+import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.UUID;
 
 public record SearchRequest(
-        String query,
+        @NotBlank String query,
         SearchType searchType,
         UUID tenantId,
         List<String> conceptTypes,
