@@ -26,7 +26,7 @@ class ApiKeyResolverTest {
     }
 
     @Test
-    void returnsTenanteSpecificKey_whenPresent() {
+    void returnsTenantSpecificKey_whenPresent() {
         UUID tenantId = UUID.randomUUID();
         VendorApiKey key = new VendorApiKey();
         key.setApiKey("tenant-key");

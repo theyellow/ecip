@@ -1,5 +1,6 @@
 package io.emcip.knowledge.engine.service;
 
+import io.emcip.knowledge.engine.entity.VendorApiKey;
 import io.emcip.knowledge.engine.repository.VendorApiKeyRepository;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +22,6 @@ public class ApiKeyResolver {
     public Optional<String> resolve(String vendorId, UUID tenantId) {
         return repo.findByVendorIdAndTenantId(vendorId, tenantId)
                 .or(() -> repo.findByVendorIdAndTenantIdIsNull(vendorId))
-                .map(k -> k.getApiKey());
+                .map(VendorApiKey::getApiKey);
     }
 }
