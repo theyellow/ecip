@@ -17,6 +17,7 @@ import { Decisions } from './pages/Flags/Flags'
 import { Users } from './pages/Users/Users'
 import { Costs } from './pages/Costs/Costs'
 import { ResolutionQueue } from './pages/ResolutionQueue/ResolutionQueue'
+import { Knowledge } from './pages/Knowledge/KnowledgePage'
 
 class PageErrorBoundary extends Component {
   state = { error: null }
@@ -60,6 +61,7 @@ function AuthGate() {
         <Route path="resolution-queue" element={<ResolutionQueue />} />
         <Route path="users" element={<Users />} />
         <Route path="costs" element={<Costs />} />
+        <Route path="knowledge" element={<Knowledge />} />
       </Route>
     </Routes>
   )

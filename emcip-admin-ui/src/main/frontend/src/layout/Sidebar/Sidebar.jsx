@@ -14,6 +14,7 @@ const NAV = [
   { to: '/decisions',        label: 'Decisions',        icon: '⚑',       permission: 'AUDIT_READ' },
   { to: '/resolution-queue', label: 'Resolution Queue', icon: '\u2297', permission: 'RESOLUTION_REVIEW_READ' },
   { to: '/groups',           label: 'Groups',           icon: '◈',       permission: 'GROUPS_READ' },
+  { to: '/knowledge',        label: 'Knowledge',        icon: '◆',       permission: 'KNOWLEDGE_READ' },
   { to: '/audit-log',        label: 'Audit Log',        icon: '◎', permission: 'AUDIT_READ' },
   { to: '/simulate',         label: 'Simulate Event',   icon: '▶', permission: 'SIMULATE_WRITE' },
   { to: '/telegram',         label: 'Telegram',         icon: '⌘', permission: 'TELEGRAM_READ' },
