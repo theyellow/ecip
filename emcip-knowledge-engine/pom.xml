@@ -109,6 +109,20 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Apache Tika: HTML, plain text, PDF, DOCX parsing -->
+    <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-core</artifactId>
+      <version>3.3.1</version>
+    </dependency>
+    <!-- type=pom required in Tika 3.x — artifact is a BOM, not a JAR -->
+    <dependency>
+      <groupId>org.apache.tika</groupId>
+      <artifactId>tika-parsers-standard-package</artifactId>
+      <version>3.3.1</version>
+      <type>pom</type>
+    </dependency>
+
     <!-- Testing -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

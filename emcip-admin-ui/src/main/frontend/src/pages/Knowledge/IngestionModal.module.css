@@ -1,0 +1,140 @@
+.segRow {
+  display: flex;
+  gap: 0;
+  margin-bottom: var(--sp-4);
+  border: 1px solid var(--border);
+}
+
+.seg {
+  flex: 1;
+  padding: 7px 0;
+  background: transparent;
+  border: none;
+  color: var(--fg-2);
+  font-family: var(--font-display);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.seg:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.seg:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.segActive {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fg-3);
+}
+
+.input,
+.select {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--fg-1);
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 8px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--orb-glow);
+}
+
+.filename {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--rule);
+  margin-top: var(--sp-2);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5) 0;
+  color: var(--fg-2);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.doneRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0;
+}
+
+.done {
+  color: var(--signal-ok-fg);
+  font-family: var(--font-body);
+  font-size: 13px;
+}
+
+.sourceRef {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  margin-top: var(--sp-1);
+  word-break: break-all;
+}
+
+.error {
+  color: var(--signal-stop-fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin: var(--sp-4) 0;
+  word-break: break-all;
+}
