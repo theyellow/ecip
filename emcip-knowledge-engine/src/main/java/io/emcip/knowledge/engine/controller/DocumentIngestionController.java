@@ -42,12 +42,20 @@ public class DocumentIngestionController {
     @Operation(summary = "Upload a document for async ingestion")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Map<String, Object>> ingestUpload(
-            @RequestPart("file") MultipartFile file, @RequestParam(required = false) UUID tenantId)
-            throws IOException {
-        String jobId =
-                ingestionService.submitFileIngestion(
-                        file.getInputStream(), file.getOriginalFilename(), tenantId);
-        return ResponseEntity.accepted().body(Map.of("jobId", jobId));
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(required = false) UUID tenantId) {
+        try {
+            String filename =
+                    file.getOriginalFilename() != null
+                            ? file.getOriginalFilename()
+                            : "upload-" + UUID.randomUUID();
+            String jobId =
+                    ingestionService.submitFileIngestion(file.getInputStream(), filename, tenantId);
+            return ResponseEntity.accepted().body(Map.of("jobId", jobId));
+        } catch (IOException e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Failed to read file: " + e.getMessage()));
+        }
     }
 
     @Operation(summary = "Get ingestion job status")
