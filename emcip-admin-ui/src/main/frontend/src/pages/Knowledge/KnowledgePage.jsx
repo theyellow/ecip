@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
@@ -55,7 +55,7 @@ export function Knowledge() {
     [token]
   )
 
-  const api = knowledgeApi(request, rawFetch)
+  const api = useMemo(() => knowledgeApi(request, rawFetch), [request, rawFetch])
 
   useEffect(() => {
     tenantsApi(request)
@@ -83,7 +83,7 @@ export function Knowledge() {
     } finally {
       setLoading(false)
     }
-  }, [page, tenants])
+  }, [page, tenants, api])
 
   useEffect(() => {
     loadJobs()

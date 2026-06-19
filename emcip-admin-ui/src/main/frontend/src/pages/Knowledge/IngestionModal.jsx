@@ -35,7 +35,7 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
     }, 2000)
 
     return () => clearInterval(pollRef.current)
-  }, [phase, jobId])
+  }, [phase, jobId, api])
 
   async function handleSubmit() {
     try {
