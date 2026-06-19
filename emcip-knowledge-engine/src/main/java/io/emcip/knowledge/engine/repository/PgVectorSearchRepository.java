@@ -1,6 +1,7 @@
 package io.emcip.knowledge.engine.repository;
 
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
+import io.emcip.knowledge.engine.model.SearchResult;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -31,7 +32,8 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
     }
 
     @Override
-    public List<KnowledgeDocument> search(float[] queryEmbedding, int topK, UUID tenantId) {
+    public List<SearchResult<KnowledgeDocument>> search(
+            float[] queryEmbedding, int topK, UUID tenantId) {
         String vectorStr = toVectorString(queryEmbedding);
         String sql;
         Object[] params;
@@ -40,27 +42,29 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
             sql =
                     """
                     SELECT id, tenant_id, source_type, source_ref, content, chunk_index,
-                           metadata, created_at, embedding <=> ?::vector AS distance
+                           metadata, created_at,
+                           1 - (embedding <=> ?::vector) AS score
                     FROM ke_knowledge_documents
                     WHERE embedding IS NOT NULL AND (tenant_id = ? OR tenant_id IS NULL)
-                    ORDER BY distance ASC
+                    ORDER BY embedding <=> ?::vector ASC
                     LIMIT ?
                     """;
-            params = new Object[] {vectorStr, tenantId, topK};
+            params = new Object[] {vectorStr, tenantId, vectorStr, topK};
         } else {
             sql =
                     """
                     SELECT id, tenant_id, source_type, source_ref, content, chunk_index,
-                           metadata, created_at, embedding <=> ?::vector AS distance
+                           metadata, created_at,
+                           1 - (embedding <=> ?::vector) AS score
                     FROM ke_knowledge_documents
                     WHERE embedding IS NOT NULL
-                    ORDER BY distance ASC
+                    ORDER BY embedding <=> ?::vector ASC
                     LIMIT ?
                     """;
-            params = new Object[] {vectorStr, topK};
+            params = new Object[] {vectorStr, vectorStr, topK};
         }
 
-        return jdbcTemplate.query(sql, this::mapRow, params);
+        return jdbcTemplate.query(sql, this::mapRowWithScore, params);
     }
 
     @Override
@@ -97,6 +101,13 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
         }
 
         return jdbcTemplate.query(sql, this::mapRow, params);
+    }
+
+    private SearchResult<KnowledgeDocument> mapRowWithScore(ResultSet rs, int rowNum)
+            throws SQLException {
+        KnowledgeDocument doc = mapRow(rs, rowNum);
+        double score = rs.getDouble("score");
+        return new SearchResult<>(doc, score);
     }
 
     @SuppressWarnings("unchecked")

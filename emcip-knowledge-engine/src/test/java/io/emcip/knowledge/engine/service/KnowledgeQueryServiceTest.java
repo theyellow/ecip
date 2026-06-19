@@ -3,13 +3,17 @@ package io.emcip.knowledge.engine.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
+import io.emcip.knowledge.engine.model.GraphNode;
 import io.emcip.knowledge.engine.model.SearchRequest;
 import io.emcip.knowledge.engine.model.SearchRequest.SearchType;
 import io.emcip.knowledge.engine.model.SearchResponse;
+import io.emcip.knowledge.engine.model.SearchResult;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
 import java.time.Instant;
@@ -36,7 +40,7 @@ class KnowledgeQueryServiceTest {
     }
 
     @Test
-    void shouldPerformVectorSearch() {
+    void shouldUseRealScoresFromRepository() {
         UUID tenantId = UUID.randomUUID();
         KnowledgeDocument doc = new KnowledgeDocument();
         doc.setId(UUID.randomUUID());
@@ -44,13 +48,60 @@ class KnowledgeQueryServiceTest {
         doc.setCreatedAt(Instant.now());
 
         when(llmClient.embed("Tell me about AI")).thenReturn(new float[] {0.1f, 0.2f, 0.3f});
-        when(vectorSearchRepository.search(any(), eq(20), eq(tenantId))).thenReturn(List.of(doc));
+        when(vectorSearchRepository.search(any(), eq(20), eq(tenantId)))
+                .thenReturn(List.of(new SearchResult<>(doc, 0.93)));
 
         SearchRequest request =
                 new SearchRequest("Tell me about AI", SearchType.VECTOR, tenantId, null, null, 20);
-
         SearchResponse response = service.search(request);
 
         assertThat(response.documentResults()).hasSize(1);
+        assertThat(response.documentResults().getFirst().similarity()).isEqualTo(0.93);
+    }
+
+    @Test
+    void hybridMode_returnsBothGraphAndDocumentResults() {
+        UUID tenantId = UUID.randomUUID();
+        KnowledgeDocument doc = new KnowledgeDocument();
+        doc.setId(UUID.randomUUID());
+        doc.setContent("content");
+        doc.setCreatedAt(Instant.now());
+
+        GraphNode node =
+                new GraphNode(
+                        UUID.randomUUID(),
+                        "Topic",
+                        tenantId,
+                        "AI Policy",
+                        null,
+                        Instant.now(),
+                        Instant.now());
+
+        when(llmClient.embed("AI policy")).thenReturn(new float[] {0.1f});
+        when(vectorSearchRepository.search(any(), eq(20), eq(tenantId)))
+                .thenReturn(List.of(new SearchResult<>(doc, 0.87)));
+        when(graphRepository.findNodesByType("Topic", tenantId, 20)).thenReturn(List.of(node));
+        when(graphRepository.findConnected(node.id(), null, 1)).thenReturn(List.of());
+
+        SearchRequest request =
+                new SearchRequest(
+                        "AI policy", SearchType.HYBRID, tenantId, List.of("Topic"), null, 20);
+        SearchResponse response = service.search(request);
+
+        assertThat(response.documentResults()).hasSize(1);
+        assertThat(response.graphResults()).hasSize(1);
+    }
+
+    @Test
+    void graphOnlyMode_doesNotCallVectorSearch() {
+        UUID tenantId = UUID.randomUUID();
+        when(llmClient.embed("AI")).thenReturn(new float[] {0.1f});
+        when(graphRepository.findNodesByType("Topic", tenantId, 10)).thenReturn(List.of());
+
+        SearchRequest request =
+                new SearchRequest("AI", SearchType.GRAPH, tenantId, List.of("Topic"), null, 10);
+        service.search(request);
+
+        verify(vectorSearchRepository, never()).search(any(), eq(10), eq(tenantId));
     }
 }
