@@ -11,4 +11,6 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
     List<KnowledgeDocument> findBySourceRef(String sourceRef);
 
     boolean existsBySourceRefAndChunkIndex(String sourceRef, Integer chunkIndex);
+
+    boolean existsBySourceRefAndSourceType(String sourceRef, String sourceType);
 }
