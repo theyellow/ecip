@@ -3,6 +3,7 @@ package io.emcip.admin.api.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +32,10 @@ class KnowledgeSearchProxyControllerTest {
         KnowledgeSearchProxyController controller =
                 new KnowledgeSearchProxyController(
                         knowledgeWebClient, CircuitBreakerRegistry.ofDefaults());
-        webTestClient = WebTestClient.bindToController(controller).build();
+        webTestClient =
+                WebTestClient.bindToController(controller)
+                        .controllerAdvice(new GlobalExceptionHandler())
+                        .build();
     }
 
     private void stubOk(String body) {

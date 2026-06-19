@@ -280,7 +280,7 @@ export function Knowledge() {
                               → {c.conceptType} · {c.label}
                             </div>
                           ))}
-                          {r.connections.length > 3 && (
+                          {(r.connections?.length ?? 0) > 3 && (
                             <div className={styles.connectionLine}>
                               +{r.connections.length - 3} more
                             </div>
