@@ -7,6 +7,7 @@ import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.service.KnowledgeQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ public class KnowledgeSearchController {
 
     @Operation(summary = "Search the knowledge base (vector, graph, or hybrid)")
     @PostMapping("/search")
-    public SearchResponse search(@RequestBody SearchRequest request) {
+    public SearchResponse search(@Valid @RequestBody SearchRequest request) {
         return queryService.search(request);
     }
 

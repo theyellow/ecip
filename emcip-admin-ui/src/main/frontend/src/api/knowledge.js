@@ -31,5 +31,44 @@ export function knowledgeApi(request, rawFetch) {
       if (tenantId) params.append('tenantId', tenantId)
       return request(`/api/admin/knowledge/ingest?${params}`)
     },
+
+    /**
+     * POST /api/admin/knowledge/search
+     * Returns { graphResults: [...], documentResults: [...] }
+     */
+    search: (query, searchType = 'HYBRID', tenantId, conceptTypes, limit = 20) =>
+      request('/api/admin/knowledge/search', {
+        method: 'POST',
+        body: JSON.stringify({
+          query,
+          searchType,
+          tenantId: tenantId ?? null,
+          conceptTypes: conceptTypes ?? null,
+          limit,
+        }),
+      }),
+
+    /** GET /api/admin/knowledge/graph/topics */
+    graphTopics: (tenantId, limit = 50) => {
+      const params = new URLSearchParams({ limit })
+      if (tenantId) params.append('tenantId', tenantId)
+      return request(`/api/admin/knowledge/graph/topics?${params}`)
+    },
+
+    /** GET /api/admin/knowledge/graph/persons */
+    graphPersons: (tenantId, limit = 50) => {
+      const params = new URLSearchParams({ limit })
+      if (tenantId) params.append('tenantId', tenantId)
+      return request(`/api/admin/knowledge/graph/persons?${params}`)
+    },
+
+    /** GET /api/admin/knowledge/graph/node/{id}/neighbors */
+    graphNeighbors: (nodeId, relationshipType, depth = 1) => {
+      const params = new URLSearchParams({ depth })
+      if (relationshipType) params.append('relationshipType', relationshipType)
+      return request(
+        `/api/admin/knowledge/graph/node/${encodeURIComponent(nodeId)}/neighbors?${params}`
+      )
+    },
   }
 }

@@ -8,6 +8,7 @@ import io.emcip.knowledge.engine.model.SearchRequest.SearchType;
 import io.emcip.knowledge.engine.model.SearchResponse;
 import io.emcip.knowledge.engine.model.SearchResponse.DocumentResult;
 import io.emcip.knowledge.engine.model.SearchResponse.GraphNodeResult;
+import io.emcip.knowledge.engine.model.SearchResult;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
 import java.util.ArrayList;
@@ -33,12 +34,11 @@ public class KnowledgeQueryService {
 
         if (request.searchType() == SearchType.VECTOR
                 || request.searchType() == SearchType.HYBRID) {
-            List<KnowledgeDocument> docs =
+            List<SearchResult<KnowledgeDocument>> scored =
                     vectorSearchRepository.search(
                             queryEmbedding, request.limit(), request.tenantId());
-            for (int i = 0; i < docs.size(); i++) {
-                double similarity = 1.0 - (i * 0.05);
-                documentResults.add(new DocumentResult(docs.get(i), similarity));
+            for (SearchResult<KnowledgeDocument> sr : scored) {
+                documentResults.add(new DocumentResult(sr.item(), sr.score()));
             }
         }
 
@@ -51,7 +51,7 @@ public class KnowledgeQueryService {
                     for (GraphNode node : nodes) {
                         List<GraphNode> connections =
                                 graphRepository.findConnected(node.id(), null, 1);
-                        graphResults.add(new GraphNodeResult(node, connections, 0.9));
+                        graphResults.add(new GraphNodeResult(node, connections, 0.5));
                     }
                 }
             }

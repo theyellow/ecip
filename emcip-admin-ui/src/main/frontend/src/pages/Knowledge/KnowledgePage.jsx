@@ -15,7 +15,7 @@ const STATUS_VARIANT = {
   FAILED: 'red',
 }
 
-const COLUMNS = [
+const JOB_COLUMNS = [
   { key: 'sourceType', label: 'Type', width: '80px' },
   { key: 'sourceRef', label: 'Source' },
   { key: 'tenantId', label: 'Tenant', width: '160px', mono: true },
@@ -31,15 +31,32 @@ const COLUMNS = [
   { key: 'createdAt', label: 'Created', width: '180px', mono: true },
 ]
 
+const SEARCH_TYPES = ['VECTOR', 'GRAPH', 'HYBRID']
+
 export function Knowledge() {
   const { token } = useAuth()
   const request = useAuthRequest()
+  const [activeTab, setActiveTab] = useState('search')
+
+  // — Tenants (shared) —
+  const [tenants, setTenants] = useState([])
+
+  // — Ingestion Jobs tab state —
   const [jobs, setJobs] = useState([])
   const [totalPages, setTotalPages] = useState(0)
   const [page, setPage] = useState(0)
   const [showModal, setShowModal] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [tenants, setTenants] = useState([])
+  const [jobsLoading, setJobsLoading] = useState(true)
+
+  // — Search tab state —
+  const [query, setQuery] = useState('')
+  const [searchType, setSearchType] = useState('HYBRID')
+  const [searchTenantId, setSearchTenantId] = useState('')
+  const [results, setResults] = useState(null) // null = not searched yet
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState('')
+  const [expandedNodeId, setExpandedNodeId] = useState(null)
+  const [neighbors, setNeighbors] = useState([])
 
   const rawFetch = useCallback(
     (path, options = {}) => {
@@ -58,14 +75,12 @@ export function Knowledge() {
   const api = useMemo(() => knowledgeApi(request, rawFetch), [request, rawFetch])
 
   useEffect(() => {
-    tenantsApi(request)
-      .list()
-      .then(setTenants)
-      .catch(() => {})
+    tenantsApi(request).list().then(setTenants).catch(() => {})
   }, [request])
 
+  // Load ingestion jobs
   const loadJobs = useCallback(async () => {
-    setLoading(true)
+    setJobsLoading(true)
     try {
       const data = await api.jobs(page, 20)
       setJobs(
@@ -81,13 +96,61 @@ export function Knowledge() {
     } catch {
       setJobs([])
     } finally {
-      setLoading(false)
+      setJobsLoading(false)
     }
   }, [page, tenants, api])
 
   useEffect(() => {
-    loadJobs()
-  }, [loadJobs])
+    if (activeTab === 'jobs') loadJobs()
+  }, [activeTab, loadJobs])
+
+  // Search
+  async function handleSearch() {
+    if (!query.trim()) return
+    setSearchLoading(true)
+    setSearchError('')
+    setResults(null)
+    setExpandedNodeId(null)
+    setNeighbors([])
+    try {
+      const data = await api.search(
+        query.trim(),
+        searchType,
+        searchTenantId || null,
+        null,
+        20
+      )
+      setResults(data)
+    } catch (e) {
+      setSearchError(e.message || 'Search failed.')
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  // Entity click — expand/collapse neighbors
+  async function handleEntityClick(node) {
+    if (expandedNodeId === node.id) {
+      setExpandedNodeId(null)
+      setNeighbors([])
+      return
+    }
+    setExpandedNodeId(node.id)
+    setNeighbors([])
+    try {
+      const data = await api.graphNeighbors(node.id, null, 1)
+      setNeighbors(Array.isArray(data) ? data : [])
+    } catch {
+      setNeighbors([])
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') handleSearch()
+  }
+
+  const graphResults = results?.graphResults ?? []
+  const documentResults = results?.documentResults ?? []
 
   return (
     <div className={styles.page}>
@@ -96,46 +159,236 @@ export function Knowledge() {
           <h2 className={styles.title}>KNOWLEDGE BASE</h2>
           <div className={styles.subtitle}>◆ knowledge-engine · port 9088</div>
         </div>
-        <Button variant="primary" onClick={() => setShowModal(true)}>
-          Add Document
-        </Button>
+        {activeTab === 'jobs' && (
+          <Button variant="primary" onClick={() => setShowModal(true)}>
+            Add Document
+          </Button>
+        )}
       </div>
 
-      <DataTable
-        columns={COLUMNS}
-        rows={jobs}
-        emptyText={loading ? 'Loading...' : 'No ingestion jobs yet. Submit a URL or file.'}
-      />
+      {/* Tab switcher */}
+      <div className={styles.tabRow}>
+        <button
+          type="button"
+          className={`${styles.tab}${activeTab === 'search' ? ` ${styles.tabActive}` : ''}`}
+          onClick={() => setActiveTab('search')}
+        >
+          Search
+        </button>
+        <button
+          type="button"
+          className={`${styles.tab}${activeTab === 'jobs' ? ` ${styles.tabActive}` : ''}`}
+          onClick={() => setActiveTab('jobs')}
+        >
+          Ingestion Jobs
+        </button>
+      </div>
 
-      {totalPages > 1 && (
-        <div className={styles.pagination}>
-          <button
-            className={styles.pageBtn}
-            disabled={page === 0}
-            onClick={() => setPage(p => p - 1)}
-          >
-            ◂ Prev
-          </button>
-          <span className={styles.pageInfo}>
-            {page + 1} / {totalPages}
-          </span>
-          <button
-            className={styles.pageBtn}
-            disabled={page >= totalPages - 1}
-            onClick={() => setPage(p => p + 1)}
-          >
-            Next ▸
-          </button>
+      {/* ── Search tab ── */}
+      {activeTab === 'search' && (
+        <div>
+          {/* Search bar */}
+          <div className={styles.searchBar}>
+            <input
+              className={styles.searchInput}
+              type="text"
+              placeholder="Search the knowledge base…"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <div className={styles.typeSelector}>
+              {SEARCH_TYPES.map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`${styles.typeSeg}${searchType === t ? ` ${styles.typeSegActive}` : ''}`}
+                  onClick={() => setSearchType(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <select
+              className={styles.tenantFilter}
+              value={searchTenantId}
+              onChange={e => setSearchTenantId(e.target.value)}
+            >
+              <option value="">All tenants</option>
+              {tenants.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <Button
+              variant="primary"
+              onClick={handleSearch}
+              disabled={!query.trim() || searchLoading}
+            >
+              Search
+            </Button>
+          </div>
+
+          {/* States */}
+          {!results && !searchLoading && !searchError && (
+            <p className={styles.emptyState}>Enter a query to search the knowledge base.</p>
+          )}
+          {searchLoading && <p className={styles.emptyState}>Searching…</p>}
+          {searchError && <p className={styles.searchError}>{searchError}</p>}
+          {results &&
+            !searchLoading &&
+            graphResults.length === 0 &&
+            documentResults.length === 0 && (
+              <p className={styles.emptyState}>
+                No results found. Try a different query or search type.
+              </p>
+            )}
+
+          {/* Results grid */}
+          {results && (graphResults.length > 0 || documentResults.length > 0) && (
+            <>
+              <div className={styles.resultsGrid}>
+                {/* Entities column */}
+                <div>
+                  <div className={styles.colLabel}>— ENTITIES ({graphResults.length}) —</div>
+                  {graphResults.length === 0 && (
+                    <p className={styles.emptyCol}>No entity results.</p>
+                  )}
+                  {graphResults.map(r => (
+                    <div
+                      key={r.node.id}
+                      className={`${styles.entityCard}${expandedNodeId === r.node.id ? ` ${styles.entityCardActive}` : ''}`}
+                      onClick={() => handleEntityClick(r.node)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={e => e.key === 'Enter' && handleEntityClick(r.node)}
+                    >
+                      <div className={styles.cardMeta}>
+                        <span className={styles.conceptBadge}>{r.node.conceptType}</span>
+                        <span
+                          className={`${styles.scoreTag}${r.score >= 0.85 ? ` ${styles.scoreHigh}` : ''}`}
+                        >
+                          {r.score.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className={styles.entityLabel}>{r.node.label}</div>
+                      {(r.connections?.length ?? 0) > 0 && (
+                        <div className={styles.entityConnections}>
+                          {(r.connections?.slice(0, 3) ?? []).map(c => (
+                            <div key={c.id} className={styles.connectionLine}>
+                              → {c.conceptType} · {c.label}
+                            </div>
+                          ))}
+                          {(r.connections?.length ?? 0) > 3 && (
+                            <div className={styles.connectionLine}>
+                              +{r.connections.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Passages column */}
+                <div>
+                  <div className={styles.colLabel}>
+                    — PASSAGES ({documentResults.length}) —
+                  </div>
+                  {documentResults.length === 0 && (
+                    <p className={styles.emptyCol}>No passage results.</p>
+                  )}
+                  {documentResults.map((r, i) => (
+                    <div key={r.document?.id ?? i} className={styles.passageCard}>
+                      <div className={styles.cardMeta}>
+                        <span className={styles.passageSource}>
+                          {r.document?.sourceType ?? ''} · {r.document?.sourceRef ?? ''}
+                        </span>
+                        <span
+                          className={`${styles.scoreTag}${r.similarity >= 0.85 ? ` ${styles.scoreHigh}` : ''}`}
+                        >
+                          {r.similarity.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className={styles.passageContent}>{r.document?.content ?? ''}</div>
+                      {r.document?.createdAt && (
+                        <div className={styles.passageDate}>
+                          {new Date(r.document.createdAt).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Neighbor expansion panel */}
+              {expandedNodeId && (
+                <div className={styles.neighborPanel}>
+                  <div className={styles.neighborLabel}>
+                    —{' '}
+                    {graphResults.find(r => r.node.id === expandedNodeId)?.node.label ?? ''} ·
+                    NEIGHBORS —
+                  </div>
+                  {neighbors.length === 0 ? (
+                    <span className={styles.emptyCol}>No neighbors found.</span>
+                  ) : (
+                    <div className={styles.neighborChips}>
+                      {neighbors.map(n => (
+                        <span key={n.id} className={styles.neighborChip}>
+                          {n.label}{' '}
+                          <span className={styles.neighborType}>{n.conceptType}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
-      {showModal && (
-        <IngestionModal
-          api={api}
-          tenants={tenants}
-          onClose={() => setShowModal(false)}
-          onJobCreated={loadJobs}
-        />
+      {/* ── Ingestion Jobs tab ── */}
+      {activeTab === 'jobs' && (
+        <>
+          <DataTable
+            columns={JOB_COLUMNS}
+            rows={jobs}
+            emptyText={jobsLoading ? 'Loading…' : 'No ingestion jobs yet. Submit a URL or file.'}
+          />
+
+          {totalPages > 1 && (
+            <div className={styles.pagination}>
+              <button
+                className={styles.pageBtn}
+                disabled={page === 0}
+                onClick={() => setPage(p => p - 1)}
+              >
+                ◂ Prev
+              </button>
+              <span className={styles.pageInfo}>
+                {page + 1} / {totalPages}
+              </span>
+              <button
+                className={styles.pageBtn}
+                disabled={page >= totalPages - 1}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Next ▸
+              </button>
+            </div>
+          )}
+
+          {showModal && (
+            <IngestionModal
+              api={api}
+              tenants={tenants}
+              onClose={() => setShowModal(false)}
+              onJobCreated={loadJobs}
+            />
+          )}
+        </>
       )}
     </div>
   )
