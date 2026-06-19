@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-12" author="knowledge-engine">
+        <createTable tableName="ke_enrichment_sources"
+                     remarks="Per-vendor enrichment source configuration with schedule">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schedule_cron" type="VARCHAR(64)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="last_run_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="true"/>
+            </column>
+            <column name="last_run_status" type="VARCHAR(16)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="config" type="JSONB" defaultValue="{}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_ke_enrichment_sources_vendor_tenant"
+                     tableName="ke_enrichment_sources">
+            <column name="vendor_id"/>
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_ke_enrichment_sources_enabled"
+                     tableName="ke_enrichment_sources">
+            <column name="enabled"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

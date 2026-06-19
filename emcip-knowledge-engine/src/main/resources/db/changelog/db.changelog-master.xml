@@ -15,5 +15,9 @@
     <include file="changes/008-create-graph-node-embeddings.xml" relativeToChangelogFile="true"/>
     <include file="changes/009-entity-resolution.xml" relativeToChangelogFile="true"/>
     <include file="changes/010-ingestion-jobs.xml" relativeToChangelogFile="true"/>
+    <include file="changes/011-create-vendor-api-keys.xml" relativeToChangelogFile="true"/>
+    <include file="changes/012-create-enrichment-sources.xml" relativeToChangelogFile="true"/>
+    <include file="changes/013-create-enrichment-runs.xml" relativeToChangelogFile="true"/>
+    <include file="changes/014-seed-enrichment-sources.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
