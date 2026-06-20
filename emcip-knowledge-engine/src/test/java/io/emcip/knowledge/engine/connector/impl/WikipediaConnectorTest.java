@@ -56,4 +56,18 @@ class WikipediaConnectorTest extends ConnectorTestBase {
 
         assertThat(results).isEmpty();
     }
+
+    @Test
+    void fetch_returns404_asEmptyList() {
+        server.enqueue(new MockResponse().setResponseCode(404));
+
+        WikipediaConnector connector = new WikipediaConnector(restClient, baseUrl());
+        List<EnrichmentResult> results =
+                connector.fetch(
+                        new EnrichmentRequest(
+                                TriggerMode.TOPIC_DRIVEN, "nonexistent-page", null, Map.of()),
+                        new ConnectorContext(null, java.util.UUID.randomUUID(), epoch()));
+
+        assertThat(results).isEmpty();
+    }
 }
