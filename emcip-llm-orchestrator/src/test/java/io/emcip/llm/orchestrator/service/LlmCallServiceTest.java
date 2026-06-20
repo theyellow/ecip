@@ -1,6 +1,7 @@
 package io.emcip.llm.orchestrator.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -13,6 +14,7 @@ import static org.mockito.Mockito.when;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import io.emcip.llm.orchestrator.client.LlmResponse;
 import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
+import io.emcip.llm.orchestrator.config.KnowledgeEnrichmentProperties;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.PromptTemplate;
 import java.util.HashMap;
@@ -37,6 +39,10 @@ class LlmCallServiceTest {
     @Mock private OpenAiCompatibleLlmClient llmClient;
 
     @Mock private CostTrackingService costTrackingService;
+
+    @Mock private KnowledgeContextEnricherService knowledgeContextEnricherService;
+
+    @Mock private KnowledgeEnrichmentProperties knowledgeEnrichmentProperties;
 
     @InjectMocks private LlmCallService service;
 
@@ -475,6 +481,97 @@ class LlmCallServiceTest {
                         anyLong(),
                         eq(sourceEventId),
                         eq(null));
+    }
+
+    @Test
+    void callForTask_prependsKnowledgeContext_whenEnrichmentEnabled() {
+        // given
+        KnowledgeEnrichmentProperties enabledProps =
+                new KnowledgeEnrichmentProperties(true, 0.7, 5, 5000);
+        LlmCallService enrichedService =
+                new LlmCallService(
+                        orchestratorService,
+                        llmClient,
+                        costTrackingService,
+                        knowledgeContextEnricherService,
+                        enabledProps);
+
+        String taskType = "response";
+        String templateName = "response-template";
+        String userContent = "What is EMCIP?";
+        Map<String, String> contextVars = Map.of();
+        String sourceEventId = UUID.randomUUID().toString();
+        ModelConfig modelConfig = createTestModelConfig();
+        PromptTemplate template = createTestTemplate();
+        String knowledgeContext = "Relevant fact: EMCIP is a community intelligence platform.";
+        LlmResponse response = createTestResponse("EMCIP handles messaging.", 20, 10);
+
+        when(orchestratorService.selectModelForTask(taskType)).thenReturn(Optional.of(modelConfig));
+        when(orchestratorService.getPromptTemplate(templateName)).thenReturn(Optional.of(template));
+        when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
+                .thenReturn("Please respond to the following: {{content}}");
+        when(knowledgeContextEnricherService.buildContext(eq(userContent), any()))
+                .thenReturn(knowledgeContext);
+        when(llmClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+                .thenReturn(response);
+
+        // when
+        Optional<LlmCallResult> result =
+                enrichedService.callForTask(
+                        taskType, templateName, userContent, contextVars, sourceEventId, null);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().success()).isTrue();
+
+        // Verify the content sent to the LLM includes the knowledge context and the original query
+        verify(llmClient)
+                .call(
+                        anyString(),
+                        anyString(),
+                        org.mockito.ArgumentMatchers.argThat(
+                                content ->
+                                        content.contains(knowledgeContext)
+                                                && content.contains(userContent)),
+                        anyInt(),
+                        anyDouble());
+    }
+
+    @Test
+    void callForTask_skipsEnrichment_whenDisabled() {
+        // given
+        KnowledgeEnrichmentProperties disabledProps =
+                new KnowledgeEnrichmentProperties(false, 0.7, 5, 5000);
+        LlmCallService disabledService =
+                new LlmCallService(
+                        orchestratorService,
+                        llmClient,
+                        costTrackingService,
+                        knowledgeContextEnricherService,
+                        disabledProps);
+
+        String taskType = "response";
+        String templateName = "response-template";
+        String userContent = "Hello";
+        Map<String, String> contextVars = Map.of();
+        String sourceEventId = UUID.randomUUID().toString();
+        ModelConfig modelConfig = createTestModelConfig();
+        PromptTemplate template = createTestTemplate();
+        LlmResponse response = createTestResponse("Hi", 5, 3);
+
+        when(orchestratorService.selectModelForTask(taskType)).thenReturn(Optional.of(modelConfig));
+        when(orchestratorService.getPromptTemplate(templateName)).thenReturn(Optional.of(template));
+        when(orchestratorService.renderPromptTemplate(eq(template), eq(contextVars)))
+                .thenReturn("Please respond to the following: {{content}}");
+        when(llmClient.call(anyString(), anyString(), anyString(), anyInt(), anyDouble()))
+                .thenReturn(response);
+
+        // when
+        disabledService.callForTask(
+                taskType, templateName, userContent, contextVars, sourceEventId, null);
+
+        // then — enricher must never be called when disabled
+        verify(knowledgeContextEnricherService, never()).buildContext(any(), any());
     }
 
     @Test

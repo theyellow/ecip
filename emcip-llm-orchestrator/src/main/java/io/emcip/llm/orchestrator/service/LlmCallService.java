@@ -1,8 +1,10 @@
 package io.emcip.llm.orchestrator.service;
 
+import io.emcip.common.tenant.TenantContext;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import io.emcip.llm.orchestrator.client.LlmResponse;
 import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
+import io.emcip.llm.orchestrator.config.KnowledgeEnrichmentProperties;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.PromptTemplate;
 import java.util.Map;
@@ -24,6 +26,8 @@ public class LlmCallService {
     private final LlmOrchestratorService orchestratorService;
     private final OpenAiCompatibleLlmClient llmClient;
     private final CostTrackingService costTrackingService;
+    private final KnowledgeContextEnricherService knowledgeContextEnricherService;
+    private final KnowledgeEnrichmentProperties knowledgeEnrichmentProperties;
 
     /**
      * Select model and template by task type, then call the LLM.
@@ -93,11 +97,20 @@ public class LlmCallService {
         long startTime = System.currentTimeMillis();
 
         try {
+            UUID tenantUuid =
+                    TenantContext.getTenantId() != null
+                            ? UUID.fromString(TenantContext.getTenantId())
+                            : null;
+            String enrichedContent =
+                    knowledgeEnrichmentProperties.enabled()
+                            ? buildEnrichedContent(userContent, tenantUuid)
+                            : userContent;
+
             String renderedUser = orchestratorService.renderPromptTemplate(template, contextVars);
             String finalContent =
                     renderedUser.isEmpty()
-                            ? userContent
-                            : renderedUser.replace("{{content}}", userContent);
+                            ? enrichedContent
+                            : renderedUser.replace("{{content}}", enrichedContent);
 
             LlmResponse response =
                     llmClient.call(
@@ -146,5 +159,16 @@ public class LlmCallService {
 
             return new LlmCallResult(false, null, modelConfig.getModelName(), requestId);
         }
+    }
+
+    private String buildEnrichedContent(String userContent, UUID tenantId) {
+        String context = knowledgeContextEnricherService.buildContext(userContent, tenantId);
+        if (context.isBlank()) {
+            return userContent;
+        }
+        return "Relevant context from the knowledge base:\n"
+                + context
+                + "\n\n---\n\n"
+                + userContent;
     }
 }
