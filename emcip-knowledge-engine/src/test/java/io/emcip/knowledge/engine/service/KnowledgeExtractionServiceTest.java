@@ -36,6 +36,7 @@ class KnowledgeExtractionServiceTest {
     @Mock private EntityResolutionService entityResolutionService;
     @Mock private LlmOrchestratorClient llmClient;
     @Mock private OntologyService ontologyService;
+    @Mock private KnowledgeEventPublisher eventPublisher;
 
     private KnowledgeExtractionService service;
 
@@ -48,7 +49,8 @@ class KnowledgeExtractionServiceTest {
                         graphRepository,
                         entityResolutionService,
                         llmClient,
-                        ontologyService);
+                        ontologyService,
+                        eventPublisher);
     }
 
     @Test

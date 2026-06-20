@@ -32,6 +32,7 @@ public class KnowledgeExtractionService {
     private final EntityResolutionService entityResolutionService;
     private final LlmOrchestratorClient llmClient;
     private final OntologyService ontologyService;
+    private final KnowledgeEventPublisher eventPublisher;
 
     @Transactional
     public void processMessage(
@@ -144,6 +145,7 @@ public class KnowledgeExtractionService {
         // Step 4: Entity resolution + graph storage
         for (ExtractedEntity entity : validEntities) {
             entityResolutionService.resolve(entity.label(), entity.type(), tenantId);
+            eventPublisher.publishEntityCreated(entity.label(), tenantId);
         }
 
         for (ExtractedRelationship rel : validRelationships) {
@@ -224,6 +226,7 @@ public class KnowledgeExtractionService {
         // Step 5: Entity resolution + graph storage
         for (ExtractedEntity entity : validEntities) {
             entityResolutionService.resolve(entity.label(), entity.type(), tenantId);
+            eventPublisher.publishEntityCreated(entity.label(), tenantId);
         }
 
         for (ExtractedRelationship rel : validRelationships) {
