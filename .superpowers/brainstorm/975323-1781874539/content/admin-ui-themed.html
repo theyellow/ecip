@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EMCIP — Integrations Page</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-app: #050a14; --bg-card: rgba(12,26,40,0.92); --bg-sunken: rgba(5,10,20,0.65);
+    --bg-input: rgba(5,10,20,0.55);
+    --fg-1: #ede4ce; --fg-2: #a09484; --fg-3: #5a5448;
+    --fg-on-accent: #050a14;
+    --accent: #d4a849; --accent-hover: #f5cc66; --accent-soft: rgba(212,168,73,0.10);
+    --accent-2: #3a6878;
+    --border: rgba(212,168,73,0.18); --border-strong: rgba(212,168,73,0.45);
+    --rule: rgba(212,168,73,0.08);
+    --signal-ok-bg: #0a2a14; --signal-ok-fg: #4ade80;
+    --signal-info-bg: #0c1a3a; --signal-info-fg: #60a5fa;
+    --signal-warn-bg: #2a1e04; --signal-warn-fg: #f0c84a;
+    --signal-stop-bg: #2a0808; --signal-stop-fg: #f87171;
+    --signal-mute-bg: rgba(12,26,40,0.78); --signal-mute-fg: #a09484;
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Source Code Pro', 'Courier New', monospace;
+    --shadow-card: 0 4px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(212,168,73,0.08);
+  }
+
+  body {
+    background: var(--bg-app);
+    color: var(--fg-1);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.55;
+    padding: 0;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 200px;
+    background: rgba(3,7,16,0.96);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-logo {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 13px;
+    letter-spacing: 0.22em;
+    color: var(--accent);
+    text-transform: uppercase;
+    padding: 0 16px 20px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 8px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #807868;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .nav-item:hover { background: rgba(212,168,73,0.06); color: #f5cc66; }
+  .nav-item.active {
+    background: rgba(212,168,73,0.14);
+    color: #f5cc66;
+    border-left: 2px solid var(--accent);
+  }
+  .nav-glyph { font-size: 14px; width: 16px; text-align: center; }
+
+  /* Main content */
+  .main {
+    flex: 1;
+    padding: 28px 32px;
+    overflow-y: auto;
+  }
+
+  /* Page header */
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .page-header h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.20em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .system-id {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--fg-3);
+    letter-spacing: 0.04em;
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 9px 16px;
+    cursor: pointer;
+    border: 1px solid;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, #f5cc66 0%, #d4a849 100%);
+    color: var(--fg-on-accent);
+    border-color: var(--border-strong);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--fg-1);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .btn-danger {
+    background: transparent;
+    color: var(--signal-stop-fg);
+    border-color: rgba(248,113,113,0.35);
+  }
+  .btn-sm { padding: 5px 10px; font-size: 9px; }
+
+  /* Section label */
+  .section-label {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 20px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::before, .section-label::after { content: ''; flex: 0 0 auto; }
+  .section-label span { white-space: nowrap; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
+
+  /* Segmented control (tabs) */
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    margin-bottom: 18px;
+  }
+  .seg-btn {
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 7px 16px;
+    cursor: pointer;
+    color: var(--fg-2);
+    border-right: 1px solid var(--border);
+    background: transparent;
+    transition: background 0.15s, color 0.15s;
+  }
+  .seg-btn:last-child { border-right: none; }
+  .seg-btn.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+
+  /* Table */
+  .tbl { width: 100%; border-collapse: collapse; }
+  .tbl th {
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-strong);
+    background: var(--bg-sunken);
+  }
+  .tbl td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 13px;
+    color: var(--fg-2);
+    vertical-align: middle;
+  }
+  .tbl tr:hover td { background: rgba(212,168,73,0.04); }
+  .tbl td.mono { font-family: var(--font-mono); font-size: 12px; color: var(--fg-2); }
+  .tbl td.name { color: var(--fg-1); font-weight: 500; font-family: var(--font-mono); font-size: 12px; }
+
+  /* Badges */
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    white-space: nowrap;
+  }
+  .b-ok   { background: var(--signal-ok-bg);   color: var(--signal-ok-fg); }
+  .b-warn { background: var(--signal-warn-bg);  color: var(--signal-warn-fg); }
+  .b-stop { background: var(--signal-stop-bg);  color: var(--signal-stop-fg); }
+  .b-mute { background: var(--signal-mute-bg);  color: var(--signal-mute-fg); }
+  .b-info { background: var(--signal-info-bg);  color: var(--signal-info-fg); }
+
+  /* Source cards */
+  .source-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .source-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 14px;
+    box-shadow: var(--shadow-card);
+  }
+  .source-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .source-name {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--fg-1);
+  }
+  .source-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-3);
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+  .source-actions { display: flex; gap: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-logo">EMCIP</div>
+  <div class="nav-item"><span class="nav-glyph">⬡</span> Tenants</div>
+  <div class="nav-item"><span class="nav-glyph">◈</span> Watched Groups</div>
+  <div class="nav-item"><span class="nav-glyph">⌘</span> Telegram</div>
+  <div class="nav-item"><span class="nav-glyph">✦</span> AI Config</div>
+  <div class="nav-item"><span class="nav-glyph">⚖</span> Policy Rules</div>
+  <div class="nav-item"><span class="nav-glyph">⊘</span> Moderation Rules</div>
+  <div class="nav-item"><span class="nav-glyph">⚑</span> Flags</div>
+  <div class="nav-item"><span class="nav-glyph">◎</span> Audit Log</div>
+  <div class="nav-item"><span class="nav-glyph">▶</span> Simulate</div>
+  <div class="nav-item"><span class="nav-glyph">◉</span> Users</div>
+  <div class="nav-item active"><span class="nav-glyph">⊕</span> Integrations</div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="page-header">
+    <div>
+      <h2>Integrations</h2>
+      <div class="system-id">⊕ knowledge-engine · :8087 · 11 sources active</div>
+    </div>
+    <button class="btn btn-primary">Add Vendor Key</button>
+  </div>
+
+  <!-- Tab strip -->
+  <div class="seg">
+    <div class="seg-btn active">Global Keys</div>
+    <div class="seg-btn">Tenant Keys</div>
+    <div class="seg-btn">Sources &amp; Schedule</div>
+    <div class="seg-btn">Run History</div>
+  </div>
+
+  <!-- Global Keys tab -->
+  <div class="section-label"><span>— Vendor API Keys — Global —</span></div>
+  <table class="tbl">
+    <thead>
+      <tr>
+        <th>Vendor</th>
+        <th>Key</th>
+        <th>Key Required</th>
+        <th>Status</th>
+        <th>Updated</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="name">Exa Search</td>
+        <td class="mono">••••••••••••7f3a</td>
+        <td><span class="badge b-stop">Required</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">2026-06-18</td>
+        <td><button class="btn btn-secondary btn-sm">Edit</button> <button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">Brave Search</td>
+        <td class="mono">••••••••••••b12e</td>
+        <td><span class="badge b-stop">Required</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">2026-06-15</td>
+        <td><button class="btn btn-secondary btn-sm">Edit</button> <button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">CORE</td>
+        <td class="mono">••••••••••••44cf</td>
+        <td><span class="badge b-warn">Free Key</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">2026-06-19</td>
+        <td><button class="btn btn-secondary btn-sm">Edit</button> <button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">Wikipedia</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">arXiv</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">PubMed</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">Semantic Scholar</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">OpenAlex</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">Wikidata</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">bioRxiv / medRxiv</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">Zenodo</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">Unpaywall</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">Email only</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-ok">Enabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-danger btn-sm">Disable</button></td>
+      </tr>
+      <tr>
+        <td class="name">DOAJ</td>
+        <td class="mono" style="color:var(--fg-3);font-style:italic">No key required</td>
+        <td><span class="badge b-mute">None</span></td>
+        <td><span class="badge b-stop">Disabled</span></td>
+        <td class="mono">—</td>
+        <td><button class="btn btn-secondary btn-sm">Enable</button></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Sources & Schedule preview -->
+  <div class="section-label" style="margin-top:28px"><span>— Sources &amp; Schedule (preview of tab) —</span></div>
+  <div class="source-grid">
+    <div class="source-card">
+      <div class="source-card-head">
+        <div class="source-name">Exa Search</div>
+        <span class="badge b-ok">Active</span>
+      </div>
+      <div class="source-meta">
+        Cron: daily 03:17:23<br>
+        Last run: 2026-06-18 03:17 &nbsp;<span class="badge b-ok">Success</span><br>
+        Fetched: 42 &nbsp; Ingested: 39
+      </div>
+      <div class="source-actions">
+        <button class="btn btn-secondary btn-sm">Configure</button>
+        <button class="btn btn-primary btn-sm">&#9654; Run Now</button>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-card-head">
+        <div class="source-name">PubMed</div>
+        <span class="badge b-ok">Active</span>
+      </div>
+      <div class="source-meta">
+        Cron: weekly Mon 02:41:07<br>
+        Last run: 2026-06-16 02:41 &nbsp;<span class="badge b-ok">Success</span><br>
+        Fetched: 118 &nbsp; Ingested: 115
+      </div>
+      <div class="source-actions">
+        <button class="btn btn-secondary btn-sm">Configure</button>
+        <button class="btn btn-primary btn-sm">&#9654; Run Now</button>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-card-head">
+        <div class="source-name">CORE</div>
+        <span class="badge b-warn">Partial</span>
+      </div>
+      <div class="source-meta">
+        Cron: daily 04:52:11<br>
+        Last run: 2026-06-18 04:52 &nbsp;<span class="badge b-warn">Partial</span><br>
+        Fetched: 200 &nbsp; Ingested: 187
+      </div>
+      <div class="source-actions">
+        <button class="btn btn-secondary btn-sm">Configure</button>
+        <button class="btn btn-primary btn-sm">&#9654; Run Now</button>
+      </div>
+    </div>
+    <div class="source-card">
+      <div class="source-card-head">
+        <div class="source-name">OpenAlex</div>
+        <span class="badge b-stop">Failed</span>
+      </div>
+      <div class="source-meta">
+        Cron: daily 05:09:44<br>
+        Last run: 2026-06-18 05:09 &nbsp;<span class="badge b-stop">Failure</span><br>
+        Rate limit exceeded
+      </div>
+      <div class="source-actions">
+        <button class="btn btn-secondary btn-sm">Configure</button>
+        <button class="btn btn-primary btn-sm">&#9654; Run Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

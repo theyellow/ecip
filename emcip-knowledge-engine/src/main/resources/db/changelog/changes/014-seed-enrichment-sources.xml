@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-14" author="knowledge-engine">
+        <!-- tenant_id NULL = global default. Cron offsets are non-round per CLAUDE.md rule. -->
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="wikipedia"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 17 3 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="arxiv"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 41 4 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="pubmed"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 7 5 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="wikidata"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 53 6 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="openalex"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 23 2 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="semantic-scholar"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 47 3 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="biorxiv"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 11 4 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="core"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 37 5 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="zenodo"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 29 6 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="unpaywall"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 53 1 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="doaj"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 19 7 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="exa"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 43 2 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+        <insert tableName="ke_enrichment_sources">
+            <column name="vendor_id" value="brave"/>
+            <column name="enabled" valueBoolean="true"/>
+            <column name="schedule_cron" value="0 7 3 * * *"/>
+            <column name="config" value="{}"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

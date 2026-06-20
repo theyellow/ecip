@@ -1,0 +1,69 @@
+<h2>Epic 42 — Architecture Overview</h2>
+<p class="subtitle">Keys in admin-api (CRUD) · Connectors + pipeline in knowledge-engine · Shared DB</p>
+
+<div class="mockup">
+  <div class="mockup-header">System Architecture</div>
+  <div class="mockup-body" style="font-family:monospace;font-size:0.85rem;line-height:2">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;background:var(--surface)">
+        <div class="label">Admin UI</div>
+        <div style="margin-top:0.5rem">
+          <div style="background:var(--accent-light,#e8f4fd);border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">🔑 Vendor Keys (global)</div>
+          <div style="background:var(--accent-light,#e8f4fd);border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">🔑 Vendor Keys (tenant)</div>
+          <div style="background:var(--accent-light,#e8f4fd);border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">⚙️ Sources config</div>
+          <div style="background:var(--accent-light,#e8f4fd);border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">▶️ Manual trigger</div>
+        </div>
+      </div>
+
+      <div style="border:2px solid var(--accent,#0066cc);border-radius:8px;padding:1rem;background:var(--surface)">
+        <div class="label">admin-api</div>
+        <div style="margin-top:0.5rem">
+          <div style="background:#f0f8ff;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">POST/PUT/DELETE /vendor-keys</div>
+          <div style="background:#f0f8ff;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">GET /vendor-keys (masked)</div>
+          <div style="background:#f0f8ff;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">POST/PUT /enrichment-sources</div>
+          <div style="background:#f0f8ff;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">POST /enrichment-sources/{id}/trigger</div>
+        </div>
+      </div>
+
+      <div style="border:2px solid #28a745;border-radius:8px;padding:1rem;background:var(--surface)">
+        <div class="label">knowledge-engine (extended)</div>
+        <div style="margin-top:0.5rem">
+          <div style="background:#f0fff4;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">🔌 KnowledgeConnector interface</div>
+          <div style="background:#f0fff4;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">📡 Wikipedia / arXiv / PubMed</div>
+          <div style="background:#f0fff4;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">🔍 Exa / Brave connectors</div>
+          <div style="background:#f0fff4;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">⏱️ Scheduler (cron)</div>
+          <div style="background:#f0fff4;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">📨 Kafka listener (topic-driven)</div>
+          <div style="background:#f0fff4;border-radius:4px;padding:0.4rem 0.6rem;margin:0.3rem 0;font-size:0.8rem">🔑 Key resolver (tenant → global)</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border:1px solid var(--border);border-radius:8px;padding:1rem;background:var(--surface);margin-bottom:1rem">
+      <div class="label">PostgreSQL (shared)</div>
+      <div style="display:flex;gap:1rem;margin-top:0.5rem;flex-wrap:wrap">
+        <div style="background:#fff3cd;border-radius:4px;padding:0.4rem 0.8rem;font-size:0.8rem">vendor_api_keys<br><span style="opacity:0.6">(id, vendor_id, tenant_id NULL=global, api_key, enabled)</span></div>
+        <div style="background:#fff3cd;border-radius:4px;padding:0.4rem 0.8rem;font-size:0.8rem">enrichment_sources<br><span style="opacity:0.6">(id, vendor_id, tenant_id, cron, last_run_at, config JSONB)</span></div>
+        <div style="background:#fff3cd;border-radius:4px;padding:0.4rem 0.8rem;font-size:0.8rem">knowledge_passages<br><span style="opacity:0.6">(existing — enriched content lands here)</span></div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+      <div style="border:1px solid #dc3545;border-radius:8px;padding:0.8rem;text-align:center;font-size:0.8rem">
+        <div class="label">Trigger 1: Cron</div>
+        ⏱️ Scheduled jobs<br>offset seconds (e.g. 03:17)
+      </div>
+      <div style="border:1px solid #dc3545;border-radius:8px;padding:0.8rem;text-align:center;font-size:0.8rem">
+        <div class="label">Trigger 2: Kafka Event</div>
+        📨 entity.created →<br>fetch from relevant sources
+      </div>
+      <div style="border:1px solid #dc3545;border-radius:8px;padding:0.8rem;text-align:center;font-size:0.8rem">
+        <div class="label">Trigger 3: Manual REST</div>
+        ▶️ POST /trigger →<br>immediate one-shot fetch
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1rem">Key resolution order: tenant-specific key → global key → skip (log warning if required)</p>

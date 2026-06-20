@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-11" author="knowledge-engine">
+        <createTable tableName="ke_vendor_api_keys"
+                     remarks="Global and per-tenant API keys for enrichment connectors">
+            <column name="id" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="vendor_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+            <column name="api_key" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql>
+            ALTER TABLE ke_vendor_api_keys
+            ADD CONSTRAINT uq_ke_vendor_api_keys_vendor_tenant
+            UNIQUE NULLS NOT DISTINCT (vendor_id, tenant_id);
+        </sql>
+
+        <createIndex indexName="idx_ke_vendor_api_keys_vendor"
+                     tableName="ke_vendor_api_keys">
+            <column name="vendor_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

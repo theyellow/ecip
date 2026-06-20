@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EMCIP — Knowledge Connectors</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --c-gold-50:  #f7efd6; --c-gold-100: #ecdca0; --c-gold-300: #e0c47a;
+    --c-gold-500: #d4a849; --c-gold-bright: #f5cc66; --c-gold-warm: #e8a648;
+    --c-teal-300: #6a9ab0; --c-teal-500: #3a6878;
+    --c-void-950: #030710; --c-void-900: #050a14; --c-void-800: #08121e;
+    --c-void-700: #0c1a28; --c-void-600: #122438; --c-void-500: #1a3048;
+    --c-cream-100: #faf6ec;
+    --c-sig-ok: #4ade80; --c-sig-warn: #f0c84a; --c-sig-info: #60a5fa; --c-sig-stop: #f87171;
+
+    --bg-app: var(--c-void-900);
+    --bg-card: rgba(12,26,40,0.92);
+    --bg-sunken: rgba(5,10,20,0.65);
+    --fg-1: #ede4ce; --fg-2: #a09484; --fg-3: #5a5448;
+    --accent: var(--c-gold-500); --accent-hover: var(--c-gold-bright);
+    --accent-soft: rgba(212,168,73,0.10);
+    --border: rgba(212,168,73,0.18); --border-strong: rgba(212,168,73,0.45);
+    --rule: rgba(212,168,73,0.08);
+    --shadow-card: 0 4px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(212,168,73,0.08);
+    --signal-ok-bg: #0a2a14; --signal-ok-fg: #4ade80;
+    --signal-info-bg: #0c1a3a; --signal-info-fg: #60a5fa;
+    --signal-warn-bg: #2a1e04; --signal-warn-fg: #f0c84a;
+    --signal-mute-bg: rgba(12,26,40,0.78); --signal-mute-fg: #a09484;
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Source Code Pro', monospace;
+  }
+
+  body {
+    background: var(--bg-app);
+    color: var(--fg-1);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.55;
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    color: var(--fg-2);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  .tier-label {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 24px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .tier-label::after { content: ''; flex: 1; height: 1px; background: var(--rule); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .connector-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+  .connector-card:hover { border-color: var(--border-strong); background: rgba(12,26,40,0.98); }
+  .connector-card.selected {
+    border-color: var(--accent);
+    background: rgba(212,168,73,0.06);
+    box-shadow: inset 0 0 0 1px rgba(212,168,73,0.3);
+  }
+  .connector-card.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 8px; right: 10px;
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .c-name {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--fg-1);
+    margin-bottom: 4px;
+  }
+
+  .c-type {
+    font-size: 11px;
+    color: var(--fg-2);
+    margin-bottom: 6px;
+  }
+
+  .c-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 9999px;
+  }
+  .badge-ok   { background: var(--signal-ok-bg);   color: var(--signal-ok-fg); }
+  .badge-info { background: var(--signal-info-bg);  color: var(--signal-info-fg); }
+  .badge-warn { background: var(--signal-warn-bg);  color: var(--signal-warn-fg); }
+  .badge-mute { background: var(--signal-mute-bg);  color: var(--signal-mute-fg); }
+
+  .c-note { font-size: 11px; color: var(--fg-3); line-height: 1.4; }
+
+  .already { border-color: rgba(212,168,73,0.35); }
+  .already .c-name::before { content: '⊕ '; color: var(--accent); }
+
+  .no-api {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  .confirm-bar {
+    margin-top: 28px;
+    padding: 14px 18px;
+    background: var(--bg-sunken);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    color: var(--fg-2);
+  }
+
+  .selection-note {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--fg-3);
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<h2>⊕ Knowledge Connectors</h2>
+<p class="subtitle">Select which sources to support in Epic 42. Gold border = already planned for v1. Faded = no public API available.</p>
+
+<div class="tier-label">— Tier 1: Fully Free, No Key Required —</div>
+<div class="grid">
+
+  <div class="connector-card already selected" onclick="toggle(this)">
+    <div class="c-name">Wikipedia</div>
+    <div class="c-type">Encyclopedia · Background knowledge</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">Clean article summaries via REST v1. Ideal for entity context seeding.</div>
+  </div>
+
+  <div class="connector-card already selected" onclick="toggle(this)">
+    <div class="c-name">arXiv</div>
+    <div class="c-type">Preprints · Physics, Math, CS, Econ</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">2M+ preprints. Full PDFs freely accessible. 3 req/s limit.</div>
+  </div>
+
+  <div class="connector-card already selected" onclick="toggle(this)">
+    <div class="c-name">PubMed</div>
+    <div class="c-type">Biomedical literature · NCBI</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-info">Key optional</span></div>
+    <div class="c-note">36M+ citations. 10 req/s with free NCBI key. OA full-text via PMC.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">Wikidata</div>
+    <div class="c-type">Structured knowledge graph · Entities</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">120M+ items. SPARQL + REST. Best for entity enrichment: authors → ORCID, orgs → ROR.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">OpenAlex</div>
+    <div class="c-type">Papers · Citations · Concepts · 250M+ works</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">Successor to Microsoft Academic Graph. CC0. Covers all disciplines. Rich concept graph.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">Semantic Scholar</div>
+    <div class="c-type">Papers · Citations · TLDR summaries</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-info">Key optional</span></div>
+    <div class="c-note">214M+ papers. AI-generated TLDRs. Batch endpoints for 500 items at once.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">Crossref</div>
+    <div class="c-type">DOI metadata · Funders · Licenses</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">140M+ DOIs. Ground truth for publication metadata. CC0. No full text.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">Europe PMC</div>
+    <div class="c-type">Life sciences · Text-mined entities</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">33M+ pubs. Unique: text-mined genes, proteins, chemicals, diseases from full text.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">bioRxiv / medRxiv</div>
+    <div class="c-type">Biology + Medicine preprints</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">Track when preprints get published. Version history. 30 records per call.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">CORE</div>
+    <div class="c-type">Full-text open-access papers · 200M+</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-info">Free key</span></div>
+    <div class="c-note">Unique: actual full text from institutional repositories. Best for RAG content extraction.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">Zenodo</div>
+    <div class="c-type">Papers · Datasets · Software · CERN</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">3M+ research objects. Strong on datasets, software, gray literature. Download links.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">Unpaywall</div>
+    <div class="c-type">Open-access lookup by DOI</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">Email only</span></div>
+    <div class="c-note">Given any DOI: is there a free legal copy? Where? 100k req/day free. Essential utility.</div>
+  </div>
+
+  <div class="connector-card" onclick="toggle(this)">
+    <div class="c-name">DOAJ</div>
+    <div class="c-type">Open-access journal directory</div>
+    <div class="c-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div>
+    <div class="c-note">20k+ OA journals, 10M+ articles. Verify journals are genuinely OA, not predatory.</div>
+  </div>
+
+</div>
+
+<div class="tier-label">— Tier 2: Low-Cost / Freemium (Key Required) —</div>
+<div class="grid">
+
+  <div class="connector-card already selected" onclick="toggle(this)">
+    <div class="c-name">Exa Search</div>
+    <div class="c-type">Neural web search · Content extraction</div>
+    <div class="c-badges"><span class="badge badge-warn">Freemium</span><span class="badge badge-info">Key req.</span></div>
+    <div class="c-note">Meaning-based search. 1,000 req/month free. Best for finding papers not in academic DBs.</div>
+  </div>
+
+  <div class="connector-card already selected" onclick="toggle(this)">
+    <div class="c-name">Brave Search</div>
+    <div class="c-type">Independent web search · News</div>
+    <div class="c-badges"><span class="badge badge-warn">Freemium</span><span class="badge badge-info">Key req.</span></div>
+    <div class="c-note">Independent index (no Google/Bing wrapper). ~1k req/month free. Good for news + recent web.</div>
+  </div>
+
+</div>
+
+<div class="tier-label">— No Public API (Consumer Tools Only) —</div>
+<div class="grid">
+  <div class="connector-card no-api">
+    <div class="c-name">OceanOfPapers</div>
+    <div class="c-type">Aggregator UI (no API)</div>
+    <div class="c-badges"><span class="badge badge-mute">No API</span></div>
+    <div class="c-note">Wraps OpenAlex + PubMed + arXiv. Accessing those directly gives same data.</div>
+  </div>
+  <div class="connector-card no-api">
+    <div class="c-name">Daily Academic</div>
+    <div class="c-type">Email digest (no API)</div>
+    <div class="c-badges"><span class="badge badge-mute">No API</span></div>
+    <div class="c-note">Personalized paper discovery. No programmatic access.</div>
+  </div>
+  <div class="connector-card no-api">
+    <div class="c-name">ResearchPod</div>
+    <div class="c-type">AI audio summaries (no API)</div>
+    <div class="c-badges"><span class="badge badge-mute">No API</span></div>
+    <div class="c-note">Consumer app. €9.99/mo premium. No connector possible.</div>
+  </div>
+</div>
+
+<div class="confirm-bar">
+  <div>
+    <div style="font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent);margin-bottom:4px">— Selected Connectors —</div>
+    Click cards to select / deselect. Gold border = already in v1 plan (pre-selected).
+  </div>
+</div>
+<div class="selection-note" style="margin-top:8px">OceanOfPapers / Daily Academic / ResearchPod have no public APIs — they consume the same sources listed above.</div>
+
+<script>
+function toggle(el) {
+  if (el.classList.contains('no-api')) return;
+  el.classList.toggle('selected');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<h2>Epic 42 — Three Architectural Approaches</h2>
+<p class="subtitle">How to structure vendor key management + enrichment pipeline</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>New microservice: <code>knowledge-enrichment-service</code></h3>
+      <p>A dedicated service owns all connector logic, scheduling, and (optionally) key storage. knowledge-engine calls it for enrichment results.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Single responsibility, clear boundary</li>
+          <li>Independent scaling and deployment</li>
+          <li>Easy to add new connectors without touching other services</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>Another service to run, monitor, deploy</li>
+          <li>Overhead for what starts as a small feature</li>
+          <li>Key management still needs a home (admin-api or here)</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Extend <code>knowledge-engine</code></h3>
+      <p>All connector logic, scheduling, and key resolution live inside knowledge-engine. Admin-api exposes CRUD for keys (stored in shared DB).</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>No new service — simpler ops</li>
+          <li>knowledge-engine already has full access to the knowledge graph</li>
+          <li>Direct ingestion without cross-service calls</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>knowledge-engine grows in scope (connector + query + ingestion)</li>
+          <li>Harder to scale connector work independently of query work</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Split responsibility: keys in <code>admin-api</code>, connectors in <code>knowledge-engine</code> ⭐</h3>
+      <p>admin-api owns key CRUD (already manages tenant config). knowledge-engine owns connectors + scheduling + ingestion, reads keys via shared DB table.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul>
+          <li>Keys sit naturally alongside other tenant config in admin-api</li>
+          <li>No new service; leverages existing architecture</li>
+          <li>Clean separation: admin-api = config plane, knowledge-engine = data plane</li>
+          <li>UI changes are minimal additions to existing admin pages</li>
+        </ul></div>
+        <div class="cons"><h4>Cons</h4><ul>
+          <li>knowledge-engine still grows (but less than option B)</li>
+          <li>knowledge-engine reads key table directly — mild coupling to admin-api's schema</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:1.5rem">⭐ Recommended: Option C — matches how the project already separates config from data processing</p>

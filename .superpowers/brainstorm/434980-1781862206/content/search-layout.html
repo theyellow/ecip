@@ -1,0 +1,94 @@
+<h2>Knowledge Page Layout — Where does search live?</h2>
+<p class="subtitle">The Knowledge page already has the Ingestion Jobs table. We need to add a search interface. Which approach fits best?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;padding:8px;background:#0f0f0f;color:#ccc;border:1px solid #333;border-radius:4px;line-height:1.8">
+        <div style="color:#d4a849;letter-spacing:0.15em;font-size:10px;margin-bottom:6px">KNOWLEDGE BASE</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="flex:1;background:#1a1a1a;border:1px solid #444;padding:5px 8px;color:#888;font-size:10px">Search the knowledge base...</div>
+          <div style="background:#d4a849;color:#000;padding:5px 10px;font-size:10px">Search</div>
+          <div style="border:1px solid #444;color:#888;padding:5px 10px;font-size:10px;margin-left:auto">+ Add Document</div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #333;padding:8px;margin-bottom:6px;font-size:10px;color:#aaa">
+          <div style="color:#d4a849;font-size:9px;letter-spacing:0.1em;margin-bottom:4px">SEARCH RESULTS</div>
+          <div style="color:#777;font-style:italic">Type a query above to search...</div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #333;padding:8px;font-size:10px;color:#aaa">
+          <div style="color:#d4a849;font-size:9px;letter-spacing:0.1em;margin-bottom:4px">INGESTION JOBS</div>
+          <div style="display:grid;grid-template-columns:60px 1fr 100px 80px;gap:4px;color:#666;font-size:9px;border-bottom:1px solid #333;padding-bottom:3px;margin-bottom:3px">
+            <span>TYPE</span><span>SOURCE</span><span>STATUS</span><span>CHUNKS</span>
+          </div>
+          <div style="display:grid;grid-template-columns:60px 1fr 100px 80px;gap:4px;font-size:9px">
+            <span>URL</span><span style="color:#888">example.com/doc</span><span style="color:#6ee7b7">COMPLETED</span><span>42</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Single page, stacked</h3>
+      <p>Search bar + results at top, ingestion jobs table below. Everything on one page, scroll to navigate between sections.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;padding:8px;background:#0f0f0f;color:#ccc;border:1px solid #333;border-radius:4px;line-height:1.8">
+        <div style="color:#d4a849;letter-spacing:0.15em;font-size:10px;margin-bottom:6px">KNOWLEDGE BASE</div>
+        <div style="display:flex;gap:0;margin-bottom:8px;border:1px solid #444">
+          <div style="flex:1;padding:5px 10px;font-size:10px;background:#1a1a1a;color:#d4a849;border-right:1px solid #444;box-shadow:inset 0 -2px 0 #d4a849">Search</div>
+          <div style="flex:1;padding:5px 10px;font-size:10px;color:#666">Ingestion Jobs</div>
+        </div>
+        <div style="background:#1a1a1a;border:1px solid #333;padding:8px;font-size:10px;color:#aaa">
+          <div style="display:flex;gap:6px;margin-bottom:6px">
+            <div style="flex:1;background:#111;border:1px solid #444;padding:4px 7px;color:#888;font-size:10px">Who talks about AI policy?</div>
+            <div style="background:#d4a849;color:#000;padding:4px 8px;font-size:10px">Go</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:4px">
+            <div style="border:1px solid #444;padding:2px 6px;font-size:9px;color:#888">HYBRID ▾</div>
+            <div style="border:1px solid #444;padding:2px 6px;font-size:9px;color:#888">Tenant ▾</div>
+          </div>
+          <div style="border-top:1px solid #333;padding-top:6px;color:#777;font-style:italic;font-size:9px">Results appear here...</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Tab switcher</h3>
+      <p>Segmented control toggles between Search and Ingestion Jobs views. Keeps each concern focused. Matches the IngestionModal's URL/File switcher pattern.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;padding:8px;background:#0f0f0f;color:#ccc;border:1px solid #333;border-radius:4px;line-height:1.8">
+        <div style="color:#d4a849;letter-spacing:0.15em;font-size:10px;margin-bottom:4px">KNOWLEDGE BASE</div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;background:#1a1a1a;border:1px solid #333;padding:7px">
+            <div style="color:#d4a849;font-size:9px;letter-spacing:0.1em;margin-bottom:5px">SEARCH</div>
+            <div style="background:#111;border:1px solid #444;padding:3px 6px;color:#888;font-size:9px;margin-bottom:4px">Query...</div>
+            <div style="display:flex;gap:3px;margin-bottom:5px">
+              <div style="border:1px solid #444;padding:1px 4px;font-size:8px;color:#888">HYBRID</div>
+            </div>
+            <div style="border-top:1px solid #333;padding-top:4px;color:#777;font-style:italic;font-size:8px">Results...</div>
+          </div>
+          <div style="flex:1;background:#1a1a1a;border:1px solid #333;padding:7px">
+            <div style="color:#d4a849;font-size:9px;letter-spacing:0.1em;margin-bottom:5px">INGESTION JOBS</div>
+            <div style="display:grid;grid-template-columns:1fr 60px;gap:3px;font-size:8px;color:#666;border-bottom:1px solid #333;padding-bottom:2px;margin-bottom:3px">
+              <span>SOURCE</span><span>STATUS</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 60px;gap:3px;font-size:8px">
+              <span style="color:#888">example.com</span><span style="color:#6ee7b7">DONE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Two-column split</h3>
+      <p>Search panel on the left, ingestion jobs on the right. Both visible simultaneously. Works well on wide screens, cramped on narrow.</p>
+    </div>
+  </div>
+
+</div>

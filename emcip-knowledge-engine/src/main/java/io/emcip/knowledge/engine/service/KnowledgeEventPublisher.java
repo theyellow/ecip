@@ -48,6 +48,17 @@ public class KnowledgeEventPublisher {
                 tenantId);
     }
 
+    public void publishEntityCreated(String entityName, UUID tenantId) {
+        publishEvent(
+                "ENTITY_CREATED",
+                Map.of(
+                        "entityName",
+                        entityName,
+                        "tenantId",
+                        tenantId != null ? tenantId.toString() : ""),
+                tenantId);
+    }
+
     private void publishEvent(String eventType, Map<String, Object> payload, UUID tenantId) {
         try {
             Map<String, Object> event =

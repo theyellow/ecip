@@ -105,6 +105,31 @@ class KnowledgeMessageConsumer <<Service>> {
     - publishExtractionComplete(UUID documentId): void
 }
 
+class EntityEnrichmentConsumer <<Service>> {
+    - EnrichmentPipelineService pipelineService
+    - EnrichmentSourceRepository sourceRepository
+    - String consumerGroup = "knowledge-engine-entity-enrichment"
+    + processEvent(EMCIPEvent event): void
+    - filterEntityCreated(JsonNode payload): boolean
+    - dispatchEnrichmentForTenant(UUID tenantId): void
+}
+
+class ManualEnrichmentConsumer <<Service>> {
+    - EnrichmentPipelineService pipelineService
+    - EnrichmentSourceRepository sourceRepository
+    - EnrichmentRunRepository runRepository
+    - String consumerGroup = "knowledge-engine"
+    + processEvent(ConsumerRecord record): void
+    - dispatchPipeline(UUID sourceId, UUID runId): void
+}
+
+class EnrichmentPipelineService {
+    - EnrichmentConnectorRegistry connectorRegistry
+    - ApiKeyResolver apiKeyResolver
+    - KnowledgeDocumentRepository documentRepo
+    + execute(EnrichmentSource, EnrichmentRun, TriggerMode, query, externalId, tenantId): void
+}
+
 ' Supporting Services
 class IntentClassificationService {
     - RuleBasedClassifier ruleClassifier
@@ -174,6 +199,8 @@ AbstractKafkaConsumer <|-- ModerationConsumer
 AbstractKafkaConsumer <|-- AuditConsumer
 AbstractKafkaConsumer <|-- ConversationContextConsumer
 AbstractKafkaConsumer <|-- KnowledgeMessageConsumer
+AbstractKafkaConsumer <|-- EntityEnrichmentConsumer
+AbstractKafkaConsumer <|-- ManualEnrichmentConsumer
 
 AbstractKafkaConsumer --> EventDeserializer : uses >
 IntentClassifierConsumer --> IntentClassificationService : uses >
@@ -183,6 +210,8 @@ ModerationConsumer --> ContentModerationService : uses >
 AuditConsumer --> AuditLogService : uses >
 ConversationContextConsumer --> ContextTrackingService : uses >
 KnowledgeMessageConsumer --> KnowledgeExtractionService : uses >
+EntityEnrichmentConsumer --> EnrichmentPipelineService : dispatches >
+ManualEnrichmentConsumer --> EnrichmentPipelineService : dispatches >
 
 AbstractKafkaConsumer ..> KafkaConsumerConfig : configured by >
 RetryableKafkaConsumer --> AbstractKafkaConsumer : wraps >

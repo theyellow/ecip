@@ -40,6 +40,7 @@ class DocumentIngestionServiceTest {
     @Mock EntityResolutionService entityResolutionService;
     @Mock LlmOrchestratorClient llmClient;
     @Mock OntologyService ontologyService;
+    @Mock KnowledgeEventPublisher eventPublisher;
     @Mock IngestionJobRepository jobRepository;
     @Mock KnowledgeExtractionService extractionService;
     @Mock Tika tika;
@@ -56,7 +57,8 @@ class DocumentIngestionServiceTest {
                         graphRepository,
                         entityResolutionService,
                         llmClient,
-                        ontologyService);
+                        ontologyService,
+                        eventPublisher);
         service = new DocumentIngestionService(jobRepository, extractionService, tika);
     }
 

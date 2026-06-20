@@ -363,6 +363,50 @@ Ports: 9080 (tdlib-adapter) through 9087 (admin-api). See the _Operations Guide_
 |`POST /api/flags/{id}/reply`
 |Send operator reply to flagged message (group or DM via TDLib)
 |Bearer token
+
+|`GET /api/v1/admin/integrations/keys`
+|List global vendor API keys; optional `?tenantId=` filter
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`POST /api/v1/admin/integrations/keys`
+|Create global vendor API key; body: `{vendorId, apiKey, enabled}`
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`PUT /api/v1/admin/integrations/keys/{id}`
+|Update global key; body: `{vendorId, apiKey, enabled}`
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`DELETE /api/v1/admin/integrations/keys/{id}`
+|Remove global vendor API key
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`GET /api/v1/tenant/integrations/keys`
+|List own tenant API keys (TENANT_ADMIN)
+|Bearer token (INTEGRATIONS_TENANT_MANAGE)
+
+|`PUT /api/v1/tenant/integrations/keys/{vendorId}`
+|Upsert own tenant API key; body: `{vendorId, apiKey, enabled}`
+|Bearer token (INTEGRATIONS_TENANT_MANAGE)
+
+|`DELETE /api/v1/tenant/integrations/keys/{vendorId}`
+|Remove own tenant API key
+|Bearer token (INTEGRATIONS_TENANT_MANAGE)
+
+|`GET /api/v1/admin/integrations/sources`
+|List all enrichment sources with last-run status
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`POST /api/v1/admin/integrations/sources/{id}/trigger`
+|Manually trigger enrichment for a source; returns `{runId}`
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`GET /api/v1/admin/integrations/sources/{id}/runs`
+|Paginated enrichment run history; params: `page`, `size`
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`GET /api/v1/admin/integrations/sources/{id}/runs/{runId}`
+|Single enrichment run detail
+|Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
 |===
 
 == Testing
