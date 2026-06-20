@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EMCIP — Enrichment Pipeline</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-app: #050a14; --bg-card: rgba(12,26,40,0.92); --bg-sunken: rgba(5,10,20,0.65);
+    --fg-1: #ede4ce; --fg-2: #a09484; --fg-3: #5a5448;
+    --accent: #d4a849; --accent-soft: rgba(212,168,73,0.10);
+    --border: rgba(212,168,73,0.18); --border-strong: rgba(212,168,73,0.45);
+    --rule: rgba(212,168,73,0.08);
+    --signal-ok-bg: #0a2a14; --signal-ok-fg: #4ade80;
+    --signal-info-bg: #0c1a3a; --signal-info-fg: #60a5fa;
+    --signal-warn-bg: #2a1e04; --signal-warn-fg: #f0c84a;
+    --signal-mute-bg: rgba(12,26,40,0.78); --signal-mute-fg: #a09484;
+    --teal: #3a6878; --teal-light: #6a9ab0;
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Source Code Pro', 'Courier New', monospace;
+  }
+  body { background: var(--bg-app); color: var(--fg-1); font-family: var(--font-body); font-size: 13px; line-height: 1.55; padding: 28px; }
+  h2 { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  .sub { color: var(--fg-2); font-size: 12px; margin-bottom: 24px; }
+  .section-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin: 20px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--rule); }
+  .card { background: var(--bg-card); border: 1px solid var(--border); padding: 14px; }
+  .card-title { font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  .code-block { font-family: var(--font-mono); font-size: 11px; color: #b8d4d8; line-height: 1.8; white-space: pre; }
+  .comment { color: var(--fg-3); }
+  .kw { color: #f0c84a; }
+  .type { color: #60a5fa; }
+  .anno { color: #4ade80; }
+
+  /* Pipeline diagram */
+  .pipeline {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: 24px;
+  }
+  .p-stage {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-right: none;
+    padding: 12px;
+  }
+  .p-stage:last-child { border-right: 1px solid var(--border); }
+  .p-stage .p-label { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .p-stage .p-content { font-size: 11px; color: var(--fg-2); line-height: 1.5; }
+  .p-stage .p-glyph { font-size: 18px; color: var(--accent); margin-bottom: 6px; }
+  .p-arrow { display: flex; align-items: center; color: var(--accent); font-size: 14px; padding: 0 2px; background: var(--bg-sunken); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+  /* Triggers */
+  .triggers { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .trigger {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 12px;
+  }
+  .trigger-label { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .trigger-body { font-size: 11px; color: var(--fg-2); line-height: 1.6; }
+  .trigger-code { font-family: var(--font-mono); font-size: 10px; color: #b8d4d8; line-height: 1.7; margin-top: 8px; }
+
+  /* Arrow connecting triggers to pipeline */
+  .converge { text-align: center; font-size: 22px; color: var(--accent); margin: 4px 0 10px; letter-spacing: 16px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .note { background: var(--bg-sunken); border-left: 2px solid var(--accent); padding: 8px 12px; font-size: 11px; color: var(--fg-2); margin-top: 12px; }
+  .note strong { color: var(--fg-1); font-family: var(--font-display); font-size: 9px; letter-spacing: 0.10em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+
+<h2>⊕ Epic 42 — Enrichment Pipeline</h2>
+<p class="sub">Section 4 of 5 — Three triggers → one shared ingestion path</p>
+
+<div class="section-label">— Three Entry Points —</div>
+<div class="triggers">
+  <div class="trigger">
+    <div class="trigger-label">⏱ Trigger 1 — Scheduled</div>
+    <div class="trigger-body">A master <strong style="color:var(--fg-1)">@Scheduled</strong> job runs every minute, queries <code style="font-family:var(--font-mono)">enrichment_sources</code> for sources whose cron expression is due, then fans out one fetch per source.</div>
+    <div class="trigger-code"><span class="anno">@Scheduled</span>(cron = <span style="color:#4ade80">"17 * * * * *"</span>)
+<span class="comment">// runs at :17 every minute</span>
+<span class="comment">// checks each source's own cron</span>
+<span class="comment">// via CronExpression.isMatch()</span></div>
+  </div>
+  <div class="trigger">
+    <div class="trigger-label">⬡ Trigger 2 — Topic-driven (Kafka)</div>
+    <div class="trigger-body">Listens on <code style="font-family:var(--font-mono)">knowledge.entity.created</code>. When a new entity lands in the graph, relevant connectors are queried with the entity name/concept as search term.</div>
+    <div class="trigger-code"><span class="anno">@KafkaListener</span>
+  topic = <span style="color:#4ade80">"knowledge.entity.created"</span>
+
+<span class="comment">// Connector selection: all</span>
+<span class="comment">// enabled sources for that tenant</span>
+<span class="comment">// where mode = SEARCH capable</span></div>
+  </div>
+  <div class="trigger">
+    <div class="trigger-label">▶ Trigger 3 — Manual REST</div>
+    <div class="trigger-body">Admin POSTs to trigger an immediate one-shot run. Returns a <code style="font-family:var(--font-mono)">runId</code> immediately; client polls for status. Useful for testing new API keys.</div>
+    <div class="trigger-code">POST /api/v1/admin/enrichment
+       /sources/{id}/trigger
+
+<span class="comment">→ 202 Accepted</span>
+<span class="comment">→ { "runId": "uuid" }</span>
+GET  /sources/{id}/runs/{runId}</div>
+  </div>
+</div>
+
+<div class="converge">↓ &nbsp; ↓ &nbsp; ↓</div>
+
+<div class="section-label">— Shared Ingestion Path —</div>
+<div class="pipeline">
+  <div class="p-stage">
+    <div class="p-glyph">⊕</div>
+    <div class="p-label">1. Resolve Key</div>
+    <div class="p-content">ApiKeyResolver<br>tenant key →<br>global key →<br>skip (WARN)</div>
+  </div>
+  <div class="p-arrow">▶</div>
+  <div class="p-stage">
+    <div class="p-glyph">◎</div>
+    <div class="p-label">2. Fetch</div>
+    <div class="p-content">connector.fetch()<br>returns<br>Flux&lt;EnrichmentResult&gt;<br>with backpressure</div>
+  </div>
+  <div class="p-arrow">▶</div>
+  <div class="p-stage">
+    <div class="p-glyph">⊘</div>
+    <div class="p-label">3. Deduplicate</div>
+    <div class="p-content">Check existing<br>(externalId +<br>vendorId)<br>skip duplicates</div>
+  </div>
+  <div class="p-arrow">▶</div>
+  <div class="p-stage">
+    <div class="p-glyph">✦</div>
+    <div class="p-label">4. Embed</div>
+    <div class="p-content">Generate vector<br>embedding for<br>title + content<br>(existing model)</div>
+  </div>
+  <div class="p-arrow">▶</div>
+  <div class="p-stage">
+    <div class="p-glyph">◈</div>
+    <div class="p-label">5. Store</div>
+    <div class="p-content">Upsert into<br>knowledge_passages<br>+ Apache AGE<br>graph if entity</div>
+  </div>
+  <div class="p-arrow">▶</div>
+  <div class="p-stage">
+    <div class="p-glyph">◉</div>
+    <div class="p-label">6. Audit</div>
+    <div class="p-content">Update<br>enrichment_runs<br>items_fetched,<br>items_ingested</div>
+  </div>
+</div>
+
+<div class="section-label">— Implementation Notes —</div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">Dynamic cron scheduling</div>
+    <div class="code-block"><span class="comment">// One fixed @Scheduled fires at :17 each minute</span>
+<span class="comment">// It queries enrichment_sources and uses</span>
+<span class="comment">// Spring's CronExpression to check if due:</span>
+
+<span class="kw">var</span> expr = <span class="type">CronExpression</span>.parse(source.scheduleCron());
+<span class="kw">var</span> next = expr.next(<span class="type">ZonedDateTime</span>.now().minusMinutes(1));
+<span class="kw">if</span> (next != null && !next.isAfter(<span class="type">ZonedDateTime</span>.now())) {
+  runConnector(source);  <span class="comment">// it's due</span>
+}
+
+<span class="comment">// Cron strings stored per source, e.g.:</span>
+<span class="comment">// "0 17 3 * * *"  (03:17 daily)</span>
+<span class="comment">// "0 41 2 * * MON" (02:41 Mondays)</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Error handling &amp; partial success</div>
+    <div class="code-block"><span class="comment">// Per-item errors don't abort the stream:</span>
+connector.fetch(req, ctx)
+  .onErrorContinue((err, item) -> {
+    log.warn(<span style="color:#4ade80">"skip item: {}"</span>, err.getMessage());
+    runRecord.incrementErrors();
+  })
+  .flatMap(result -> ingest(result))
+  ...
+
+<span class="comment">// Run status:</span>
+<span class="comment">// SUCCESS  — all items ingested cleanly</span>
+<span class="comment">// PARTIAL  — some items failed (errors > 0)</span>
+<span class="comment">// FAILURE  — connector itself threw (auth, net)</span></div>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Cron offset rule</strong> — per CLAUDE.md: cron expressions must never land on exact round times. Each source gets a seeded random offset: e.g. <code style="font-family:var(--font-mono)">EnrichmentSourceService</code> generates the offset on first save and stores it in <code style="font-family:var(--font-mono)">schedule_cron</code> — never <code style="font-family:var(--font-mono)">0 0 3 * * *</code>, always <code style="font-family:var(--font-mono)">0 17 3 * * *</code>.
+</div>
+
+</body>
+</html>

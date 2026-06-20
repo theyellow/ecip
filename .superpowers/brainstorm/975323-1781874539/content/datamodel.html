@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>EMCIP — Data Model</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-app: #050a14; --bg-card: rgba(12,26,40,0.92); --bg-sunken: rgba(5,10,20,0.65);
+    --fg-1: #ede4ce; --fg-2: #a09484; --fg-3: #5a5448;
+    --accent: #d4a849; --accent-soft: rgba(212,168,73,0.10);
+    --border: rgba(212,168,73,0.18); --border-strong: rgba(212,168,73,0.45);
+    --rule: rgba(212,168,73,0.08);
+    --signal-ok-bg: #0a2a14; --signal-ok-fg: #4ade80;
+    --signal-info-bg: #0c1a3a; --signal-info-fg: #60a5fa;
+    --signal-warn-bg: #2a1e04; --signal-warn-fg: #f0c84a;
+    --signal-mute-bg: rgba(12,26,40,0.78); --signal-mute-fg: #a09484;
+    --font-display: 'Cinzel', Georgia, serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'Source Code Pro', 'Courier New', monospace;
+    --teal: #3a6878;
+  }
+  body { background: var(--bg-app); color: var(--fg-1); font-family: var(--font-body); font-size: 13px; line-height: 1.55; padding: 28px; }
+  h2 { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  .sub { color: var(--fg-2); font-size: 12px; margin-bottom: 24px; }
+  .section-label { font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin: 20px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content:''; flex:1; height:1px; background:var(--rule); }
+
+  .flow {
+    display: flex; align-items: stretch; gap: 0; margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+  .flow-step {
+    flex: 1; padding: 14px 12px; border-right: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+  .flow-step:last-child { border-right: none; }
+  .flow-step .label { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+  .flow-step .code { font-family: var(--font-mono); font-size: 11px; color: #b8d4d8; line-height: 1.6; }
+  .arrow { display: flex; align-items: center; padding: 0 4px; color: var(--accent); font-size: 16px; background: var(--bg-sunken); border-right: 1px solid var(--border); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .card { background: var(--bg-card); border: 1px solid var(--border); padding: 14px; }
+  .card-title { font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  .code-block { font-family: var(--font-mono); font-size: 11px; color: #b8d4d8; line-height: 1.8; white-space: pre; }
+  .comment { color: var(--fg-3); }
+  .kw { color: #f0c84a; }
+  .type { color: #60a5fa; }
+  .str { color: #4ade80; }
+
+  .badge { font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; border-radius: 9999px; }
+  .badge-ok   { background: var(--signal-ok-bg);   color: var(--signal-ok-fg); }
+  .badge-info { background: var(--signal-info-bg);  color: var(--signal-info-fg); }
+  .badge-warn { background: var(--signal-warn-bg);  color: var(--signal-warn-fg); }
+  .badge-mute { background: var(--signal-mute-bg);  color: var(--signal-mute-fg); }
+
+  .connector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+  .conn { background: var(--bg-card); border: 1px solid var(--border); padding: 10px 12px; }
+  .conn-name { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-1); margin-bottom: 4px; }
+  .conn-badges { display: flex; flex-wrap: wrap; gap: 3px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border-strong); }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--rule); color: var(--fg-2); font-family: var(--font-mono); font-size: 11px; }
+  td:first-child { color: var(--fg-1); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h2>⊕ Epic 42 — Data Model &amp; Connector Interface</h2>
+<p class="sub">Section 3 of 5 — Java interfaces, DB schema, data flow</p>
+
+<div class="section-label">— Connector Interface (knowledge-engine) —</div>
+<div class="two-col">
+  <div class="card">
+    <div class="card-title">KnowledgeConnector.java</div>
+    <div class="code-block"><span class="kw">interface</span> <span class="type">KnowledgeConnector</span> {
+
+  <span class="type">String</span> vendorId();       <span class="comment">// "arxiv", "exa" …</span>
+  <span class="type">String</span> displayName();
+  <span class="kw">boolean</span> requiresApiKey();
+
+  <span class="comment">// All 3 trigger types call this.</span>
+  <span class="comment">// Request carries mode + query/id + params.</span>
+  <span class="type">Flux</span>&lt;<span class="type">EnrichmentResult</span>&gt; fetch(
+    <span class="type">EnrichmentRequest</span> request,
+    <span class="type">ConnectorContext</span>  ctx
+  );
+}</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Supporting records</div>
+    <div class="code-block"><span class="kw">record</span> <span class="type">ConnectorContext</span>(
+  <span class="type">String</span>   apiKey,    <span class="comment">// null if not needed</span>
+  <span class="type">TenantId</span> tenantId,
+  <span class="type">Instant</span>  since      <span class="comment">// incremental from</span>
+) {}
+
+<span class="kw">record</span> <span class="type">EnrichmentRequest</span>(
+  <span class="type">TriggerMode</span>          mode,  <span class="comment">// SCHEDULED|TOPIC|MANUAL</span>
+  <span class="type">String</span>               query,
+  <span class="type">String</span>               externalId,
+  <span class="type">Map&lt;String,String&gt;</span>  params
+) {}
+
+<span class="kw">record</span> <span class="type">EnrichmentResult</span>(
+  <span class="type">String</span>  externalId, title, content, url,
+  <span class="type">String</span>  sourceVendorId,
+  <span class="type">Instant</span> publishedAt,
+  <span class="type">Map&lt;String,Object&gt;</span> metadata
+) {}</div>
+  </div>
+</div>
+
+<div class="section-label">— Database Schema (2 new tables + 1 audit table) —</div>
+<div class="three-col">
+  <div class="card">
+    <div class="card-title">vendor_api_keys</div>
+    <table>
+      <tr><th>Column</th><th>Type / Note</th></tr>
+      <tr><td>id</td><td>UUID PK</td></tr>
+      <tr><td>vendor_id</td><td>VARCHAR NN</td></tr>
+      <tr><td>tenant_id</td><td>UUID NULL = global</td></tr>
+      <tr><td>api_key</td><td>VARCHAR NN (masked in API)</td></tr>
+      <tr><td>enabled</td><td>BOOLEAN NN DEFAULT true</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMP NN</td></tr>
+      <tr><td>updated_at</td><td>TIMESTAMP NN</td></tr>
+      <tr><td colspan="2" style="color:#5a5448;font-style:italic">UNIQUE(vendor_id, tenant_id)</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">enrichment_sources</div>
+    <table>
+      <tr><th>Column</th><th>Type / Note</th></tr>
+      <tr><td>id</td><td>UUID PK</td></tr>
+      <tr><td>vendor_id</td><td>VARCHAR NN</td></tr>
+      <tr><td>tenant_id</td><td>UUID NULL = global</td></tr>
+      <tr><td>enabled</td><td>BOOLEAN NN DEFAULT true</td></tr>
+      <tr><td>schedule_cron</td><td>VARCHAR (null = no sched.)</td></tr>
+      <tr><td>last_run_at</td><td>TIMESTAMP</td></tr>
+      <tr><td>last_run_status</td><td>SUCCESS|FAILURE|RUNNING</td></tr>
+      <tr><td>config</td><td>JSONB (search terms, etc.)</td></tr>
+      <tr><td>version</td><td>BIGINT (@Version)</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">enrichment_runs (audit)</div>
+    <table>
+      <tr><th>Column</th><th>Type / Note</th></tr>
+      <tr><td>id</td><td>UUID PK</td></tr>
+      <tr><td>source_id</td><td>UUID FK enrichment_sources</td></tr>
+      <tr><td>trigger_type</td><td>SCHEDULED|TOPIC|MANUAL</td></tr>
+      <tr><td>started_at</td><td>TIMESTAMP NN</td></tr>
+      <tr><td>completed_at</td><td>TIMESTAMP</td></tr>
+      <tr><td>status</td><td>RUNNING|SUCCESS|PARTIAL|FAILURE</td></tr>
+      <tr><td>items_fetched</td><td>INT</td></tr>
+      <tr><td>items_ingested</td><td>INT</td></tr>
+      <tr><td>error_message</td><td>VARCHAR</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="section-label">— Key Resolver (tenant → global fallback) —</div>
+<div class="card" style="margin-bottom:20px">
+  <div class="code-block" style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+    <div><span class="comment">// ApiKeyResolver — called before every fetch</span>
+<span class="type">Mono</span>&lt;<span class="type">Optional</span>&lt;<span class="type">String</span>&gt;&gt; resolve(
+  <span class="type">String</span>   vendorId,
+  <span class="type">TenantId</span> tenantId
+) {
+  <span class="kw">return</span> repo.findByVendorAndTenant(vendorId, tenantId)
+    .switchIfEmpty(
+      repo.findGlobal(vendorId)   <span class="comment">// tenant_id IS NULL</span>
+    )
+    .map(k -> <span class="type">Optional</span>.of(k.apiKey()))
+    .defaultIfEmpty(<span class="type">Optional</span>.empty());
+}</div>
+    <div><span class="comment">// Resolution rules at runtime:</span>
+<span class="comment">//</span>
+<span class="comment">// 1. Tenant-specific key found → use it</span>
+<span class="comment">// 2. No tenant key → fall back to global</span>
+<span class="comment">// 3. requiresApiKey() == false → skip resolver</span>
+<span class="comment">// 4. requiresApiKey() == true, no key found</span>
+<span class="comment">//    → log WARN, skip connector for this run</span>
+<span class="comment">//</span>
+<span class="comment">// api_key never returned in GET responses</span>
+<span class="comment">// (masked: "••••••••••••7f3a")</span></div>
+  </div>
+</div>
+
+<div class="section-label">— 13 Connectors (all v1) —</div>
+<div class="connector-grid">
+  <div class="conn"><div class="conn-name">Wikipedia</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div></div>
+  <div class="conn"><div class="conn-name">arXiv</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div></div>
+  <div class="conn"><div class="conn-name">PubMed</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-info">Key optional</span></div></div>
+  <div class="conn"><div class="conn-name">Wikidata</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div></div>
+  <div class="conn"><div class="conn-name">OpenAlex</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div></div>
+  <div class="conn"><div class="conn-name">Semantic Scholar</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-info">Key optional</span></div></div>
+  <div class="conn"><div class="conn-name">bioRxiv / medRxiv</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div></div>
+  <div class="conn"><div class="conn-name">CORE</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-info">Free key</span></div></div>
+  <div class="conn"><div class="conn-name">Zenodo</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div></div>
+  <div class="conn"><div class="conn-name">Unpaywall</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">Email only</span></div></div>
+  <div class="conn"><div class="conn-name">DOAJ</div><div class="conn-badges"><span class="badge badge-ok">Free</span><span class="badge badge-mute">No key</span></div></div>
+  <div class="conn"><div class="conn-name">Exa Search</div><div class="conn-badges"><span class="badge badge-warn">Freemium</span><span class="badge badge-info">Key req.</span></div></div>
+  <div class="conn"><div class="conn-name">Brave Search</div><div class="conn-badges"><span class="badge badge-warn">Freemium</span><span class="badge badge-info">Key req.</span></div></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,122 @@
+<h2>Search Results — How to display graph nodes + document chunks?</h2>
+<p class="subtitle">A query returns two kinds of results. Which presentation fits best for an operator researching community knowledge?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;padding:8px;background:#0f0f0f;color:#ccc;border:1px solid #333;border-radius:4px">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="flex:1;background:#111;border:1px solid #444;padding:4px 8px;color:#ccc;font-size:10px">Who discusses AI policy?</div>
+          <div style="border:1px solid #444;padding:4px 8px;font-size:9px;color:#888">HYBRID ▾</div>
+          <div style="background:#d4a849;color:#000;padding:4px 10px;font-size:10px">Go</div>
+        </div>
+        <div style="font-size:9px;color:#888;margin-bottom:6px">12 results (4 entities · 8 passages)</div>
+        <!-- Merged list -->
+        <div style="border:1px solid #2a2a2a;padding:6px 8px;margin-bottom:4px;background:#111">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="color:#d4a849;font-size:9px;letter-spacing:0.1em">PERSON</span>
+            <span style="color:#6ee7b7;font-size:9px">0.94</span>
+          </div>
+          <div style="color:#ccc;font-size:10px;margin-bottom:2px">Alice Meyer</div>
+          <div style="color:#666;font-size:9px">→ HOLDS_OPINION · AI Policy · MEMBER_OF · Tech Forum</div>
+        </div>
+        <div style="border:1px solid #2a2a2a;padding:6px 8px;margin-bottom:4px;background:#111">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="color:#6897bb;font-size:9px;letter-spacing:0.1em">PASSAGE</span>
+            <span style="color:#6ee7b7;font-size:9px">0.91</span>
+          </div>
+          <div style="color:#aaa;font-size:9px;line-height:1.5">"The EU AI Act will fundamentally change how we approach model governance..." — group: Tech Debate, 2026-06-12</div>
+        </div>
+        <div style="border:1px solid #2a2a2a;padding:6px 8px;background:#111">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+            <span style="color:#d4a849;font-size:9px;letter-spacing:0.1em">TOPIC</span>
+            <span style="color:#6ee7b7;font-size:9px">0.88</span>
+          </div>
+          <div style="color:#ccc;font-size:10px;margin-bottom:2px">AI Policy</div>
+          <div style="color:#666;font-size:9px">→ DISCUSSED_IN · 3 groups · RELATED_TO · EU Regulation</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Merged ranked list</h3>
+      <p>All results in one list, sorted by score. Each row shows its type (PERSON, TOPIC, PASSAGE) as a badge. Simple to scan, good for "just find me something relevant."</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;padding:8px;background:#0f0f0f;color:#ccc;border:1px solid #333;border-radius:4px">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="flex:1;background:#111;border:1px solid #444;padding:4px 8px;color:#ccc;font-size:10px">Who discusses AI policy?</div>
+          <div style="border:1px solid #444;padding:4px 8px;font-size:9px;color:#888">HYBRID ▾</div>
+          <div style="background:#d4a849;color:#000;padding:4px 10px;font-size:10px">Go</div>
+        </div>
+        <!-- Two sections -->
+        <div style="margin-bottom:6px">
+          <div style="color:#d4a849;font-size:9px;letter-spacing:0.1em;margin-bottom:4px;border-bottom:1px solid #2a2a2a;padding-bottom:3px">— ENTITIES (4) —</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:2px">
+            <div style="border:1px solid #444;padding:3px 7px;font-size:9px;color:#ccc">Alice Meyer <span style="color:#666">Person</span></div>
+            <div style="border:1px solid #444;padding:3px 7px;font-size:9px;color:#ccc">AI Policy <span style="color:#666">Topic</span></div>
+            <div style="border:1px solid #444;padding:3px 7px;font-size:9px;color:#ccc">EU Regulation <span style="color:#666">Topic</span></div>
+            <div style="border:1px solid #444;padding:3px 7px;font-size:9px;color:#666">+1 more</div>
+          </div>
+        </div>
+        <div>
+          <div style="color:#6897bb;font-size:9px;letter-spacing:0.1em;margin-bottom:4px;border-bottom:1px solid #2a2a2a;padding-bottom:3px">— PASSAGES (8) —</div>
+          <div style="border:1px solid #2a2a2a;padding:5px 7px;margin-bottom:3px;background:#111;font-size:9px;color:#aaa;line-height:1.5">
+            "The EU AI Act will fundamentally change how we approach..." <span style="color:#666">0.91 · Tech Debate · 2026-06-12</span>
+          </div>
+          <div style="border:1px solid #2a2a2a;padding:5px 7px;background:#111;font-size:9px;color:#aaa;line-height:1.5">
+            "AI governance needs community input to be effective..." <span style="color:#666">0.88 · Policy Group · 2026-06-11</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Two sections</h3>
+      <p>Entities (graph nodes) shown as chips at top, passages listed below. Entities are quick to scan; passages give context. Mirrors how a researcher actually uses these two result types differently.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;padding:8px;background:#0f0f0f;color:#ccc;border:1px solid #333;border-radius:4px">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="flex:1;background:#111;border:1px solid #444;padding:4px 8px;color:#ccc;font-size:10px">Who discusses AI policy?</div>
+          <div style="border:1px solid #444;padding:4px 8px;font-size:9px;color:#888">HYBRID ▾</div>
+          <div style="background:#d4a849;color:#000;padding:4px 10px;font-size:10px">Go</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <div>
+            <div style="color:#d4a849;font-size:9px;letter-spacing:0.1em;margin-bottom:4px">ENTITIES</div>
+            <div style="border:1px solid #2a2a2a;padding:5px 7px;background:#111;margin-bottom:3px">
+              <div style="font-size:9px;color:#888;margin-bottom:1px">PERSON · 0.94</div>
+              <div style="font-size:10px;color:#ccc">Alice Meyer</div>
+              <div style="font-size:8px;color:#555;margin-top:2px">→ AI Policy · Tech Forum</div>
+            </div>
+            <div style="border:1px solid #2a2a2a;padding:5px 7px;background:#111">
+              <div style="font-size:9px;color:#888;margin-bottom:1px">TOPIC · 0.88</div>
+              <div style="font-size:10px;color:#ccc">AI Policy</div>
+              <div style="font-size:8px;color:#555;margin-top:2px">→ 3 groups · EU Regulation</div>
+            </div>
+          </div>
+          <div>
+            <div style="color:#6897bb;font-size:9px;letter-spacing:0.1em;margin-bottom:4px">PASSAGES</div>
+            <div style="border:1px solid #2a2a2a;padding:5px 7px;background:#111;margin-bottom:3px;font-size:9px;color:#aaa;line-height:1.5">
+              "The EU AI Act will fundamentally change..." <span style="color:#555">0.91</span>
+            </div>
+            <div style="border:1px solid #2a2a2a;padding:5px 7px;background:#111;font-size:9px;color:#aaa;line-height:1.5">
+              "AI governance needs community input..." <span style="color:#555">0.88</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Side-by-side columns</h3>
+      <p>Entities on the left, passages on the right. Both visible at once. Similar to option C for the page layout — good on wide screens, tight on smaller displays.</p>
+    </div>
+  </div>
+
+</div>
