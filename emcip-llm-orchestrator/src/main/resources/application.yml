@@ -59,3 +59,12 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /api-docs
+
+knowledge:
+  engine:
+    base-url: ${KNOWLEDGE_ENGINE_URL:http://localhost:9088}
+  enrichment:
+    enabled: ${KNOWLEDGE_ENRICHMENT_ENABLED:false}
+    relevance-threshold: ${KNOWLEDGE_RELEVANCE_THRESHOLD:0.70}
+    max-results: ${KNOWLEDGE_MAX_RESULTS:5}
+    context-max-chars: ${KNOWLEDGE_CONTEXT_MAX_CHARS:2000}
