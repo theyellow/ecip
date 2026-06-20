@@ -70,6 +70,11 @@
   --c-mist: #2a4258;
   --c-fog:  rgba(58, 104, 120, 0.10);
   --c-haze: rgba(212, 168, 73, 0.04);
+
+  /* UI utility tokens */
+  --hover-tint:   rgba(212, 168, 73, 0.04);
+  --danger-border: rgba(248, 113, 113, 0.35);
+  --overlay-bg:   rgba(0, 0, 0, 0.55);
 }
 
 /* ─── Type families ─────────────────────────────────────────────────── */

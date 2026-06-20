@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { hasPermission } from '../../auth/permissions'
 import { integrationsApi } from '../../api/integrations'
@@ -422,7 +422,7 @@ function MyKeysTab({ api }) {
 export function IntegrationsPage() {
   const { role } = useAuth()
   const request = useAuthRequest()
-  const api = integrationsApi(request)
+  const api = useMemo(() => integrationsApi(request), [request])
   const isAdmin = hasPermission(role, 'INTEGRATIONS_GLOBAL_MANAGE')
 
   const adminTabs = ['Global Keys', 'Sources & Schedule', 'Run History']
@@ -433,8 +433,7 @@ export function IntegrationsPage() {
     if (isAdmin) {
       api.listSources().then(setSources).catch(console.error)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin])
+  }, [isAdmin, api])
 
   return (
     <div className={styles.page}>

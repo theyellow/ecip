@@ -80,7 +80,7 @@
   color: var(--fg-2);
 }
 
-.tbl tr:hover td { background: rgba(212, 168, 73, 0.04); }
+.tbl tr:hover td { background: var(--hover-tint); }
 
 .mono { font-family: var(--font-mono); font-size: 11px; }
 .muted { color: var(--fg-3); font-style: italic; }
@@ -181,7 +181,7 @@
   text-transform: uppercase;
   padding: 6px 12px;
   cursor: pointer;
-  border: 1px solid rgba(248, 113, 113, 0.35);
+  border: 1px solid var(--danger-border);
   background: transparent;
   color: var(--signal-stop-fg);
   border-radius: 0;
@@ -191,7 +191,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--overlay-bg);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
