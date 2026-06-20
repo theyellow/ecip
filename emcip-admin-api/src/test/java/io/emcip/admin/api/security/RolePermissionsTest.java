@@ -42,4 +42,16 @@ class RolePermissionsTest {
                         Permission.USERS_READ,
                         Permission.USERS_WRITE);
     }
+
+    @Test
+    void tenantAdmin_hasIntegrationsTenantManage() {
+        Set<Permission> perms = RolePermissions.permissionsFor(Role.TENANT_ADMIN);
+        assertThat(perms).contains(Permission.INTEGRATIONS_TENANT_MANAGE);
+    }
+
+    @Test
+    void tenantAdmin_lacksIntegrationsGlobalManage() {
+        Set<Permission> perms = RolePermissions.permissionsFor(Role.TENANT_ADMIN);
+        assertThat(perms).doesNotContain(Permission.INTEGRATIONS_GLOBAL_MANAGE);
+    }
 }

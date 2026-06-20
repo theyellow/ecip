@@ -18,7 +18,13 @@ public final class RolePermissions {
                     Permission.AUDIT_READ,
                     Permission.TELEGRAM_READ,
                     Permission.TELEGRAM_WRITE,
-                    Permission.SIMULATE_WRITE);
+                    Permission.SIMULATE_WRITE,
+                    Permission.COSTS_READ,
+                    Permission.RESOLUTION_REVIEW_READ,
+                    Permission.RESOLUTION_REVIEW_WRITE,
+                    Permission.KNOWLEDGE_READ,
+                    Permission.KNOWLEDGE_WRITE,
+                    Permission.INTEGRATIONS_TENANT_MANAGE);
 
     private RolePermissions() {}
 
