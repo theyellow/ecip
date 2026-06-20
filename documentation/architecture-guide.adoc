@@ -104,7 +104,7 @@ The platform comprises 9 application microservices, each independently deployabl
 
 |`emcip-knowledge-engine`
 |9088
-|Ontology-driven knowledge management; graph (Apache AGE) + vector (pgvector) search; consumes `knowledge.raw.messages`, publishes `knowledge.events`. JPA / PostgreSQL.
+|Ontology-driven knowledge management; graph (Apache AGE) + vector (pgvector) search; consumes `knowledge.raw.messages` and `knowledge.enrichment.trigger`, publishes `knowledge.events`. JPA / PostgreSQL. Includes 13 external enrichment connectors (Wikipedia, arXiv, PubMed, Wikidata, OpenAlex, Semantic Scholar, bioRxiv/medRxiv, CORE, Zenodo, Unpaywall, DOAJ, Exa, Brave).
 |===
 
 Infrastructure services (Kafka, PostgreSQL, Grafana, Loki, Admin UI) are defined in `docker-compose.yml` for local development and in the Helm chart (`helm/emcip/`) for production.
@@ -156,6 +156,8 @@ The Knowledge Engine (`emcip-knowledge-engine`) provides ontology-driven knowled
 The ontology (concept types, relationship types, and their properties) is a first-class configuration artifact stored in the database and managed via REST endpoints. New entity types or relationships are added by extending the ontology — no schema migrations or code changes required. The initial seed ontology defines Person, Topic, Message, Source, and Document concept types with DISCUSSES, AUTHORED, MENTIONS, CITES, and RELATED_TO relationships.
 
 Query capabilities include vector-based semantic search (pgvector cosine similarity), graph traversal (Apache AGE / openCypher), and hybrid search combining both. The service exposes REST endpoints for search, ontology management, document ingestion, and bulk backfill. Service-to-service enrichment uses the `knowledge.events` Kafka topic.
+
+*Enrichment connector pipeline (Epic 42):* `EnrichmentScheduler` runs every minute (cron `17 * * * * *`) and evaluates each enabled `EnrichmentSource` against its per-source schedule using `CronExpression.parse()`. When triggered — either by schedule, by `ENTITY_CREATED` events on `knowledge.events` (via `EntityEnrichmentConsumer`, group `knowledge-engine-entity-enrichment`), or by manual API trigger (via `ManualEnrichmentConsumer`, group `knowledge-engine`, topic `knowledge.enrichment.trigger`) — `EnrichmentPipelineService` executes a 6-stage pipeline: (1) resolve connector, (2) resolve API key (tenant-override → global fallback), (3) fetch from external API, (4) deduplicate by `sourceRef+sourceType`, (5) store as `KnowledgeDocument` with best-effort embedding, (6) finalize `EnrichmentRun` with SUCCESS/PARTIAL/FAILURE status. Vendor API keys are stored in `ke_vendor_api_keys` with masked display; enrichment sources in `ke_enrichment_sources`; run history in `ke_enrichment_runs`.
 
 Repository interfaces (`GraphRepository`, `VectorSearchRepository`) provide an abstraction layer so the underlying storage can be swapped to dedicated graph or vector databases (e.g., Neo4j, Qdrant) without changing business logic.
 
@@ -218,6 +220,11 @@ include::diagrams/c4-event-flow.puml[]
 ----
 include::diagrams/c4-kafka-consumers.puml[]
 ----
+
+The enrichment pipeline adds two new consumer groups in `knowledge-engine`:
+
+* `knowledge-engine-entity-enrichment` — `EntityEnrichmentConsumer`, topic `knowledge.events`, filters on `ENTITY_CREATED` eventType and triggers enrichment pipeline for the originating entity's tenant.
+* `knowledge-engine` — `ManualEnrichmentConsumer`, topic `knowledge.enrichment.trigger`, dispatches pipeline for the specified `sourceId`/`runId` via virtual thread executor.
 
 === Kafka Topic Reference
 
@@ -282,8 +289,14 @@ include::diagrams/c4-kafka-consumers.puml[]
 |`knowledge.events`
 |3
 |knowledge-engine
-|admin-api, llm-orchestrator
-|`eventId`, `eventType` (EXTRACTION_COMPLETE, ENRICHMENT_REQUEST, ENRICHMENT_RESPONSE, BACKFILL_PROGRESS), `payload` (JSONB)
+|admin-api, llm-orchestrator, knowledge-engine (entity enrichment)
+|`eventId`, `eventType` (EXTRACTION_COMPLETE, ENRICHMENT_REQUEST, ENRICHMENT_RESPONSE, BACKFILL_PROGRESS, ENTITY_CREATED), `payload` (JSONB)
+
+|`knowledge.enrichment.trigger`
+|3
+|admin-api
+|knowledge-engine
+|`{sourceId: UUID, runId: UUID}` — manual enrichment trigger; knowledge-engine consumer group `knowledge-engine`
 |===
 
 NOTE: For sequence-level pipeline detail showing the full message lifecycle, see the _Developer Guide_.

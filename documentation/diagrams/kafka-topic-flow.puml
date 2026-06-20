@@ -67,6 +67,7 @@ queue "responses.generated"    as t_generated
 ' ── Knowledge Topics ──────────────────────────────────────────────────────────
 queue "knowledge.raw.messages"  as t_knowledge_raw
 queue "knowledge.events"        as t_knowledge_events
+queue "knowledge.enrichment.trigger" as t_ke_trigger
 
 ' ── Action Topics (produced by policy-engine; no consumers wired yet) ─────────
 package "Action topics — no consumers yet\n(safe: events are produced but nothing acts on them)" {
@@ -121,6 +122,8 @@ t_knowledge_raw --> ke      : consume
 ke --> t_knowledge_events   : produce
 ke --> llm                  : REST (EMBED / EXTRACT / RESOLVE)
 t_knowledge_events --> api  : consume (progress, results)
+api --> t_ke_trigger : produce (manual trigger)
+t_ke_trigger --> ke  : consume (manual enrichment)
 
 ' --- Response loop back to Telegram ---
 t_generated --> tdlib    : consume
