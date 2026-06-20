@@ -20,6 +20,7 @@ const NAV = [
   { to: '/telegram',         label: 'Telegram',         icon: '⌘', permission: 'TELEGRAM_READ' },
   { to: '/ai-config',        label: 'AI Config',        icon: '✦', permission: 'AI_CONFIG_READ' },
   { to: '/costs',            label: 'LLM Costs',         icon: '\u229B', permission: 'COSTS_READ' },
+  { to: '/integrations',    label: 'Integrations',     icon: '\u2295', permission: 'INTEGRATIONS_TENANT_MANAGE' },
   { to: '/users',            label: 'Users',            icon: '◉', permission: 'USERS_READ' },
 ]
 
