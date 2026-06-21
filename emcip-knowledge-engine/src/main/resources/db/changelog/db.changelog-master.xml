@@ -19,5 +19,7 @@
     <include file="changes/012-create-enrichment-sources.xml" relativeToChangelogFile="true"/>
     <include file="changes/013-create-enrichment-runs.xml" relativeToChangelogFile="true"/>
     <include file="changes/014-seed-enrichment-sources.xml" relativeToChangelogFile="true"/>
+    <include file="changes/015-research-sessions.xml" relativeToChangelogFile="true"/>
+    <include file="changes/016-research-evidence.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

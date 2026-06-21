@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="ke-16" author="knowledge-engine">
+        <createTable tableName="ke_research_evidence"
+                     remarks="Evidence items collected during a research session">
+            <column name="id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="session_id" type="UUID">
+                <constraints nullable="false"
+                             foreignKeyName="fk_ke_evidence_session"
+                             references="ke_research_sessions(id)"/>
+            </column>
+            <column name="sub_question" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="query_strategy" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="finding" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_ref" type="VARCHAR(1000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="confidence_score" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="iteration" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_ke_research_evidence_session_id"
+                     tableName="ke_research_evidence">
+            <column name="session_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
