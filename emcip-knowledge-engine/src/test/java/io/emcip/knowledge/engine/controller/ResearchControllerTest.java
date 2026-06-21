@@ -102,4 +102,14 @@ class ResearchControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
+
+    @Test
+    void resumeSession_returns404_whenNotFound() {
+        UUID sessionId = UUID.randomUUID();
+        when(agentService.resumeSession(sessionId)).thenReturn(Optional.empty());
+
+        ResponseEntity<ResearchSessionDto> response = controller.resumeSession(sessionId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
 }
