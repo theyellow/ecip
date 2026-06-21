@@ -21,6 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class ResearchAgentService {
 
+    /** Estimated USD cost charged per research iteration (decomposition + one knowledge query). */
+    private static final double COST_PER_ITERATION_USD = 0.01;
+
     private final ResearchSessionRepository sessionRepository;
     private final ResearchEvidenceRepository evidenceRepository;
     private final ResearchStrategyService strategyService;
@@ -64,6 +67,12 @@ public class ResearchAgentService {
                             if (session.getStatus() == ResearchStatus.RUNNING) {
                                 session.setStatus(ResearchStatus.PAUSED);
                                 sessionRepository.save(session);
+                            } else {
+                                log.debug(
+                                        "Session {} is not in RUNNING state (current: {}), skipping"
+                                                + " pause",
+                                        session.getId(),
+                                        session.getStatus());
                             }
                             return session;
                         });
@@ -78,9 +87,25 @@ public class ResearchAgentService {
                             if (session.getStatus() == ResearchStatus.PAUSED) {
                                 session.setStatus(ResearchStatus.RUNNING);
                                 sessionRepository.save(session);
-                                runLoop(session);
-                                session.setStatus(ResearchStatus.COMPLETED);
+                                try {
+                                    runLoop(session);
+                                    session.setStatus(ResearchStatus.COMPLETED);
+                                } catch (Exception e) {
+                                    log.error(
+                                            "Research session {} failed on resume: {}",
+                                            session.getId(),
+                                            e.getMessage(),
+                                            e);
+                                    session.setStatus(ResearchStatus.FAILED);
+                                    session.setErrorMessage(e.getMessage());
+                                }
                                 sessionRepository.save(session);
+                            } else {
+                                log.debug(
+                                        "Session {} is not in PAUSED state (current: {}), skipping"
+                                                + " resume",
+                                        session.getId(),
+                                        session.getStatus());
                             }
                             return session;
                         });
@@ -114,8 +139,7 @@ public class ResearchAgentService {
 
             collectEvidence(session, subQ, response, iteration);
             session.incrementIterations(1);
-            // Cost estimate: 0.01 USD per iteration
-            session.setCostUsedUsd(session.getCostUsedUsd() + 0.01);
+            session.setCostUsedUsd(session.getCostUsedUsd() + COST_PER_ITERATION_USD);
             iteration++;
 
             sessionRepository.save(session);
