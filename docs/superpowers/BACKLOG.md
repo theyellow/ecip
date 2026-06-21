@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-20 (26.9 complete — implementation confirmed; 26.10 in progress)
+> Last updated: 2026-06-20 (26.10 merged PR #143; next: 27 Deep Research Agent)
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
@@ -32,9 +32,8 @@
 | # | Item | Size | Needs | Notes |
 |---|------|------|-------|-------|
 | 41c | **Users: expanded roles + lastLogin/createdAt** | M | Backend role expansion | Add MODERATOR, ANALYST, VIEWER roles; `lastLogin`/`createdAt` columns. Sub-item of #41. Backend role expansion needed first. |
-| 26.10 | **Knowledge enrichment for LLM responses** | M | — | Enrich llm-orchestrator prompts with knowledge context before LLM call. Configurable relevance threshold. |
 | 42 | **Structured feed connectors** | M | 26.8 | Predefined source connectors (Wikipedia API, arXiv, PubMed) for automated periodic ingestion into the knowledge base. |
-| 27 | **Deep Research Agent** | XL | 26.9, 26.10 | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. |
+| 27 | **Deep Research Agent** | XL | — | Operator-triggered autonomous research agent. Multi-step LLM reasoning, knowledge base query strategies, web search, evidence collection, structured reports, cost guardrails. 9 user stories (US-27.1–27.9). Spec: `specs/2026-06-13-knowledge-management-platform-design.md`. |
 | 6 | **Policy versioning — complex rule logic** | L | Scope decision | DB schema exists (`005-policy-rule-versioning.xml`). Full design not settled — **redefine scope before picking up**. |
 | 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed first. |
 
@@ -107,6 +106,7 @@
 | 26.7 | Bulk backfill — operator-triggered historical backfill, BackfillModal, per-group progress polling | ✅ PR #139 — 2026-06-18. Spec: `specs/2026-06-18-bulk-backfill-design.md` |
 | 26.8 | Document ingestion (factual knowledge) — URL fetch + file upload (Tika), async jobs, Admin-UI Knowledge page + IngestionModal | ✅ PR #140 — 2026-06-19. Spec: `specs/2026-06-18-document-ingestion-design.md` |
 | 26.9 | Knowledge query API — semantic search, graph exploration (topics, persons, neighbors), hybrid search, KnowledgePage Search tab | ✅ 2026-06-20 — implementation confirmed in-branch. |
+| 26.10 | Knowledge enrichment for LLM responses — KnowledgeEngineClient, KnowledgeContextEnricherService wired into LlmCallService; feature-flagged via KNOWLEDGE_ENRICHMENT_ENABLED | ✅ PR #143 — 2026-06-20. Plan: `plans/2026-06-20-knowledge-enrichment-llm.md` |
 
 ---
 

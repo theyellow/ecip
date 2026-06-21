@@ -140,9 +140,11 @@ include::diagrams/c3-policy-engine.puml[]
 include::diagrams/c3-llm-orchestrator.puml[]
 ----
 
-The LLM Orchestrator (`emcip-llm-orchestrator`) generates AI responses for `RESPOND` policy decisions. `PolicyDecisionConsumer` listens on `policies.decisions` and delegates to `LlmCallService`, which: selects a `ModelConfig` for the task type, renders a `PromptTemplate` with message variables, reads the active `LlmProviderConfig` (base URL + optional API key) from the database, and calls `OpenAiCompatibleLlmClient` which POSTs to `{baseUrl}/v1/chat/completions`. Cost is logged via `CostTrackingService` after each successful call.
+The LLM Orchestrator (`emcip-llm-orchestrator`) generates AI responses for `RESPOND` policy decisions. `PolicyDecisionConsumer` listens on `policies.decisions` and delegates to `LlmCallService`, which: selects a `ModelConfig` for the task type, renders a `PromptTemplate` with message variables, optionally enriches the user content with knowledge context (see below), reads the active `LlmProviderConfig` (base URL + optional API key) from the database, and calls `OpenAiCompatibleLlmClient` which POSTs to `{baseUrl}/v1/chat/completions`. Cost is logged via `CostTrackingService` after each successful call.
 
 The LLM provider URL is not an environment variable — it is stored in the `llm_provider_configs` table and managed at runtime via Admin UI → AI Config → LLM Provider. The `OrchestratorController` exposes REST endpoints for provider-config CRUD, a connectivity test (`GET /v1/models`), model config management, prompt template management, and cost queries.
+
+*Knowledge enrichment (Epic 26.10):* Before each LLM call, `LlmCallService` can optionally prepend relevant knowledge-base passages to the user prompt. When enabled, `KnowledgeContextEnricherService` calls `KnowledgeEngineClient` which POSTs to `emcip-knowledge-engine`'s `POST /api/knowledge/search` (HYBRID mode). Results are filtered by a configurable relevance threshold; passages above the threshold are formatted as `[Source: <ref>]\n<content>` blocks and prepended to the user message with a `---` separator. If the knowledge engine is unreachable, enrichment silently degrades and the LLM call proceeds with the original content. Enrichment is off by default and enabled per-deployment via environment variables (see Operations Guide → Knowledge Enrichment Configuration).
 
 === Knowledge Engine
 

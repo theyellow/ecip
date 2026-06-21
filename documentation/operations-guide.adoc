@@ -724,6 +724,71 @@ For Docker Compose DLQ monitoring, see the _Docker Compose Guide_.
 
 The `DeadLetterQueueConsumer` in `emcip-audit-service` writes a DLQ event to the audit log with the original payload and failure reason.
 
+=== Knowledge Enrichment Configuration
+
+`emcip-llm-orchestrator` can optionally query the knowledge engine before each LLM call and prepend relevant passages to the user prompt. Enrichment is **disabled by default** — enable it per-deployment via environment variables.
+
+==== Environment Variables
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`KNOWLEDGE_ENRICHMENT_ENABLED`
+|`false`
+|Set to `true` to activate knowledge enrichment. When `false`, no requests are made to the knowledge engine.
+
+|`KNOWLEDGE_ENGINE_URL`
+|`http://localhost:9088`
+|Base URL of `emcip-knowledge-engine`. In Kubernetes, use the internal service URL (e.g., `http://emcip-knowledge-engine:9088`).
+
+|`KNOWLEDGE_RELEVANCE_THRESHOLD`
+|`0.70`
+|Minimum cosine similarity score (0.0–1.0) for a knowledge passage to be included. Passages below this score are discarded. Raise to include only highly relevant results; lower to cast a wider net.
+
+|`KNOWLEDGE_MAX_RESULTS`
+|`5`
+|Maximum number of passages to retrieve from the knowledge engine per LLM call.
+
+|`KNOWLEDGE_CONTEXT_MAX_CHARS`
+|`2000`
+|Maximum total character length of the injected knowledge context block. The context is hard-truncated at this limit to avoid exceeding model token budgets.
+|===
+
+==== Enabling in Kubernetes
+
+Add the following to your `values.yaml` overrides:
+
+[source,yaml]
+----
+llmOrchestrator:
+  env:
+    KNOWLEDGE_ENRICHMENT_ENABLED: "true"
+    KNOWLEDGE_ENGINE_URL: "http://emcip-knowledge-engine:9088"
+    KNOWLEDGE_RELEVANCE_THRESHOLD: "0.75"
+----
+
+==== Enabling in Docker Compose
+
+Add to your `.env` file:
+
+[source,bash]
+----
+KNOWLEDGE_ENRICHMENT_ENABLED=true
+KNOWLEDGE_ENGINE_URL=http://knowledge-engine:9088
+KNOWLEDGE_RELEVANCE_THRESHOLD=0.75
+----
+
+==== Behaviour When Knowledge Engine Is Unavailable
+
+If the knowledge engine is unreachable (network error, pod not ready, wrong URL), enrichment silently degrades — the LLM call proceeds with the original unmodified user content. No error is returned to the caller. A `WARN` log line is emitted:
+
+----
+Knowledge engine unreachable — skipping enrichment: <error message>
+----
+
+Monitor for this log line (Loki query: `{app="emcip-llm-orchestrator"} |= "skipping enrichment"`) to detect misconfiguration.
+
 === Moderation Rules
 
 Rules are evaluated by `emcip-moderation-service` against every `policies.decisions` event.

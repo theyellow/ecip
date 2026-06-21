@@ -13,6 +13,15 @@ Raw ideas not yet in the backlog. Once an item gets a backlog entry it is remove
 - OpenAI direct integration (beyond LiteLLM proxy)
 - Ollama direct integration (local models without proxy)
 
+## Knowledge Enrichment Follow-Ons
+
+These build on Epic 26.10 (knowledge context injected into LLM prompts, merged PR #143):
+
+- Per-template enrichment flag — let individual `PromptTemplate` rows opt in/out of enrichment rather than a global on/off switch
+- Task-type-aware search type — use VECTOR for quick factual tasks, GRAPH for relational reasoning tasks, HYBRID for general responses
+- Enrichment health indicator — expose a `/actuator/health` sub-indicator for knowledge-engine reachability so Kubernetes liveness probes catch misconfiguration
+- Context ranking — score + re-rank retrieved passages by a combination of similarity and recency before truncating
+
 ## LLM Quality & Safety
 
 - Response Cache: Caffeine + Redis, semantic similarity matching, TTL-based expiration, target 30% cache hit rate
