@@ -3,6 +3,8 @@ package io.emcip.knowledge.engine.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.*;
 
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
@@ -82,6 +84,8 @@ class ResearchAgentServiceTest {
         assertThat(saved.getSourceRef()).isEqualTo("msg-123");
         assertThat(saved.getConfidenceScore()).isEqualTo(0.88);
         assertThat(saved.getQueryStrategy()).isEqualTo(QueryStrategy.PERSON_ANALYSIS);
+        verify(eventPublisher)
+                .publishResearchCompleted(nullable(UUID.class), eq(ResearchStatus.COMPLETED));
     }
 
     @Test
@@ -121,5 +125,7 @@ class ResearchAgentServiceTest {
 
         assertThat(result.getStatus()).isEqualTo(ResearchStatus.FAILED);
         assertThat(result.getErrorMessage()).contains("LLM unavailable");
+        verify(eventPublisher)
+                .publishResearchCompleted(nullable(UUID.class), eq(ResearchStatus.FAILED));
     }
 }
