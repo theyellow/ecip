@@ -1,6 +1,7 @@
 package io.emcip.knowledge.engine.service;
 
 import io.emcip.common.tenant.TenantContext;
+import io.emcip.knowledge.engine.entity.ResearchStatus;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Map;
@@ -57,6 +58,14 @@ public class KnowledgeEventPublisher {
                         "tenantId",
                         tenantId != null ? tenantId.toString() : ""),
                 tenantId);
+    }
+
+    public void publishResearchCompleted(UUID sessionId, ResearchStatus status) {
+        publishEvent(
+                "RESEARCH_COMPLETED",
+                Map.of("sessionId", sessionId.toString(), "status", status.name()),
+                null);
+        log.debug("Published RESEARCH_COMPLETED for session {}", sessionId);
     }
 
     private void publishEvent(String eventType, Map<String, Object> payload, UUID tenantId) {
