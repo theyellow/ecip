@@ -12,7 +12,11 @@ Container_Boundary(llm_orchestrator, "LLM Orchestrator - Port 9084") {
 
     Component(orchestrator_ctrl, "OrchestratorController", "Java / Spring REST", "GET/POST/PUT/DELETE /api/provider-config<br/>GET /api/provider-config/models<br/>GET /api/model-configs, /api/prompt-templates<br/>GET /api/costs")
 
-    Component(llm_call_svc, "LlmCallService", "Java / Spring Service", "Selects model config for task type<br/>Renders prompt template with variables<br/>Calls OpenAiCompatibleLlmClient<br/>Logs cost via CostTrackingService")
+    Component(llm_call_svc, "LlmCallService", "Java / Spring Service", "Selects model config for task type<br/>Renders prompt template with variables<br/>Enriches user content via KnowledgeContextEnricherService (if enabled)<br/>Calls OpenAiCompatibleLlmClient<br/>Logs cost via CostTrackingService")
+
+    Component(knowledge_enricher, "KnowledgeContextEnricherService", "Java / Spring Service", "Calls KnowledgeEngineClient (HYBRID search)<br/>Filters results by relevance threshold<br/>Formats context block for prompt prepend<br/>Silent no-op when disabled or knowledge engine unreachable")
+
+    Component(knowledge_client, "KnowledgeEngineClient", "Java / Spring RestClient", "POST /api/knowledge/search<br/>Reads KNOWLEDGE_ENGINE_URL at startup<br/>Returns SearchResponse with DocumentResults<br/>Swallows RestClientException → empty response")
 
     Component(llm_orchestrator_svc, "LlmOrchestratorService", "Java / Spring Service", "ModelConfig + PromptTemplate management<br/>selectModelForTask(taskType)<br/>getPromptTemplate(name)<br/>renderPromptTemplate(template, vars)")
 
@@ -24,13 +28,17 @@ Container_Boundary(llm_orchestrator, "LLM Orchestrator - Port 9084") {
 ContainerDb(postgres, "PostgreSQL", "Database", "model_configs, prompt_templates,<br/>model_cost_logs, llm_provider_configs")
 ContainerQueue(kafka, "Kafka", "Message Broker", "policies.decisions<br/>responses.generated")
 System_Ext(litellm_proxy, "LiteLLM Proxy", "OpenAI-compatible proxy (local)<br/>Provider URL configured via Admin UI")
+Container_Ext(knowledge_engine, "Knowledge Engine", "Port 9088", "Semantic + graph + hybrid search<br/>POST /api/knowledge/search")
 
 Rel(policy_consumer, kafka, "Consume / Produce", "Async JSON")
 Rel(policy_consumer, llm_call_svc, "callForTask(taskType, templateName, content)", "Sync")
 
 Rel(llm_call_svc, llm_orchestrator_svc, "selectModelForTask / getPromptTemplate / render", "Sync")
 Rel(llm_call_svc, provider_config_svc, "getActiveProvider()", "Sync")
-Rel(llm_call_svc, llm_client, "call(model, systemPrompt, content, maxTokens, temp)", "Sync")
+Rel(llm_call_svc, knowledge_enricher, "buildContext(userQuery, tenantId) [if enabled]", "Sync")
+Rel(knowledge_enricher, knowledge_client, "search(query, HYBRID, tenantId, limit)", "Sync")
+Rel(knowledge_client, knowledge_engine, "POST /api/knowledge/search", "HTTP RestClient")
+Rel(llm_call_svc, llm_client, "call(model, systemPrompt, enrichedContent, maxTokens, temp)", "Sync")
 Rel(llm_call_svc, postgres, "Write model_cost_logs", "JPA")
 
 Rel(llm_orchestrator_svc, postgres, "Read model_configs, prompt_templates", "JPA")

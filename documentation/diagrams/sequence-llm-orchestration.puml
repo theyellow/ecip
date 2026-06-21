@@ -15,10 +15,13 @@ box "LLM Orchestrator Components" #LightCoral
     participant "LlmCall\nService" as LlmCall
     participant "LlmOrchestrator\nService" as OrchestratorSvc
     participant "LlmProviderConfig\nService" as ProviderSvc
+    participant "KnowledgeContext\nEnricherService" as Enricher
+    participant "KnowledgeEngine\nClient" as KnowledgeClient
     participant "OpenAiCompatible\nLlmClient" as LlmClient
     participant "CostTracking\nService" as CostTracker
 end box
 database "PostgreSQL" as DB
+participant "Knowledge\nEngine :9088" as KnowledgeEngine
 participant "LiteLLM\nProxy" as LiteLLM
 queue "responses.\ngenerated" as OutTopic
 
@@ -63,8 +66,28 @@ else decision == RESPOND
     ProviderSvc --> LlmCall: LlmProviderConfig
     deactivate ProviderSvc
 
+    == Knowledge Enrichment (optional) ==
+    alt KNOWLEDGE_ENRICHMENT_ENABLED=true
+        LlmCall -> Enricher: buildContext(userContent, tenantId)
+        activate Enricher
+        Enricher -> KnowledgeClient: search(query, "HYBRID", tenantId, maxResults)
+        activate KnowledgeClient
+        KnowledgeClient -> KnowledgeEngine: POST /api/knowledge/search
+        activate KnowledgeEngine
+        KnowledgeEngine --> KnowledgeClient: SearchResponse (DocumentResults with similarity scores)
+        deactivate KnowledgeEngine
+        KnowledgeClient --> Enricher: SearchResponse
+        deactivate KnowledgeClient
+        Enricher -> Enricher: Filter by relevanceThreshold, format context block
+        Enricher --> LlmCall: context string (or "" if nothing above threshold)
+        deactivate Enricher
+        LlmCall -> LlmCall: Prepend context to userContent if non-blank
+    else KNOWLEDGE_ENRICHMENT_ENABLED=false (default)
+        LlmCall -> LlmCall: Use userContent as-is
+    end
+
     == LLM Call ==
-    LlmCall -> LlmClient: call(model, systemPrompt, userContent, maxTokens, temp)
+    LlmCall -> LlmClient: call(model, systemPrompt, enrichedContent, maxTokens, temp)
     activate LlmClient
     LlmClient -> LiteLLM: POST {baseUrl}/v1/chat/completions\n{model, messages, max_tokens, temperature}
     activate LiteLLM
