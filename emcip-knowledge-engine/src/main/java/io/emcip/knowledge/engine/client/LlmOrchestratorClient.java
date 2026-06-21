@@ -109,6 +109,25 @@ public class LlmOrchestratorClient {
         return parseExtractionResult(response.analysis());
     }
 
+    public String analyse(String prompt, String taskType) {
+        Map<String, String> request = Map.of("prompt", prompt, "taskType", taskType);
+
+        var response =
+                restClient
+                        .post()
+                        .uri("/api/analyse")
+                        .body(request)
+                        .retrieve()
+                        .body(AnalyseResponse.class);
+
+        if (response == null || !response.success()) {
+            log.error("Analyse failed (taskType={}): {}", taskType, response);
+            return null;
+        }
+
+        return response.analysis();
+    }
+
     public String resolve(String label, String conceptType, List<String> candidates) {
         String prompt =
                 String.format(
