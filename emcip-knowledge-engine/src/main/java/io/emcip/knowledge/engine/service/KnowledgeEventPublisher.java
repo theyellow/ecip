@@ -60,11 +60,11 @@ public class KnowledgeEventPublisher {
                 tenantId);
     }
 
-    public void publishResearchCompleted(UUID sessionId, ResearchStatus status) {
+    public void publishResearchCompleted(UUID sessionId, ResearchStatus status, UUID tenantId) {
         publishEvent(
                 "RESEARCH_COMPLETED",
                 Map.of("sessionId", sessionId.toString(), "status", status.name()),
-                null);
+                tenantId);
         log.debug("Published RESEARCH_COMPLETED for session {}", sessionId);
     }
 

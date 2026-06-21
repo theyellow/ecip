@@ -16,6 +16,19 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Drives the deep research execution loop.
+ *
+ * <p><b>Synchronous execution note:</b> {@link #startResearch} runs the full loop inline on the
+ * calling thread, within a single transaction. This means {@link #pauseSession} cannot interrupt a
+ * session that is currently executing — the {@code RUNNING} status is not visible to other threads
+ * until the transaction commits, by which time the session is already {@code COMPLETED} or {@code
+ * FAILED}.
+ *
+ * <p>TODO (Epic 27B or later): Dispatch {@link #runLoop} asynchronously (e.g., via {@code @Async} +
+ * a thread pool or a dedicated Kafka-driven workflow) to make mid-loop pause and true long-running
+ * session management possible.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -181,7 +194,8 @@ public class ResearchAgentService {
 
     private void publishCompletionEvent(ResearchSession session) {
         try {
-            eventPublisher.publishResearchCompleted(session.getId(), session.getStatus());
+            eventPublisher.publishResearchCompleted(
+                    session.getId(), session.getStatus(), session.getTenantId());
         } catch (Exception e) {
             log.warn(
                     "Failed to publish research completion event for session {}: {}",

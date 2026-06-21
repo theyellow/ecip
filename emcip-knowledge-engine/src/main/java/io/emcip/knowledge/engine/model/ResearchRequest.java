@@ -9,9 +9,9 @@ import java.util.UUID;
 public record ResearchRequest(
         @NotBlank String question,
         UUID tenantId,
-        @Min(1) @Max(50) int maxIterations,
-        @Min(1) @Max(100) int maxLlmCalls,
-        @DecimalMin("0.01") double costLimitUsd) {
+        @Min(0) @Max(50) int maxIterations,
+        @Min(0) @Max(100) int maxLlmCalls,
+        @DecimalMin("0.0") double costLimitUsd) {
 
     public ResearchRequest {
         if (maxIterations == 0) maxIterations = 10;

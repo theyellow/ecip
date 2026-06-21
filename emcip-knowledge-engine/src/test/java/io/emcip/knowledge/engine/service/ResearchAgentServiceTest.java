@@ -85,7 +85,8 @@ class ResearchAgentServiceTest {
         assertThat(saved.getConfidenceScore()).isEqualTo(0.88);
         assertThat(saved.getQueryStrategy()).isEqualTo(QueryStrategy.PERSON_ANALYSIS);
         verify(eventPublisher)
-                .publishResearchCompleted(nullable(UUID.class), eq(ResearchStatus.COMPLETED));
+                .publishResearchCompleted(
+                        nullable(UUID.class), eq(ResearchStatus.COMPLETED), nullable(UUID.class));
     }
 
     @Test
@@ -126,6 +127,7 @@ class ResearchAgentServiceTest {
         assertThat(result.getStatus()).isEqualTo(ResearchStatus.FAILED);
         assertThat(result.getErrorMessage()).contains("LLM unavailable");
         verify(eventPublisher)
-                .publishResearchCompleted(nullable(UUID.class), eq(ResearchStatus.FAILED));
+                .publishResearchCompleted(
+                        nullable(UUID.class), eq(ResearchStatus.FAILED), nullable(UUID.class));
     }
 }
