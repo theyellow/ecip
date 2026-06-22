@@ -19,8 +19,10 @@ export function researchApi(request) {
      * Returns ResearchSessionDto[] (without evidence array populated).
      */
     listSessions: (tenantId) => {
-      const params = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''
-      return request(`/api/admin/knowledge/research${params}`)
+      const params = new URLSearchParams()
+      if (tenantId) params.append('tenantId', tenantId)
+      const qs = params.toString()
+      return request(`/api/admin/knowledge/research${qs ? `?${qs}` : ''}`)
     },
 
     /**
