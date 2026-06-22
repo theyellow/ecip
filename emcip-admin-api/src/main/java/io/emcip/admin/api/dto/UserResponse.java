@@ -20,6 +20,7 @@ public class UserResponse {
     String tenantName;
     boolean enabled;
     Instant createdAt;
+    Instant lastLogin;
 
     @JsonPOJOBuilder(withPrefix = "")
     public static final class UserResponseBuilder {}

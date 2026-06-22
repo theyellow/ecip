@@ -129,17 +129,18 @@ public class UserManagementService {
     }
 
     private Mono<Void> validateRequest(UserRequest req) {
-        if (req.getRole() == Role.TENANT_ADMIN && req.getTenantId() == null) {
+        if (req.getRole() != Role.ADMIN && req.getTenantId() == null) {
             return Mono.error(
                     new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST, "tenantId is required for TENANT_ADMIN role"));
+                            HttpStatus.BAD_REQUEST,
+                            "tenantId is required for " + req.getRole() + " role"));
         }
         if (req.getRole() == Role.ADMIN && req.getTenantId() != null) {
             return Mono.error(
                     new ResponseStatusException(
                             HttpStatus.BAD_REQUEST, "ADMIN role must not have a tenantId"));
         }
-        if (req.getRole() == Role.TENANT_ADMIN && req.getTenantId() != null) {
+        if (req.getRole() != Role.ADMIN && req.getTenantId() != null) {
             return tenantRepository
                     .existsById(req.getTenantId())
                     .flatMap(
@@ -174,6 +175,7 @@ public class UserManagementService {
                                 .tenantName(tenantName.isEmpty() ? null : tenantName)
                                 .enabled(user.isEnabled())
                                 .createdAt(user.getCreatedAt())
+                                .lastLogin(user.getLastLogin())
                                 .build());
     }
 }
