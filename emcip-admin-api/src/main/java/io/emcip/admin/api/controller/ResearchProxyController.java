@@ -185,18 +185,17 @@ public class ResearchProxyController {
                 .get()
                 .uri("/api/knowledge/research/{id}/report/markdown", id)
                 .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
+                .toEntity(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .onErrorResume(
                         e -> {
-                            log.error(
-                                    "Research getReportMarkdown proxy error sessionId={}: {}",
+                            log.warn(
+                                    "getReportMarkdown circuit breaker open for session {}: {}",
                                     id,
                                     e.getMessage());
                             return Mono.just(
                                     ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                                             .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                        });
     }
 }

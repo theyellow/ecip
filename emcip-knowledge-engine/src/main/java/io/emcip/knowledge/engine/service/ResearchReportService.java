@@ -132,7 +132,6 @@ public class ResearchReportService {
         report.setTemplate(template);
         report.setTitle(buildTitle(session.getQuestion(), template));
         report.setContent(content);
-        report.setVersion(1);
 
         return reportRepository.save(report);
     }
