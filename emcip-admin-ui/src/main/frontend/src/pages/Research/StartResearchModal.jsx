@@ -86,7 +86,6 @@ export function StartResearchModal({ onClose, onStarted }) {
           fontSize: 14,
           lineHeight: 1.5,
           resize: 'vertical',
-          borderRadius: 'var(--r-xs)',
         }}
       />
 

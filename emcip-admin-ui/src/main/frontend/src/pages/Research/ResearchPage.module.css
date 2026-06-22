@@ -10,7 +10,6 @@
   padding: var(--sp-2) var(--sp-4);
   background: var(--accent-soft);
   border: 1px solid var(--border);
-  border-radius: var(--r-sm);
   margin-bottom: var(--sp-4);
   font-family: var(--font-mono);
   font-size: 12px;

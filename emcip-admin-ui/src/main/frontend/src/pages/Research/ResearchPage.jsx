@@ -129,7 +129,8 @@ export function ResearchPage() {
         render: (val) => (val ? new Date(val).toLocaleString() : '—'),
       },
     ],
-    [compareIds, handleCheckbox]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [compareIds]
   )
 
   return (

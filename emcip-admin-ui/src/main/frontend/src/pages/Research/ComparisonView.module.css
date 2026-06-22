@@ -14,7 +14,7 @@
 .dialog {
   background: var(--bg-card);
   border: 1px solid var(--border-strong);
-  border-radius: var(--r-md);
+  border-radius: 0;
   width: 100%;
   max-width: 960px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
@@ -60,7 +60,7 @@
 .card {
   background: var(--bg-sunken);
   border: 1px solid var(--border);
-  border-radius: var(--r-sm);
+  border-radius: 0;
   padding: var(--sp-4);
 }
 
@@ -92,7 +92,7 @@
 .stat {
   background: var(--bg-card);
   border: 1px solid var(--rule);
-  border-radius: var(--r-xs);
+  border-radius: 0;
   padding: var(--sp-2) var(--sp-3);
 }
 

@@ -58,7 +58,7 @@ export function SessionDetailPage() {
     stopPolling()
     pollingRef.current = setInterval(async () => {
       try {
-        const updated = await api.getSession(id)
+        const updated = await researchApi(request).getSession(id)
         setSession(updated)
         if (!POLLING_STATUSES.has(updated.status)) {
           stopPolling()
