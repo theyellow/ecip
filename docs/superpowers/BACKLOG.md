@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-21 (27A merged PR #145; next: 27B — web search + report generation)
+> Last updated: 2026-06-22 (27B + 27C merged; all Deep Research Agent work complete)
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
@@ -32,8 +32,6 @@
 | # | Item | Size | Needs | Notes |
 |---|------|------|-------|-------|
 | 41c | **Users: expanded roles + lastLogin/createdAt** | M | Backend role expansion | Add MODERATOR, ANALYST, VIEWER roles; `lastLogin`/`createdAt` columns. Sub-item of #41. Backend role expansion needed first. |
-| 27B | **Deep Research Agent — web search + report generation** | L | 27A merged ✅ | US-27.3 (web search via SearXNG/Brave), US-27.5 (structured report generation + storage as knowledge artifacts). Plan: `plans/2026-06-20-deep-research-agent-plan-a.md` (B not yet written). |
-| 27C | **Deep Research Agent — Admin UI** | L | 27B merged | US-27.6 (research UI page), US-27.7 (live progress stream), US-27.8 (session history + comparison view). Depends on 27B. |
 | 6 | **Policy versioning — complex rule logic** | L | Scope decision | DB schema exists (`005-policy-rule-versioning.xml`). Full design not settled — **redefine scope before picking up**. |
 | 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed first. |
 
@@ -108,6 +106,8 @@
 | 26.9 | Knowledge query API — semantic search, graph exploration (topics, persons, neighbors), hybrid search, KnowledgePage Search tab | ✅ 2026-06-20 — implemented within PR #142 (Epic 42 branch). |
 | 42 | Structured feed connectors — 13 connectors (Wikipedia, arXiv, PubMed, Wikidata, OpenAlex, SemanticScholar, CORE, DOAJ, Zenodo, Unpaywall, BioRxiv, Brave, Exa), EnrichmentConnectorRegistry, EnrichmentScheduler | ✅ PR #142 — 2026-06-20. |
 | 26.10 | Knowledge enrichment for LLM responses — KnowledgeEngineClient, KnowledgeContextEnricherService wired into LlmCallService; feature-flagged via KNOWLEDGE_ENRICHMENT_ENABLED | ✅ PR #143 — 2026-06-20. Plan: `plans/2026-06-20-knowledge-enrichment-llm.md` |
+| 27B | Deep Research Agent — web search (SearXNG connector, Brave fallback, US-27.3) + structured report generation (LLM synthesis, ke_research_reports, US-27.5) | ✅ PR branch — 2026-06-22. Plan: `plans/2026-06-22-deep-research-agent-plan-b.md` |
+| 27C | Deep Research Agent — Admin UI: session list, Start Research modal, live polling, evidence table, report viewer (Markdown renderer + download), comparison view (US-27.6, 27.7, 27.8) | ✅ PR branch — 2026-06-22. Plan: `plans/2026-06-22-deep-research-agent-plan-c.md` |
 | 27A | Deep Research Agent — backend: session lifecycle, strategy engine, execution loop, evidence with provenance, cost/depth guardrails (US-27.1, 27.2, 27.4, 27.9) | ✅ PR #145 — 2026-06-21. Plan: `plans/2026-06-20-deep-research-agent-plan-a.md` |
 
 ---
