@@ -74,6 +74,23 @@ class ResearchControllerTest {
     }
 
     @Test
+    void getSession_returnsDto_whenFound() {
+        UUID tenantId = UUID.randomUUID();
+        UUID sessionId = UUID.randomUUID();
+        ResearchSession session = buildSession(sessionId, tenantId, ResearchStatus.COMPLETED);
+        when(sessionRepository.findById(sessionId)).thenReturn(Optional.of(session));
+        when(evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(sessionId))
+                .thenReturn(List.of());
+        when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.empty());
+
+        ResponseEntity<ResearchSessionDto> response = controller.getSession(sessionId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().id()).isEqualTo(sessionId);
+    }
+
+    @Test
     void getSession_returns404_whenNotFound() {
         UUID sessionId = UUID.randomUUID();
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());

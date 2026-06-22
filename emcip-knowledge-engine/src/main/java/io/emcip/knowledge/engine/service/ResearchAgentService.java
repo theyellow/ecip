@@ -244,7 +244,8 @@ public class ResearchAgentService {
             log.warn(
                     "Report generation failed for session {} (non-fatal): {}",
                     session.getId(),
-                    e.getMessage());
+                    e.getMessage(),
+                    e);
         }
     }
 
