@@ -6,6 +6,7 @@ import io.emcip.knowledge.engine.connector.EnrichmentConnectorRegistry;
 import io.emcip.knowledge.engine.connector.EnrichmentRequest;
 import io.emcip.knowledge.engine.connector.EnrichmentResult;
 import io.emcip.knowledge.engine.connector.TriggerMode;
+import io.emcip.knowledge.engine.entity.VendorApiKey;
 import io.emcip.knowledge.engine.repository.VendorApiKeyRepository;
 import java.time.Instant;
 import java.util.List;
@@ -41,7 +42,7 @@ public class WebSearchService {
             if (searxng.isPresent()) {
                 try {
                     var request = new EnrichmentRequest(TriggerMode.MANUAL, query, null, Map.of());
-                    var ctx = new ConnectorContext(null, tenantId, Instant.EPOCH);
+                    var ctx = new ConnectorContext(null, tenantId, Instant.now());
                     List<EnrichmentResult> results = searxng.get().fetch(request, ctx);
                     if (!results.isEmpty()) {
                         return results;
@@ -70,8 +71,8 @@ public class WebSearchService {
                 vendorApiKeyRepository
                         .findByVendorIdAndTenantId("brave", tenantId)
                         .or(() -> vendorApiKeyRepository.findByVendorIdAndTenantIdIsNull("brave"))
-                        .filter(k -> k.isEnabled())
-                        .map(k -> k.getApiKey())
+                        .filter(VendorApiKey::isEnabled)
+                        .map(VendorApiKey::getApiKey)
                         .orElse(null);
 
         if (apiKey == null) {
@@ -80,7 +81,7 @@ public class WebSearchService {
         }
 
         var request = new EnrichmentRequest(TriggerMode.MANUAL, query, null, Map.of());
-        var ctx = new ConnectorContext(apiKey, tenantId, Instant.EPOCH);
+        var ctx = new ConnectorContext(apiKey, tenantId, Instant.now());
         return brave.get().fetch(request, ctx);
     }
 }
