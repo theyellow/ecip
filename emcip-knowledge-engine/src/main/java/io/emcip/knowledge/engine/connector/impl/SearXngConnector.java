@@ -21,13 +21,15 @@ public class SearXngConnector implements KnowledgeConnector {
 
     private final RestClient restClient;
     private final String baseUrl;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     public SearXngConnector(
             @Qualifier("connectorRestClient") RestClient restClient,
-            @Value("${web.search.searxng.base-url:}") String baseUrl) {
+            @Value("${web.search.searxng.base-url:}") String baseUrl,
+            ObjectMapper objectMapper) {
         this.restClient = restClient;
         this.baseUrl = baseUrl;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -80,7 +82,7 @@ public class SearXngConnector implements KnowledgeConnector {
                                 r.path("title").asText(""),
                                 r.path("content").asText(null),
                                 url,
-                                "searxng",
+                                vendorId(),
                                 null,
                                 Map.of("engine", r.path("engine").asText(""))));
             }

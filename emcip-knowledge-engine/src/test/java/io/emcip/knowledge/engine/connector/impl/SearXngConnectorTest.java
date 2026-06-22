@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class SearXngConnectorTest {
@@ -42,7 +43,8 @@ class SearXngConnectorTest {
         when(headersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.body(String.class)).thenReturn(json);
 
-        var connector = new SearXngConnector(restClient, "http://searxng.local");
+        var connector =
+                new SearXngConnector(restClient, "http://searxng.local", new ObjectMapper());
         var request = new EnrichmentRequest(TriggerMode.MANUAL, "test query", null, Map.of());
         var ctx = new ConnectorContext(null, UUID.randomUUID(), Instant.EPOCH);
 
@@ -57,7 +59,7 @@ class SearXngConnectorTest {
 
     @Test
     void fetch_returnsEmpty_whenBaseUrlIsBlank() {
-        var connector = new SearXngConnector(restClient, "");
+        var connector = new SearXngConnector(restClient, "", new ObjectMapper());
         var request = new EnrichmentRequest(TriggerMode.MANUAL, "test query", null, Map.of());
         var ctx = new ConnectorContext(null, UUID.randomUUID(), Instant.EPOCH);
 
@@ -73,7 +75,36 @@ class SearXngConnectorTest {
         when(headersSpec.retrieve()).thenReturn(responseSpec);
         when(responseSpec.body(String.class)).thenReturn(null);
 
-        var connector = new SearXngConnector(restClient, "http://searxng.local");
+        var connector =
+                new SearXngConnector(restClient, "http://searxng.local", new ObjectMapper());
+        var request = new EnrichmentRequest(TriggerMode.MANUAL, "test query", null, Map.of());
+        var ctx = new ConnectorContext(null, UUID.randomUUID(), Instant.EPOCH);
+
+        List<EnrichmentResult> results = connector.fetch(request, ctx);
+
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    void fetch_returnsEmpty_whenQueryIsBlank() {
+        var connector =
+                new SearXngConnector(restClient, "http://searxng.local", new ObjectMapper());
+        var request = new EnrichmentRequest(TriggerMode.MANUAL, "   ", null, Map.of());
+        var ctx = new ConnectorContext(null, UUID.randomUUID(), Instant.EPOCH);
+
+        List<EnrichmentResult> results = connector.fetch(request, ctx);
+
+        assertThat(results).isEmpty();
+    }
+
+    @Test
+    void fetch_returnsEmpty_whenHttpCallThrows() {
+        when(restClient.get()).thenReturn(uriSpec);
+        when(uriSpec.uri(anyString(), anyString())).thenReturn(headersSpec);
+        when(headersSpec.retrieve()).thenThrow(new RuntimeException("connection refused"));
+
+        var connector =
+                new SearXngConnector(restClient, "http://searxng.local", new ObjectMapper());
         var request = new EnrichmentRequest(TriggerMode.MANUAL, "test query", null, Map.of());
         var ctx = new ConnectorContext(null, UUID.randomUUID(), Instant.EPOCH);
 
