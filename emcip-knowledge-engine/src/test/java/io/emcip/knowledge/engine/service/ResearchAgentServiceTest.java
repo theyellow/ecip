@@ -33,6 +33,7 @@ class ResearchAgentServiceTest {
     @Mock private ResearchStrategyService strategyService;
     @Mock private KnowledgeQueryService queryService;
     @Mock private KnowledgeEventPublisher eventPublisher;
+    @Mock private WebSearchService webSearchService;
 
     private ResearchAgentService service;
 
@@ -44,14 +45,16 @@ class ResearchAgentServiceTest {
                         evidenceRepository,
                         strategyService,
                         queryService,
-                        eventPublisher);
+                        eventPublisher,
+                        webSearchService);
     }
 
     @Test
     void startResearch_createsSession_andRunsLoop() {
         UUID tenantId = UUID.randomUUID();
         ResearchRequest request =
-                new ResearchRequest("Tell me about Alice's views on AI", tenantId, 10, 20, 1.00);
+                new ResearchRequest(
+                        "Tell me about Alice's views on AI", tenantId, 10, 20, 1.00, false, null);
 
         ResearchStrategyService.SubQuestion subQ =
                 new ResearchStrategyService.SubQuestion(
@@ -92,7 +95,8 @@ class ResearchAgentServiceTest {
     @Test
     void startResearch_stopsWhenMaxIterationsReached() {
         UUID tenantId = UUID.randomUUID();
-        ResearchRequest request = new ResearchRequest("A complex question", tenantId, 1, 20, 1.00);
+        ResearchRequest request =
+                new ResearchRequest("A complex question", tenantId, 1, 20, 1.00, false, null);
 
         List<ResearchStrategyService.SubQuestion> subQs =
                 List.of(
@@ -116,7 +120,7 @@ class ResearchAgentServiceTest {
     @Test
     void startResearch_setsFailedStatus_whenStrategyServiceThrows() {
         UUID tenantId = UUID.randomUUID();
-        ResearchRequest request = new ResearchRequest("Q", tenantId, 10, 20, 1.00);
+        ResearchRequest request = new ResearchRequest("Q", tenantId, 10, 20, 1.00, false, null);
 
         when(strategyService.decompose(anyString()))
                 .thenThrow(new RuntimeException("LLM unavailable"));
@@ -129,5 +133,44 @@ class ResearchAgentServiceTest {
         verify(eventPublisher)
                 .publishResearchCompleted(
                         nullable(UUID.class), eq(ResearchStatus.FAILED), nullable(UUID.class));
+    }
+
+    @Test
+    void startResearch_collectsWebEvidence_whenWebSearchEnabled() {
+        UUID tenantId = UUID.randomUUID();
+        ResearchRequest request =
+                new ResearchRequest(
+                        "AI ethics in social media", tenantId, 10, 20, 1.00, true, null);
+
+        ResearchStrategyService.SubQuestion subQ =
+                new ResearchStrategyService.SubQuestion(
+                        "What are AI ethics concerns?", QueryStrategy.TOPIC_EXPLORATION);
+        when(strategyService.decompose(anyString())).thenReturn(List.of(subQ));
+        when(queryService.search(any())).thenReturn(new SearchResponse(List.of(), List.of()));
+
+        io.emcip.knowledge.engine.connector.EnrichmentResult webResult =
+                new io.emcip.knowledge.engine.connector.EnrichmentResult(
+                        "https://example.com/ai",
+                        "AI Ethics Overview",
+                        "A discussion of AI ethics principles",
+                        "https://example.com/ai",
+                        "searxng",
+                        null,
+                        java.util.Map.of());
+        when(webSearchService.search(anyString(), any(UUID.class))).thenReturn(List.of(webResult));
+
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(evidenceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ResearchSession result = service.startResearch(request);
+
+        assertThat(result.getStatus()).isEqualTo(ResearchStatus.COMPLETED);
+        ArgumentCaptor<ResearchEvidence> captor = ArgumentCaptor.forClass(ResearchEvidence.class);
+        verify(evidenceRepository, atLeast(1)).save(captor.capture());
+
+        boolean hasWebEvidence =
+                captor.getAllValues().stream()
+                        .anyMatch(e -> "WEB_SEARCH".equals(e.getSourceType()));
+        assertThat(hasWebEvidence).isTrue();
     }
 }

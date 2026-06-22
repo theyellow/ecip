@@ -52,7 +52,8 @@ class ResearchControllerTest {
     void startResearch_returns201_withSessionDto() {
         UUID tenantId = UUID.randomUUID();
         UUID sessionId = UUID.randomUUID();
-        ResearchRequest request = new ResearchRequest("Test question", tenantId, 10, 20, 1.00);
+        ResearchRequest request =
+                new ResearchRequest("Test question", tenantId, 10, 20, 1.00, false, null);
 
         ResearchSession session = buildSession(sessionId, tenantId, ResearchStatus.COMPLETED);
         when(agentService.startResearch(any())).thenReturn(session);
