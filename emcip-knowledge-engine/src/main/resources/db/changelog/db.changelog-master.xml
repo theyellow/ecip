@@ -21,5 +21,6 @@
     <include file="changes/014-seed-enrichment-sources.xml" relativeToChangelogFile="true"/>
     <include file="changes/015-research-sessions.xml" relativeToChangelogFile="true"/>
     <include file="changes/016-research-evidence.xml" relativeToChangelogFile="true"/>
+    <include file="changes/017-research-reports.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
