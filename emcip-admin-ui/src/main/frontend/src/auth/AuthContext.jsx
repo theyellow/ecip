@@ -57,8 +57,8 @@ export function AuthProvider({ children }) {
     setRole(newRole)
     setTenantId(newTenantId)
 
-    // TENANT_ADMIN: lock currentTenant to their JWT-embedded tenant
-    if (newRole === 'TENANT_ADMIN' && newTenantId) {
+    // Non-ADMIN roles: lock currentTenant to their JWT-embedded tenant
+    if (newRole !== 'ADMIN' && newTenantId) {
       const tenant = { id: newTenantId, name: payload?.tenantName ?? newTenantId }
       setCurrentTenant(tenant)
     } else {
