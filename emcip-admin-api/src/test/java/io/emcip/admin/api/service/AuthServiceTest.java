@@ -1,6 +1,7 @@
 package io.emcip.admin.api.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.entity.AdminUser;
@@ -8,6 +9,7 @@ import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.repository.TenantRepository;
 import io.emcip.admin.api.security.JwtService;
 import io.emcip.admin.api.security.Role;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -39,9 +41,10 @@ class AuthServiceTest {
     }
 
     @Test
-    void authenticate_validCredentials_returnsTokenWithRefresh() {
+    void authenticate_validCredentials_returnsTokenAndRecordsLastLogin() {
         when(userRepository.findByUsername("admin")).thenReturn(Mono.just(enabledUser()));
         when(passwordEncoder.matches("secret", "$2a$hash")).thenReturn(true);
+        when(userRepository.save(any())).thenReturn(Mono.just(enabledUser()));
         when(jwtService.generateToken("admin", "ADMIN", null, null)).thenReturn("jwt-abc");
         when(refreshTokenService.issue(1L)).thenReturn(Mono.just("refresh-xyz"));
 
@@ -53,6 +56,26 @@ class AuthServiceTest {
                             assertThat(resp.expiresAt()).isNotNull();
                         })
                 .verifyComplete();
+    }
+
+    @Test
+    void authenticate_validCredentials_savesLastLogin() {
+        when(userRepository.findByUsername("admin")).thenReturn(Mono.just(enabledUser()));
+        when(passwordEncoder.matches("secret", "$2a$hash")).thenReturn(true);
+        when(userRepository.save(any())).thenReturn(Mono.just(enabledUser()));
+        when(jwtService.generateToken("admin", "ADMIN", null, null)).thenReturn("jwt-abc");
+        when(refreshTokenService.issue(1L)).thenReturn(Mono.just("refresh-xyz"));
+
+        Instant before = Instant.now();
+        StepVerifier.create(authService.authenticate("admin", "secret"))
+                .assertNext(resp -> assertThat(resp.token()).isNotNull())
+                .verifyComplete();
+
+        org.mockito.ArgumentCaptor<AdminUser> captor =
+                org.mockito.ArgumentCaptor.forClass(AdminUser.class);
+        org.mockito.Mockito.verify(userRepository).save(captor.capture());
+        assertThat(captor.getValue().getLastLogin()).isNotNull();
+        assertThat(captor.getValue().getLastLogin()).isAfterOrEqualTo(before);
     }
 
     @Test
