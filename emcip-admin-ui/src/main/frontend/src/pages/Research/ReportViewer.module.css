@@ -1,0 +1,117 @@
+.container {
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  gap: var(--sp-4);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: var(--sp-1);
+}
+
+.meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.06em;
+}
+
+.downloadBtn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--fg-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-radius: var(--r-xs);
+  white-space: nowrap;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.downloadBtn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.content {
+  padding: var(--sp-5) var(--sp-5) var(--sp-6);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin: var(--sp-4) 0 var(--sp-3);
+}
+
+.h2 {
+  font-family: var(--font-display);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin: var(--sp-4) 0 var(--sp-2);
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--rule);
+}
+
+.h3 {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+  letter-spacing: 0.08em;
+  margin: var(--sp-3) 0 var(--sp-1);
+  text-transform: uppercase;
+}
+
+.para {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--fg-1);
+  margin: 0 0 var(--sp-2);
+}
+
+.list {
+  margin: 0 0 var(--sp-3);
+  padding-left: var(--sp-4);
+}
+
+.listItem {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--fg-1);
+  margin-bottom: var(--sp-1);
+}
+
+.listItem::marker {
+  color: var(--accent);
+}
+
+.spacer {
+  height: var(--sp-2);
+}

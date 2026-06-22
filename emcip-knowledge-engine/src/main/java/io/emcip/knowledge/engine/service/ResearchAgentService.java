@@ -1,5 +1,7 @@
 package io.emcip.knowledge.engine.service;
 
+import io.emcip.knowledge.engine.connector.EnrichmentResult;
+import io.emcip.knowledge.engine.entity.ReportTemplate;
 import io.emcip.knowledge.engine.entity.ResearchEvidence;
 import io.emcip.knowledge.engine.entity.ResearchSession;
 import io.emcip.knowledge.engine.entity.ResearchStatus;
@@ -42,6 +44,8 @@ public class ResearchAgentService {
     private final ResearchStrategyService strategyService;
     private final KnowledgeQueryService queryService;
     private final KnowledgeEventPublisher eventPublisher;
+    private final WebSearchService webSearchService;
+    private final ResearchReportService reportService;
 
     @Transactional
     public ResearchSession startResearch(ResearchRequest request) {
@@ -58,7 +62,7 @@ public class ResearchAgentService {
         sessionRepository.save(session);
 
         try {
-            runLoop(session);
+            runLoop(session, request.webSearchEnabled());
             session.setStatus(ResearchStatus.COMPLETED);
         } catch (Exception e) {
             log.error("Research session {} failed: {}", session.getId(), e.getMessage(), e);
@@ -68,6 +72,12 @@ public class ResearchAgentService {
 
         sessionRepository.save(session);
         publishCompletionEvent(session);
+
+        // Auto-generate report for completed sessions
+        if (session.getStatus() == ResearchStatus.COMPLETED) {
+            generateReportSafely(session, request.reportTemplate());
+        }
+
         return session;
     }
 
@@ -101,7 +111,8 @@ public class ResearchAgentService {
                                 session.setStatus(ResearchStatus.RUNNING);
                                 sessionRepository.save(session);
                                 try {
-                                    runLoop(session);
+                                    // webSearchEnabled not persisted; default false on resume
+                                    runLoop(session, false);
                                     session.setStatus(ResearchStatus.COMPLETED);
                                 } catch (Exception e) {
                                     log.error(
@@ -124,7 +135,7 @@ public class ResearchAgentService {
                         });
     }
 
-    private void runLoop(ResearchSession session) {
+    private void runLoop(ResearchSession session, boolean webSearchEnabled) {
         List<ResearchStrategyService.SubQuestion> subQuestions =
                 strategyService.decompose(session.getQuestion());
         session.incrementLlmCalls(1);
@@ -151,6 +162,14 @@ public class ResearchAgentService {
             SearchResponse response = queryService.search(searchRequest);
 
             collectEvidence(session, subQ, response, iteration);
+
+            // Web search: additional evidence from the open web
+            if (webSearchEnabled && session.isWithinLimits()) {
+                List<EnrichmentResult> webResults =
+                        webSearchService.search(subQ.subQuestion(), session.getTenantId());
+                collectWebEvidence(session, subQ, webResults, iteration);
+            }
+
             session.incrementIterations(1);
             session.setCostUsedUsd(session.getCostUsedUsd() + COST_PER_ITERATION_USD);
             iteration++;
@@ -189,6 +208,44 @@ public class ResearchAgentService {
             evidence.setConfidenceScore(gr.score());
             evidence.setIteration(iteration);
             evidenceRepository.save(evidence);
+        }
+    }
+
+    private void collectWebEvidence(
+            ResearchSession session,
+            ResearchStrategyService.SubQuestion subQ,
+            List<EnrichmentResult> webResults,
+            int iteration) {
+
+        for (EnrichmentResult r : webResults) {
+            if (r.content() == null || r.content().isBlank()) continue;
+
+            ResearchEvidence evidence = new ResearchEvidence();
+            evidence.setSession(session);
+            evidence.setSubQuestion(subQ.subQuestion());
+            evidence.setQueryStrategy(subQ.strategy());
+            evidence.setFinding(r.title() + ": " + r.content());
+            evidence.setSourceType("WEB_SEARCH");
+            evidence.setSourceRef(r.url());
+            evidence.setConfidenceScore(0.70);
+            evidence.setIteration(iteration);
+            evidenceRepository.save(evidence);
+        }
+    }
+
+    private void generateReportSafely(ResearchSession session, ReportTemplate template) {
+        try {
+            List<ResearchEvidence> evidence =
+                    evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(
+                            session.getId());
+            reportService.generateReport(session, evidence, template);
+            log.info("Generated {} report for session {}", template, session.getId());
+        } catch (Exception e) {
+            log.warn(
+                    "Report generation failed for session {} (non-fatal): {}",
+                    session.getId(),
+                    e.getMessage(),
+                    e);
         }
     }
 
