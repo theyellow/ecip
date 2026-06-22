@@ -19,10 +19,12 @@ public record ResearchSessionDto(
         double costUsedUsd,
         String errorMessage,
         List<ResearchEvidenceDto> evidence,
+        UUID reportId,
         Instant createdAt,
         Instant updatedAt) {
 
-    public static ResearchSessionDto from(ResearchSession s, List<ResearchEvidenceDto> evidence) {
+    public static ResearchSessionDto from(
+            ResearchSession s, List<ResearchEvidenceDto> evidence, UUID reportId) {
         return new ResearchSessionDto(
                 s.getId(),
                 s.getTenantId(),
@@ -36,6 +38,7 @@ public record ResearchSessionDto(
                 s.getCostUsedUsd(),
                 s.getErrorMessage(),
                 evidence,
+                reportId,
                 s.getCreatedAt(),
                 s.getUpdatedAt());
     }

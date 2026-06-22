@@ -1,6 +1,7 @@
 package io.emcip.knowledge.engine.service;
 
 import io.emcip.knowledge.engine.connector.EnrichmentResult;
+import io.emcip.knowledge.engine.entity.ReportTemplate;
 import io.emcip.knowledge.engine.entity.ResearchEvidence;
 import io.emcip.knowledge.engine.entity.ResearchSession;
 import io.emcip.knowledge.engine.entity.ResearchStatus;
@@ -44,6 +45,7 @@ public class ResearchAgentService {
     private final KnowledgeQueryService queryService;
     private final KnowledgeEventPublisher eventPublisher;
     private final WebSearchService webSearchService;
+    private final ResearchReportService reportService;
 
     @Transactional
     public ResearchSession startResearch(ResearchRequest request) {
@@ -70,6 +72,12 @@ public class ResearchAgentService {
 
         sessionRepository.save(session);
         publishCompletionEvent(session);
+
+        // Auto-generate report for completed sessions
+        if (session.getStatus() == ResearchStatus.COMPLETED) {
+            generateReportSafely(session, request.reportTemplate());
+        }
+
         return session;
     }
 
@@ -222,6 +230,21 @@ public class ResearchAgentService {
             evidence.setConfidenceScore(0.70);
             evidence.setIteration(iteration);
             evidenceRepository.save(evidence);
+        }
+    }
+
+    private void generateReportSafely(ResearchSession session, ReportTemplate template) {
+        try {
+            List<ResearchEvidence> evidence =
+                    evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(
+                            session.getId());
+            reportService.generateReport(session, evidence, template);
+            log.info("Generated {} report for session {}", template, session.getId());
+        } catch (Exception e) {
+            log.warn(
+                    "Report generation failed for session {} (non-fatal): {}",
+                    session.getId(),
+                    e.getMessage());
         }
     }
 

@@ -1,10 +1,12 @@
 package io.emcip.knowledge.engine.controller;
 
+import io.emcip.knowledge.engine.entity.ResearchReport;
 import io.emcip.knowledge.engine.entity.ResearchSession;
 import io.emcip.knowledge.engine.model.ResearchEvidenceDto;
 import io.emcip.knowledge.engine.model.ResearchRequest;
 import io.emcip.knowledge.engine.model.ResearchSessionDto;
 import io.emcip.knowledge.engine.repository.ResearchEvidenceRepository;
+import io.emcip.knowledge.engine.repository.ResearchReportRepository;
 import io.emcip.knowledge.engine.repository.ResearchSessionRepository;
 import io.emcip.knowledge.engine.service.ResearchAgentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +36,7 @@ public class ResearchController {
     private final ResearchAgentService agentService;
     private final ResearchSessionRepository sessionRepository;
     private final ResearchEvidenceRepository evidenceRepository;
+    private final ResearchReportRepository reportRepository;
 
     @Operation(summary = "Start a new deep research session")
     @PostMapping
@@ -102,6 +105,11 @@ public class ResearchController {
                                                 e.getIteration(),
                                                 e.getCreatedAt()))
                         .toList();
-        return ResearchSessionDto.from(session, evidence);
+        UUID reportId =
+                reportRepository
+                        .findBySessionId(session.getId())
+                        .map(ResearchReport::getId)
+                        .orElse(null);
+        return ResearchSessionDto.from(session, evidence, reportId);
     }
 }

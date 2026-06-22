@@ -9,6 +9,7 @@ import static org.mockito.Mockito.*;
 
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.entity.QueryStrategy;
+import io.emcip.knowledge.engine.entity.ReportTemplate;
 import io.emcip.knowledge.engine.entity.ResearchEvidence;
 import io.emcip.knowledge.engine.entity.ResearchSession;
 import io.emcip.knowledge.engine.entity.ResearchStatus;
@@ -34,6 +35,7 @@ class ResearchAgentServiceTest {
     @Mock private KnowledgeQueryService queryService;
     @Mock private KnowledgeEventPublisher eventPublisher;
     @Mock private WebSearchService webSearchService;
+    @Mock private ResearchReportService reportService;
 
     private ResearchAgentService service;
 
@@ -46,7 +48,8 @@ class ResearchAgentServiceTest {
                         strategyService,
                         queryService,
                         eventPublisher,
-                        webSearchService);
+                        webSearchService,
+                        reportService);
     }
 
     @Test
@@ -73,6 +76,8 @@ class ResearchAgentServiceTest {
 
         when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(evidenceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(any()))
+                .thenReturn(List.of());
 
         ResearchSession result = service.startResearch(request);
 
@@ -109,6 +114,8 @@ class ResearchAgentServiceTest {
         when(strategyService.decompose(anyString())).thenReturn(subQs);
         when(queryService.search(any())).thenReturn(new SearchResponse(List.of(), List.of()));
         when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(any()))
+                .thenReturn(List.of());
 
         ResearchSession result = service.startResearch(request);
 
@@ -161,6 +168,8 @@ class ResearchAgentServiceTest {
 
         when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(evidenceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(any()))
+                .thenReturn(List.of());
 
         ResearchSession result = service.startResearch(request);
 
@@ -172,5 +181,26 @@ class ResearchAgentServiceTest {
                 captor.getAllValues().stream()
                         .anyMatch(e -> "WEB_SEARCH".equals(e.getSourceType()));
         assertThat(hasWebEvidence).isTrue();
+    }
+
+    @Test
+    void startResearch_triggersReportGeneration_whenCompleted() {
+        UUID tenantId = UUID.randomUUID();
+        ResearchRequest request =
+                new ResearchRequest("Research question", tenantId, 10, 20, 1.00, false, null);
+
+        when(strategyService.decompose(anyString()))
+                .thenReturn(
+                        List.of(
+                                new ResearchStrategyService.SubQuestion(
+                                        "Q1", QueryStrategy.TOPIC_EXPLORATION)));
+        when(queryService.search(any())).thenReturn(new SearchResponse(List.of(), List.of()));
+        when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(any()))
+                .thenReturn(List.of());
+
+        service.startResearch(request);
+
+        verify(reportService).generateReport(any(), any(), eq(ReportTemplate.TOPIC));
     }
 }

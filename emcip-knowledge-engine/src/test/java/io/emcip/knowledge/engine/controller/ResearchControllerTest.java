@@ -9,6 +9,7 @@ import io.emcip.knowledge.engine.entity.ResearchStatus;
 import io.emcip.knowledge.engine.model.ResearchRequest;
 import io.emcip.knowledge.engine.model.ResearchSessionDto;
 import io.emcip.knowledge.engine.repository.ResearchEvidenceRepository;
+import io.emcip.knowledge.engine.repository.ResearchReportRepository;
 import io.emcip.knowledge.engine.repository.ResearchSessionRepository;
 import io.emcip.knowledge.engine.service.ResearchAgentService;
 import java.util.List;
@@ -28,12 +29,15 @@ class ResearchControllerTest {
     @Mock private ResearchAgentService agentService;
     @Mock private ResearchSessionRepository sessionRepository;
     @Mock private ResearchEvidenceRepository evidenceRepository;
+    @Mock private ResearchReportRepository reportRepository;
 
     private ResearchController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new ResearchController(agentService, sessionRepository, evidenceRepository);
+        controller =
+                new ResearchController(
+                        agentService, sessionRepository, evidenceRepository, reportRepository);
     }
 
     private ResearchSession buildSession(UUID id, UUID tenantId, ResearchStatus status) {
@@ -59,6 +63,7 @@ class ResearchControllerTest {
         when(agentService.startResearch(any())).thenReturn(session);
         when(evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(sessionId))
                 .thenReturn(List.of());
+        when(reportRepository.findBySessionId(any())).thenReturn(Optional.empty());
 
         ResponseEntity<ResearchSessionDto> response = controller.startResearch(request);
 
@@ -87,6 +92,7 @@ class ResearchControllerTest {
                 .thenReturn(List.of(session));
         when(evidenceRepository.findBySessionIdOrderByIterationAscCreatedAtAsc(any()))
                 .thenReturn(List.of());
+        when(reportRepository.findBySessionId(any())).thenReturn(Optional.empty());
 
         ResponseEntity<List<ResearchSessionDto>> response = controller.listSessions(tenantId);
 
