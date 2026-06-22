@@ -1,5 +1,6 @@
 package io.emcip.knowledge.engine.service;
 
+import io.emcip.knowledge.engine.connector.EnrichmentResult;
 import io.emcip.knowledge.engine.entity.ResearchEvidence;
 import io.emcip.knowledge.engine.entity.ResearchSession;
 import io.emcip.knowledge.engine.entity.ResearchStatus;
@@ -156,7 +157,7 @@ public class ResearchAgentService {
 
             // Web search: additional evidence from the open web
             if (webSearchEnabled && session.isWithinLimits()) {
-                List<io.emcip.knowledge.engine.connector.EnrichmentResult> webResults =
+                List<EnrichmentResult> webResults =
                         webSearchService.search(subQ.subQuestion(), session.getTenantId());
                 collectWebEvidence(session, subQ, webResults, iteration);
             }
@@ -205,10 +206,10 @@ public class ResearchAgentService {
     private void collectWebEvidence(
             ResearchSession session,
             ResearchStrategyService.SubQuestion subQ,
-            List<io.emcip.knowledge.engine.connector.EnrichmentResult> webResults,
+            List<EnrichmentResult> webResults,
             int iteration) {
 
-        for (io.emcip.knowledge.engine.connector.EnrichmentResult r : webResults) {
+        for (EnrichmentResult r : webResults) {
             if (r.content() == null || r.content().isBlank()) continue;
 
             ResearchEvidence evidence = new ResearchEvidence();

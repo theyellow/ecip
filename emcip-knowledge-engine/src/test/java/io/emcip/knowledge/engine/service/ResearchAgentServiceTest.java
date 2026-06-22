@@ -166,7 +166,7 @@ class ResearchAgentServiceTest {
 
         assertThat(result.getStatus()).isEqualTo(ResearchStatus.COMPLETED);
         ArgumentCaptor<ResearchEvidence> captor = ArgumentCaptor.forClass(ResearchEvidence.class);
-        verify(evidenceRepository, atLeast(1)).save(captor.capture());
+        verify(evidenceRepository, atLeastOnce()).save(captor.capture());
 
         boolean hasWebEvidence =
                 captor.getAllValues().stream()
