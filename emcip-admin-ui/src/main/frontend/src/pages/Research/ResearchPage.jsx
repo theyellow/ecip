@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { Badge } from '../../components/Badge/Badge'
@@ -70,64 +70,67 @@ export function ResearchPage() {
 
   const compareList = sessions.filter((s) => compareIds.has(s.id))
 
-  const COLUMNS = [
-    {
-      key: '_compare',
-      label: '',
-      width: '40px',
-      render: (_, row) => (
-        <div className={styles.checkCell}>
-          <input
-            type="checkbox"
-            checked={compareIds.has(row.id)}
-            disabled={!compareIds.has(row.id) && compareIds.size >= 2}
-            onChange={(e) => handleCheckbox(row.id, e.target.checked)}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      ),
-    },
-    {
-      key: 'question',
-      label: 'Question',
-      render: (val) => <span className={styles.questionCell}>{val}</span>,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      width: '120px',
-      render: (_, row) => (
-        <Badge variant={STATUS_VARIANT[row.status] ?? 'gray'}>{row.status}</Badge>
-      ),
-    },
-    {
-      key: 'reportTemplate',
-      label: 'Template',
-      width: '110px',
-      render: (val) => TEMPLATE_LABEL[val] ?? val ?? '—',
-    },
-    {
-      key: 'costUsedUsd',
-      label: 'Cost',
-      width: '80px',
-      mono: true,
-      render: (val) => `$${(val ?? 0).toFixed(2)}`,
-    },
-    {
-      key: 'iterationsUsed',
-      label: 'Iterations',
-      width: '90px',
-      mono: true,
-      render: (val, row) => `${val} / ${row.maxIterations}`,
-    },
-    {
-      key: 'createdAt',
-      label: 'Created',
-      width: '180px',
-      mono: true,
-      render: (val) => (val ? new Date(val).toLocaleString() : '—'),
-    },
-  ]
+  const COLUMNS = useMemo(
+    () => [
+      {
+        key: '_compare',
+        label: '',
+        width: '40px',
+        render: (_, row) => (
+          <div className={styles.checkCell}>
+            <input
+              type="checkbox"
+              checked={compareIds.has(row.id)}
+              disabled={!compareIds.has(row.id) && compareIds.size >= 2}
+              onChange={(e) => handleCheckbox(row.id, e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        ),
+      },
+      {
+        key: 'question',
+        label: 'Question',
+        render: (val) => <span className={styles.questionCell}>{val}</span>,
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        width: '120px',
+        render: (_, row) => (
+          <Badge variant={STATUS_VARIANT[row.status] ?? 'gray'}>{row.status}</Badge>
+        ),
+      },
+      {
+        key: 'reportTemplate',
+        label: 'Template',
+        width: '110px',
+        render: (val) => TEMPLATE_LABEL[val] ?? val ?? '—',
+      },
+      {
+        key: 'costUsedUsd',
+        label: 'Cost',
+        width: '80px',
+        mono: true,
+        render: (val) => `$${(val ?? 0).toFixed(2)}`,
+      },
+      {
+        key: 'iterationsUsed',
+        label: 'Iterations',
+        width: '90px',
+        mono: true,
+        render: (val, row) => `${val} / ${row.maxIterations}`,
+      },
+      {
+        key: 'createdAt',
+        label: 'Created',
+        width: '180px',
+        mono: true,
+        render: (val) => (val ? new Date(val).toLocaleString() : '—'),
+      },
+    ],
+    [compareIds, handleCheckbox]
+  )
 
   return (
     <div className="page">
@@ -136,7 +139,7 @@ export function ResearchPage() {
           <h2>DEEP RESEARCH</h2>
           <div className="system-id">⌘ knowledge-engine · internal</div>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--sp-3)' }}>
+        <div className={styles.headerActions}>
           {compareIds.size === 2 && (
             <Button variant="secondary" onClick={() => setShowCompare(true)}>
               Compare (2)
