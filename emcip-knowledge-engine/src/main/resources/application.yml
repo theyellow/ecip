@@ -41,6 +41,12 @@ knowledge:
     merge-threshold: ${KNOWLEDGE_RESOLUTION_MERGE_THRESHOLD:0.92}
     flag-threshold: ${KNOWLEDGE_RESOLUTION_FLAG_THRESHOLD:0.80}
 
+web:
+  search:
+    enabled: ${WEB_SEARCH_ENABLED:false}
+    searxng:
+      base-url: ${SEARXNG_BASE_URL:}
+
 management:
   tracing:
     sampling:
