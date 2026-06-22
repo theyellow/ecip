@@ -5,7 +5,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
+import io.emcip.policy.engine.entity.PolicyRuleHistory;
 import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
+import io.emcip.policy.engine.repository.PolicyRuleHistoryRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -13,16 +15,21 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import tools.jackson.databind.ObjectMapper;
 
 class PolicyRuleControllerTest {
 
     private PolicyRuleConfigRepository repository;
+    private PolicyRuleHistoryRepository historyRepository;
     private WebTestClient client;
 
     @BeforeEach
     void setUp() {
         repository = mock(PolicyRuleConfigRepository.class);
-        PolicyRuleController controller = new PolicyRuleController(repository);
+        historyRepository = mock(PolicyRuleHistoryRepository.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        PolicyRuleController controller =
+                new PolicyRuleController(repository, historyRepository, objectMapper);
         client = WebTestClient.bindToController(controller).build();
     }
 
@@ -66,6 +73,7 @@ class PolicyRuleControllerTest {
         PolicyRuleConfig existing = rule("r1", "old");
         PolicyRuleConfig update = rule("r1", "updated");
         when(repository.findById("r1")).thenReturn(Optional.of(existing));
+        when(historyRepository.save(any())).thenReturn(mock(PolicyRuleHistory.class));
         when(repository.save(any())).thenReturn(update);
         client.put().uri("/api/policy-rules/r1").bodyValue(update).exchange().expectStatus().isOk();
     }
@@ -87,8 +95,14 @@ class PolicyRuleControllerTest {
     }
 
     @Test
-    void history_returnsRulesByName() {
-        when(repository.findAll()).thenReturn(List.of(rule("r1", "spam-rule")));
-        client.get().uri("/api/policy-rules/history/spam-rule").exchange().expectStatus().isOk();
+    void getHistory_returnsHistoryForRule() {
+        when(historyRepository.findByRuleIdOrderByEditedAtDesc("r1")).thenReturn(List.of());
+        client.get()
+                .uri("/api/policy-rules/r1/history")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBodyList(PolicyRuleHistory.class)
+                .hasSize(0);
     }
 }
