@@ -85,6 +85,7 @@ class ResearchReportServiceTest {
         assertThat(report.getTemplate()).isEqualTo(ReportTemplate.TOPIC);
         assertThat(report.getTitle()).contains("AI in moderation");
         assertThat(report.getTenantId()).isEqualTo(session.getTenantId());
+        assertThat(report.getVersion()).isEqualTo(1);
 
         ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
         verify(llmClient).analyse(promptCaptor.capture(), eq("REPORT"));
@@ -104,6 +105,20 @@ class ResearchReportServiceTest {
         ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
         verify(llmClient).analyse(promptCaptor.capture(), eq("REPORT"));
         assertThat(promptCaptor.getValue()).contains("profiling an individual");
+    }
+
+    @Test
+    void generateReport_usesFactCheckTemplate_whenReportTemplateIsFactCheck() {
+        ResearchSession session = buildSession("Is claim X true?");
+        when(llmClient.analyse(anyString(), eq("REPORT")))
+                .thenReturn("## Executive Summary\nSupported.");
+        when(reportRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        service.generateReport(session, List.of(), ReportTemplate.FACT_CHECK);
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).analyse(promptCaptor.capture(), eq("REPORT"));
+        assertThat(promptCaptor.getValue()).contains("fact-checking researcher");
     }
 
     @Test
