@@ -95,4 +95,15 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
     @Transactional
     @Query("UPDATE PolicyDecision p SET p.signalStatus = :status WHERE p.id = :id")
     int updateSignalStatus(@Param("id") String id, @Param("status") String status);
+
+    /** Count BLOCK/FLAG decisions for a given senderId after the given timestamp. */
+    @Query(
+            nativeQuery = true,
+            value =
+                    "SELECT COUNT(*) FROM policy_decisions "
+                            + "WHERE metadata->>'senderId' = :senderId "
+                            + "AND decision IN ('BLOCK', 'FLAG') "
+                            + "AND timestamp > :since")
+    int countBlockedBySenderSince(
+            @Param("senderId") String senderId, @Param("since") Instant since);
 }

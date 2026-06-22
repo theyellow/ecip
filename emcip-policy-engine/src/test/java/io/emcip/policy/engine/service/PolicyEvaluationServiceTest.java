@@ -6,6 +6,15 @@ import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.atLeastOnce;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.policy.engine.condition.ConditionEvaluator;
+import io.emcip.policy.engine.condition.ConditionEvaluatorRegistry;
+import io.emcip.policy.engine.condition.evaluator.AccountAgeDaysEvaluator;
+import io.emcip.policy.engine.condition.evaluator.FlaggedCountEvaluator;
+import io.emcip.policy.engine.condition.evaluator.GroupSizeEvaluator;
+import io.emcip.policy.engine.condition.evaluator.MessageLanguageEvaluator;
+import io.emcip.policy.engine.condition.evaluator.MessageLengthEvaluator;
+import io.emcip.policy.engine.condition.evaluator.MinThreadLengthEvaluator;
+import io.emcip.policy.engine.condition.evaluator.TimeWindowEvaluator;
 import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
@@ -14,6 +23,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,18 +48,30 @@ class PolicyEvaluationServiceTest {
     @Mock private PolicyActionService actionService;
 
     private ObjectMapper objectMapper;
+    private ConditionEvaluatorRegistry registry;
     private PolicyEvaluationService policyService;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
+        List<ConditionEvaluator> evs =
+                List.of(
+                        new TimeWindowEvaluator(),
+                        new MinThreadLengthEvaluator(),
+                        new AccountAgeDaysEvaluator(),
+                        new MessageLanguageEvaluator(),
+                        new GroupSizeEvaluator(),
+                        new MessageLengthEvaluator(),
+                        new FlaggedCountEvaluator());
+        registry = new ConditionEvaluatorRegistry(evs);
         policyService =
                 new PolicyEvaluationService(
                         kafkaTemplate,
                         objectMapper,
                         decisionRepository,
                         ruleConfigRepository,
-                        actionService);
+                        actionService,
+                        registry);
     }
 
     @Test
@@ -407,6 +429,126 @@ class PolicyEvaluationServiceTest {
         // And: original four fields still forwarded
         assertThat(result.getMetadata()).containsKey("messageText");
         assertThat(result.getMetadata()).containsKey("chatId");
+    }
+
+    @Test
+    @DisplayName("Rule with no conditions.groups passes (backward compat)")
+    void conditionsAbsent_alwaysPasses() {
+        PolicyRuleConfig rule = makeRule("SPAM", 0.7, null);
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
+                .thenReturn(List.of(rule));
+        stubDecisionSave();
+
+        PolicyDecision d = policyService.evaluate(makeEvent("SPAM", 0.9, Map.of()), UUID.randomUUID());
+        assertThat(d.getDecision()).isEqualTo("BLOCK");
+    }
+
+    @Test
+    @DisplayName("Single OR-group: all conditions pass → rule matches")
+    void singleGroup_allPass() {
+        Map<String, Object> conditions =
+                Map.of(
+                        "groups",
+                        List.of(
+                                Map.of(
+                                        "conditions",
+                                        List.of(Map.of("type", "MIN_THREAD_LENGTH", "min", 3)))));
+        PolicyRuleConfig rule = makeRule("SPAM", 0.7, conditions);
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
+                .thenReturn(List.of(rule));
+        stubDecisionSave();
+
+        PolicyDecision d =
+                policyService.evaluate(
+                        makeEvent("SPAM", 0.9, Map.of("threadLength", 5)), UUID.randomUUID());
+        assertThat(d.getDecision()).isEqualTo("BLOCK");
+    }
+
+    @Test
+    @DisplayName("Single OR-group: one condition fails → no match → fallback ALLOW")
+    void singleGroup_condFails_noMatch() {
+        Map<String, Object> conditions =
+                Map.of(
+                        "groups",
+                        List.of(
+                                Map.of(
+                                        "conditions",
+                                        List.of(Map.of("type", "MIN_THREAD_LENGTH", "min", 10)))));
+        PolicyRuleConfig rule = makeRule("SPAM", 0.7, conditions);
+        PolicyRuleConfig fallback = makeRule("*", 0.0, null);
+        fallback.setAction("ALLOW");
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
+                .thenReturn(List.of(rule, fallback));
+        stubDecisionSave();
+
+        PolicyDecision d =
+                policyService.evaluate(
+                        makeEvent("SPAM", 0.9, Map.of("threadLength", 2)), UUID.randomUUID());
+        assertThat(d.getDecision()).isEqualTo("ALLOW");
+    }
+
+    @Test
+    @DisplayName("Multi-group OR: first group fails, second passes → rule matches")
+    void multiGroup_secondPasses() {
+        Map<String, Object> conditions =
+                Map.of(
+                        "groups",
+                        List.of(
+                                Map.of(
+                                        "conditions",
+                                        List.of(Map.of("type", "ACCOUNT_AGE_DAYS", "max", 3))),
+                                Map.of(
+                                        "conditions",
+                                        List.of(Map.of("type", "GROUP_SIZE", "min", 100)))));
+        PolicyRuleConfig rule = makeRule("SPAM", 0.7, conditions);
+        when(ruleConfigRepository.findEffectiveRulesAt(any(Instant.class)))
+                .thenReturn(List.of(rule));
+        stubDecisionSave();
+
+        PolicyDecision d =
+                policyService.evaluate(
+                        makeEvent(
+                                "SPAM",
+                                0.9,
+                                Map.of("senderAccountAgeDays", 10, "groupSize", 200)),
+                        UUID.randomUUID());
+        assertThat(d.getDecision()).isEqualTo("BLOCK");
+    }
+
+    // ---- helpers ----
+
+    private PolicyRuleConfig makeRule(
+            String intent, double minConf, Map<String, Object> conditions) {
+        PolicyRuleConfig r = new PolicyRuleConfig();
+        r.setId(UUID.randomUUID().toString());
+        r.setTenantId(UUID.randomUUID());
+        r.setName("test-rule");
+        r.setTargetIntent(intent);
+        r.setMinConfidence(minConf);
+        r.setAction("BLOCK");
+        r.setConditions(conditions);
+        r.setActive(true);
+        r.setPriority(0);
+        r.setRuleVersion(1);
+        return r;
+    }
+
+    private EventSchemas.IntentClassifiedEvent makeEvent(
+            String intent, double conf, Map<String, Object> params) {
+        return new EventSchemas.IntentClassifiedEvent(
+                UUID.randomUUID().toString(),
+                Instant.now().toString(),
+                "v1",
+                "IntentClassified",
+                UUID.randomUUID().toString(),
+                intent,
+                conf,
+                params,
+                List.of());
+    }
+
+    private void stubDecisionSave() {
+        when(decisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     private EventSchemas.IntentClassifiedEvent createClassification(
