@@ -1,5 +1,6 @@
 package io.emcip.admin.api.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -79,8 +80,8 @@ class ResearchProxyControllerTest {
                 .expectBody(String.class)
                 .value(
                         body -> {
-                            assert body != null;
-                            assert body.contains("sessionId");
+                            assertThat(body).isNotNull();
+                            assertThat(body).contains("sessionId");
                         });
     }
 
@@ -98,8 +99,8 @@ class ResearchProxyControllerTest {
                 .expectBody(String.class)
                 .value(
                         body -> {
-                            assert body != null;
-                            assert body.contains("sessionId");
+                            assertThat(body).isNotNull();
+                            assertThat(body).contains("sessionId");
                         });
     }
 
@@ -117,8 +118,8 @@ class ResearchProxyControllerTest {
                 .expectBody(String.class)
                 .value(
                         body -> {
-                            assert body != null;
-                            assert body.contains("sessionId");
+                            assertThat(body).isNotNull();
+                            assertThat(body).contains("sessionId");
                         });
     }
 
@@ -176,8 +177,8 @@ class ResearchProxyControllerTest {
                 .expectBody(String.class)
                 .value(
                         body -> {
-                            assert body != null;
-                            assert body.contains("template");
+                            assertThat(body).isNotNull();
+                            assertThat(body).contains("template");
                         });
     }
 
@@ -195,8 +196,34 @@ class ResearchProxyControllerTest {
                 .expectBody(String.class)
                 .value(
                         body -> {
-                            assert body != null;
-                            assert body.contains("Executive Summary");
+                            assertThat(body).isNotNull();
+                            assertThat(body).contains("Executive Summary");
                         });
+    }
+
+    @Test
+    void getReport_circuitBreaker_returns503OnError() {
+        UUID sessionId = UUID.randomUUID();
+        stubError();
+
+        webTestClient
+                .get()
+                .uri("/api/admin/knowledge/research/" + sessionId + "/report")
+                .exchange()
+                .expectStatus()
+                .isEqualTo(503);
+    }
+
+    @Test
+    void getReportMarkdown_circuitBreaker_returns503OnError() {
+        UUID sessionId = UUID.randomUUID();
+        stubError();
+
+        webTestClient
+                .get()
+                .uri("/api/admin/knowledge/research/" + sessionId + "/report/markdown")
+                .exchange()
+                .expectStatus()
+                .isEqualTo(503);
     }
 }

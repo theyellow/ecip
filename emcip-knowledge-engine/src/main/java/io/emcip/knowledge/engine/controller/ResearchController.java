@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -105,9 +106,11 @@ public class ResearchController {
                 .map(
                         r ->
                                 ResponseEntity.ok()
-                                        .header("Content-Type", "text/markdown; charset=UTF-8")
                                         .header(
-                                                "Content-Disposition",
+                                                HttpHeaders.CONTENT_TYPE,
+                                                "text/markdown; charset=UTF-8")
+                                        .header(
+                                                HttpHeaders.CONTENT_DISPOSITION,
                                                 "attachment; filename=\"report-" + id + ".md\"")
                                         .body(r.getContent()))
                 .orElse(ResponseEntity.notFound().build());

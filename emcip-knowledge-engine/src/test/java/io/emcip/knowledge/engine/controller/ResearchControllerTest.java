@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -197,5 +198,9 @@ class ResearchControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("Executive Summary");
         assertThat(response.getHeaders().getFirst("Content-Type")).contains("text/markdown");
+        assertThat(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .contains("attachment");
+        assertThat(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION))
+                .contains("report-" + sessionId + ".md");
     }
 }
