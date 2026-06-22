@@ -26,12 +26,44 @@ public final class RolePermissions {
                     Permission.KNOWLEDGE_WRITE,
                     Permission.INTEGRATIONS_TENANT_MANAGE);
 
+    private static final Set<Permission> MODERATOR_PERMISSIONS =
+            EnumSet.of(
+                    Permission.GROUPS_READ,
+                    Permission.GROUPS_WRITE,
+                    Permission.POLICY_RULES_READ,
+                    Permission.POLICY_RULES_WRITE,
+                    Permission.MODERATION_RULES_READ,
+                    Permission.MODERATION_RULES_WRITE,
+                    Permission.AUDIT_READ,
+                    Permission.TELEGRAM_READ,
+                    Permission.SIMULATE_WRITE,
+                    Permission.RESOLUTION_REVIEW_READ,
+                    Permission.RESOLUTION_REVIEW_WRITE,
+                    Permission.KNOWLEDGE_READ);
+
+    private static final Set<Permission> ANALYST_PERMISSIONS =
+            EnumSet.of(
+                    Permission.GROUPS_READ,
+                    Permission.POLICY_RULES_READ,
+                    Permission.MODERATION_RULES_READ,
+                    Permission.AUDIT_READ,
+                    Permission.TELEGRAM_READ,
+                    Permission.COSTS_READ,
+                    Permission.RESOLUTION_REVIEW_READ,
+                    Permission.KNOWLEDGE_READ);
+
+    private static final Set<Permission> VIEWER_PERMISSIONS =
+            EnumSet.of(Permission.GROUPS_READ, Permission.AUDIT_READ, Permission.TELEGRAM_READ);
+
     private RolePermissions() {}
 
     public static Set<Permission> permissionsFor(Role role) {
         return switch (role) {
             case ADMIN -> ADMIN_PERMISSIONS;
             case TENANT_ADMIN -> TENANT_ADMIN_PERMISSIONS;
+            case MODERATOR -> MODERATOR_PERMISSIONS;
+            case ANALYST -> ANALYST_PERMISSIONS;
+            case VIEWER -> VIEWER_PERMISSIONS;
         };
     }
 }
