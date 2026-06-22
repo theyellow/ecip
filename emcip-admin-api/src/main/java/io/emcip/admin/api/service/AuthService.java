@@ -37,6 +37,11 @@ public class AuthService {
                                 new ResponseStatusException(
                                         HttpStatus.UNAUTHORIZED, "Invalid credentials")))
                 .flatMap(
+                        user -> {
+                            user.setLastLogin(Instant.now());
+                            return userRepository.save(user);
+                        })
+                .flatMap(
                         user ->
                                 resolveTenantName(user.getTenantId())
                                         .flatMap(

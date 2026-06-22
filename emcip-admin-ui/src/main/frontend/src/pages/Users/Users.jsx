@@ -8,8 +8,14 @@ import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
 import styles from './Users.module.css'
 
-const ROLES = ['ADMIN', 'TENANT_ADMIN']
-const ROLE_VARIANT = { ADMIN: 'red', TENANT_ADMIN: 'yellow' }
+const ROLES = ['ADMIN', 'TENANT_ADMIN', 'MODERATOR', 'ANALYST', 'VIEWER']
+const ROLE_VARIANT = {
+  ADMIN: 'red',
+  TENANT_ADMIN: 'yellow',
+  MODERATOR: 'blue',
+  ANALYST: 'gray',
+  VIEWER: 'gray',
+}
 
 export function Users() {
   const request = useAuthRequest()
@@ -82,6 +88,13 @@ export function Users() {
     { key: 'tenantName', label: 'Tenant', render: v => v || '\u2014' },
     { key: 'enabled', label: 'Enabled', width: 80, render: v => <Badge variant={v ? 'green' : 'gray'}>{v ? 'ON' : 'OFF'}</Badge> },
     {
+      key: 'lastLogin',
+      label: 'Last Login',
+      width: 160,
+      mono: true,
+      render: (v) => (v ? new Date(v).toLocaleString() : '\u2014'),
+    },
+    {
       key: 'id',
       label: '',
       width: 80,
@@ -151,7 +164,7 @@ export function Users() {
               {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
-          {form.role === 'TENANT_ADMIN' && (
+          {form.role !== 'ADMIN' && (
             <div className={styles.field}>
               <label htmlFor="user-tenant">Tenant</label>
               <select id="user-tenant" className={styles.input} value={form.tenantId}

@@ -182,4 +182,114 @@ class UserManagementServiceTest {
                 .assertNext(resp -> assertThat(resp.getRole()).isEqualTo(Role.TENANT_ADMIN))
                 .verifyComplete();
     }
+
+    @Test
+    void createUser_moderator_requiresTenantId() {
+        UserRequest req = new UserRequest();
+        req.setUsername("mod");
+        req.setEmail("mod@example.com");
+        req.setPassword("secret");
+        req.setRole(Role.MODERATOR);
+        req.setTenantId(null);
+
+        StepVerifier.create(userManagementService.create(req))
+                .expectErrorMatches(
+                        e ->
+                                e.getMessage() != null
+                                        && e.getMessage().contains("tenantId is required"))
+                .verify();
+    }
+
+    @Test
+    void createUser_analyst_requiresTenantId() {
+        UserRequest req = new UserRequest();
+        req.setUsername("analyst");
+        req.setEmail("analyst@example.com");
+        req.setPassword("secret");
+        req.setRole(Role.ANALYST);
+        req.setTenantId(null);
+
+        StepVerifier.create(userManagementService.create(req))
+                .expectErrorMatches(
+                        e ->
+                                e.getMessage() != null
+                                        && e.getMessage().contains("tenantId is required"))
+                .verify();
+    }
+
+    @Test
+    void createUser_viewer_requiresTenantId() {
+        UserRequest req = new UserRequest();
+        req.setUsername("viewer");
+        req.setEmail("viewer@example.com");
+        req.setPassword("secret");
+        req.setRole(Role.VIEWER);
+        req.setTenantId(null);
+
+        StepVerifier.create(userManagementService.create(req))
+                .expectErrorMatches(
+                        e ->
+                                e.getMessage() != null
+                                        && e.getMessage().contains("tenantId is required"))
+                .verify();
+    }
+
+    @Test
+    void createUser_moderator_validRequest_savesUser() {
+        UserRequest req = new UserRequest();
+        req.setUsername("mod");
+        req.setEmail("mod@example.com");
+        req.setPassword("secret");
+        req.setRole(Role.MODERATOR);
+        req.setTenantId(TENANT_ID);
+
+        AdminUser moderator =
+                AdminUser.builder()
+                        .id(3L)
+                        .username("mod")
+                        .email("mod@example.com")
+                        .passwordHash("$2a$encoded")
+                        .role(Role.MODERATOR)
+                        .tenantId(TENANT_ID)
+                        .enabled(true)
+                        .createdAt(Instant.now())
+                        .build();
+
+        when(tenantRepository.existsById(TENANT_ID)).thenReturn(Mono.just(true));
+        when(passwordEncoder.encode("secret")).thenReturn("$2a$encoded");
+        when(userRepository.save(any())).thenReturn(Mono.just(moderator));
+        when(tenantRepository.findById(TENANT_ID)).thenReturn(Mono.just(tenant("Acme Corp")));
+
+        StepVerifier.create(userManagementService.create(req))
+                .assertNext(
+                        resp -> {
+                            assertThat(resp.getUsername()).isEqualTo("mod");
+                            assertThat(resp.getRole()).isEqualTo(Role.MODERATOR);
+                            assertThat(resp.getTenantId()).isEqualTo(TENANT_ID);
+                            assertThat(resp.getTenantName()).isEqualTo("Acme Corp");
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void toResponse_includesLastLogin() {
+        Instant loginTime = Instant.parse("2026-06-22T10:00:00Z");
+        AdminUser user =
+                AdminUser.builder()
+                        .id(1L)
+                        .username("admin")
+                        .email("admin@example.com")
+                        .passwordHash("$2a$hash")
+                        .role(Role.ADMIN)
+                        .enabled(true)
+                        .createdAt(Instant.now())
+                        .lastLogin(loginTime)
+                        .build();
+
+        when(userRepository.findAll()).thenReturn(reactor.core.publisher.Flux.just(user));
+
+        StepVerifier.create(userManagementService.findAll())
+                .assertNext(resp -> assertThat(resp.getLastLogin()).isEqualTo(loginTime))
+                .verifyComplete();
+    }
 }
