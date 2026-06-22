@@ -161,4 +161,42 @@ class ResearchProxyControllerTest {
                 .expectStatus()
                 .isEqualTo(503);
     }
+
+    @Test
+    void getReport_proxiesGetToKnowledgeEngine() {
+        UUID sessionId = UUID.randomUUID();
+        stubOk("{\"id\":\"" + UUID.randomUUID() + "\",\"template\":\"TOPIC\"}");
+
+        webTestClient
+                .get()
+                .uri("/api/admin/knowledge/research/" + sessionId + "/report")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody(String.class)
+                .value(
+                        body -> {
+                            assert body != null;
+                            assert body.contains("template");
+                        });
+    }
+
+    @Test
+    void getReportMarkdown_proxiesGetToKnowledgeEngine() {
+        UUID sessionId = UUID.randomUUID();
+        stubOk("## Executive Summary\nTest content.");
+
+        webTestClient
+                .get()
+                .uri("/api/admin/knowledge/research/" + sessionId + "/report/markdown")
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody(String.class)
+                .value(
+                        body -> {
+                            assert body != null;
+                            assert body.contains("Executive Summary");
+                        });
+    }
 }

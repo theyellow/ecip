@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.emcip.knowledge.engine.entity.ReportTemplate;
+import io.emcip.knowledge.engine.entity.ResearchReport;
 import io.emcip.knowledge.engine.entity.ResearchSession;
 import io.emcip.knowledge.engine.entity.ResearchStatus;
+import io.emcip.knowledge.engine.model.ResearchReportDto;
 import io.emcip.knowledge.engine.model.ResearchRequest;
 import io.emcip.knowledge.engine.model.ResearchSessionDto;
 import io.emcip.knowledge.engine.repository.ResearchEvidenceRepository;
@@ -135,5 +138,64 @@ class ResearchControllerTest {
         ResponseEntity<ResearchSessionDto> response = controller.resumeSession(sessionId);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void getReport_returns200_withReportDto() {
+        UUID sessionId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        ResearchSession session = buildSession(sessionId, tenantId, ResearchStatus.COMPLETED);
+
+        ResearchReport report = new ResearchReport();
+        report.setId(UUID.randomUUID());
+        report.setTenantId(tenantId);
+        report.setSession(session);
+        report.setTemplate(ReportTemplate.TOPIC);
+        report.setTitle("Research Report: Test");
+        report.setContent("## Executive Summary\nTest report content.");
+        report.setVersion(1);
+
+        when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.of(report));
+
+        ResponseEntity<ResearchReportDto> response = controller.getReport(sessionId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().template()).isEqualTo(ReportTemplate.TOPIC);
+        assertThat(response.getBody().content()).contains("Executive Summary");
+    }
+
+    @Test
+    void getReport_returns404_whenNoReport() {
+        UUID sessionId = UUID.randomUUID();
+        when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.empty());
+
+        ResponseEntity<ResearchReportDto> response = controller.getReport(sessionId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void getReportMarkdown_returns200_withMarkdownContent() {
+        UUID sessionId = UUID.randomUUID();
+        UUID tenantId = UUID.randomUUID();
+        ResearchSession session = buildSession(sessionId, tenantId, ResearchStatus.COMPLETED);
+
+        ResearchReport report = new ResearchReport();
+        report.setId(UUID.randomUUID());
+        report.setTenantId(tenantId);
+        report.setSession(session);
+        report.setTemplate(ReportTemplate.TOPIC);
+        report.setTitle("Test");
+        report.setContent("## Executive Summary\nContent here.");
+        report.setVersion(1);
+
+        when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.of(report));
+
+        ResponseEntity<String> response = controller.getReportMarkdown(sessionId);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("Executive Summary");
+        assertThat(response.getHeaders().getFirst("Content-Type")).contains("text/markdown");
     }
 }

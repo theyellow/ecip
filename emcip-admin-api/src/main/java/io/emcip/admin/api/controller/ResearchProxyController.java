@@ -155,4 +155,48 @@ public class ResearchProxyController {
                         })
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
+
+    @Operation(summary = "Get the research report for a session")
+    @GetMapping("/{id}/report")
+    public Mono<ResponseEntity<String>> getReport(@PathVariable UUID id) {
+        return knowledgeWebClient
+                .get()
+                .uri("/api/knowledge/research/{id}/report", id)
+                .retrieve()
+                .bodyToMono(String.class)
+                .map(ResponseEntity::ok)
+                .onErrorResume(
+                        e -> {
+                            log.error(
+                                    "Research getReport proxy error sessionId={}: {}",
+                                    id,
+                                    e.getMessage());
+                            return Mono.just(
+                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                            .<String>build());
+                        })
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    @Operation(summary = "Download the research report as Markdown")
+    @GetMapping("/{id}/report/markdown")
+    public Mono<ResponseEntity<String>> getReportMarkdown(@PathVariable UUID id) {
+        return knowledgeWebClient
+                .get()
+                .uri("/api/knowledge/research/{id}/report/markdown", id)
+                .retrieve()
+                .bodyToMono(String.class)
+                .map(ResponseEntity::ok)
+                .onErrorResume(
+                        e -> {
+                            log.error(
+                                    "Research getReportMarkdown proxy error sessionId={}: {}",
+                                    id,
+                                    e.getMessage());
+                            return Mono.just(
+                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                            .<String>build());
+                        })
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
 }

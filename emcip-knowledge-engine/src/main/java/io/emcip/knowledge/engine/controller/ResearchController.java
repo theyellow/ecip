@@ -3,6 +3,7 @@ package io.emcip.knowledge.engine.controller;
 import io.emcip.knowledge.engine.entity.ResearchReport;
 import io.emcip.knowledge.engine.entity.ResearchSession;
 import io.emcip.knowledge.engine.model.ResearchEvidenceDto;
+import io.emcip.knowledge.engine.model.ResearchReportDto;
 import io.emcip.knowledge.engine.model.ResearchRequest;
 import io.emcip.knowledge.engine.model.ResearchSessionDto;
 import io.emcip.knowledge.engine.repository.ResearchEvidenceRepository;
@@ -84,6 +85,31 @@ public class ResearchController {
         return agentService
                 .resumeSession(id)
                 .map(s -> ResponseEntity.ok(toDto(s)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Get the research report for a session")
+    @GetMapping("/{id}/report")
+    public ResponseEntity<ResearchReportDto> getReport(@PathVariable UUID id) {
+        return reportRepository
+                .findBySessionId(id)
+                .map(r -> ResponseEntity.ok(ResearchReportDto.from(r)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Download the research report as Markdown")
+    @GetMapping("/{id}/report/markdown")
+    public ResponseEntity<String> getReportMarkdown(@PathVariable UUID id) {
+        return reportRepository
+                .findBySessionId(id)
+                .map(
+                        r ->
+                                ResponseEntity.ok()
+                                        .header("Content-Type", "text/markdown; charset=UTF-8")
+                                        .header(
+                                                "Content-Disposition",
+                                                "attachment; filename=\"report-" + id + ".md\"")
+                                        .body(r.getContent()))
                 .orElse(ResponseEntity.notFound().build());
     }
 
