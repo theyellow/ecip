@@ -1,0 +1,58 @@
+.root { padding: var(--sp-2) 0; }
+
+.empty { color: var(--fg-3); font-style: italic; font-size: 13px; }
+
+.table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: var(--sp-2); }
+.table th {
+  text-align: left;
+  padding: var(--sp-1) var(--sp-2);
+  background: var(--bg-input);
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: var(--sp-1) var(--sp-2);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.table tr:nth-child(even) td { background: var(--bg-input); }
+.mono { font-family: var(--font-mono); color: var(--fg-2); }
+.muted { color: var(--fg-3); }
+
+.diffToggle {
+  font-size: 11px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--fg-3);
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+.diffToggle:hover { border-color: var(--accent); color: var(--accent); }
+
+.diff {
+  margin-top: var(--sp-2);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: var(--sp-2);
+}
+.diffLabel {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--fg-3);
+  margin-bottom: var(--sp-1);
+}
+.diffPre {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--fg-2);
+  overflow: auto;
+  max-height: 300px;
+  white-space: pre;
+}

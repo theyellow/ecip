@@ -13,5 +13,6 @@
     <include file="changes/006-add-signal-status.xml" relativeToChangelogFile="true"/>
     <include file="changes/007-tenant-id-nullable.xml" relativeToChangelogFile="true"/>
     <include file="changes/008-policy-rules-version-not-null.xml" relativeToChangelogFile="true"/>
+    <include file="changes/009-policy-rule-history.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

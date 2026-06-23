@@ -1,6 +1,8 @@
 package io.emcip.policy.engine.service;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.policy.engine.condition.ConditionEvaluatorRegistry;
+import io.emcip.policy.engine.condition.EvaluationContext;
 import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
@@ -8,8 +10,8 @@ import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.UUID;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,7 @@ public class PolicyEvaluationService {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyEvaluationService.class);
     private static final String TOPIC_OUTPUT = "policies.decisions";
+    private static final int FLAG_WINDOW_DAYS = 90;
 
     private static final Set<String> SIGNAL_PARAM_KEYS =
             Set.of(
@@ -45,6 +48,7 @@ public class PolicyEvaluationService {
     private final PolicyDecisionRepository decisionRepository;
     private final PolicyRuleConfigRepository ruleConfigRepository;
     private final PolicyActionService actionService;
+    private final ConditionEvaluatorRegistry conditionRegistry;
 
     // Default hardcoded rules for fallback
     private final List<DefaultPolicyRule> defaultRules =
@@ -95,12 +99,14 @@ public class PolicyEvaluationService {
             ObjectMapper objectMapper,
             PolicyDecisionRepository decisionRepository,
             PolicyRuleConfigRepository ruleConfigRepository,
-            PolicyActionService actionService) {
+            PolicyActionService actionService,
+            ConditionEvaluatorRegistry conditionRegistry) {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
         this.decisionRepository = decisionRepository;
         this.ruleConfigRepository = ruleConfigRepository;
         this.actionService = actionService;
+        this.conditionRegistry = conditionRegistry;
     }
 
     /** Evaluate policies against an intent classification and persist the decision. */
@@ -113,8 +119,9 @@ public class PolicyEvaluationService {
 
         // Get active rules from database (ordered by priority)
         List<PolicyRuleConfig> dbRules = ruleConfigRepository.findEffectiveRulesAt(Instant.now());
-        List<EvaluatedRule> rulesToEvaluate = new ArrayList<>();
+        EvaluationContext ctx = buildContext(classification);
 
+        List<EvaluatedRule> rulesToEvaluate = new ArrayList<>();
         if (dbRules.isEmpty()) {
             // Fallback to default hardcoded rules
             log.debug("No database rules found, using default rules");
@@ -127,7 +134,8 @@ public class PolicyEvaluationService {
                                 rule.minConfidence,
                                 rule.maxConfidence,
                                 rule.action,
-                                rule.reason));
+                                rule.reason,
+                                null));
             }
         } else {
             for (PolicyRuleConfig rule : dbRules) {
@@ -139,13 +147,14 @@ public class PolicyEvaluationService {
                                 rule.getMinConfidence(),
                                 rule.getMaxConfidence(),
                                 rule.getAction(),
-                                rule.getReason()));
+                                rule.getReason(),
+                                rule.getConditions()));
             }
         }
 
         // Evaluate all rules (first match wins based on priority order)
         for (EvaluatedRule rule : rulesToEvaluate) {
-            if (matchesRule(rule, classification.intent(), classification.confidence())) {
+            if (matchesRule(rule, ctx)) {
                 decision = rule.action;
                 reason =
                         (rule.reason != null && !rule.reason.isBlank())
@@ -211,6 +220,65 @@ public class PolicyEvaluationService {
         return persistedDecision;
     }
 
+    /** Checks intent + confidence + OR-group conditions. */
+    private boolean matchesRule(EvaluatedRule rule, EvaluationContext ctx) {
+        boolean intentMatches =
+                "*".equals(rule.targetIntent) || rule.targetIntent.equals(ctx.intent());
+        boolean confidenceMatches =
+                ctx.confidence() >= rule.minConfidence
+                        && (rule.maxConfidence == null || ctx.confidence() <= rule.maxConfidence);
+        if (!intentMatches || !confidenceMatches) return false;
+        return matchesConditions(rule.conditions, ctx);
+    }
+
+    /**
+     * Evaluates OR-group conditions. Empty/absent groups = always pass (backward compat). Groups
+     * are OR'd; conditions within a group are AND'd.
+     */
+    @SuppressWarnings("unchecked")
+    public boolean matchesConditions(Map<String, Object> conditions, EvaluationContext ctx) {
+        if (conditions == null) return true;
+        Object groupsObj = conditions.get("groups");
+        if (groupsObj == null) return true;
+        List<Map<String, Object>> groups = (List<Map<String, Object>>) groupsObj;
+        if (groups.isEmpty()) return true;
+        for (Map<String, Object> group : groups) {
+            List<Map<String, Object>> conds =
+                    (List<Map<String, Object>>) group.getOrDefault("conditions", List.of());
+            boolean groupPasses = conds.stream().allMatch(c -> conditionRegistry.evaluate(c, ctx));
+            if (groupPasses) return true;
+        }
+        return false;
+    }
+
+    /** Builds an EvaluationContext from an IntentClassifiedEvent. */
+    private EvaluationContext buildContext(EventSchemas.IntentClassifiedEvent event) {
+        Map<String, Object> p = event.parameters() != null ? event.parameters() : Map.of();
+        String senderId = p.get("senderId") instanceof String s ? s : null;
+        int flaggedCount = 0;
+        if (senderId != null) {
+            try {
+                Instant since = Instant.now().minus(FLAG_WINDOW_DAYS, ChronoUnit.DAYS);
+                flaggedCount = decisionRepository.countBlockedBySenderSince(senderId, since);
+            } catch (Exception e) {
+                log.warn("Failed to fetch sender flagged count: {}", e.getMessage());
+            }
+        }
+        return new EvaluationContext(
+                event.intent(),
+                event.confidence(),
+                p.get("language") instanceof String l ? l : "",
+                p.get("threadLength") instanceof Number n ? n.intValue() : 0,
+                p.get("groupSize") instanceof Number n ? n.intValue() : 0,
+                p.get("messageLength") instanceof Number n ? n.intValue() : 0,
+                p.get("senderAccountAgeDays") instanceof Number n
+                        ? n.intValue()
+                        : Integer.MAX_VALUE,
+                flaggedCount,
+                FLAG_WINDOW_DAYS,
+                ZonedDateTime.now());
+    }
+
     private Map<String, Object> buildDecisionContext(
             EventSchemas.IntentClassifiedEvent classification) {
         Map<String, Object> ctx = new LinkedHashMap<>();
@@ -226,17 +294,9 @@ public class PolicyEvaluationService {
         return ctx;
     }
 
-    /** Check if a rule matches the given intent and confidence. */
-    private boolean matchesRule(EvaluatedRule rule, String intent, double confidence) {
-        // Check intent match ("*" matches any)
-        boolean intentMatches = "*".equals(rule.targetIntent) || rule.targetIntent.equals(intent);
-
-        // Check confidence range
-        boolean confidenceMatches =
-                confidence >= rule.minConfidence
-                        && (rule.maxConfidence == null || confidence <= rule.maxConfidence);
-
-        return intentMatches && confidenceMatches;
+    /** Get all active policy rules (for admin/management purposes). */
+    public List<PolicyRuleConfig> getActiveRules() {
+        return ruleConfigRepository.findByActiveTrueOrderByPriorityAsc();
     }
 
     /** Persist the policy decision to the database. */
@@ -274,11 +334,6 @@ public class PolicyEvaluationService {
         policyDecision.setTimestamp(Instant.now());
 
         return decisionRepository.save(policyDecision);
-    }
-
-    /** Get all active policy rules (for admin/management purposes). */
-    public List<PolicyRuleConfig> getActiveRules() {
-        return ruleConfigRepository.findByActiveTrueOrderByPriorityAsc();
     }
 
     /** Returns true if the current time is within a configured time window (HH:mm format, UTC). */
@@ -332,5 +387,6 @@ public class PolicyEvaluationService {
             Double minConfidence,
             Double maxConfidence,
             String action,
-            String reason) {}
+            String reason,
+            Map<String, Object> conditions) {}
 }

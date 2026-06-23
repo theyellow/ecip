@@ -83,10 +83,11 @@ public class PolicyEngineClient {
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
-    public Mono<JsonNode> updateRule(String id, JsonNode body) {
+    public Mono<JsonNode> updateRule(String id, JsonNode body, String editedBy) {
         return webClient
                 .put()
                 .uri("/api/policy-rules/{id}", id)
+                .header("X-Edited-By", editedBy != null ? editedBy : "unknown")
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
@@ -102,6 +103,34 @@ public class PolicyEngineClient {
                 .bodyToMono(Void.class)
                 .transformDeferred(RetryOperator.of(retry))
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    public Mono<JsonNode> dryRun(JsonNode body) {
+        return webClient
+                .post()
+                .uri("/api/policy-rules/dry-run")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .transformDeferred(RetryOperator.of(retry))
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    public Flux<JsonNode> getRuleHistory(String ruleId) {
+        return webClient
+                .get()
+                .uri("/api/policy-rules/{id}/history", ruleId)
+                .retrieve()
+                .bodyToFlux(JsonNode.class)
+                .transformDeferred(RetryOperator.of(retry))
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorResume(
+                        e -> {
+                            log.warn(
+                                    "policy-engine unavailable for getRuleHistory: {}",
+                                    e.getMessage());
+                            return Flux.empty();
+                        });
     }
 
     public Mono<JsonNode> getDecision(String id) {
