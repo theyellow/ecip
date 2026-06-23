@@ -1,5 +1,9 @@
 package io.emcip.policy.engine.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+
 import io.emcip.policy.engine.condition.ConditionType;
 import io.emcip.policy.engine.condition.EvaluationContext;
 import io.emcip.policy.engine.dto.ConditionResult;
@@ -16,10 +20,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.test.StepVerifier;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DryRunControllerTest {

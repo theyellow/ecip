@@ -24,8 +24,7 @@ public class DryRunController {
     @Operation(summary = "Evaluate an unsaved rule against a test context — no side effects")
     @PostMapping("/dry-run")
     public Mono<DryRunResult> dryRun(@RequestBody DryRunRequest request) {
-        return Mono.fromCallable(
-                        () -> dryRunService.evaluate(request.rule(), request.context()))
+        return Mono.fromCallable(() -> dryRunService.evaluate(request.rule(), request.context()))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 }

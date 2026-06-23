@@ -15,8 +15,10 @@ public class MessageLengthEvaluator implements ConditionEvaluator {
     @Override
     public boolean evaluate(Map<String, Object> params, EvaluationContext ctx) {
         int len = ctx.messageLength();
-        if (params.containsKey("min") && len < ((Number) params.get("min")).intValue()) return false;
-        if (params.containsKey("max") && len > ((Number) params.get("max")).intValue()) return false;
+        if (params.containsKey("min") && len < ((Number) params.get("min")).intValue())
+            return false;
+        if (params.containsKey("max") && len > ((Number) params.get("max")).intValue())
+            return false;
         return true;
     }
 

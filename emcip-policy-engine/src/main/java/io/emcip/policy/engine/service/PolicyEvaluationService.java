@@ -271,7 +271,9 @@ public class PolicyEvaluationService {
                 p.get("threadLength") instanceof Number n ? n.intValue() : 0,
                 p.get("groupSize") instanceof Number n ? n.intValue() : 0,
                 p.get("messageLength") instanceof Number n ? n.intValue() : 0,
-                p.get("senderAccountAgeDays") instanceof Number n ? n.intValue() : Integer.MAX_VALUE,
+                p.get("senderAccountAgeDays") instanceof Number n
+                        ? n.intValue()
+                        : Integer.MAX_VALUE,
                 flaggedCount,
                 FLAG_WINDOW_DAYS,
                 ZonedDateTime.now());

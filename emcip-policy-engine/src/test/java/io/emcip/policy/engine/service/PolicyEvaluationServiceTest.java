@@ -439,7 +439,8 @@ class PolicyEvaluationServiceTest {
                 .thenReturn(List.of(rule));
         stubDecisionSave();
 
-        PolicyDecision d = policyService.evaluate(makeEvent("SPAM", 0.9, Map.of()), UUID.randomUUID());
+        PolicyDecision d =
+                policyService.evaluate(makeEvent("SPAM", 0.9, Map.of()), UUID.randomUUID());
         assertThat(d.getDecision()).isEqualTo("BLOCK");
     }
 
@@ -508,9 +509,7 @@ class PolicyEvaluationServiceTest {
         PolicyDecision d =
                 policyService.evaluate(
                         makeEvent(
-                                "SPAM",
-                                0.9,
-                                Map.of("senderAccountAgeDays", 10, "groupSize", 200)),
+                                "SPAM", 0.9, Map.of("senderAccountAgeDays", 10, "groupSize", 200)),
                         UUID.randomUUID());
         assertThat(d.getDecision()).isEqualTo("BLOCK");
     }

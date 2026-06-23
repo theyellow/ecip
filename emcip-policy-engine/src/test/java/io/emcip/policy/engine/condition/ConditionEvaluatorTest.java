@@ -26,8 +26,7 @@ class ConditionEvaluatorTest {
     void timeWindow_overnight_inside() {
         assertThat(
                         new TimeWindowEvaluator()
-                                .evaluate(
-                                        Map.of("start", "22:00", "end", "06:00"), ctx(NIGHT)))
+                                .evaluate(Map.of("start", "22:00", "end", "06:00"), ctx(NIGHT)))
                 .isTrue();
     }
 
@@ -35,8 +34,7 @@ class ConditionEvaluatorTest {
     void timeWindow_overnight_outside() {
         assertThat(
                         new TimeWindowEvaluator()
-                                .evaluate(
-                                        Map.of("start", "22:00", "end", "06:00"), ctx(DAY)))
+                                .evaluate(Map.of("start", "22:00", "end", "06:00"), ctx(DAY)))
                 .isFalse();
     }
 
@@ -45,8 +43,7 @@ class ConditionEvaluatorTest {
         ZonedDateTime noon = ZonedDateTime.of(2026, 6, 22, 13, 0, 0, 0, ZoneOffset.UTC);
         assertThat(
                         new TimeWindowEvaluator()
-                                .evaluate(
-                                        Map.of("start", "09:00", "end", "17:00"), ctx(noon)))
+                                .evaluate(Map.of("start", "09:00", "end", "17:00"), ctx(noon)))
                 .isTrue();
     }
 
@@ -88,11 +85,7 @@ class ConditionEvaluatorTest {
         assertThat(
                         new MessageLanguageEvaluator()
                                 .evaluate(
-                                        Map.of(
-                                                "languages",
-                                                List.of("en", "de"),
-                                                "mode",
-                                                "INCLUDE"),
+                                        Map.of("languages", List.of("en", "de"), "mode", "INCLUDE"),
                                         ctx(DAY)))
                 .isTrue();
     }
@@ -102,11 +95,7 @@ class ConditionEvaluatorTest {
         assertThat(
                         new MessageLanguageEvaluator()
                                 .evaluate(
-                                        Map.of(
-                                                "languages",
-                                                List.of("de", "fr"),
-                                                "mode",
-                                                "INCLUDE"),
+                                        Map.of("languages", List.of("de", "fr"), "mode", "INCLUDE"),
                                         ctx(DAY)))
                 .isFalse();
     }
@@ -136,9 +125,7 @@ class ConditionEvaluatorTest {
     // MESSAGE_LENGTH
     @Test
     void messageLength_withinBounds() {
-        assertThat(
-                        new MessageLengthEvaluator()
-                                .evaluate(Map.of("min", 10, "max", 100), ctx(DAY)))
+        assertThat(new MessageLengthEvaluator().evaluate(Map.of("min", 10, "max", 100), ctx(DAY)))
                 .isTrue();
     }
 

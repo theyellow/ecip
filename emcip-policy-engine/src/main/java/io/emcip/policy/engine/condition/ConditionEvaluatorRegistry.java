@@ -13,8 +13,7 @@ public class ConditionEvaluatorRegistry {
     public ConditionEvaluatorRegistry(List<ConditionEvaluator> evaluators) {
         this.evaluators =
                 evaluators.stream()
-                        .collect(
-                                Collectors.toUnmodifiableMap(ConditionEvaluator::type, e -> e));
+                        .collect(Collectors.toUnmodifiableMap(ConditionEvaluator::type, e -> e));
     }
 
     public boolean evaluate(Map<String, Object> condition, EvaluationContext ctx) {

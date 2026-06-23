@@ -42,8 +42,7 @@ public class PolicyRuleController {
 
     @Operation(summary = "Update a policy rule; passes caller identity for history snapshot")
     @PutMapping("/{id}")
-    public Mono<JsonNode> updateRule(
-            @PathVariable("id") String id, @RequestBody JsonNode body) {
+    public Mono<JsonNode> updateRule(@PathVariable("id") String id, @RequestBody JsonNode body) {
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getName())
                 .defaultIfEmpty("unknown")
