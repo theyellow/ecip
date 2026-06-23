@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,10 +40,14 @@ public class PolicyRuleController {
         return policyEngineClient.createRule(body);
     }
 
-    @Operation(summary = "Update a policy rule")
+    @Operation(summary = "Update a policy rule; passes caller identity for history snapshot")
     @PutMapping("/{id}")
-    public Mono<JsonNode> updateRule(@PathVariable("id") String id, @RequestBody JsonNode body) {
-        return policyEngineClient.updateRule(id, body);
+    public Mono<JsonNode> updateRule(
+            @PathVariable("id") String id, @RequestBody JsonNode body) {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication().getName())
+                .defaultIfEmpty("unknown")
+                .flatMap(editedBy -> policyEngineClient.updateRule(id, body, editedBy));
     }
 
     @Operation(summary = "Delete a policy rule")
@@ -50,5 +55,17 @@ public class PolicyRuleController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteRule(@PathVariable("id") String id) {
         return policyEngineClient.deleteRule(id);
+    }
+
+    @Operation(summary = "Evaluate an unsaved rule against a test context — no side effects")
+    @PostMapping("/dry-run")
+    public Mono<JsonNode> dryRun(@RequestBody JsonNode body) {
+        return policyEngineClient.dryRun(body);
+    }
+
+    @Operation(summary = "Get version history snapshots for a rule")
+    @GetMapping("/{id}/history")
+    public Flux<JsonNode> getRuleHistory(@PathVariable("id") String id) {
+        return policyEngineClient.getRuleHistory(id);
     }
 }

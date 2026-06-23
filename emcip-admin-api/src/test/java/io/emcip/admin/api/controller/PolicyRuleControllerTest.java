@@ -59,7 +59,7 @@ class PolicyRuleControllerTest {
 
     @Test
     void update_returns200() {
-        when(client.updateRule(eq("pr-1"), any())).thenReturn(Mono.just(rule()));
+        when(client.updateRule(eq("pr-1"), any(), any())).thenReturn(Mono.just(rule()));
         webTestClient
                 .put()
                 .uri("/api/policy-rules/pr-1")
