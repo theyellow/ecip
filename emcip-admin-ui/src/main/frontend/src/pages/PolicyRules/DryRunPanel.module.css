@@ -1,0 +1,83 @@
+.panel {
+  border: 1px solid var(--accent);
+  margin-top: var(--sp-3);
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-input);
+  cursor: pointer;
+}
+.headerLabel {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--accent);
+}
+.toggle { font-size: 12px; color: var(--fg-3); }
+
+.body { padding: var(--sp-3); }
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.field { display: flex; flex-direction: column; gap: 3px; }
+.label { font-size: 11px; color: var(--fg-3); font-family: var(--font-mono); }
+.input {
+  font-size: 12px;
+  font-family: var(--font-body);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--fg-1);
+  padding: 4px 6px;
+}
+
+.result { margin-top: var(--sp-3); }
+.resultHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.match {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+}
+.matchYes { background: var(--signal-ok-bg); color: var(--signal-ok-fg); }
+.matchNo  { background: var(--signal-stop-bg); color: var(--signal-stop-fg); }
+
+.group { margin-bottom: var(--sp-2); }
+.groupLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.groupPass { color: var(--signal-ok-fg); }
+.groupFail { color: var(--signal-stop-fg); }
+
+.condRow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding-left: var(--sp-3);
+  color: var(--fg-3);
+}
+.condPass::before { content: '\2713 '; color: var(--signal-ok-fg); }
+.condFail::before { content: '\2717 '; color: var(--signal-stop-fg); }
+
+.action {
+  margin-top: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+.actionMatch { color: var(--signal-ok-fg); }
+.actionNoMatch { color: var(--fg-3); }
