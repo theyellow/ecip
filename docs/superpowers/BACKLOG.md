@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-22 (27B + 27C merged; all Deep Research Agent work complete)
+> Last updated: 2026-06-23 (Epic #6 policy rule versioning complete)
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
@@ -31,7 +31,6 @@
 
 | # | Item | Size | Needs | Notes |
 |---|------|------|-------|-------|
-| 6 | **Policy versioning — complex rule logic** | L | Scope decision | DB schema exists (`005-policy-rule-versioning.xml`). Full design not settled — **redefine scope before picking up**. |
 | 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed first. |
 
 ---
@@ -109,6 +108,7 @@
 | 27B | Deep Research Agent — web search (SearXNG connector, Brave fallback, US-27.3) + structured report generation (LLM synthesis, ke_research_reports, US-27.5) | ✅ PR branch — 2026-06-22. Plan: `plans/2026-06-22-deep-research-agent-plan-b.md` |
 | 27C | Deep Research Agent — Admin UI: session list, Start Research modal, live polling, evidence table, report viewer (Markdown renderer + download), comparison view (US-27.6, 27.7, 27.8) | ✅ PR branch — 2026-06-22. Plan: `plans/2026-06-22-deep-research-agent-plan-c.md` |
 | 27A | Deep Research Agent — backend: session lifecycle, strategy engine, execution loop, evidence with provenance, cost/depth guardrails (US-27.1, 27.2, 27.4, 27.9) | ✅ PR #145 — 2026-06-21. Plan: `plans/2026-06-20-deep-research-agent-plan-a.md` |
+| 6 | Policy rule versioning — condition groups (AND/OR), 7 evaluator types, rule history snapshots, dry-run endpoint, admin-api proxy | ✅ 2026-06-23. Branch: `feat/42-knowledge-enrichment-connectors`. |
 
 ---
 
