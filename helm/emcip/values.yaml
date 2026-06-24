@@ -332,7 +332,7 @@ tdlibAdapter:
 # Infrastructure image versions
 infra:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     port: 5432
   loki:
     image: grafana/loki:3.0.0
