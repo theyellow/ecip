@@ -115,7 +115,8 @@ jobs:
           needs_build "$POLICY_ENGINE"        && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"policy-engine","module":"emcip-policy-engine","multiarch":true}]')
           needs_build "$CONVERSATION_CONTEXT" && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"conversation-context","module":"emcip-conversation-context","multiarch":true}]')
           needs_build "$LLM_ORCHESTRATOR"     && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"llm-orchestrator","module":"emcip-llm-orchestrator","multiarch":true}]')
-          needs_build "$KNOWLEDGE_ENGINE"    && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"knowledge-engine","module":"emcip-knowledge-engine","multiarch":true}]')
+          # knowledge-engine is a background enrichment service — JVM-only, no native build needed
+          needs_build "$KNOWLEDGE_ENGINE"    && JVM_ONLY=$(echo "$JVM_ONLY" | jq '. += [{"service":"knowledge-engine","module":"emcip-knowledge-engine","multiarch":true}]')
 
           echo "jvm-only=$(echo "$JVM_ONLY" | jq -c .)"     >> "$GITHUB_OUTPUT"
           echo "jvm-latest=$(echo "$JVM_LATEST" | jq -c .)" >> "$GITHUB_OUTPUT"
