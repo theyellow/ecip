@@ -57,6 +57,8 @@ jobs:
               - 'emcip-conversation-context/**'
             llm-orchestrator:
               - 'emcip-llm-orchestrator/**'
+            knowledge-engine:
+              - 'emcip-knowledge-engine/**'
 
       - name: Build service matrices
         id: matrix
@@ -73,13 +75,14 @@ jobs:
           FILTER_POLICY_ENGINE: ${{ steps.filter.outputs.policy-engine }}
           FILTER_CONVERSATION_CONTEXT: ${{ steps.filter.outputs.conversation-context }}
           FILTER_LLM_ORCHESTRATOR: ${{ steps.filter.outputs.llm-orchestrator }}
+          FILTER_KNOWLEDGE_ENGINE: ${{ steps.filter.outputs.knowledge-engine }}
         run: |
           # On tag push or manual force, rebuild everything
           if [[ "$IS_TAG" == "true" || "$FORCE_ALL" == "true" ]]; then
             CORE=true
             INTENT_CLASSIFIER=true MODERATION_SERVICE=true AUDIT_SERVICE=true
             ADMIN_API=true ADMIN_UI=true TDLIB_ADAPTER=true
-            POLICY_ENGINE=true CONVERSATION_CONTEXT=true LLM_ORCHESTRATOR=true
+            POLICY_ENGINE=true CONVERSATION_CONTEXT=true LLM_ORCHESTRATOR=true KNOWLEDGE_ENGINE=true
           else
             CORE="$FILTER_CORE"
             INTENT_CLASSIFIER="$FILTER_INTENT_CLASSIFIER"
@@ -91,6 +94,7 @@ jobs:
             POLICY_ENGINE="$FILTER_POLICY_ENGINE"
             CONVERSATION_CONTEXT="$FILTER_CONVERSATION_CONTEXT"
             LLM_ORCHESTRATOR="$FILTER_LLM_ORCHESTRATOR"
+            KNOWLEDGE_ENGINE="$FILTER_KNOWLEDGE_ENGINE"
           fi
 
           # Returns true if this service or core changed
@@ -111,6 +115,7 @@ jobs:
           needs_build "$POLICY_ENGINE"        && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"policy-engine","module":"emcip-policy-engine","multiarch":true}]')
           needs_build "$CONVERSATION_CONTEXT" && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"conversation-context","module":"emcip-conversation-context","multiarch":true}]')
           needs_build "$LLM_ORCHESTRATOR"     && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"llm-orchestrator","module":"emcip-llm-orchestrator","multiarch":true}]')
+          needs_build "$KNOWLEDGE_ENGINE"    && JVM_LATEST=$(echo "$JVM_LATEST" | jq '. += [{"service":"knowledge-engine","module":"emcip-knowledge-engine","multiarch":true}]')
 
           echo "jvm-only=$(echo "$JVM_ONLY" | jq -c .)"     >> "$GITHUB_OUTPUT"
           echo "jvm-latest=$(echo "$JVM_LATEST" | jq -c .)" >> "$GITHUB_OUTPUT"
