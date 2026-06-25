@@ -68,20 +68,23 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
 
     /** Multi-field filtered query with optional predicates. Null values disable that filter. */
     @Query(
+            nativeQuery = true,
             value =
-                    "SELECT p FROM PolicyDecision p WHERE "
-                            + "(:decision IS NULL OR p.decision = :decision) AND "
-                            + "(:intent IS NULL OR p.originalIntent = :intent) AND "
-                            + "(:fromTs IS NULL OR p.timestamp >= :fromTs) AND "
-                            + "(:toTs IS NULL OR p.timestamp <= :toTs) AND "
-                            + "(:minConfidence IS NULL OR p.confidence >= :minConfidence)",
+                    "SELECT * FROM policy_decisions pd WHERE (CAST(:decision AS text) IS NULL OR"
+                        + " pd.decision = :decision) AND (CAST(:intent AS text) IS NULL OR"
+                        + " pd.original_intent = :intent) AND (CAST(:fromTs AS timestamptz) IS NULL"
+                        + " OR pd.timestamp >= CAST(:fromTs AS timestamptz)) AND (CAST(:toTs AS"
+                        + " timestamptz) IS NULL OR pd.timestamp <= CAST(:toTs AS timestamptz)) AND"
+                        + " (CAST(:minConfidence AS float8) IS NULL OR pd.confidence >="
+                        + " CAST(:minConfidence AS float8)) ORDER BY pd.timestamp DESC",
             countQuery =
-                    "SELECT COUNT(p) FROM PolicyDecision p WHERE "
-                            + "(:decision IS NULL OR p.decision = :decision) AND "
-                            + "(:intent IS NULL OR p.originalIntent = :intent) AND "
-                            + "(:fromTs IS NULL OR p.timestamp >= :fromTs) AND "
-                            + "(:toTs IS NULL OR p.timestamp <= :toTs) AND "
-                            + "(:minConfidence IS NULL OR p.confidence >= :minConfidence)")
+                    "SELECT COUNT(*) FROM policy_decisions pd WHERE (CAST(:decision AS text) IS"
+                        + " NULL OR pd.decision = :decision) AND (CAST(:intent AS text) IS NULL OR"
+                        + " pd.original_intent = :intent) AND (CAST(:fromTs AS timestamptz) IS NULL"
+                        + " OR pd.timestamp >= CAST(:fromTs AS timestamptz)) AND (CAST(:toTs AS"
+                        + " timestamptz) IS NULL OR pd.timestamp <= CAST(:toTs AS timestamptz)) AND"
+                        + " (CAST(:minConfidence AS float8) IS NULL OR pd.confidence >="
+                        + " CAST(:minConfidence AS float8))")
     Page<PolicyDecision> findByFilters(
             @Param("decision") String decision,
             @Param("intent") String intent,

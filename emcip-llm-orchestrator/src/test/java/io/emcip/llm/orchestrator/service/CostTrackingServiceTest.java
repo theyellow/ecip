@@ -189,7 +189,8 @@ class CostTrackingServiceTest {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
         Instant end = Instant.parse("2026-01-31T23:59:59Z");
         Object[] row = new Object[] {42.5, 120000L, 210L, 795.0, 205L, 5L};
-        when(costLogRepository.calculateTotals(start, end)).thenReturn(row);
+        when(costLogRepository.calculateTotals(start, end))
+                .thenReturn(java.util.Collections.singletonList(row));
 
         Map<String, Object> result = service.getTotals(start, end);
 
@@ -206,7 +207,8 @@ class CostTrackingServiceTest {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
         Instant end = Instant.parse("2026-01-31T23:59:59Z");
         Object[] row = new Object[] {null, null, 0L, null, 0L, 0L};
-        when(costLogRepository.calculateTotals(start, end)).thenReturn(row);
+        when(costLogRepository.calculateTotals(start, end))
+                .thenReturn(java.util.Collections.singletonList(row));
 
         Map<String, Object> result = service.getTotals(start, end);
 
