@@ -192,7 +192,8 @@ public class CostTrackingService {
     /** Get aggregated totals for a time period. */
     @Transactional(readOnly = true)
     public Map<String, Object> getTotals(Instant start, Instant end) {
-        Object[] row = costLogRepository.calculateTotals(start, end);
+        List<Object[]> rows = costLogRepository.calculateTotals(start, end);
+        Object[] row = rows.isEmpty() ? new Object[] {0.0, 0L, 0L, 0.0, 0L, 0L} : rows.get(0);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("totalCostUsd", row[0] != null ? ((Number) row[0]).doubleValue() : 0.0);
         result.put("totalTokens", row[1] != null ? ((Number) row[1]).longValue() : 0L);

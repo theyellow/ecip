@@ -57,7 +57,7 @@ public interface ModelCostLogRepository extends JpaRepository<ModelCostLog, UUID
                     + " SUM(CASE WHEN m.status = 'FAILED' THEN 1 ELSE 0 END)"
                     + " FROM ModelCostLog m"
                     + " WHERE m.createdAt BETWEEN :start AND :end")
-    Object[] calculateTotals(@Param("start") Instant start, @Param("end") Instant end);
+    List<Object[]> calculateTotals(@Param("start") Instant start, @Param("end") Instant end);
 
     /** Aggregate by model for a time period (SUCCESS only). */
     @Query(
