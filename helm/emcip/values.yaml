@@ -239,6 +239,7 @@ services:
       MODERATION_SERVICE_URL: "http://emcip-moderation-service:9085"
       POLICY_ENGINE_URL: "http://emcip-policy-engine:9083"
       AUDIT_SERVICE_URL: "http://emcip-audit-service:9086"
+      SERVICE_KNOWLEDGE_URL: "http://emcip-knowledge-engine:9088"
       SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.security.autoconfigure.ReactiveUserDetailsServiceAutoConfiguration"
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=25.0 -XX:+UseG1GC"
     secrets:
