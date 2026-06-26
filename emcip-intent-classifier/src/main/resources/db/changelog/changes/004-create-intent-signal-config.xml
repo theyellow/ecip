@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="004-create-intent-signal-config" author="emcip-team">
+        <createTable tableName="intent_signal_config">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID"/>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="foreign_script_ratio" type="DOUBLE PRECISION" defaultValueNumeric="0.6">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cyrillic_ratio" type="DOUBLE PRECISION" defaultValueNumeric="0.6">
+                <constraints nullable="false"/>
+            </column>
+            <column name="lookalike_suspicion" type="INTEGER" defaultValueNumeric="3">
+                <constraints nullable="false"/>
+            </column>
+            <column name="zero_width_abuse" type="INTEGER" defaultValueNumeric="2">
+                <constraints nullable="false"/>
+            </column>
+            <column name="caps_ratio" type="DOUBLE PRECISION" defaultValueNumeric="0.7">
+                <constraints nullable="false"/>
+            </column>
+            <column name="toxicity_words" type="JSONB" defaultValue="'[]'::jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <sql>CREATE UNIQUE INDEX idx_isc_global ON intent_signal_config ((1)) WHERE tenant_id IS NULL;</sql>
+        <createIndex tableName="intent_signal_config" indexName="idx_isc_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="004-seed-intent-signal-config" author="emcip-team">
+        <insert tableName="intent_signal_config">
+            <column name="id" value="00000002-0000-0000-0000-000000000001"/>
+            <column name="description" value="Global default signal detection thresholds"/>
+            <column name="foreign_script_ratio" valueNumeric="0.6"/>
+            <column name="cyrillic_ratio" valueNumeric="0.6"/>
+            <column name="lookalike_suspicion" valueNumeric="3"/>
+            <column name="zero_width_abuse" valueNumeric="2"/>
+            <column name="caps_ratio" valueNumeric="0.7"/>
+            <column name="toxicity_words" value='["nigger","nigga","faggot","cunt","kike","spic","chink","wetback","gook","towelhead","raghead","hurensohn","wichser","fotze","arschloch"]'/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

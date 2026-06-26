@@ -44,4 +44,7 @@
         </createIndex>
     </changeSet>
 
+    <include file="db/changelog/changes/003-create-intent-rules.xml"/>
+    <include file="db/changelog/changes/004-create-intent-signal-config.xml"/>
+
 </databaseChangeLog>
