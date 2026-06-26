@@ -8,8 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -45,44 +43,32 @@ public class TelegramMessageConsumer {
                 record.partition(),
                 record.offset());
 
-        // Read tenant_id header to propagate through the pipeline
-        var tenantHeader = record.headers().lastHeader("tenant_id");
-        String tenantId =
-                tenantHeader != null
-                        ? new String(tenantHeader.value(), StandardCharsets.UTF_8)
-                        : null;
+        try {
+            // Read tenant_id header to propagate through the pipeline
+            var tenantHeader = record.headers().lastHeader("tenant_id");
+            String tenantId =
+                    tenantHeader != null
+                            ? new String(tenantHeader.value(), StandardCharsets.UTF_8)
+                            : null;
 
-        Mono.<EventSchemas.IntentClassifiedEvent>fromCallable(
-                        () -> {
-                            // Validate JSON structure
-                            EventValidator.ValidationResult validationResult =
-                                    eventValidator.validateJson(record.value(), "TelegramMessage");
-                            if (!validationResult.valid()) {
-                                log.error(
-                                        "Invalid message received: {}",
-                                        validationResult.getErrorMessage());
-                                return null;
-                            }
+            // Validate JSON structure
+            EventValidator.ValidationResult validationResult =
+                    eventValidator.validateJson(record.value(), "TelegramMessage");
+            if (!validationResult.valid()) {
+                log.error("Invalid message received: {}", validationResult.getErrorMessage());
+                return;
+            }
 
-                            // Parse and classify
-                            EventSchemas.TelegramMessageEvent event =
-                                    objectMapper.readValue(
-                                            record.value(),
-                                            EventSchemas.TelegramMessageEvent.class);
-                            return classificationService.classify(event, tenantId).block();
-                        })
-                .subscribeOn(Schedulers.boundedElastic())
-                .doOnSuccess(
-                        (EventSchemas.IntentClassifiedEvent result) -> {
-                            if (result != null) {
-                                log.info(
-                                        "Classified message {} as intent {}",
-                                        result.sourceEventId(),
-                                        result.intent());
-                            }
-                        })
-                .doOnError(e -> log.error("Error processing message: {}", e.getMessage(), e))
-                .onErrorResume(e -> Mono.empty())
-                .subscribe();
+            // Parse and classify
+            EventSchemas.TelegramMessageEvent event =
+                    objectMapper.readValue(record.value(), EventSchemas.TelegramMessageEvent.class);
+            EventSchemas.IntentClassifiedEvent result =
+                    classificationService.classify(event, tenantId);
+
+            log.info("Classified message {} as intent {}", result.sourceEventId(), result.intent());
+        } catch (Exception e) {
+            log.error("Error processing message: {}", e.getMessage(), e);
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -71,93 +70,89 @@ public class IntentClassificationService {
     }
 
     /** Classify a Telegram message and publish the result. */
-    public Mono<EventSchemas.IntentClassifiedEvent> classify(
+    public EventSchemas.IntentClassifiedEvent classify(
             EventSchemas.TelegramMessageEvent message, String tenantId) {
-        return Mono.fromCallable(
-                () -> {
-                    String text = message.text() != null ? message.text() : "";
-                    String matchedIntent = null;
-                    double highestConfidence = 0.0;
-                    List<String> matchedRules = new ArrayList<>();
+        String text = message.text() != null ? message.text() : "";
+        String matchedIntent = null;
+        double highestConfidence = 0.0;
+        List<String> matchedRules = new ArrayList<>();
 
-                    // Apply rules
-                    for (IntentRule rule : rules) {
-                        if (rule.pattern.matcher(text).find()) {
-                            matchedRules.add(rule.name);
-                            if (rule.confidence > highestConfidence) {
-                                highestConfidence = rule.confidence;
-                                matchedIntent = rule.name;
-                            }
-                        }
-                    }
+        // Apply rules
+        for (IntentRule rule : rules) {
+            if (rule.pattern.matcher(text).find()) {
+                matchedRules.add(rule.name);
+                if (rule.confidence > highestConfidence) {
+                    highestConfidence = rule.confidence;
+                    matchedIntent = rule.name;
+                }
+            }
+        }
 
-                    // Detect structural/script signals
-                    Map<String, Object> signals = signalDetector.detect(text, message.metadata());
+        // Detect structural/script signals
+        Map<String, Object> signals = signalDetector.detect(text, message.metadata());
 
-                    // Apply signal priority chain when no rule matched
-                    if (matchedIntent == null) {
-                        if (Boolean.TRUE.equals(signals.get("stickerOnly"))) {
-                            matchedIntent = "FORMAT_STICKER_ONLY";
-                        } else if (Boolean.TRUE.equals(signals.get("imageOnly"))) {
-                            matchedIntent = "FORMAT_IMAGE_ONLY";
-                        } else if (Boolean.TRUE.equals(signals.get("emojiOnly"))) {
-                            matchedIntent = "FORMAT_EMOJI_ONLY";
-                        } else if (signals.get("lookalikeSuspicion") instanceof Double d
-                                && d > 0.0) {
-                            matchedIntent = "LOOKALIKE_ABUSE";
-                        } else if (Boolean.TRUE.equals(signals.get("zeroWidthAbuse"))) {
-                            matchedIntent = "FORMAT_ABUSE";
-                        } else if (signals.get("foreignScriptRatio") instanceof Double d
-                                && d >= 0.6) {
-                            matchedIntent = "SCRIPT_FOREIGN";
-                        } else if (signals.get("capsRatio") instanceof Double d && d >= 0.7) {
-                            matchedIntent = "CAPS_HEAVY";
-                        } else if (signals.get("toxicityHint") instanceof Double d && d > 0.0) {
-                            matchedIntent = "TOXICITY_HINT";
-                        } else {
-                            matchedIntent = "UNKNOWN";
-                        }
-                    }
+        // Apply signal priority chain when no rule matched
+        if (matchedIntent == null) {
+            if (Boolean.TRUE.equals(signals.get("stickerOnly"))) {
+                matchedIntent = "FORMAT_STICKER_ONLY";
+            } else if (Boolean.TRUE.equals(signals.get("imageOnly"))) {
+                matchedIntent = "FORMAT_IMAGE_ONLY";
+            } else if (Boolean.TRUE.equals(signals.get("emojiOnly"))) {
+                matchedIntent = "FORMAT_EMOJI_ONLY";
+            } else if (signals.get("lookalikeSuspicion") instanceof Double d && d > 0.0) {
+                matchedIntent = "LOOKALIKE_ABUSE";
+            } else if (Boolean.TRUE.equals(signals.get("zeroWidthAbuse"))) {
+                matchedIntent = "FORMAT_ABUSE";
+            } else if (signals.get("foreignScriptRatio") instanceof Double d && d >= 0.6) {
+                matchedIntent = "SCRIPT_FOREIGN";
+            } else if (signals.get("capsRatio") instanceof Double d && d >= 0.7) {
+                matchedIntent = "CAPS_HEAVY";
+            } else if (signals.get("toxicityHint") instanceof Double d && d > 0.0) {
+                matchedIntent = "TOXICITY_HINT";
+            } else {
+                matchedIntent = "UNKNOWN";
+            }
+        }
 
-                    // Create classification event
-                    Map<String, Object> params = new LinkedHashMap<>();
-                    params.put("textLength", text.length());
-                    params.put("chatId", message.chatId());
-                    params.put("senderId", message.senderId() != null ? message.senderId() : "");
-                    params.put("messageText", text);
-                    if (message.telegramMessageId() != null) {
-                        params.put("telegramMessageId", message.telegramMessageId());
-                    }
-                    params.putAll(signals);
-                    var classification =
-                            new EventSchemas.IntentClassifiedEvent(
-                                    UUID.randomUUID().toString(),
-                                    Instant.now().toString(),
-                                    EventSchemas.INTENT_CLASSIFIED_V1,
-                                    "IntentClassified",
-                                    message.eventId(),
-                                    matchedIntent,
-                                    highestConfidence,
-                                    params,
-                                    matchedRules);
+        // Create classification event
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("textLength", text.length());
+        params.put("chatId", message.chatId());
+        params.put("senderId", message.senderId() != null ? message.senderId() : "");
+        params.put("messageText", text);
+        if (message.telegramMessageId() != null) {
+            params.put("telegramMessageId", message.telegramMessageId());
+        }
+        params.putAll(signals);
+        var classification =
+                new EventSchemas.IntentClassifiedEvent(
+                        UUID.randomUUID().toString(),
+                        Instant.now().toString(),
+                        EventSchemas.INTENT_CLASSIFIED_V1,
+                        "IntentClassified",
+                        message.eventId(),
+                        matchedIntent,
+                        highestConfidence,
+                        params,
+                        matchedRules);
 
-                    // Publish to Kafka, forwarding tenant_id header if present
-                    String json = objectMapper.writeValueAsString(classification);
-                    ProducerRecord<String, String> producerRecord =
-                            new ProducerRecord<>(TOPIC_OUTPUT, null, message.eventId(), json);
-                    if (tenantId != null) {
-                        producerRecord
-                                .headers()
-                                .add("tenant_id", tenantId.getBytes(StandardCharsets.UTF_8));
-                    }
-                    kafkaTemplate.send(producerRecord);
+        // Publish to Kafka, forwarding tenant_id header if present
+        String json;
+        try {
+            json = objectMapper.writeValueAsString(classification);
+        } catch (Exception e) {
+            log.error("Failed to serialize classification event", e);
+            throw new RuntimeException(e);
+        }
+        ProducerRecord<String, String> producerRecord =
+                new ProducerRecord<>(TOPIC_OUTPUT, null, message.eventId(), json);
+        if (tenantId != null) {
+            producerRecord.headers().add("tenant_id", tenantId.getBytes(StandardCharsets.UTF_8));
+        }
+        kafkaTemplate.send(producerRecord);
 
-                    log.debug(
-                            "Published classification for message {}: {}",
-                            message.eventId(),
-                            matchedIntent);
-                    return classification;
-                });
+        log.debug("Published classification for message {}: {}", message.eventId(), matchedIntent);
+        return classification;
     }
 
     private record IntentRule(String name, Pattern pattern, double confidence) {}
