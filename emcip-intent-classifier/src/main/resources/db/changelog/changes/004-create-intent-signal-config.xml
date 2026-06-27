@@ -27,7 +27,7 @@
             <column name="caps_ratio" type="DOUBLE PRECISION" defaultValueNumeric="0.7">
                 <constraints nullable="false"/>
             </column>
-            <column name="toxicity_words" type="JSONB" defaultValue="'[]'::jsonb">
+            <column name="toxicity_words" type="JSONB" defaultValueComputed="'[]'::jsonb">
                 <constraints nullable="false"/>
             </column>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
