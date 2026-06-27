@@ -155,5 +155,10 @@ public class IntentClassificationService {
         return classification;
     }
 
+    /** Reload classification rules from the database. Implemented fully in Task 6. */
+    public void refreshRules() {
+        log.debug("refreshRules() called — no-op until Task 6 implementation");
+    }
+
     private record IntentRule(String name, Pattern pattern, double confidence) {}
 }

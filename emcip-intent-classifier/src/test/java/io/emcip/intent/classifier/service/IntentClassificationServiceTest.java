@@ -37,7 +37,7 @@ class IntentClassificationServiceTest {
     void classify_greeting_returnsGreetingIntent() {
         var event = buildMessage("src-1", "hello there");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("GREETING");
@@ -49,7 +49,7 @@ class IntentClassificationServiceTest {
     void classify_question_returnsQuestionIntent() {
         var event = buildMessage("src-2", "what is the status?");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("QUESTION");
@@ -60,7 +60,7 @@ class IntentClassificationServiceTest {
     void classify_command_returnsCommandIntent() {
         var event = buildMessage("src-3", "start the service");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("COMMAND");
@@ -73,7 +73,7 @@ class IntentClassificationServiceTest {
         // "bye" is ^-anchored so the text must start with it; "thanks" has no anchor
         var event = buildMessage("src-4", "bye, thanks for everything");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("THANKS");
@@ -85,7 +85,7 @@ class IntentClassificationServiceTest {
     void classify_spam_returnsSpamIntent() {
         var event = buildMessage("src-5", "click here to earn money fast!");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("SPAM");
@@ -96,7 +96,7 @@ class IntentClassificationServiceTest {
     void classify_noMatch_returnsUnknown() {
         var event = buildMessage("src-6", "random message with no recognizable pattern");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("UNKNOWN");
@@ -109,7 +109,7 @@ class IntentClassificationServiceTest {
     void classify_publishesClassificationEventToKafka() {
         var event = buildMessage("src-7", "hello");
 
-        service.classify(event, null).block();
+        service.classify(event, null);
 
         verify(kafkaTemplate).send(any(ProducerRecord.class));
     }
@@ -118,7 +118,7 @@ class IntentClassificationServiceTest {
     void classify_populatesSourceEventIdAndMetadata() {
         var event = buildMessage("src-8", "hi there");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.sourceEventId()).isEqualTo("src-8");
@@ -133,7 +133,7 @@ class IntentClassificationServiceTest {
     void classify_omitsTelegramMessageIdWhenNull() {
         var event = buildMessageWithTelegramId("src-9", "hi there", null);
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.parameters()).doesNotContainKey("telegramMessageId");
@@ -143,7 +143,7 @@ class IntentClassificationServiceTest {
     void signals_mergedIntoParams_forTextMessage() {
         var event = buildMessage("sig-1", "a regular message");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.parameters())
@@ -163,7 +163,7 @@ class IntentClassificationServiceTest {
     void stickerOnly_signal_overridesNullIntent() {
         var event = buildMessageWithMetadata("sig-2", "", Map.of("contentType", "sticker"));
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("FORMAT_STICKER_ONLY");
@@ -173,7 +173,7 @@ class IntentClassificationServiceTest {
     void imageOnly_signal_overridesNullIntent() {
         var event = buildMessageWithMetadata("sig-3", "", Map.of("contentType", "photo"));
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("FORMAT_IMAGE_ONLY");
@@ -184,7 +184,7 @@ class IntentClassificationServiceTest {
         // U+1F600 = 😀
         var event = buildMessage("sig-4", "\uD83D\uDE00 \uD83D\uDE01");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("FORMAT_EMOJI_ONLY");
@@ -195,7 +195,7 @@ class IntentClassificationServiceTest {
         // U+0435 is Cyrillic е (lookalike for Latin e), mixed with Latin chars in same word
         var event = buildMessage("sig-5", "h\u0435llo w\u043Frld");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("LOOKALIKE_ABUSE");
@@ -206,7 +206,7 @@ class IntentClassificationServiceTest {
         // U+200B = zero-width space
         var event = buildMessage("sig-6", "normal\u200Btext here");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("FORMAT_ABUSE");
@@ -218,7 +218,7 @@ class IntentClassificationServiceTest {
         // Use clearly non-lookalike Cyrillic letters: П и б ж щ ю я
         var event = buildMessage("sig-7", "Пибжщюя пибжщюя пибжщюя");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("SCRIPT_FOREIGN");
@@ -229,7 +229,7 @@ class IntentClassificationServiceTest {
         // >= 5 letters, >= 70% uppercase, no rule match
         var event = buildMessage("sig-8", "SHOUTING VERY LOUD MESSAGE");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("CAPS_HEAVY");
@@ -241,7 +241,7 @@ class IntentClassificationServiceTest {
         // signals
         var event = buildMessage("sig-9", "you are a cunt");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("TOXICITY_HINT");
@@ -253,7 +253,7 @@ class IntentClassificationServiceTest {
         // Add a zero-width char to ensure a signal would otherwise fire
         var event = buildMessage("sig-10", "hello\u200B there");
 
-        var result = service.classify(event, null).block();
+        var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
         assertThat(result.intent()).isEqualTo("GREETING");
