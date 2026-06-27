@@ -6,7 +6,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.intent.classifier.repository.IntentRuleRepository;
+import io.emcip.intent.classifier.repository.IntentSignalConfigRepository;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,16 +28,130 @@ import tools.jackson.databind.ObjectMapper;
 class IntentClassificationServiceTest {
 
     @Mock private KafkaTemplate<String, String> kafkaTemplate;
+    @Mock private IntentRuleRepository ruleRepository;
+    @Mock private IntentSignalConfigRepository signalConfigRepository;
 
     private IntentClassificationService service;
+
+    /**
+     * Build a default signal config equivalent to the old hardcoded thresholds.
+     *
+     * <p>Thresholds are tuned so the existing signal-chain tests pass: lookalikeSuspicion=1 (fires
+     * on a single mixed-script word, matching old {@code i > 0} behaviour) and zeroWidthAbuse=1
+     * (fires on a single zero-width char, matching old {@code i >= 1} behaviour).
+     */
+    private static io.emcip.intent.classifier.entity.IntentSignalConfig defaultSignalConfig() {
+        var cfg = new io.emcip.intent.classifier.entity.IntentSignalConfig();
+        cfg.setForeignScriptRatio(0.6);
+        cfg.setCyrillicRatio(0.6);
+        cfg.setLookalikeSuspicion(1);
+        cfg.setZeroWidthAbuse(1);
+        cfg.setCapsRatio(0.7);
+        cfg.setToxicityWords(
+                List.of(
+                        "nigger",
+                        "nigga",
+                        "faggot",
+                        "cunt",
+                        "kike",
+                        "spic",
+                        "chink",
+                        "wetback",
+                        "gook",
+                        "towelhead",
+                        "raghead",
+                        "hurensohn",
+                        "wichser",
+                        "fotze",
+                        "arschloch"));
+        return cfg;
+    }
+
+    /** Build a REGEX-mode IntentRule replicating the old hardcoded compiled patterns. */
+    private static io.emcip.intent.classifier.entity.IntentRule regexRule(
+            String name, String pattern, String intent, double confidence, int priority) {
+        var r = new io.emcip.intent.classifier.entity.IntentRule();
+        r.setId(UUID.randomUUID().toString());
+        r.setName(name);
+        r.setMatchMode("REGEX");
+        r.setPattern(pattern);
+        r.setIntent(intent);
+        r.setConfidence(confidence);
+        r.setPriority(priority);
+        r.setActive(true);
+        r.setCreatedAt(Instant.now());
+        r.setUpdatedAt(Instant.now());
+        return r;
+    }
 
     @BeforeEach
     void setUp() {
         when(kafkaTemplate.send(any(ProducerRecord.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
+
+        // Seed 6 rules that replicate the old hardcoded rule behaviour using REGEX mode so that
+        // anchoring semantics are preserved (some old rules used ^ anchors).
+        var rules =
+                List.of(
+                        regexRule(
+                                "GREETING",
+                                "^(?i)(hello|hi|hey|greetings|good\\s+(morning|afternoon|evening))",
+                                "GREETING",
+                                0.8,
+                                10),
+                        regexRule(
+                                "QUESTION",
+                                "^(?i)(what|how|why|when|where|who|is|are|can|do|does|did|will|would|could)",
+                                "QUESTION",
+                                0.75,
+                                20),
+                        regexRule(
+                                "COMMAND",
+                                "^(?i)(start|stop|help|status|config|set|get|show|list|create|delete|update)",
+                                "COMMAND",
+                                0.85,
+                                30),
+                        regexRule("THANKS", "(?i)(thank|thanks|thx|appreciate)", "THANKS", 0.9, 40),
+                        regexRule(
+                                "GOODBYE",
+                                "^(?i)(bye|goodbye|see\\s+you|later|cya)",
+                                "GOODBYE",
+                                0.85,
+                                50));
+
+        // SPAM also uses REGEX mode
+        var spamRule = new io.emcip.intent.classifier.entity.IntentRule();
+        spamRule.setId(UUID.randomUUID().toString());
+        spamRule.setName("SPAM");
+        spamRule.setMatchMode("REGEX");
+        spamRule.setPattern(
+                "(?i)(click\\s+here|buy\\s+now|limited\\s+offer|earn\\s+money|make\\s+money\\s+fast|viagra|casino|crypto\\s+investment)");
+        spamRule.setIntent("SPAM");
+        spamRule.setConfidence(0.95);
+        spamRule.setPriority(60);
+        spamRule.setActive(true);
+        spamRule.setCreatedAt(Instant.now());
+        spamRule.setUpdatedAt(Instant.now());
+
+        var allRules = new ArrayList<>(rules);
+        allRules.add(spamRule);
+
+        when(ruleRepository.findByTenantIdIsNullAndActiveTrueOrderByPriorityAsc())
+                .thenReturn(allRules);
+        when(ruleRepository.findAll()).thenReturn(List.of());
+        when(signalConfigRepository.findByTenantIdIsNull())
+                .thenReturn(Optional.of(defaultSignalConfig()));
+        when(signalConfigRepository.findAll()).thenReturn(List.of());
+
         service =
                 new IntentClassificationService(
-                        kafkaTemplate, new ObjectMapper(), new SignalDetector());
+                        kafkaTemplate,
+                        new ObjectMapper(),
+                        new SignalDetector(),
+                        ruleRepository,
+                        signalConfigRepository);
+        // @PostConstruct is not invoked by 'new' in unit tests; call init() explicitly
+        service.init();
     }
 
     @Test
@@ -70,7 +191,7 @@ class IntentClassificationServiceTest {
     @Test
     void classify_thanks_returnsHighestConfidenceAmongMatches() {
         // THANKS (0.9) and GOODBYE (0.85) both match — THANKS wins
-        // "bye" is ^-anchored so the text must start with it; "thanks" has no anchor
+        // KEYWORD matching uses contains(), so "bye" and "thanks" both match
         var event = buildMessage("src-4", "bye, thanks for everything");
 
         var result = service.classify(event, null);
@@ -214,8 +335,7 @@ class IntentClassificationServiceTest {
 
     @Test
     void foreignScript_overridesNullIntent() {
-        // Non-lookalike Cyrillic: П(041F) р(0440-lookalike, skip) и(0438) в(0432) е(0435-lookalike)
-        // Use clearly non-lookalike Cyrillic letters: П и б ж щ ю я
+        // Non-lookalike Cyrillic: П и б ж щ ю я
         var event = buildMessage("sig-7", "Пибжщюя пибжщюя пибжщюя");
 
         var result = service.classify(event, null);
@@ -237,15 +357,14 @@ class IntentClassificationServiceTest {
 
     @Test
     void toxicityHint_overridesNullIntent() {
-        // Task 5: toxicity patterns are now passed as a parameter; classify() currently passes
-        // List.of() (empty) so no toxicity matches fire. Task 6 will wire the real word list.
-        // Until then, intent falls through to UNKNOWN for plain ASCII toxicity text.
+        // Task 6: toxicity patterns are now loaded from IntentSignalConfig in setUp().
+        // "cunt" is in the 15-word list → toxicityHint > 0 → intent = TOXICITY_HINT.
         var event = buildMessage("sig-9", "you are a cunt");
 
         var result = service.classify(event, null);
 
         assertThat(result).isNotNull();
-        assertThat(result.intent()).isEqualTo("UNKNOWN");
+        assertThat(result.intent()).isEqualTo("TOXICITY_HINT");
     }
 
     @Test
