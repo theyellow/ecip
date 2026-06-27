@@ -87,6 +87,7 @@ services:
     replicas: 1
     nodeSelector: {}
     env:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=25.0 -XX:+UseG1GC"
