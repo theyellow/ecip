@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ import tools.jackson.databind.ObjectMapper;
  * them in memory, and refreshes on write.
  */
 @Service
+@DependsOn("liquibase")
 public class IntentClassificationService {
 
     private static final Logger log = LoggerFactory.getLogger(IntentClassificationService.class);
