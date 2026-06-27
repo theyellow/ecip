@@ -73,8 +73,17 @@ public class IntentClassificationService {
         var newGlobal = ruleRepository.findByTenantIdIsNullAndActiveTrueOrderByPriorityAsc();
         for (var rule : newGlobal) {
             if ("REGEX".equals(rule.getMatchMode())) {
-                newPatterns.put(
-                        rule.getId(), Pattern.compile(rule.getPattern(), Pattern.CASE_INSENSITIVE));
+                try {
+                    newPatterns.put(
+                            rule.getId(),
+                            Pattern.compile(rule.getPattern(), Pattern.CASE_INSENSITIVE));
+                } catch (java.util.regex.PatternSyntaxException e) {
+                    log.warn(
+                            "Skipping intent rule '{}' (id={}) — invalid REGEX pattern: {}",
+                            rule.getName(),
+                            rule.getId(),
+                            e.getMessage());
+                }
             }
         }
         // Load all tenant-specific active rules
@@ -86,8 +95,17 @@ public class IntentClassificationService {
         for (var rule : allTenantRules) {
             newTenantMap.computeIfAbsent(rule.getTenantId(), k -> new ArrayList<>()).add(rule);
             if ("REGEX".equals(rule.getMatchMode())) {
-                newPatterns.put(
-                        rule.getId(), Pattern.compile(rule.getPattern(), Pattern.CASE_INSENSITIVE));
+                try {
+                    newPatterns.put(
+                            rule.getId(),
+                            Pattern.compile(rule.getPattern(), Pattern.CASE_INSENSITIVE));
+                } catch (java.util.regex.PatternSyntaxException e) {
+                    log.warn(
+                            "Skipping intent rule '{}' (id={}) — invalid REGEX pattern: {}",
+                            rule.getName(),
+                            rule.getId(),
+                            e.getMessage());
+                }
             }
         }
         // Sort each tenant list by priority

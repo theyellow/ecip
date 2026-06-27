@@ -52,3 +52,13 @@
   justify-content: flex-end;
   margin-bottom: var(--sp-3);
 }
+
+.alert {
+  color: var(--signal-stop-fg);
+  background: var(--signal-stop-bg);
+  border: 1px solid var(--signal-stop-fg);
+  padding: var(--sp-3) var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  margin-bottom: var(--sp-4);
+}

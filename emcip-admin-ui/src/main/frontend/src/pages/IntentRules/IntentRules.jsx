@@ -134,7 +134,7 @@ export function IntentRules() {
 
   return (
     <>
-      {error && <p style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }} role="alert">{error}</p>}
+      {error && <p className={styles.alert} role="alert">{error}</p>}
 
       <div className={styles.signalConfigRow}>
         <Button variant="secondary" onClick={() => navigate('/intent-signal-config')}>Signal Config →</Button>

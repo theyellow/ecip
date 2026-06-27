@@ -38,9 +38,7 @@
             </column>
         </createTable>
         <sql>CREATE UNIQUE INDEX idx_isc_global ON intent_signal_config ((1)) WHERE tenant_id IS NULL;</sql>
-        <createIndex tableName="intent_signal_config" indexName="idx_isc_tenant">
-            <column name="tenant_id"/>
-        </createIndex>
+        <sql>CREATE UNIQUE INDEX idx_isc_tenant ON intent_signal_config (tenant_id) WHERE tenant_id IS NOT NULL;</sql>
     </changeSet>
 
     <changeSet id="004-seed-intent-signal-config" author="emcip-team">
