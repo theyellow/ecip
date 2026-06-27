@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="003-create-intent-rules" author="emcip-team">
+        <createTable tableName="intent_rules">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="match_mode" type="VARCHAR(8)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="pattern" type="VARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="intent" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="confidence" type="DOUBLE PRECISION">
+                <constraints nullable="false"/>
+            </column>
+            <column name="priority" type="INTEGER" defaultValueNumeric="100">
+                <constraints nullable="false"/>
+            </column>
+            <column name="active" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tenant_id" type="UUID"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="intent_rules" indexName="idx_intent_rules_tenant_active">
+            <column name="tenant_id"/>
+            <column name="active"/>
+        </createIndex>
+        <createIndex tableName="intent_rules" indexName="idx_intent_rules_priority">
+            <column name="priority"/>
+        </createIndex>
+        <sql>ALTER TABLE intent_rules ADD CONSTRAINT chk_intent_rules_match_mode
+             CHECK (match_mode IN ('KEYWORD', 'REGEX'));</sql>
+    </changeSet>
+
+    <changeSet id="003-seed-intent-rules" author="emcip-team">
+        <insert tableName="intent_rules">
+            <column name="id" value="00000001-0000-0000-0000-000000000001"/>
+            <column name="name" value="Greeting"/>
+            <column name="description" value="Matches common greeting phrases"/>
+            <column name="match_mode" value="KEYWORD"/>
+            <column name="pattern" value="hello|hi|hey|greetings|good morning|good afternoon|good evening"/>
+            <column name="intent" value="GREETING"/>
+            <column name="confidence" valueNumeric="0.80"/>
+            <column name="priority" valueNumeric="10"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="intent_rules">
+            <column name="id" value="00000001-0000-0000-0000-000000000002"/>
+            <column name="name" value="Question"/>
+            <column name="description" value="Matches messages starting with question words"/>
+            <column name="match_mode" value="KEYWORD"/>
+            <column name="pattern" value="what|how|why|when|where|who|is|are|can|do|does|did|will|would|could"/>
+            <column name="intent" value="QUESTION"/>
+            <column name="confidence" valueNumeric="0.75"/>
+            <column name="priority" valueNumeric="20"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="intent_rules">
+            <column name="id" value="00000001-0000-0000-0000-000000000003"/>
+            <column name="name" value="Command"/>
+            <column name="description" value="Matches bot command keywords"/>
+            <column name="match_mode" value="KEYWORD"/>
+            <column name="pattern" value="start|stop|help|status|config|set|get|show|list|create|delete|update"/>
+            <column name="intent" value="COMMAND"/>
+            <column name="confidence" valueNumeric="0.85"/>
+            <column name="priority" valueNumeric="30"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="intent_rules">
+            <column name="id" value="00000001-0000-0000-0000-000000000004"/>
+            <column name="name" value="Thanks"/>
+            <column name="description" value="Matches expressions of gratitude"/>
+            <column name="match_mode" value="KEYWORD"/>
+            <column name="pattern" value="thank|thanks|thx|appreciate"/>
+            <column name="intent" value="THANKS"/>
+            <column name="confidence" valueNumeric="0.90"/>
+            <column name="priority" valueNumeric="40"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="intent_rules">
+            <column name="id" value="00000001-0000-0000-0000-000000000005"/>
+            <column name="name" value="Goodbye"/>
+            <column name="description" value="Matches farewell expressions"/>
+            <column name="match_mode" value="KEYWORD"/>
+            <column name="pattern" value="bye|goodbye|see you|later|cya"/>
+            <column name="intent" value="GOODBYE"/>
+            <column name="confidence" valueNumeric="0.85"/>
+            <column name="priority" valueNumeric="50"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+        <insert tableName="intent_rules">
+            <column name="id" value="00000001-0000-0000-0000-000000000006"/>
+            <column name="name" value="Spam"/>
+            <column name="description" value="Matches common spam phrases"/>
+            <column name="match_mode" value="REGEX"/>
+            <column name="pattern" value="(?i)(click\s+here|buy\s+now|limited\s+offer|earn\s+money|make\s+money\s+fast|viagra|casino|crypto\s+investment)"/>
+            <column name="intent" value="SPAM"/>
+            <column name="confidence" valueNumeric="0.95"/>
+            <column name="priority" valueNumeric="60"/>
+            <column name="active" valueBoolean="true"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

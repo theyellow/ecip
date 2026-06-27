@@ -56,10 +56,11 @@ describe('Sidebar', () => {
     expect(screen.getByRole('combobox', { name: /select active tenant/i })).toBeInTheDocument()
   })
 
-  it('ADMIN sees all nav items including Tenants, AI Config, Users', () => {
+  it('ADMIN sees all nav items including Tenants, AI Config, Users, Intent Rules', () => {
     mockAuth = { role: 'ADMIN', currentTenant: null, setCurrentTenant: mockSetCurrentTenant, logout: mockLogout }
     renderSidebar()
     expect(screen.getByText('Tenants')).toBeInTheDocument()
+    expect(screen.getByText('Intent Rules')).toBeInTheDocument()
     expect(screen.getByText('AI Config')).toBeInTheDocument()
     expect(screen.getByText('Users')).toBeInTheDocument()
     expect(screen.getByText('Groups')).toBeInTheDocument()

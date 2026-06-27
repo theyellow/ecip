@@ -9,6 +9,7 @@ import styles from './Sidebar.module.css'
 
 const NAV = [
   { to: '/tenants',          label: 'Tenants',          icon: '⬡', permission: 'TENANTS_READ' },
+  { to: '/intent-rules',     label: 'Intent Rules',     icon: '✦', permission: 'INTENT_RULES_READ' },
   { to: '/policy-rules',     label: 'Policy Rules',     icon: '⚖', permission: 'POLICY_RULES_READ' },
   { to: '/moderation-rules', label: 'Moderation Rules', icon: '⊘', permission: 'MODERATION_RULES_READ' },
   { to: '/decisions',        label: 'Decisions',        icon: '⚑',       permission: 'AUDIT_READ' },

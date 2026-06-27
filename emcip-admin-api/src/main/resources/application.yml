@@ -72,6 +72,8 @@ services:
     url: ${POLICY_ENGINE_URL:http://localhost:9083}
   audit-service:
     url: ${AUDIT_SERVICE_URL:http://localhost:9086}
+  intent-classifier:
+    url: ${INTENT_CLASSIFIER_URL:http://localhost:9082}
 
 telegram:
   api-id: ${TELEGRAM_API_ID:0}
@@ -99,6 +101,8 @@ resilience4j:
         baseConfig: default
       knowledge:
         baseConfig: default
+      intent-classifier:
+        baseConfig: default
   retry:
     configs:
       default:
@@ -125,4 +129,6 @@ resilience4j:
       orchestrator:
         baseConfig: default
       knowledge:
+        baseConfig: default
+      intent-classifier:
         baseConfig: default

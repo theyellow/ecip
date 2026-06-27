@@ -61,31 +61,13 @@ class SignalDetector {
                     "video_note",
                     "other");
 
-    // Small, high-precision toxicity list. MUST use whole-word \b matching.
-    // Whole-word matching prevents false positives on German compounds
-    // (e.g. "arschloch" inside a compound word won't match standalone \barschloch\b).
-    private static final List<Pattern> TOXICITY_PATTERNS = buildToxicityPatterns();
-
-    private static List<Pattern> buildToxicityPatterns() {
-        String[] terms = {
-            "nigger",
-            "nigga",
-            "faggot",
-            "cunt",
-            "kike",
-            "spic",
-            "chink",
-            "wetback",
-            "gook",
-            "towelhead",
-            "raghead",
-            "hurensohn",
-            "wichser",
-            "fotze",
-            "arschloch"
-        };
-        List<Pattern> patterns = new ArrayList<>(terms.length);
-        for (String term : terms) {
+    /**
+     * Build compiled toxicity patterns from a list of word strings. Uses whole-word {@code \b}
+     * matching to prevent false positives on compounds.
+     */
+    static List<Pattern> buildToxicityPatterns(List<String> words) {
+        List<Pattern> patterns = new ArrayList<>(words.size());
+        for (String term : words) {
             patterns.add(
                     Pattern.compile(
                             "\\b" + Pattern.quote(term) + "\\b",
@@ -98,7 +80,8 @@ class SignalDetector {
      * Run all signal detectors on the message text and metadata. Always returns a map containing
      * all nine signal keys; never omits a key.
      */
-    Map<String, Object> detect(String text, Map<String, Object> metadata) {
+    Map<String, Object> detect(
+            String text, Map<String, Object> metadata, List<Pattern> toxicityPatterns) {
         String t = text != null ? text : "";
         Map<String, Object> scores = new LinkedHashMap<>();
 
@@ -118,7 +101,7 @@ class SignalDetector {
                         && (contentType == null || IMAGE_CONTENT_TYPES.contains(contentType));
         scores.put("imageOnly", imageOnly);
 
-        scores.put("toxicityHint", computeToxicityHint(t));
+        scores.put("toxicityHint", computeToxicityHint(t, toxicityPatterns));
 
         return scores;
     }
@@ -153,13 +136,11 @@ class SignalDetector {
                 || (cp >= 0x0370 && cp <= 0x03FF);
     }
 
-    private double computeLookalikeSuspicion(String text) {
+    private int computeLookalikeSuspicion(String text) {
         String[] words = text.split("[^\\p{L}]+");
-        int totalWords = 0;
         int suspiciousWords = 0;
         for (String word : words) {
             if (word.isEmpty()) continue;
-            totalWords++;
             boolean hasLookalike = false;
             boolean hasLatin = false;
             for (int i = 0; i < word.length(); ) {
@@ -174,16 +155,17 @@ class SignalDetector {
             }
             if (hasLookalike && hasLatin) suspiciousWords++;
         }
-        return totalWords > 0 ? (double) suspiciousWords / totalWords : 0.0;
+        return suspiciousWords;
     }
 
-    private boolean detectZeroWidth(String text) {
+    private int detectZeroWidth(String text) {
+        int count = 0;
         for (int i = 0; i < text.length(); ) {
             int cp = text.codePointAt(i);
             i += Character.charCount(cp);
-            if (ZERO_WIDTH_CHARS.contains(cp)) return true;
+            if (ZERO_WIDTH_CHARS.contains(cp)) count++;
         }
-        return false;
+        return count;
     }
 
     private double computeCapsRatio(String text) {
@@ -220,10 +202,10 @@ class SignalDetector {
                 || cp == 0x200D; // ZWJ in emoji sequences
     }
 
-    private double computeToxicityHint(String text) {
+    private double computeToxicityHint(String text, List<Pattern> toxicityPatterns) {
         if (text.isBlank()) return 0.0;
         int matches = 0;
-        for (Pattern p : TOXICITY_PATTERNS) {
+        for (Pattern p : toxicityPatterns) {
             var matcher = p.matcher(text);
             while (matcher.find()) matches++;
         }
