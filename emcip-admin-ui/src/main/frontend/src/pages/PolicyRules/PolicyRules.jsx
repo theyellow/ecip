@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
+import { intentRulesApi } from '../../api/intentRules'
 import { policyRulesApi } from '../../api/policyRules'
 import { tenantsApi } from '../../api/tenants'
 import { Badge } from '../../components/Badge/Badge'
@@ -18,7 +19,54 @@ const LIVE_EFFECT_ACTIONS = new Set(['RESPOND', 'EXECUTE', 'BLOCK'])
 const TAB_EDIT = 'edit'
 const TAB_HISTORY = 'history'
 
-function RuleModal({ rule, onClose, onSave, tenants, api }) {
+const WILDCARD = '*'
+const CUSTOM_SENTINEL = '__custom__'
+
+function IntentSelect({ value, onChange, knownIntents }) {
+  const isCustom = value !== WILDCARD && value !== '' && !knownIntents.includes(value)
+  const [custom, setCustom] = useState(isCustom ? value : '')
+  const selectValue = isCustom ? CUSTOM_SENTINEL : value
+
+  const handleSelect = e => {
+    const v = e.target.value
+    if (v === CUSTOM_SENTINEL) {
+      onChange(custom)
+    } else {
+      setCustom('')
+      onChange(v)
+    }
+  }
+
+  const handleCustom = e => {
+    setCustom(e.target.value)
+    onChange(e.target.value)
+  }
+
+  return (
+    <>
+      <select className={styles.input} value={selectValue} onChange={handleSelect}>
+        <option value="">— Any intent —</option>
+        <option value={WILDCARD}>* (wildcard)</option>
+        {knownIntents.map(i => (
+          <option key={i} value={i}>{i}</option>
+        ))}
+        <option value={CUSTOM_SENTINEL}>Custom…</option>
+      </select>
+      {(selectValue === CUSTOM_SENTINEL || isCustom) && (
+        <input
+          type="text"
+          className={styles.input}
+          value={custom}
+          onChange={handleCustom}
+          placeholder="Enter custom intent"
+          style={{ marginTop: 6 }}
+        />
+      )}
+    </>
+  )
+}
+
+function RuleModal({ rule, onClose, onSave, tenants, knownIntents, api }) {
   const [tab, setTab] = useState(TAB_EDIT)
   const [form, setForm] = useState({
     name: rule?.name ?? '',
@@ -67,8 +115,11 @@ function RuleModal({ rule, onClose, onSave, tenants, api }) {
           </div>
           <div className={styles.field}>
             <label>Target Intent</label>
-            <input type="text" className={styles.input} value={form.targetIntent}
-              onChange={e => set('targetIntent', e.target.value)} placeholder="e.g. SPAM, GREETING, * (wildcard)" />
+            <IntentSelect
+              value={form.targetIntent}
+              onChange={v => set('targetIntent', v)}
+              knownIntents={knownIntents}
+            />
           </div>
           <div className={styles.field}>
             <label>Action</label>
@@ -138,10 +189,20 @@ export function PolicyRules() {
   const [modal, setModal] = useState(null)
   const [error, setError] = useState('')
   const [tenants, setTenants] = useState([])
+  const [knownIntents, setKnownIntents] = useState([])
 
   const load = () => api.list().then(setRules).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
   useEffect(() => { tenantsApi(authRequest).list().then(setTenants).catch(() => {}) }, [])
+  useEffect(() => {
+    intentRulesApi(authRequest)
+      .list()
+      .then(rules => {
+        const intents = [...new Set(rules.map(r => r.intent).filter(Boolean))].sort()
+        setKnownIntents(intents)
+      })
+      .catch(() => {})
+  }, [])
 
   const save = async form => {
     try {
@@ -192,6 +253,7 @@ export function PolicyRules() {
           onClose={() => setModal(null)}
           onSave={save}
           tenants={tenants}
+          knownIntents={knownIntents}
           api={api}
         />
       )}
