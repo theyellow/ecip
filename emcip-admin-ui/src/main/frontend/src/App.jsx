@@ -8,6 +8,8 @@ import { Login } from './pages/Login/Login'
 import { Groups } from './pages/Groups/Groups'
 import { Tenants } from './pages/Tenants/Tenants'
 import { PolicyRules } from './pages/PolicyRules/PolicyRules'
+import { IntentRules } from './pages/IntentRules/IntentRules'
+import { IntentSignalConfig } from './pages/IntentSignalConfig/IntentSignalConfig'
 import { AuditLog } from './pages/AuditLog/AuditLog'
 import { Simulate } from './pages/Simulate/Simulate'
 import { Telegram } from './pages/Telegram/Telegram'
@@ -53,6 +55,8 @@ function AuthGate() {
       <Route element={<AppShell />}>
         <Route index element={<Navigate to="/telegram" replace />} />
         <Route path="tenants" element={<Tenants />} />
+        <Route path="intent-rules" element={<PageErrorBoundary><IntentRules /></PageErrorBoundary>} />
+        <Route path="intent-signal-config" element={<PageErrorBoundary><IntentSignalConfig /></PageErrorBoundary>} />
         <Route path="policy-rules" element={<PolicyRules />} />
         <Route path="groups" element={<Groups />} />
         <Route path="audit-log" element={<PageErrorBoundary><AuditLog /></PageErrorBoundary>} />
