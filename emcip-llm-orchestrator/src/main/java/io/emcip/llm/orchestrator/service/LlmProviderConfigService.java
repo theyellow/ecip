@@ -30,7 +30,8 @@ public class LlmProviderConfigService {
         if (Boolean.TRUE.equals(config.getActive())) {
             List<LlmProviderConfig> all = repository.findAll();
             for (LlmProviderConfig existing : all) {
-                if (Boolean.TRUE.equals(existing.getActive())) {
+                if (Boolean.TRUE.equals(existing.getActive())
+                        && (config.getId() == null || !config.getId().equals(existing.getId()))) {
                     existing.setActive(false);
                     repository.save(existing);
                 }
