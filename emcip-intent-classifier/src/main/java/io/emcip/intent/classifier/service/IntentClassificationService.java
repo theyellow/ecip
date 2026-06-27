@@ -160,5 +160,10 @@ public class IntentClassificationService {
         log.debug("refreshRules() called — no-op until Task 6 implementation");
     }
 
+    /** Reload signal config thresholds from the database. Implemented fully in Task 6. */
+    public void refreshSignalConfig() {
+        log.debug("refreshSignalConfig() called — no-op until Task 6 implementation");
+    }
+
     private record IntentRule(String name, Pattern pattern, double confidence) {}
 }
