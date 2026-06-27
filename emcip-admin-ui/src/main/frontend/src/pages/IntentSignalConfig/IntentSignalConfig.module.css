@@ -14,7 +14,7 @@
 .headerLeft {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 
 .title {
@@ -62,13 +62,13 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--sp-1);
 }
 
 .fieldFull {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--sp-1);
   grid-column: 1 / -1;
 }
 
@@ -137,7 +137,7 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   padding: 2px 8px;
   border-radius: var(--r-pill);
   background: var(--signal-mute-bg);
@@ -183,8 +183,8 @@
 
 .alert {
   color: var(--signal-stop-fg);
-  background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.25);
+  background: var(--signal-stop-bg);
+  border: 1px solid var(--signal-stop-fg);
   padding: 8px 12px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -194,7 +194,7 @@
 .success {
   color: var(--signal-ok-fg);
   background: var(--signal-ok-bg);
-  border: 1px solid rgba(74, 222, 128, 0.25);
+  border: 1px solid var(--signal-ok-fg);
   padding: 8px 12px;
   font-family: var(--font-mono);
   font-size: 12px;
