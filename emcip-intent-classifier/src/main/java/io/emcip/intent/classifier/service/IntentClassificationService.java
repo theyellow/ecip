@@ -89,7 +89,8 @@ public class IntentClassificationService {
         }
 
         // Detect structural/script signals
-        Map<String, Object> signals = signalDetector.detect(text, message.metadata());
+        // TODO Task 6: pass real toxicity patterns from IntentSignalConfig
+        Map<String, Object> signals = signalDetector.detect(text, message.metadata(), List.of());
 
         // Apply signal priority chain when no rule matched
         if (matchedIntent == null) {
@@ -99,9 +100,9 @@ public class IntentClassificationService {
                 matchedIntent = "FORMAT_IMAGE_ONLY";
             } else if (Boolean.TRUE.equals(signals.get("emojiOnly"))) {
                 matchedIntent = "FORMAT_EMOJI_ONLY";
-            } else if (signals.get("lookalikeSuspicion") instanceof Double d && d > 0.0) {
+            } else if (signals.get("lookalikeSuspicion") instanceof Integer i && i > 0) {
                 matchedIntent = "LOOKALIKE_ABUSE";
-            } else if (Boolean.TRUE.equals(signals.get("zeroWidthAbuse"))) {
+            } else if (signals.get("zeroWidthAbuse") instanceof Integer i && i >= 1) {
                 matchedIntent = "FORMAT_ABUSE";
             } else if (signals.get("foreignScriptRatio") instanceof Double d && d >= 0.6) {
                 matchedIntent = "SCRIPT_FOREIGN";
