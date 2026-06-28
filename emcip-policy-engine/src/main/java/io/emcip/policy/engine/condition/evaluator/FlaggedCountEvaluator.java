@@ -14,8 +14,8 @@ public class FlaggedCountEvaluator implements ConditionEvaluator {
 
     @Override
     public boolean evaluate(Map<String, Object> params, EvaluationContext ctx) {
-        int min = ((Number) params.getOrDefault("min", 0)).intValue();
-        int windowDays = ((Number) params.getOrDefault("windowDays", 30)).intValue();
+        int min = ParamUtil.getInt(params, "min", 0);
+        int windowDays = ParamUtil.getInt(params, "windowDays", 30);
         // Conservatively fail if the rule requires a longer window than pre-computed.
         if (windowDays > ctx.senderFlagWindowDays()) return false;
         return ctx.senderFlaggedCount() >= min;
@@ -23,8 +23,8 @@ public class FlaggedCountEvaluator implements ConditionEvaluator {
 
     @Override
     public String detail(Map<String, Object> params, EvaluationContext ctx) {
-        int min = ((Number) params.getOrDefault("min", 0)).intValue();
-        int windowDays = ((Number) params.getOrDefault("windowDays", 30)).intValue();
+        int min = ParamUtil.getInt(params, "min", 0);
+        int windowDays = ParamUtil.getInt(params, "windowDays", 30);
         return ctx.senderFlaggedCount() + " >= " + min + " in last " + windowDays + "d";
     }
 }
