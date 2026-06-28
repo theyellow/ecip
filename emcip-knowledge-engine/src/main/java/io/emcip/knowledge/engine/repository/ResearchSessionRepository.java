@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ResearchSessionRepository extends JpaRepository<ResearchSession, UUID> {
 
+    List<ResearchSession> findAllByOrderByCreatedAtDesc();
+
     List<ResearchSession> findByTenantIdOrderByCreatedAtDesc(UUID tenantId);
 
     List<ResearchSession> findByTenantIdAndStatusOrderByCreatedAtDesc(

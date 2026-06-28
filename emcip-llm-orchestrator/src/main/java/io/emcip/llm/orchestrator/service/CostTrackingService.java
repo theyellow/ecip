@@ -199,8 +199,8 @@ public class CostTrackingService {
         result.put("totalTokens", row[1] != null ? ((Number) row[1]).longValue() : 0L);
         result.put("callCount", ((Number) row[2]).longValue());
         result.put("avgLatencyMs", row[3] != null ? ((Number) row[3]).doubleValue() : 0.0);
-        result.put("successCount", ((Number) row[4]).longValue());
-        result.put("failureCount", ((Number) row[5]).longValue());
+        result.put("successCount", row[4] != null ? ((Number) row[4]).longValue() : 0L);
+        result.put("failureCount", row[5] != null ? ((Number) row[5]).longValue() : 0L);
         return result;
     }
 

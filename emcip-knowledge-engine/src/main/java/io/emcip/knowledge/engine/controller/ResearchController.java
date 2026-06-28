@@ -63,12 +63,13 @@ public class ResearchController {
 
     @Operation(summary = "List research sessions for a tenant")
     @GetMapping
-    public ResponseEntity<List<ResearchSessionDto>> listSessions(@RequestParam UUID tenantId) {
-        List<ResearchSessionDto> sessions =
-                sessionRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
-                        .map(this::toDto)
-                        .toList();
-        return ResponseEntity.ok(sessions);
+    public ResponseEntity<List<ResearchSessionDto>> listSessions(
+            @RequestParam(required = false) UUID tenantId) {
+        List<ResearchSession> raw =
+                tenantId != null
+                        ? sessionRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)
+                        : sessionRepository.findAllByOrderByCreatedAtDesc();
+        return ResponseEntity.ok(raw.stream().map(this::toDto).toList());
     }
 
     @Operation(summary = "Pause a running research session")

@@ -30,10 +30,20 @@ public class KnowledgeQueryService {
         List<GraphNodeResult> graphResults = new ArrayList<>();
         List<DocumentResult> documentResults = new ArrayList<>();
 
-        float[] queryEmbedding = llmClient.embed(request.query());
-
+        float[] queryEmbedding = null;
         if (request.searchType() == SearchType.VECTOR
                 || request.searchType() == SearchType.HYBRID) {
+            try {
+                queryEmbedding = llmClient.embed(request.query());
+            } catch (Exception e) {
+                log.warn(
+                        "Embedding unavailable for query '{}': {}. Skipping vector results.",
+                        request.query(),
+                        e.getMessage());
+            }
+        }
+
+        if (queryEmbedding != null) {
             List<SearchResult<KnowledgeDocument>> scored =
                     vectorSearchRepository.search(
                             queryEmbedding, request.limit(), request.tenantId());
