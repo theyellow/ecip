@@ -10,6 +10,7 @@ import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
 import io.emcip.llm.orchestrator.repository.LlmProviderConfigRepository;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -63,6 +64,27 @@ class LlmProviderConfigServiceTest {
         // existing was deactivated and saved, then incoming was saved
         verify(repository, times(2)).save(any());
         assertThat(existing.getActive()).isFalse();
+    }
+
+    @Test
+    void saveProvider_doesNotDeactivateSelfWhenReactivatingExistingProvider() {
+        UUID id = UUID.randomUUID();
+        LlmProviderConfig config =
+                LlmProviderConfig.builder()
+                        .id(id)
+                        .name("provider")
+                        .baseUrl("http://litellm:4000")
+                        .active(true)
+                        .build();
+        // findAll returns the same instance — simulates editing an already-active provider
+        when(repository.findAll()).thenReturn(List.of(config));
+        when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        LlmProviderConfig result = service.saveProvider(config);
+
+        // must remain active — self-deactivation was the bug
+        assertThat(result.getActive()).isTrue();
+        verify(repository, times(1)).save(any());
     }
 
     @Test
