@@ -95,7 +95,6 @@ class KnowledgeQueryServiceTest {
     @Test
     void graphOnlyMode_doesNotCallVectorSearch() {
         UUID tenantId = UUID.randomUUID();
-        when(llmClient.embed("AI")).thenReturn(new float[] {0.1f});
         when(graphRepository.findNodesByType("Topic", tenantId, 10)).thenReturn(List.of());
 
         SearchRequest request =
