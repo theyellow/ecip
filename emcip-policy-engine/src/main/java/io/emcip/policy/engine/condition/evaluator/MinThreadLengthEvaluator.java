@@ -14,12 +14,12 @@ public class MinThreadLengthEvaluator implements ConditionEvaluator {
 
     @Override
     public boolean evaluate(Map<String, Object> params, EvaluationContext ctx) {
-        int min = ((Number) params.getOrDefault("min", 0)).intValue();
+        int min = ParamUtil.getInt(params, "min", 0);
         return ctx.threadLength() >= min;
     }
 
     @Override
     public String detail(Map<String, Object> params, EvaluationContext ctx) {
-        return ctx.threadLength() + " >= " + ((Number) params.getOrDefault("min", 0)).intValue();
+        return ctx.threadLength() + " >= " + ParamUtil.getInt(params, "min", 0);
     }
 }

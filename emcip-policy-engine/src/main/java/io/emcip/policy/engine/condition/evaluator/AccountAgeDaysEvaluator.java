@@ -14,13 +14,13 @@ public class AccountAgeDaysEvaluator implements ConditionEvaluator {
 
     @Override
     public boolean evaluate(Map<String, Object> params, EvaluationContext ctx) {
-        int max = ((Number) params.getOrDefault("max", Integer.MAX_VALUE)).intValue();
+        int max = ParamUtil.getInt(params, "max", Integer.MAX_VALUE);
         return ctx.senderAccountAgeDays() <= max;
     }
 
     @Override
     public String detail(Map<String, Object> params, EvaluationContext ctx) {
-        int max = ((Number) params.getOrDefault("max", Integer.MAX_VALUE)).intValue();
+        int max = ParamUtil.getInt(params, "max", Integer.MAX_VALUE);
         return ctx.senderAccountAgeDays() + "d <= " + max + "d";
     }
 }

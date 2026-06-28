@@ -14,15 +14,12 @@ public class GroupSizeEvaluator implements ConditionEvaluator {
 
     @Override
     public boolean evaluate(Map<String, Object> params, EvaluationContext ctx) {
-        int min = ((Number) params.getOrDefault("min", 0)).intValue();
+        int min = ParamUtil.getInt(params, "min", 0);
         return ctx.groupSize() >= min;
     }
 
     @Override
     public String detail(Map<String, Object> params, EvaluationContext ctx) {
-        return ctx.groupSize()
-                + " >= "
-                + ((Number) params.getOrDefault("min", 0)).intValue()
-                + " members";
+        return ctx.groupSize() + " >= " + ParamUtil.getInt(params, "min", 0) + " members";
     }
 }
