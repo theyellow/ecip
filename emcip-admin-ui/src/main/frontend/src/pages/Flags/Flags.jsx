@@ -397,7 +397,7 @@ export function Decisions() {
               <th>Confidence</th>
               <th>Message</th>
               <th>Reason</th>
-              <th>Status</th>
+              <th className={styles.stickyCol}>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -417,7 +417,7 @@ export function Decisions() {
                   <td className={styles.mono}>{f.confidence != null ? (f.confidence * 100).toFixed(0) + '%' : '\u2014'}</td>
                   <td className={styles.message} title={meta.messageText}>{meta.messageText ?? '\u2014'}</td>
                   <td>{f.reason ?? '\u2014'}</td>
-                  <td><Badge variant={STATUS_VARIANT[f.signalStatus] ?? 'gray'}>{f.signalStatus ?? 'NEW'}</Badge></td>
+                  <td className={styles.stickyCol}><Badge variant={STATUS_VARIANT[f.signalStatus] ?? 'gray'}>{f.signalStatus ?? 'NEW'}</Badge></td>
                 </tr>
               )
             })}

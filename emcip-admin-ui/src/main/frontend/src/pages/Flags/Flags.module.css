@@ -325,3 +325,16 @@
   color: var(--fg-3);
   padding: var(--sp-2) 0;
 }
+
+/* Sticky rightmost data column */
+.stickyCol {
+  position: sticky;
+  right: 0;
+  background: var(--bg-card);
+  box-shadow: -6px 0 10px -6px rgba(0, 0, 0, 0.45);
+}
+
+/* Header variant matches th background */
+.table thead .stickyCol {
+  background: var(--accent-soft);
+}
