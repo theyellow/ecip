@@ -187,8 +187,8 @@ export function Groups() {
       {error && <p style={{ color: 'var(--signal-stop-fg)', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.25)', padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: '12px', marginBottom: 'var(--sp-3)' }} role="alert">{error}</p>}
 
       <DataTable
-        title="Groups"
-        systemId={`\u25C8 groups \u00b7 ${groups.length} watched`}
+        title="Watched Groups"
+        systemId={`\u25C8 watched-groups \u00b7 ${groups.length} watched`}
         addLabel="+ Add Group"
         onAdd={() => setModal('add')}
         columns={COLUMNS}
