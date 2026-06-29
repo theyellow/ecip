@@ -227,6 +227,14 @@ export function PolicyRules() {
     { key: 'name', label: 'Rule Name' },
     { key: 'targetIntent', label: 'Intent', render: v => <Badge variant="gray">{v}</Badge> },
     { key: 'action', label: 'Action', width: 110, render: v => <Badge variant={ACTION_VARIANT[v] ?? 'gray'}>{v}</Badge> },
+    {
+      key: 'tenantId',
+      label: 'Tenant',
+      width: 110,
+      render: v => v
+        ? <span className={styles.mono}>{v.slice(0, 8) + '\u2026'}</span>
+        : <Badge variant="gray">Global</Badge>,
+    },
     { key: 'priority', label: 'Priority', mono: true, width: 80 },
     { key: 'effectiveFrom', label: 'From', mono: true, width: 110, render: v => v ? new Date(v).toLocaleDateString() : '\u2014' },
     { key: 'effectiveTo', label: 'To', mono: true, width: 110, render: v => v ? new Date(v).toLocaleDateString() : '\u2014' },
@@ -245,7 +253,7 @@ export function PolicyRules() {
         onEdit={setModal}
         onDelete={remove}
         deleteMessage={r => `Delete rule "${r.name}"? This cannot be undone.`}
-        emptyText="No policy rules defined"
+        emptyText="No policy rules defined. Create a rule to route intents to actions."
       />
       {modal && (
         <RuleModal

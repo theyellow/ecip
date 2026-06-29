@@ -172,19 +172,26 @@ When wiring this into production, the **Send reply** action should POST to the m
 
 ## Pages (route map)
 
-| Route hash | Component | Status in prototype |
+| Route | Component | Notes |
 |---|---|---|
-| `#tenants` | `TenantsPage` | v2 redesign complete |
-| `#telegram` | `TelegramPage` | v2 redesign complete |
-| `#audit-log` | `AuditLogPage` | v2 redesign complete |
-| `#ai-config` | `AIConfigPage` | v2 redesign complete |
-| `#policy-rules` | `PolicyRulesPage` | v2 redesign complete |
-| `#moderation-rules` | `ModerationRulesPage` | v2 redesign complete |
-| `#flags` | `FlagsPage` | v2 redesign complete (incl. Reply composer) |
-| `#groups` | `GroupsPage` | v2 redesign complete — nav label is **"Watched Groups"** (not "Groups") |
-| `#simulate` | `SimulatePage` | v2 redesign complete |
-| `#users` | `UsersPage` | v2 redesign complete |
-| `#roles` | `RolesPage` | **planned — not built.** Manage operator access levels (`ADMIN` / `TENANT_ADMIN`) as a first-class list instead of a per-user field. Use `⬠`, `ROLES_*` perms; reuse the DataTable + Modal shell. Do **not** fold this into Watched Groups. |
+| `/tenants` | `Tenants` | v2 complete |
+| `/intent-rules` | `IntentRules` | live, no design ref yet |
+| `/intent-signal-config` | `IntentSignalConfig` | live, no design ref; reachable via "SIGNAL CONFIG →" from Intent Rules only |
+| `/policy-rules` | `PolicyRules` | v2 complete |
+| `/moderation-rules` | `ModerationRules` | v2 complete |
+| `/decisions` | `Decisions` (exported from `pages/Flags/Flags.jsx`) | v2 complete; file named Flags — do not rename file |
+| `/resolution-queue` | `ResolutionQueue` | live, no design ref yet |
+| `/groups` | `Groups` (nav label: **Watched Groups**) | v2 complete |
+| `/knowledge` | `Knowledge` (in `KnowledgePage.jsx`) | live, no design ref yet; tabbed: Search / Ingestion Jobs |
+| `/research` | `ResearchPage` | live, no design ref yet |
+| `/research/:id` | `SessionDetailPage` | live, no design ref yet |
+| `/audit-log` | `AuditLog` | v2 complete |
+| `/simulate` | `Simulate` | v2 complete |
+| `/telegram` | `Telegram` | v2 complete |
+| `/ai-config` | `AIConfig` | v2 complete |
+| `/costs` | `Costs` | live, no design ref yet |
+| `/integrations` | `IntegrationsPage` | live, no design ref yet; tabbed: Global Keys / Sources & Schedule / Run History |
+| `/users` | `Users` | v2 complete |
 
 The prototype uses `hashchange` routing because it's a single static HTML file. **In the production app, use the existing router** (probably React Router) — preserve route names so deep links stay stable.
 
@@ -197,7 +204,7 @@ The prototype uses `hashchange` routing because it's a single static HTML file. 
 | `⬡` | U+2B21 | Tenants |
 | `⚖` | U+2696 | Policy Rules |
 | `⊘` | U+2298 | Moderation Rules |
-| `⚑` | U+2691 | Flags |
+| `⚑` | U+2691 | Decisions |
 | `◈` | U+25C8 | Watched Groups |
 | `◎` | U+25CE | Audit Log |
 | `▶` | U+25B6 | Simulate Event |

@@ -138,4 +138,14 @@ describe('Decisions page', () => {
     expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /prev/i })).toBeInTheDocument()
   })
+
+  it('Status column header has stickyCol class', async () => {
+    mockFlagsApi.list.mockResolvedValue({ items: [DECISION], total: 1 })
+    const { container } = render(<Decisions />)
+    await waitFor(() => screen.getByText('FLAG'))
+    const ths = Array.from(container.querySelectorAll('th'))
+    const statusTh = ths.find(th => th.textContent.trim() === 'Status')
+    expect(statusTh).toBeTruthy()
+    expect(statusTh.className).toContain('stickyCol')
+  })
 })

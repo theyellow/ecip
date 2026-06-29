@@ -14,7 +14,7 @@ const NAV = [
   { to: '/moderation-rules', label: 'Moderation Rules', icon: '⊘', permission: 'MODERATION_RULES_READ' },
   { to: '/decisions',        label: 'Decisions',        icon: '⚑',       permission: 'AUDIT_READ' },
   { to: '/resolution-queue', label: 'Resolution Queue', icon: '\u2297', permission: 'RESOLUTION_REVIEW_READ' },
-  { to: '/groups',           label: 'Groups',           icon: '◈',       permission: 'GROUPS_READ' },
+  { to: '/groups',           label: 'Watched Groups',    icon: '◈',       permission: 'GROUPS_READ' },
   { to: '/knowledge',        label: 'Knowledge',        icon: '◆',       permission: 'KNOWLEDGE_READ' },
   { to: '/research',         label: 'Research',         icon: '⬟',       permission: 'KNOWLEDGE_READ' },
   { to: '/audit-log',        label: 'Audit Log',        icon: '◎', permission: 'AUDIT_READ' },

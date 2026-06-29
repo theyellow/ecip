@@ -1,6 +1,12 @@
 .wrapper {
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
+
+.wrapper::-webkit-scrollbar { height: 4px; }
+.wrapper::-webkit-scrollbar-track { background: transparent; }
+.wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--r-pill); }
 
 .pageHeader {
   display: flex;
@@ -60,7 +66,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--fg-3);
-  background: rgba(212, 168, 73, 0.04);
+  background: var(--bg-table-head);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -90,10 +96,20 @@
   color: var(--fg-2);
 }
 
-.actions {
+/* Sticky rightmost action column — primary action always visible */
+.actionsSticky {
+  position: sticky;
+  right: 0;
+  background: var(--bg-card);
+  box-shadow: -6px 0 10px -6px rgba(0, 0, 0, 0.45);
   display: flex;
   gap: 6px;
   justify-content: flex-end;
+}
+
+/* Match header background when sticky header cell overlaps scrolled rows */
+thead .actionsSticky {
+  background: var(--bg-table-head);
 }
 
 .empty {
@@ -101,8 +117,6 @@
   color: var(--fg-3);
   padding: var(--sp-7);
   font-style: italic;
-  font-family: var(--font-display);
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  font-size: 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
 }

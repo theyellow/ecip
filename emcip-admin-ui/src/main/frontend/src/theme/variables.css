@@ -70,6 +70,7 @@
   --c-mist: #2a4258;
   --c-fog:  rgba(58, 104, 120, 0.10);
   --c-haze: rgba(212, 168, 73, 0.04);
+  --bg-table-head: rgba(212, 168, 73, 0.04);
 
   /* UI utility tokens */
   --hover-tint:   rgba(212, 168, 73, 0.04);
@@ -212,6 +213,7 @@
   --bg-card-solid: #ffffff;
   --bg-sunken:     #d8e0dc;
   --bg-input:      rgba(255, 255, 255, 0.85);
+  --bg-table-head: rgba(212, 168, 73, 0.04);
 
   --fg-1:          #1a2028;
   --fg-2:          #5a6470;

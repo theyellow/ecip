@@ -150,7 +150,7 @@ export function IntentRules() {
         onEdit={setModal}
         onDelete={remove}
         deleteMessage={r => `Delete rule "${r.name}"? This cannot be undone.`}
-        emptyText="No intent rules defined"
+        emptyText="No intent rules defined. Create a rule to classify message intent."
       />
 
       {modal && (
