@@ -66,7 +66,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--fg-3);
-  background: rgba(212, 168, 73, 0.04);
+  background: var(--bg-table-head);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -109,7 +109,7 @@
 
 /* Match header background when sticky header cell overlaps scrolled rows */
 thead .actionsSticky {
-  background: rgba(212, 168, 73, 0.04);
+  background: var(--bg-table-head);
 }
 
 .empty {
