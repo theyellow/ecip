@@ -63,7 +63,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('Intent Rules')).toBeInTheDocument()
     expect(screen.getByText('AI Config')).toBeInTheDocument()
     expect(screen.getByText('Users')).toBeInTheDocument()
-    expect(screen.getByText('Groups')).toBeInTheDocument()
+    expect(screen.getByText('Watched Groups')).toBeInTheDocument()
   })
 
   it('TENANT_ADMIN sees static tenant label, not dropdown', () => {
@@ -80,7 +80,7 @@ describe('Sidebar', () => {
     expect(screen.queryByText('AI Config')).not.toBeInTheDocument()
     expect(screen.queryByText('Users')).not.toBeInTheDocument()
     // But still sees allowed items
-    expect(screen.getByText('Groups')).toBeInTheDocument()
+    expect(screen.getByText('Watched Groups')).toBeInTheDocument()
     expect(screen.getByText('Telegram')).toBeInTheDocument()
   })
 })
