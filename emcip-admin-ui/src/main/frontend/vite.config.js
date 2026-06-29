@@ -10,6 +10,11 @@ export default defineConfig({
   server: {
     port: 14009,
   },
+  css: {
+    modules: {
+      localsConvention: 'camelCase',
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.js'],

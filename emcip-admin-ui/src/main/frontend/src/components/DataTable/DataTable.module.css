@@ -1,6 +1,12 @@
 .wrapper {
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
+
+.wrapper::-webkit-scrollbar { height: 4px; }
+.wrapper::-webkit-scrollbar-track { background: transparent; }
+.wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--r-pill); }
 
 .pageHeader {
   display: flex;
@@ -90,10 +96,20 @@
   color: var(--fg-2);
 }
 
-.actions {
+/* Sticky rightmost action column — primary action always visible */
+.actionsSticky {
+  position: sticky;
+  right: 0;
+  background: var(--bg-card);
+  box-shadow: -6px 0 10px -6px rgba(0, 0, 0, 0.45);
   display: flex;
   gap: 6px;
   justify-content: flex-end;
+}
+
+/* Match header background when sticky header cell overlaps scrolled rows */
+thead .actionsSticky {
+  background: rgba(212, 168, 73, 0.04);
 }
 
 .empty {

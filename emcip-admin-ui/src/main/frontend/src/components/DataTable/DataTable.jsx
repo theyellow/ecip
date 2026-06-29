@@ -42,7 +42,7 @@ export function DataTable({
             {columns.map(c => (
               <th key={c.key} style={c.width ? { width: c.width } : undefined}>{c.label}</th>
             ))}
-            {onDelete && <th style={{ width: 80 }}></th>}
+            {onDelete && <th className={styles.actionsSticky} style={{ width: 80 }}></th>}
           </tr>
         </thead>
         <tbody>
@@ -58,7 +58,7 @@ export function DataTable({
                 </td>
               ))}
               {onDelete && (
-                <td className={styles.actions} onClick={e => e.stopPropagation()}>
+                <td className={styles.actionsSticky} onClick={e => e.stopPropagation()}>
                   <Button variant="danger" onClick={() => setConfirming(row)}>Delete</Button>
                 </td>
               )}

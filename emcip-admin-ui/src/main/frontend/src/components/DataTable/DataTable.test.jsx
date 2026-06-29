@@ -77,4 +77,33 @@ describe('DataTable', () => {
     expect(screen.getByText('All')).toBeInTheDocument()
     expect(screen.getByText('Type A')).toBeInTheDocument()
   })
+
+  describe('DataTable — sticky actions', () => {
+    it('action cell has actionsSticky class when onDelete is provided', () => {
+      const cols = [{ key: 'name', label: 'Name' }]
+      const rows = [{ id: '1', name: 'Row 1' }]
+      const { container } = render(
+        <DataTable
+          columns={cols}
+          rows={rows}
+          onDelete={vi.fn()}
+          deleteMessage={() => 'Delete?'}
+        />
+      )
+      const allTds = container.querySelectorAll('td')
+      const actionTd = allTds[allTds.length - 1]
+      expect(actionTd.className).toContain('actionsSticky')
+    })
+
+    it('action column header also has actionsSticky class', () => {
+      const cols = [{ key: 'name', label: 'Name' }]
+      const rows = [{ id: '1', name: 'Row 1' }]
+      const { container } = render(
+        <DataTable columns={cols} rows={rows} onDelete={vi.fn()} deleteMessage={() => ''} />
+      )
+      const allThs = container.querySelectorAll('th')
+      const actionTh = allThs[allThs.length - 1]
+      expect(actionTh.className).toContain('actionsSticky')
+    })
+  })
 })
