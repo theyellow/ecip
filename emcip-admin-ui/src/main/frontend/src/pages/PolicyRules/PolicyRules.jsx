@@ -245,7 +245,7 @@ export function PolicyRules() {
         onEdit={setModal}
         onDelete={remove}
         deleteMessage={r => `Delete rule "${r.name}"? This cannot be undone.`}
-        emptyText="No policy rules defined"
+        emptyText="No policy rules defined. Create a rule to route intents to actions."
       />
       {modal && (
         <RuleModal

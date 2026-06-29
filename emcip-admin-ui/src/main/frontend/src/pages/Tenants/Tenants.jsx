@@ -81,7 +81,7 @@ export function Tenants() {
         onEdit={setModal}
         onDelete={remove}
         deleteMessage={t => `Delete tenant "${t.name}"? This cannot be undone.`}
-        emptyText="No tenants registered"
+        emptyText="No tenants registered. Create a tenant to organize operators and rules."
       />
 
       {modal && (

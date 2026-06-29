@@ -182,7 +182,7 @@ export function ResearchPage() {
             onChange: (v) => setStatusFilter(v),
           },
         ]}
-        emptyText={loading ? 'Loading sessions…' : 'No research sessions yet'}
+        emptyText={loading ? 'Loading sessions…' : 'No research sessions yet. Start one to begin.'}
       />
 
       {showModal && (

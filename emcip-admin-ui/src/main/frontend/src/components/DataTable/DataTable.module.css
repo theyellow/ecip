@@ -117,8 +117,6 @@ thead .actionsSticky {
   color: var(--fg-3);
   padding: var(--sp-7);
   font-style: italic;
-  font-family: var(--font-display);
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  font-size: 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
 }

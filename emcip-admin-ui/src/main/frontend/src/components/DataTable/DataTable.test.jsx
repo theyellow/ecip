@@ -78,6 +78,21 @@ describe('DataTable', () => {
     expect(screen.getByText('Type A')).toBeInTheDocument()
   })
 
+  it('renders emptyText without uppercase transform (body font class)', () => {
+    const { container } = render(
+      <DataTable
+        columns={[{ key: 'name', label: 'Name' }]}
+        rows={[]}
+        emptyText="No rules defined. Create a rule to get started."
+      />
+    )
+    const emptyTd = container.querySelector('td')
+    expect(emptyTd?.textContent).toBe('No rules defined. Create a rule to get started.')
+    // The cell must NOT carry the display-font / uppercase class
+    // In jsdom computed styles don't resolve, so assert class names instead
+    expect(emptyTd?.className).not.toMatch(/display/i)
+  })
+
   describe('DataTable — sticky actions', () => {
     it('action cell has actionsSticky class when onDelete is provided', () => {
       const cols = [{ key: 'name', label: 'Name' }]

@@ -138,7 +138,7 @@ export function ModerationRules() {
         onEdit={setModal}
         onDelete={remove}
         deleteMessage={r => `Delete rule "${r.name}"? This cannot be undone.`}
-        emptyText="No moderation rules defined"
+        emptyText="No moderation rules defined. Create a rule to start filtering messages."
       />
 
       {modal && (
