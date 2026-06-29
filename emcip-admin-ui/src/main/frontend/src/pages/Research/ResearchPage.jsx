@@ -38,6 +38,7 @@ export function ResearchPage() {
 
   const loadSessions = useCallback(() => {
     setLoading(true)
+    setError('')
     researchApi(request)
       .listSessions(currentTenant?.id)
       .then(setSessions)
@@ -161,29 +162,40 @@ export function ResearchPage() {
         </div>
       )}
 
-      {error && <p style={{ color: 'var(--signal-stop-fg)' }}>{error}</p>}
+      {loading && (
+        <p className={styles.loadingText}>Loading sessions…</p>
+      )}
 
-      <DataTable
-        columns={COLUMNS}
-        rows={filtered}
-        rowKey={(r) => r.id}
-        onEdit={(row) => navigate(`/research/${row.id}`)}
-        filters={[
-          {
-            value: statusFilter,
-            options: [
-              { value: '', label: 'All statuses' },
-              { value: 'COMPLETED', label: 'Completed' },
-              { value: 'RUNNING', label: 'Running' },
-              { value: 'FAILED', label: 'Failed' },
-              { value: 'PAUSED', label: 'Paused' },
-              { value: 'CREATED', label: 'Created' },
-            ],
-            onChange: (v) => setStatusFilter(v),
-          },
-        ]}
-        emptyText={loading ? 'Loading sessions…' : 'No research sessions yet. Start one to begin.'}
-      />
+      {!loading && error && (
+        <p role="alert" className={styles.errorBanner}>
+          Couldn't load research sessions.{' '}
+          <button className={styles.retryBtn} onClick={loadSessions}>Retry</button>
+        </p>
+      )}
+
+      {!loading && (
+        <DataTable
+          columns={COLUMNS}
+          rows={filtered}
+          rowKey={(r) => r.id}
+          onEdit={(row) => navigate(`/research/${row.id}`)}
+          filters={[
+            {
+              value: statusFilter,
+              options: [
+                { value: '', label: 'All statuses' },
+                { value: 'COMPLETED', label: 'Completed' },
+                { value: 'RUNNING', label: 'Running' },
+                { value: 'FAILED', label: 'Failed' },
+                { value: 'PAUSED', label: 'Paused' },
+                { value: 'CREATED', label: 'Created' },
+              ],
+              onChange: (v) => setStatusFilter(v),
+            },
+          ]}
+          emptyText="No research sessions yet. Start one to begin."
+        />
+      )}
 
       {showModal && (
         <StartResearchModal onClose={() => setShowModal(false)} onStarted={handleSessionStarted} />

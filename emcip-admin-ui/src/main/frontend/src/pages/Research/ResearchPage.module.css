@@ -35,3 +35,41 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.loadingText {
+  color: var(--fg-3);
+  font-style: italic;
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: var(--sp-7) 0;
+  text-align: center;
+}
+
+.errorBanner {
+  color: var(--signal-stop-fg);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-bottom: var(--sp-3);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.retryBtn {
+  background: none;
+  border: 1px solid var(--signal-stop-fg);
+  color: var(--signal-stop-fg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.retryBtn:hover {
+  background: rgba(248, 113, 113, 0.08);
+}
