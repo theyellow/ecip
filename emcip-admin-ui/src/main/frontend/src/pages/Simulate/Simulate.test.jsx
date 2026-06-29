@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { AuthProvider } from '../../auth/AuthContext'
 import { ThemeProvider } from '../../theme/ThemeContext'
 import { Simulate } from './Simulate'
+import { PipelineTrace } from './PipelineTrace'
 
 beforeEach(() => {
   global.fetch = vi.fn()
@@ -73,4 +74,9 @@ test('pipeline trace panel is always visible', () => {
   wrap(<Simulate />)
   expect(screen.getByText(/PIPELINE TRACE/i)).toBeInTheDocument()
   expect(screen.getByText(/INTENT CLASSIFIER/i)).toBeInTheDocument()
+})
+
+test('PipelineTrace panel contains a legend', () => {
+  const { container } = render(<ThemeProvider><AuthProvider><PipelineTrace result={null} loading={false} /></AuthProvider></ThemeProvider>)
+  expect(container.textContent).toMatch(/waiting/i)
 })

@@ -69,6 +69,26 @@ export function PipelineTrace({ result, loading }) {
   return (
     <div className={styles.panel}>
       <SectionLabel>Pipeline Trace</SectionLabel>
+
+      <div className={styles.legend}>
+        <span className={styles.legendItem}>
+          <span className={styles.legendDot} style={{ background: 'var(--border-strong)' }} />
+          waiting
+        </span>
+        <span className={styles.legendItem}>
+          <span className={styles.legendDot} style={{ background: 'var(--accent)' }} />
+          processing
+        </span>
+        <span className={styles.legendItem}>
+          <span className={styles.legendDot} style={{ background: 'var(--signal-ok-fg)' }} />
+          done
+        </span>
+        <span className={styles.legendItem}>
+          <span className={styles.legendDot} style={{ background: 'var(--signal-stop-fg)' }} />
+          blocked
+        </span>
+      </div>
+
       {loading && <p className={styles.waiting}>{'\u25b6'} waiting for pipeline\u2026</p>}
       <div className={styles.stages}>
         {STAGE_META.map(meta => {
