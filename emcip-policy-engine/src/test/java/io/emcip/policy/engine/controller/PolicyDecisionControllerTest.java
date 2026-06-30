@@ -40,7 +40,13 @@ class PolicyDecisionControllerTest {
     @Test
     void list_returnsPageResponse() {
         when(repository.findByFilters(
-                        isNull(), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(decision("id-1")), Pageable.ofSize(50), 1L));
 
         client.get()
@@ -59,7 +65,13 @@ class PolicyDecisionControllerTest {
     void list_sizeCapAt200() {
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         when(repository.findByFilters(
-                        isNull(), isNull(), isNull(), isNull(), isNull(), pageableCaptor.capture()))
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        pageableCaptor.capture()))
                 .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(200), 0L));
 
         client.get().uri("/api/policy-decisions?size=999").exchange().expectStatus().isOk();
@@ -72,7 +84,13 @@ class PolicyDecisionControllerTest {
         PolicyDecision d = decision("id-2");
         d.setDecision("FLAG");
         when(repository.findByFilters(
-                        eq("FLAG"), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                        isNull(),
+                        eq("FLAG"),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(d), Pageable.ofSize(50), 1L));
 
         client.get()
@@ -88,7 +106,13 @@ class PolicyDecisionControllerTest {
     @Test
     void list_blankDecisionTreatedAsNoFilter() {
         when(repository.findByFilters(
-                        isNull(), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)))
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(decision("id-blank")), Pageable.ofSize(50), 1L));
 
         client.get()
@@ -106,7 +130,13 @@ class PolicyDecisionControllerTest {
         PolicyDecision d = decision("id-3");
         d.setOriginalIntent("SPAM");
         when(repository.findByFilters(
-                        isNull(), eq("SPAM"), isNull(), isNull(), isNull(), any(Pageable.class)))
+                        isNull(),
+                        isNull(),
+                        eq("SPAM"),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(d), Pageable.ofSize(50), 1L));
 
         client.get()
@@ -122,6 +152,7 @@ class PolicyDecisionControllerTest {
     @Test
     void list_filteredByTimeRange() {
         when(repository.findByFilters(
+                        isNull(),
                         isNull(),
                         isNull(),
                         any(Instant.class),
@@ -143,7 +174,13 @@ class PolicyDecisionControllerTest {
     @Test
     void list_filteredByMinConfidence() {
         when(repository.findByFilters(
-                        isNull(), isNull(), isNull(), isNull(), eq(0.8), any(Pageable.class)))
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        isNull(),
+                        eq(0.8),
+                        any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(decision("id-5")), Pageable.ofSize(50), 1L));
 
         client.get()

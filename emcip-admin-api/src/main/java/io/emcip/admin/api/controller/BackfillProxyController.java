@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +46,7 @@ public class BackfillProxyController {
 
     @Operation(summary = "Trigger bulk backfill for a watched group")
     @PostMapping("/{chatId}/backfill")
+    @PreAuthorize("hasAuthority('GROUPS_WRITE')")
     public Mono<ResponseEntity<String>> triggerBackfill(
             @PathVariable long chatId, @RequestBody BackfillTriggerRequest request) {
         return Mono.deferContextual(
@@ -86,6 +88,7 @@ public class BackfillProxyController {
 
     @Operation(summary = "Get backfill progress for a watched group")
     @GetMapping("/{chatId}/backfill/{backfillId}")
+    @PreAuthorize("hasAuthority('GROUPS_READ')")
     public Mono<ResponseEntity<String>> getBackfillStatus(
             @PathVariable long chatId, @PathVariable String backfillId) {
         return knowledgeWebClient

@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,7 @@ public class IntentRuleController {
 
     @Operation(summary = "List all intent rules")
     @GetMapping
+    @PreAuthorize("hasAuthority('POLICY_RULES_READ')")
     public Flux<JsonNode> list() {
         return intentClassifierClient.listRules();
     }
@@ -35,12 +37,14 @@ public class IntentRuleController {
     @Operation(summary = "Create an intent rule")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('POLICY_RULES_WRITE')")
     public Mono<JsonNode> create(@RequestBody JsonNode body) {
         return intentClassifierClient.createRule(body);
     }
 
     @Operation(summary = "Update an intent rule")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('POLICY_RULES_WRITE')")
     public Mono<JsonNode> update(@PathVariable("id") String id, @RequestBody JsonNode body) {
         return intentClassifierClient.updateRule(id, body);
     }
@@ -48,6 +52,7 @@ public class IntentRuleController {
     @Operation(summary = "Delete an intent rule")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('POLICY_RULES_WRITE')")
     public Mono<Void> delete(@PathVariable("id") String id) {
         return intentClassifierClient.deleteRule(id);
     }

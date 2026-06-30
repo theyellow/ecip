@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -142,6 +143,7 @@ class UserManagementServiceTest {
 
     @Test
     void updateUser_selfDemotion_rejected() {
+        when(userRepository.findByUsername("admin")).thenReturn(Mono.just(adminUser()));
         when(userRepository.findById(1L)).thenReturn(Mono.just(adminUser()));
 
         UserRequest req = new UserRequest();
@@ -159,6 +161,7 @@ class UserManagementServiceTest {
 
     @Test
     void updateUser_otherUser_succeeds() {
+        AdminUser caller = adminUser(); // global ADMIN — no tenant restriction
         AdminUser other =
                 AdminUser.builder()
                         .id(2L)
@@ -169,6 +172,7 @@ class UserManagementServiceTest {
                         .enabled(true)
                         .createdAt(Instant.now())
                         .build();
+        when(userRepository.findByUsername("admin")).thenReturn(Mono.just(caller));
         when(userRepository.findById(2L)).thenReturn(Mono.just(other));
         when(tenantRepository.existsById(TENANT_ID)).thenReturn(Mono.just(true));
         when(userRepository.save(any())).thenReturn(Mono.just(tenantAdminUser()));
@@ -181,6 +185,80 @@ class UserManagementServiceTest {
         StepVerifier.create(userManagementService.update(2L, req, "admin"))
                 .assertNext(resp -> assertThat(resp.getRole()).isEqualTo(Role.TENANT_ADMIN))
                 .verifyComplete();
+    }
+
+    @Test
+    void updateUser_tenantAdmin_cannotUpdateOtherTenantUser() {
+        UUID otherTenantId = UUID.randomUUID();
+        AdminUser caller =
+                AdminUser.builder()
+                        .id(10L)
+                        .username("tadmin")
+                        .role(Role.TENANT_ADMIN)
+                        .tenantId(TENANT_ID)
+                        .enabled(true)
+                        .createdAt(Instant.now())
+                        .build();
+        AdminUser target =
+                AdminUser.builder()
+                        .id(11L)
+                        .username("target")
+                        .role(Role.MODERATOR)
+                        .tenantId(otherTenantId)
+                        .enabled(true)
+                        .createdAt(Instant.now())
+                        .build();
+
+        when(userRepository.findByUsername("tadmin")).thenReturn(Mono.just(caller));
+        when(userRepository.findById(11L)).thenReturn(Mono.just(target));
+
+        UserRequest req = new UserRequest();
+        req.setRole(Role.MODERATOR);
+        req.setTenantId(TENANT_ID);
+
+        StepVerifier.create(userManagementService.update(11L, req, "tadmin"))
+                .expectErrorMatches(
+                        e ->
+                                e instanceof AccessDeniedException
+                                        && e.getMessage().contains("outside your tenant"))
+                .verify();
+    }
+
+    @Test
+    void updateUser_tenantAdmin_cannotReassignTenant() {
+        UUID otherTenantId = UUID.randomUUID();
+        AdminUser caller =
+                AdminUser.builder()
+                        .id(10L)
+                        .username("tadmin")
+                        .role(Role.TENANT_ADMIN)
+                        .tenantId(TENANT_ID)
+                        .enabled(true)
+                        .createdAt(Instant.now())
+                        .build();
+        AdminUser target =
+                AdminUser.builder()
+                        .id(11L)
+                        .username("target")
+                        .role(Role.MODERATOR)
+                        .tenantId(TENANT_ID)
+                        .enabled(true)
+                        .createdAt(Instant.now())
+                        .build();
+
+        when(userRepository.findByUsername("tadmin")).thenReturn(Mono.just(caller));
+        when(userRepository.findById(11L)).thenReturn(Mono.just(target));
+
+        UserRequest req = new UserRequest();
+        req.setRole(Role.MODERATOR);
+        req.setTenantId(otherTenantId);
+
+        StepVerifier.create(userManagementService.update(11L, req, "tadmin"))
+                .expectErrorMatches(
+                        e ->
+                                e instanceof AccessDeniedException
+                                        && e.getMessage().contains("reassign"))
+                .verify();
     }
 
     @Test

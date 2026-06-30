@@ -12,6 +12,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -32,6 +33,28 @@ public class SecurityConfig {
             AdminTenantContextFilter adminTenantContextFilter) {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource()))
+                .headers(
+                        headers ->
+                                headers.contentSecurityPolicy(
+                                                csp ->
+                                                        csp.policyDirectives(
+                                                                "default-src 'self'; script-src"
+                                                                    + " 'self'; style-src 'self'"
+                                                                    + " 'unsafe-inline'; img-src"
+                                                                    + " 'self' data:; font-src"
+                                                                    + " 'self'"))
+                                        .frameOptions(
+                                                frame ->
+                                                        frame.mode(
+                                                                XFrameOptionsServerHttpHeadersWriter
+                                                                        .Mode.DENY))
+                                        .hsts(
+                                                hsts ->
+                                                        hsts.includeSubdomains(true)
+                                                                .maxAge(
+                                                                        java.time.Duration.ofDays(
+                                                                                365)))
+                                        .contentTypeOptions(contentType -> {}))
                 .authorizeExchange(
                         auth ->
                                 auth.pathMatchers(
@@ -41,7 +64,7 @@ public class SecurityConfig {
                                                 "/api/auth/refresh",
                                                 "/api/auth/logout")
                                         .permitAll()
-                                        .pathMatchers("/actuator/**")
+                                        .pathMatchers("/actuator/health", "/actuator/health/**")
                                         .permitAll()
                                         .anyExchange()
                                         .authenticated())
@@ -72,6 +95,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 }

@@ -119,7 +119,7 @@ public class PolicyEvaluationService {
 
         // Get active rules from database (ordered by priority)
         List<PolicyRuleConfig> dbRules = ruleConfigRepository.findEffectiveRulesAt(Instant.now());
-        EvaluationContext ctx = buildContext(classification);
+        EvaluationContext ctx = buildContext(classification, tenantId);
 
         List<EvaluatedRule> rulesToEvaluate = new ArrayList<>();
         if (dbRules.isEmpty()) {
@@ -252,14 +252,16 @@ public class PolicyEvaluationService {
     }
 
     /** Builds an EvaluationContext from an IntentClassifiedEvent. */
-    private EvaluationContext buildContext(EventSchemas.IntentClassifiedEvent event) {
+    private EvaluationContext buildContext(
+            EventSchemas.IntentClassifiedEvent event, UUID tenantId) {
         Map<String, Object> p = event.parameters() != null ? event.parameters() : Map.of();
         String senderId = p.get("senderId") instanceof String s ? s : null;
         int flaggedCount = 0;
         if (senderId != null) {
             try {
                 Instant since = Instant.now().minus(FLAG_WINDOW_DAYS, ChronoUnit.DAYS);
-                flaggedCount = decisionRepository.countBlockedBySenderSince(senderId, since);
+                flaggedCount =
+                        decisionRepository.countBlockedBySenderSince(senderId, since, tenantId);
             } catch (Exception e) {
                 log.warn("Failed to fetch sender flagged count: {}", e.getMessage());
             }

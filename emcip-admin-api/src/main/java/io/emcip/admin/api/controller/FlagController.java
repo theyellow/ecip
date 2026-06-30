@@ -14,6 +14,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -53,6 +54,7 @@ public class FlagController {
 
     @Operation(summary = "List recent policy flags")
     @GetMapping
+    @PreAuthorize("hasAuthority('MODERATION_RULES_READ')")
     public Mono<JsonNode> getFlags(
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "size", defaultValue = "50") int size,
@@ -68,6 +70,7 @@ public class FlagController {
     @Operation(summary = "Update the status of a policy flag")
     @PatchMapping("/{id}/status")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('MODERATION_RULES_WRITE')")
     public Mono<Void> updateStatus(
             @PathVariable String id, @Valid @RequestBody StatusUpdateRequest req) {
         return flagService.updateStatus(id, req.status());
@@ -75,6 +78,7 @@ public class FlagController {
 
     @Operation(summary = "Reply to a flagged message via Telegram")
     @PostMapping("/{id}/reply")
+    @PreAuthorize("hasAuthority('MODERATION_RULES_WRITE')")
     public Mono<ResponseEntity<?>> reply(
             @PathVariable String id, @Valid @RequestBody ReplyRequest req) {
         return flagService
@@ -99,6 +103,7 @@ public class FlagController {
 
     @Operation(summary = "Analyse a flag with AI")
     @PostMapping("/{id}/analyse")
+    @PreAuthorize("hasAuthority('MODERATION_RULES_READ')")
     public Mono<ResponseEntity<AnalyseResponse>> analyse(@PathVariable String id) {
         return flagService
                 .analyse(id)
@@ -110,6 +115,7 @@ public class FlagController {
 
     @Operation(summary = "Multi-turn AI research chat about a flag")
     @PostMapping("/{id}/chat")
+    @PreAuthorize("hasAuthority('MODERATION_RULES_READ')")
     public Mono<ResponseEntity<JsonNode>> chat(
             @PathVariable String id, @RequestBody JsonNode body) {
         return flagService

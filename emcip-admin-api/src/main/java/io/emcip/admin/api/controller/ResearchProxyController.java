@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,6 +47,7 @@ public class ResearchProxyController {
     @Operation(summary = "Start a new deep research session")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> startResearch(@RequestBody String body) {
         return knowledgeWebClient
                 .post()
@@ -67,6 +69,7 @@ public class ResearchProxyController {
 
     @Operation(summary = "Get a research session by ID")
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getSession(@PathVariable UUID id) {
         return knowledgeWebClient
                 .get()
@@ -89,6 +92,7 @@ public class ResearchProxyController {
 
     @Operation(summary = "List research sessions for a tenant")
     @GetMapping
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> listSessions(
             @RequestParam(required = false) UUID tenantId) {
         return knowledgeWebClient
@@ -114,6 +118,7 @@ public class ResearchProxyController {
 
     @Operation(summary = "Pause a research session")
     @PostMapping("/{id}/pause")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> pauseSession(@PathVariable UUID id) {
         return knowledgeWebClient
                 .post()
@@ -136,6 +141,7 @@ public class ResearchProxyController {
 
     @Operation(summary = "Resume a paused research session")
     @PostMapping("/{id}/resume")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> resumeSession(@PathVariable UUID id) {
         return knowledgeWebClient
                 .post()
@@ -158,6 +164,7 @@ public class ResearchProxyController {
 
     @Operation(summary = "Get the research report for a session")
     @GetMapping("/{id}/report")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getReport(@PathVariable UUID id) {
         return knowledgeWebClient
                 .get()
@@ -180,6 +187,7 @@ public class ResearchProxyController {
 
     @Operation(summary = "Download the research report as Markdown")
     @GetMapping("/{id}/report/markdown")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getReportMarkdown(@PathVariable UUID id) {
         return knowledgeWebClient
                 .get()

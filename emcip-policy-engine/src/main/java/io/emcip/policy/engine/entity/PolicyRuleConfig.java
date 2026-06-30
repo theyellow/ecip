@@ -1,5 +1,6 @@
 package io.emcip.policy.engine.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -30,6 +31,7 @@ import org.hibernate.type.SqlTypes;
 public class PolicyRuleConfig {
 
     @Schema(description = "Unique rule identifier", example = "spam-block-v1")
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Id
     private String id;
 
@@ -115,6 +117,7 @@ public class PolicyRuleConfig {
     private Map<String, Object> conditions;
 
     @Schema(description = "Creation timestamp (UTC)")
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(nullable = false)
     private Instant createdAt;
 
@@ -122,6 +125,7 @@ public class PolicyRuleConfig {
     private Instant updatedAt;
 
     @Schema(hidden = true)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Version
     private Long version;
 

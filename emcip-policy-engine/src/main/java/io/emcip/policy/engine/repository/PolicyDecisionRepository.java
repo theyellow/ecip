@@ -4,6 +4,7 @@ import io.emcip.policy.engine.entity.PolicyDecision;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -70,22 +71,25 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
     @Query(
             nativeQuery = true,
             value =
-                    "SELECT * FROM policy_decisions pd WHERE (CAST(:decision AS text) IS NULL OR"
-                        + " pd.decision = :decision) AND (CAST(:intent AS text) IS NULL OR"
+                    "SELECT * FROM policy_decisions pd WHERE (CAST(:tenantId AS uuid) IS NULL OR"
+                        + " pd.tenant_id = CAST(:tenantId AS uuid)) AND (CAST(:decision AS text) IS"
+                        + " NULL OR pd.decision = :decision) AND (CAST(:intent AS text) IS NULL OR"
                         + " pd.original_intent = :intent) AND (CAST(:fromTs AS timestamptz) IS NULL"
                         + " OR pd.timestamp >= CAST(:fromTs AS timestamptz)) AND (CAST(:toTs AS"
                         + " timestamptz) IS NULL OR pd.timestamp <= CAST(:toTs AS timestamptz)) AND"
                         + " (CAST(:minConfidence AS float8) IS NULL OR pd.confidence >="
                         + " CAST(:minConfidence AS float8)) ORDER BY pd.timestamp DESC",
             countQuery =
-                    "SELECT COUNT(*) FROM policy_decisions pd WHERE (CAST(:decision AS text) IS"
-                        + " NULL OR pd.decision = :decision) AND (CAST(:intent AS text) IS NULL OR"
-                        + " pd.original_intent = :intent) AND (CAST(:fromTs AS timestamptz) IS NULL"
-                        + " OR pd.timestamp >= CAST(:fromTs AS timestamptz)) AND (CAST(:toTs AS"
-                        + " timestamptz) IS NULL OR pd.timestamp <= CAST(:toTs AS timestamptz)) AND"
-                        + " (CAST(:minConfidence AS float8) IS NULL OR pd.confidence >="
-                        + " CAST(:minConfidence AS float8))")
+                    "SELECT COUNT(*) FROM policy_decisions pd WHERE (CAST(:tenantId AS uuid) IS"
+                        + " NULL OR pd.tenant_id = CAST(:tenantId AS uuid)) AND (CAST(:decision AS"
+                        + " text) IS NULL OR pd.decision = :decision) AND (CAST(:intent AS text) IS"
+                        + " NULL OR pd.original_intent = :intent) AND (CAST(:fromTs AS timestamptz)"
+                        + " IS NULL OR pd.timestamp >= CAST(:fromTs AS timestamptz)) AND"
+                        + " (CAST(:toTs AS timestamptz) IS NULL OR pd.timestamp <= CAST(:toTs AS"
+                        + " timestamptz)) AND (CAST(:minConfidence AS float8) IS NULL OR"
+                        + " pd.confidence >= CAST(:minConfidence AS float8))")
     Page<PolicyDecision> findByFilters(
+            @Param("tenantId") UUID tenantId,
             @Param("decision") String decision,
             @Param("intent") String intent,
             @Param("fromTs") Instant fromTs,
@@ -103,10 +107,12 @@ public interface PolicyDecisionRepository extends JpaRepository<PolicyDecision, 
     @Query(
             nativeQuery = true,
             value =
-                    "SELECT COUNT(*) FROM policy_decisions "
-                            + "WHERE metadata->>'senderId' = :senderId "
-                            + "AND decision IN ('BLOCK', 'FLAG') "
-                            + "AND timestamp > :since")
+                    "SELECT COUNT(*) FROM policy_decisions WHERE metadata->>'senderId' = :senderId"
+                            + " AND decision IN ('BLOCK', 'FLAG') AND timestamp > :since AND"
+                            + " (CAST(:tenantId AS uuid) IS NULL OR tenant_id = CAST(:tenantId AS"
+                            + " uuid))")
     int countBlockedBySenderSince(
-            @Param("senderId") String senderId, @Param("since") Instant since);
+            @Param("senderId") String senderId,
+            @Param("since") Instant since,
+            @Param("tenantId") UUID tenantId);
 }

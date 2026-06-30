@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +45,7 @@ public class KnowledgeSearchProxyController {
 
     @Operation(summary = "Search the knowledge base")
     @PostMapping("/search")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> search(@RequestBody String body) {
         return knowledgeWebClient
                 .post()
@@ -65,6 +67,7 @@ public class KnowledgeSearchProxyController {
 
     @Operation(summary = "List graph topic nodes")
     @GetMapping("/graph/topics")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getTopics(
             @RequestParam(required = false) UUID tenantId,
             @RequestParam(defaultValue = "50") int limit) {
@@ -93,6 +96,7 @@ public class KnowledgeSearchProxyController {
 
     @Operation(summary = "List graph person nodes")
     @GetMapping("/graph/persons")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getPersons(
             @RequestParam(required = false) UUID tenantId,
             @RequestParam(defaultValue = "50") int limit) {
@@ -121,6 +125,7 @@ public class KnowledgeSearchProxyController {
 
     @Operation(summary = "Get neighbors of a graph node")
     @GetMapping("/graph/node/{id}/neighbors")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getNeighbors(
             @PathVariable UUID id,
             @RequestParam(required = false) String relationshipType,

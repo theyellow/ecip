@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -51,6 +52,7 @@ public class DocumentIngestionProxyController {
 
     @Operation(summary = "Submit a URL for ingestion")
     @PostMapping("/url")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> ingestUrl(@RequestBody String body) {
         return knowledgeWebClient
                 .post()
@@ -72,6 +74,7 @@ public class DocumentIngestionProxyController {
 
     @Operation(summary = "Upload a document for ingestion")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> ingestUpload(
             @RequestPart("file") FilePart file, @RequestParam(required = false) UUID tenantId) {
         return DataBufferUtils.join(file.content())
@@ -120,6 +123,7 @@ public class DocumentIngestionProxyController {
 
     @Operation(summary = "Get ingestion job status")
     @GetMapping("/{jobId}")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getJobStatus(@PathVariable String jobId) {
         return knowledgeWebClient
                 .get()
@@ -142,6 +146,7 @@ public class DocumentIngestionProxyController {
 
     @Operation(summary = "List ingestion jobs")
     @GetMapping
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> listJobs(
             @RequestParam(required = false) UUID tenantId,
             @RequestParam(defaultValue = "0") int page,

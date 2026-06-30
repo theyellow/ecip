@@ -1,12 +1,14 @@
 package io.emcip.policy.engine.controller;
 
 import io.emcip.common.pagination.PageResponse;
+import io.emcip.common.tenant.TenantContext;
 import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -65,10 +67,16 @@ public class PolicyDecisionController {
                 PageRequest.of(page, effectiveSize, Sort.by(Sort.Direction.DESC, "timestamp"));
         String effectiveDecision = (decision != null && !decision.isBlank()) ? decision : null;
         String effectiveIntent = (intent != null && !intent.isBlank()) ? intent : null;
+        String rawTenantId = TenantContext.getTenantId();
+        UUID tenantId =
+                (rawTenantId != null && !TenantContext.isAdminMode())
+                        ? UUID.fromString(rawTenantId)
+                        : null;
         return Mono.fromCallable(
                         () -> {
                             Page<PolicyDecision> p =
                                     repository.findByFilters(
+                                            tenantId,
                                             effectiveDecision,
                                             effectiveIntent,
                                             from,

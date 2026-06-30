@@ -9,6 +9,7 @@ import io.emcip.admin.api.security.Role;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -51,31 +52,73 @@ public class UserManagementService {
 
     public Mono<UserResponse> update(Long id, UserRequest req, String callerUsername) {
         return userRepository
-                .findById(id)
+                .findByUsername(callerUsername)
                 .switchIfEmpty(
                         Mono.error(
                                 new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND, "User not found")))
+                                        HttpStatus.UNAUTHORIZED, "Caller not found")))
                 .flatMap(
-                        user -> {
-                            if (user.getUsername().equals(callerUsername)
-                                    && user.getRole() == Role.ADMIN
-                                    && req.getRole() != Role.ADMIN) {
-                                return Mono.error(
-                                        new ResponseStatusException(
-                                                HttpStatus.BAD_REQUEST,
-                                                "Cannot remove your own admin role"));
-                            }
-                            return validateRequest(req).thenReturn(user);
-                        })
-                .flatMap(
-                        user -> {
-                            user.setRole(req.getRole());
-                            user.setTenantId(req.getTenantId());
-                            if (req.getEnabled() != null) user.setEnabled(req.getEnabled());
-                            return userRepository.save(user);
-                        })
-                .flatMap(this::toResponse);
+                        caller ->
+                                userRepository
+                                        .findById(id)
+                                        .switchIfEmpty(
+                                                Mono.error(
+                                                        new ResponseStatusException(
+                                                                HttpStatus.NOT_FOUND,
+                                                                "User not found")))
+                                        .flatMap(
+                                                user -> {
+                                                    if (user.getUsername().equals(callerUsername)
+                                                            && user.getRole() == Role.ADMIN
+                                                            && req.getRole() != Role.ADMIN) {
+                                                        return Mono.error(
+                                                                new ResponseStatusException(
+                                                                        HttpStatus.BAD_REQUEST,
+                                                                        "Cannot remove your own"
+                                                                                + " admin role"));
+                                                    }
+                                                    // TENANT_ADMIN may only update users within
+                                                    // their own tenant
+                                                    if (caller.getRole() != Role.ADMIN) {
+                                                        if (user.getTenantId() == null
+                                                                || !user.getTenantId()
+                                                                        .equals(
+                                                                                caller
+                                                                                        .getTenantId())) {
+                                                            return Mono.error(
+                                                                    new AccessDeniedException(
+                                                                            "Cannot update users"
+                                                                                    + " outside"
+                                                                                    + " your"
+                                                                                    + " tenant"));
+                                                        }
+                                                        // Only ADMIN may reassign a user to a
+                                                        // different tenant
+                                                        if (req.getTenantId() != null
+                                                                && !req.getTenantId()
+                                                                        .equals(
+                                                                                caller
+                                                                                        .getTenantId())) {
+                                                            return Mono.error(
+                                                                    new AccessDeniedException(
+                                                                            "Only ADMIN may"
+                                                                                    + " reassign"
+                                                                                    + " users to a"
+                                                                                    + " different"
+                                                                                    + " tenant"));
+                                                        }
+                                                    }
+                                                    return validateRequest(req).thenReturn(user);
+                                                })
+                                        .flatMap(
+                                                user -> {
+                                                    user.setRole(req.getRole());
+                                                    user.setTenantId(req.getTenantId());
+                                                    if (req.getEnabled() != null)
+                                                        user.setEnabled(req.getEnabled());
+                                                    return userRepository.save(user);
+                                                })
+                                        .flatMap(this::toResponse));
     }
 
     public Mono<Void> delete(Long id, String callerUsername) {
