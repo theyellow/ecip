@@ -32,9 +32,14 @@ public class BackfillService {
 
     public BackfillService(
             @Value("${knowledge.tdlib-adapter.base-url:http://localhost:9080}") String tdlibBaseUrl,
+            @Value("${admin.service-token}") String serviceToken,
             KnowledgeEventPublisher eventPublisher,
             KafkaTemplate<String, String> kafkaTemplate) {
-        this.tdlibRestClient = RestClient.builder().baseUrl(tdlibBaseUrl).build();
+        this.tdlibRestClient =
+                RestClient.builder()
+                        .baseUrl(tdlibBaseUrl)
+                        .defaultHeader("X-Service-Token", serviceToken)
+                        .build();
         this.eventPublisher = eventPublisher;
         this.kafkaTemplate = kafkaTemplate;
     }
