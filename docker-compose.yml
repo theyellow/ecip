@@ -282,6 +282,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=emcip
       - SPRING_DATASOURCE_PASSWORD=emcip
       - LLM_ORCHESTRATOR_URL=http://ecip-llm-orchestrator:9084
+      - TDLIB_ADAPTER_URL=http://ecip-tdlib-adapter:9080
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - app-tier
