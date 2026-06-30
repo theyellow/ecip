@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.sun.net.httpserver.HttpServer;
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
@@ -20,10 +21,15 @@ import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.apache.tika.Tika;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,9 +53,10 @@ class DocumentIngestionServiceTest {
 
     KnowledgeExtractionService realExtractionService;
     DocumentIngestionService service;
+    HttpServer httpServer;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         realExtractionService =
                 new KnowledgeExtractionService(
                         documentRepository,
@@ -60,6 +67,14 @@ class DocumentIngestionServiceTest {
                         ontologyService,
                         eventPublisher);
         service = new DocumentIngestionService(jobRepository, extractionService, tika);
+
+        httpServer = HttpServer.create(new InetSocketAddress(0), 0);
+        httpServer.start();
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (httpServer != null) httpServer.stop(0);
     }
 
     // ── KnowledgeExtractionService.processDocument tests (carried over) ───────
@@ -117,6 +132,19 @@ class DocumentIngestionServiceTest {
 
     @Test
     void submitUrlIngestion_asyncProcessingCallsProcessDocumentPerChunk() throws Exception {
+        // Serve content from local HTTP server
+        String content = "word1 word2 word3";
+        httpServer.createContext(
+                "/doc",
+                exchange -> {
+                    byte[] body = content.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        String testUrl = "http://localhost:" + httpServer.getAddress().getPort() + "/doc";
+
         UUID jobId = UUID.randomUUID();
         IngestionJob job = new IngestionJob();
         job.setId(jobId);
@@ -130,23 +158,32 @@ class DocumentIngestionServiceTest {
                             return j;
                         });
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        // Tika returns 3 words → 1 chunk at default 500-word size
-        when(tika.parseToString(any(java.net.URL.class))).thenReturn("word1 word2 word3");
+        // Tika parses the fetched bytes (InputStream) → returns 3 words → 1 chunk
+        when(tika.parseToString(any(InputStream.class))).thenReturn(content);
 
-        service.submitUrlIngestion("https://example.com", null);
+        service.submitUrlIngestion(testUrl, null);
 
         await().atMost(5, SECONDS)
                 .untilAsserted(
                         () ->
                                 verify(extractionService, atLeastOnce())
-                                        .processDocument(
-                                                eq("word1 word2 word3"),
-                                                eq("https://example.com"),
-                                                isNull()));
+                                        .processDocument(eq(content), eq(testUrl), isNull()));
     }
 
     @Test
     void submitUrlIngestion_setsJobToFailedOnParseError() throws Exception {
+        // Serve content that Tika will fail to parse
+        httpServer.createContext(
+                "/bad",
+                exchange -> {
+                    byte[] body = "bad".getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        String testUrl = "http://localhost:" + httpServer.getAddress().getPort() + "/bad";
+
         UUID jobId = UUID.randomUUID();
         IngestionJob job = new IngestionJob();
         job.setId(jobId);
@@ -160,10 +197,10 @@ class DocumentIngestionServiceTest {
                             return j;
                         });
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(tika.parseToString(any(java.net.URL.class)))
-                .thenThrow(new java.io.IOException("connection refused"));
+        when(tika.parseToString(any(InputStream.class)))
+                .thenThrow(new java.io.IOException("parse error"));
 
-        service.submitUrlIngestion("https://unreachable.invalid", null);
+        service.submitUrlIngestion(testUrl, null);
 
         await().atMost(5, SECONDS)
                 .untilAsserted(

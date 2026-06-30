@@ -8,7 +8,11 @@ import jakarta.annotation.PreDestroy;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +37,9 @@ public class DocumentIngestionService {
 
     private static final int CHUNK_SIZE = 500;
     private static final int CHUNK_OVERLAP = 50;
+    private static final int MAX_CHUNKS = 500;
+    private static final int MAX_CONTENT_BYTES = 10 * 1024 * 1024; // 10 MB
+    private static final Duration FETCH_TIMEOUT = Duration.ofSeconds(30);
     private static final ExecutorService INGESTION_EXECUTOR =
             Executors.newVirtualThreadPerTaskExecutor();
 
@@ -94,7 +101,8 @@ public class DocumentIngestionService {
     private void processUrlAsync(UUID jobId, String url, UUID tenantId) {
         updateJobStatus(jobId, IngestionStatus.RUNNING, null, null);
         try {
-            String text = tika.parseToString(new URL(url));
+            byte[] body = fetchWithTimeout(url);
+            String text = tika.parseToString(new ByteArrayInputStream(body));
             int chunkCount = processChunks(text, url, tenantId);
             updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
             log.info(
@@ -102,6 +110,29 @@ public class DocumentIngestionService {
         } catch (Exception e) {
             log.error("URL ingestion FAILED: jobId={}, url={}: {}", jobId, url, e.getMessage(), e);
             updateJobStatus(jobId, IngestionStatus.FAILED, null, e.getMessage());
+        }
+    }
+
+    private byte[] fetchWithTimeout(String url) throws IOException, InterruptedException {
+        try (HttpClient client = HttpClient.newBuilder().connectTimeout(FETCH_TIMEOUT).build()) {
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(URI.create(url))
+                            .timeout(FETCH_TIMEOUT)
+                            .GET()
+                            .build();
+            HttpResponse<byte[]> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            byte[] body = response.body();
+            if (body.length > MAX_CONTENT_BYTES) {
+                throw new IOException(
+                        "Content too large: "
+                                + body.length
+                                + " bytes (max "
+                                + MAX_CONTENT_BYTES
+                                + ")");
+            }
+            return body;
         }
     }
 
@@ -129,6 +160,14 @@ public class DocumentIngestionService {
 
     private int processChunks(String text, String sourceRef, UUID tenantId) {
         List<String> chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
+        if (chunks.size() > MAX_CHUNKS) {
+            log.warn(
+                    "Chunk count {} exceeds limit {} for source={}, truncating",
+                    chunks.size(),
+                    MAX_CHUNKS,
+                    sourceRef);
+            chunks = chunks.subList(0, MAX_CHUNKS);
+        }
         for (String chunk : chunks) {
             extractionService.processDocument(chunk, sourceRef, tenantId);
         }

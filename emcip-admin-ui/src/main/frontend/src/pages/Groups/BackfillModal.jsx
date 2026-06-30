@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../../components/Modal/Modal'
 import { Button } from '../../components/Button/Button'
 import styles from './BackfillModal.module.css'
@@ -35,10 +35,22 @@ export function BackfillModal({ group, onClose, api }) {
       .catch(() => setWatchers([]))
   }, [group.telegramChatId])
 
+  const pollCountRef = useRef(0)
+  const MAX_POLLS = 900 // 30 minutes at 2s intervals
+
   useEffect(() => {
     if (phase !== 'polling' || !backfillId) return
 
+    pollCountRef.current = 0
+
     const interval = setInterval(async () => {
+      pollCountRef.current += 1
+      if (pollCountRef.current > MAX_POLLS) {
+        clearInterval(interval)
+        setErrorMsg('Timed out waiting for backfill to complete.')
+        setPhase('error')
+        return
+      }
       try {
         const s = await api.backfillStatus(group.telegramChatId, backfillId)
         setProcessed(s.processed ?? 0)

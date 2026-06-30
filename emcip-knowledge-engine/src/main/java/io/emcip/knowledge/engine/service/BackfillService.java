@@ -21,6 +21,8 @@ import org.springframework.web.client.RestClient;
 public class BackfillService {
 
     private static final String TOPIC_KNOWLEDGE_RAW = "knowledge.raw.messages";
+    private static final int MAX_ITERATIONS = 5000;
+    private static final long BATCH_DELAY_MS = 100;
     private static final ExecutorService BACKFILL_EXECUTOR =
             Executors.newVirtualThreadPerTaskExecutor();
 
@@ -75,9 +77,12 @@ public class BackfillService {
             String startedAt) {
         long offsetMessageId = 0L;
         int processed = 0;
+        int iterations = 0;
 
         try {
-            while (true) {
+            while (iterations < MAX_ITERATIONS) {
+                iterations++;
+
                 ChatHistoryResponse batch =
                         tdlibRestClient
                                 .get()
@@ -134,7 +139,26 @@ public class BackfillService {
                     break;
                 }
 
-                offsetMessageId = batch.lastMessageId();
+                long newOffset = batch.lastMessageId();
+                if (newOffset == offsetMessageId) {
+                    log.error(
+                            "Backfill {}: pagination stuck at offsetMessageId={}, aborting",
+                            backfillId,
+                            offsetMessageId);
+                    throw new IllegalStateException(
+                            "Pagination stuck — offsetMessageId did not advance");
+                }
+                offsetMessageId = newOffset;
+
+                Thread.sleep(BATCH_DELAY_MS);
+            }
+
+            if (iterations >= MAX_ITERATIONS) {
+                log.warn(
+                        "Backfill {}: hit max iterations ({}), processed={} messages",
+                        backfillId,
+                        MAX_ITERATIONS,
+                        processed);
             }
 
             activeBackfills.put(
