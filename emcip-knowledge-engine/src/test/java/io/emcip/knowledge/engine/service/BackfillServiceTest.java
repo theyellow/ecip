@@ -23,7 +23,9 @@ class BackfillServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new BackfillService("http://localhost:19999", eventPublisher, kafkaTemplate);
+        service =
+                new BackfillService(
+                        "http://localhost:19999", "test-token", eventPublisher, kafkaTemplate);
     }
 
     @Test
