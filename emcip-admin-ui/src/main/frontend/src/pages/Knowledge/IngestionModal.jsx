@@ -14,11 +14,22 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
   const [jobStatus, setJobStatus] = useState(null)
   const [errorMsg, setErrorMsg] = useState('')
   const pollRef = useRef(null)
+  const pollCountRef = useRef(0)
+  const MAX_POLLS = 150 // 5 minutes at 2s intervals
 
   useEffect(() => {
     if (phase !== 'polling' || !jobId) return
 
+    pollCountRef.current = 0
+
     pollRef.current = setInterval(async () => {
+      pollCountRef.current += 1
+      if (pollCountRef.current > MAX_POLLS) {
+        clearInterval(pollRef.current)
+        setErrorMsg('Timed out waiting for ingestion to complete.')
+        setPhase('error')
+        return
+      }
       try {
         const s = await api.status(jobId)
         setJobStatus(s)

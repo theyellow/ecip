@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-23 (Epic #6 policy rule versioning complete)
+> Last updated: 2026-06-30 (Intent Rules management complete, knowledge-engine safeguards)
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
@@ -109,6 +109,11 @@
 | 27C | Deep Research Agent — Admin UI: session list, Start Research modal, live polling, evidence table, report viewer (Markdown renderer + download), comparison view (US-27.6, 27.7, 27.8) | ✅ PR branch — 2026-06-22. Plan: `plans/2026-06-22-deep-research-agent-plan-c.md` |
 | 27A | Deep Research Agent — backend: session lifecycle, strategy engine, execution loop, evidence with provenance, cost/depth guardrails (US-27.1, 27.2, 27.4, 27.9) | ✅ PR #145 — 2026-06-21. Plan: `plans/2026-06-20-deep-research-agent-plan-a.md` |
 | 6 | Policy rule versioning — condition groups (AND/OR), 7 evaluator types, rule history snapshots, dry-run endpoint, admin-api proxy | ✅ 2026-06-23. Branch: `feat/42-knowledge-enrichment-connectors`. |
+| 44 | Intent Rules management — CRUD endpoints, signal config (thresholds, toxicity words), Liquibase migrations, admin-api proxy, Admin UI page + Signal Config sub-page, intent dropdown in policy rules | ✅ PRs #155/#159 — 2026-06-25. |
+| — | CI: knowledge-engine Docker build, custom postgres image (pgvector + AGE), GitHub Actions Node 24 update | ✅ PRs #149–#154, #161 — 2026-06-24/26. |
+| — | Bugfixes: policy evaluator string params, costs NPE, research 400, knowledge search 500, LLM provider self-deactivation, intent-classifier datasource/Liquibase config, signal config JSONB default, knowledge-engine backfill auth | ✅ PRs #156–#167 — 2026-06-24/29. |
+| — | Admin UI polish: Watched Groups rename, sticky columns, themed scrollbar, dot legend on Pipeline Trace, Global badge on tenant-less policy rules, research page error states | ✅ 2026-06-25/28. |
+| — | Knowledge-engine safeguards — fetch timeout (30s), content size limit (10 MB), chunk cap (500), backfill iteration limit (5000), stuck-pagination detection, batch delay, frontend polling timeouts | ✅ 2026-06-30. Branch: `fix/knowledge-engine-backfill-auth`. |
 
 ---
 
