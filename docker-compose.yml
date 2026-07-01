@@ -102,8 +102,8 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/emcip
-      - SPRING_DATASOURCE_USERNAME=emcip
-      - SPRING_DATASOURCE_PASSWORD=emcip
+      - SPRING_DATASOURCE_USERNAME=${CONTEXT_DB_USER:-emcip}
+      - SPRING_DATASOURCE_PASSWORD=${CONTEXT_DB_PASS:-emcip}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - app-tier
@@ -124,6 +124,8 @@ services:
       - "9082:9082"
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
+      - SPRING_DATASOURCE_USERNAME=${INTENT_DB_USER:-emcip}
+      - SPRING_DATASOURCE_PASSWORD=${INTENT_DB_PASS:-emcip}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - app-tier
@@ -147,8 +149,8 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/emcip
-      - SPRING_DATASOURCE_USERNAME=emcip
-      - SPRING_DATASOURCE_PASSWORD=emcip
+      - SPRING_DATASOURCE_USERNAME=${POLICY_DB_USER:-emcip}
+      - SPRING_DATASOURCE_PASSWORD=${POLICY_DB_PASS:-emcip}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - app-tier
@@ -174,8 +176,8 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/emcip
-      - SPRING_DATASOURCE_USERNAME=emcip
-      - SPRING_DATASOURCE_PASSWORD=emcip
+      - SPRING_DATASOURCE_USERNAME=${LLM_DB_USER:-emcip}
+      - SPRING_DATASOURCE_PASSWORD=${LLM_DB_PASS:-emcip}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - app-tier
@@ -199,11 +201,11 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/emcip
-      - SPRING_R2DBC_USERNAME=emcip
-      - SPRING_R2DBC_PASSWORD=emcip
+      - SPRING_R2DBC_USERNAME=${MODERATION_DB_USER:-emcip}
+      - SPRING_R2DBC_PASSWORD=${MODERATION_DB_PASS:-emcip}
       - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgres:5432/emcip
-      - SPRING_DATASOURCE_USERNAME=emcip
-      - SPRING_DATASOURCE_PASSWORD=emcip
+      - SPRING_LIQUIBASE_USERNAME=emcip
+      - SPRING_LIQUIBASE_PASSWORD=emcip
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - app-tier
@@ -225,11 +227,11 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/emcip
-      - SPRING_R2DBC_USERNAME=emcip
-      - SPRING_R2DBC_PASSWORD=emcip
+      - SPRING_R2DBC_USERNAME=${AUDIT_DB_USER:-emcip}
+      - SPRING_R2DBC_PASSWORD=${AUDIT_DB_PASS:-emcip}
       - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgres:5432/emcip
-      - SPRING_DATASOURCE_USERNAME=emcip
-      - SPRING_DATASOURCE_PASSWORD=emcip
+      - SPRING_LIQUIBASE_USERNAME=emcip
+      - SPRING_LIQUIBASE_PASSWORD=emcip
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
     networks:
       - app-tier
@@ -248,11 +250,11 @@ services:
       - "9087:9087"
     environment:
       - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/emcip
-      - SPRING_R2DBC_USERNAME=emcip
-      - SPRING_R2DBC_PASSWORD=emcip
+      - SPRING_R2DBC_USERNAME=${ADMIN_API_DB_USER:-emcip}
+      - SPRING_R2DBC_PASSWORD=${ADMIN_API_DB_PASS:-emcip}
       - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgres:5432/emcip
-      - SPRING_DATASOURCE_USERNAME=emcip
-      - SPRING_DATASOURCE_PASSWORD=emcip
+      - SPRING_LIQUIBASE_USERNAME=emcip
+      - SPRING_LIQUIBASE_PASSWORD=emcip
       - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-changeme-in-production-32chars-secret}
       - ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN:-internal-service-token}
       - SERVICE_TDLIB_URL=http://ecip-tdlib-adapter:9080
@@ -279,8 +281,8 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:14002
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/emcip
-      - SPRING_DATASOURCE_USERNAME=emcip
-      - SPRING_DATASOURCE_PASSWORD=emcip
+      - SPRING_DATASOURCE_USERNAME=${KNOWLEDGE_DB_USER:-emcip}
+      - SPRING_DATASOURCE_PASSWORD=${KNOWLEDGE_DB_PASS:-emcip}
       - LLM_ORCHESTRATOR_URL=http://ecip-llm-orchestrator:9084
       - TDLIB_ADAPTER_URL=http://ecip-tdlib-adapter:9080
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318

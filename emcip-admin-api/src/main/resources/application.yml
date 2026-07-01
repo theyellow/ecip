@@ -17,8 +17,8 @@ spring:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
   datasource:
     url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
-    username: ${SPRING_DATASOURCE_USERNAME:emcip}
-    password: ${SPRING_DATASOURCE_PASSWORD:emcip}
+    username: ${SPRING_LIQUIBASE_USERNAME:emcip}
+    password: ${SPRING_LIQUIBASE_PASSWORD:emcip}
     driver-class-name: org.postgresql.Driver
 
 
