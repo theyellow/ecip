@@ -4,6 +4,7 @@ import io.emcip.audit.service.entity.AuditEventEntity;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.r2dbc.repository.Modifying;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.r2dbc.repository.R2dbcRepository;
 import org.springframework.stereotype.Repository;
@@ -65,6 +66,7 @@ public interface AuditEventRepository extends R2dbcRepository<AuditEventEntity, 
     @Query("SELECT * FROM audit_events WHERE created_at < :cutoff ORDER BY id ASC LIMIT 1")
     Mono<AuditEventEntity> findOldestBeforeCutoff(Instant cutoff);
 
+    @Modifying
     @Query("DELETE FROM audit_events WHERE created_at < :cutoff")
     Mono<Long> deleteByCreatedAtBefore(Instant cutoff);
 
