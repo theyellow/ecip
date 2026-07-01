@@ -74,6 +74,32 @@ class KnowledgeContextEnricherServiceTest {
     }
 
     @Test
+    void buildContext_wrapsEachDocumentWithBoundaryMarkers() {
+        UUID tenantId = UUID.randomUUID();
+        var doc1 =
+                new KnowledgeDocument(
+                        UUID.randomUUID(), "doc1-content", "https://example.com/1", "WEBPAGE");
+        var doc2 =
+                new KnowledgeDocument(
+                        UUID.randomUUID(), "doc2-content", "https://example.com/2", "WEBPAGE");
+        var result1 = new DocumentResult(doc1, 0.9);
+        var result2 = new DocumentResult(doc2, 0.85);
+        KnowledgeEnrichmentProperties props =
+                new KnowledgeEnrichmentProperties(true, 0.70, 5, 2000);
+        var response =
+                new KnowledgeEngineClient.SearchResponse(List.of(), List.of(result1, result2));
+
+        when(client.search("query", "HYBRID", tenantId, props.maxResults())).thenReturn(response);
+
+        String context = enricher.buildContext("query", tenantId);
+
+        assertThat(context)
+                .contains("<<<KNOWLEDGE_SOURCE_BEGIN source=\"https://example.com/1\">>>");
+        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_END>>>");
+        assertThat(context).contains("doc1-content");
+    }
+
+    @Test
     void buildContext_truncatesContextToMaxChars() {
         UUID tenantId = UUID.randomUUID();
         String longContent = "A".repeat(3000);

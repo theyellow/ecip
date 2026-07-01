@@ -101,10 +101,14 @@ public class LlmCallService {
                     TenantContext.getTenantId() != null
                             ? UUID.fromString(TenantContext.getTenantId())
                             : null;
+            // Wrap user content with boundary markers (RT-002/003)
+            String markedContent =
+                    "<<<USER_CONTENT_BEGIN>>>\n" + userContent + "\n<<<USER_CONTENT_END>>>";
+
             String enrichedContent =
                     knowledgeEnrichmentProperties.enabled()
-                            ? buildEnrichedContent(userContent, tenantUuid)
-                            : userContent;
+                            ? buildEnrichedContent(userContent, markedContent, tenantUuid)
+                            : markedContent;
 
             String renderedUser = orchestratorService.renderPromptTemplate(template, contextVars);
             String finalContent =
@@ -161,14 +165,14 @@ public class LlmCallService {
         }
     }
 
-    private String buildEnrichedContent(String userContent, UUID tenantId) {
-        String context = knowledgeContextEnricherService.buildContext(userContent, tenantId);
+    private String buildEnrichedContent(String userQuery, String markedContent, UUID tenantId) {
+        String context = knowledgeContextEnricherService.buildContext(userQuery, tenantId);
         if (context.isBlank()) {
-            return userContent;
+            return markedContent;
         }
         return "Relevant context from the knowledge base:\n"
                 + context
                 + "\n\n---\n\n"
-                + userContent;
+                + markedContent;
     }
 }

@@ -40,8 +40,11 @@ public class KnowledgeContextEnricherService {
 
         StringBuilder sb = new StringBuilder();
         for (DocumentResult result : relevant) {
-            sb.append("[Source: ").append(result.document().sourceRef()).append("]\n");
-            sb.append(result.document().content()).append("\n\n");
+            sb.append("<<<KNOWLEDGE_SOURCE_BEGIN source=\"")
+                    .append(result.document().sourceRef())
+                    .append("\">>>\n");
+            sb.append(result.document().content());
+            sb.append("\n<<<KNOWLEDGE_SOURCE_END>>>\n\n");
             if (sb.length() >= props.contextMaxChars()) {
                 break;
             }
