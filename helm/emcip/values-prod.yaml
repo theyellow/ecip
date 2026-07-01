@@ -5,5 +5,29 @@ ingress:
     issuer: letsencrypt-prod
     email: ""  # MUST be set during install: --set ingress.tls.email=admin@example.com
 
-# Database SSL
-DB_SSL_MODE: "require"
+# Database SSL — override per-service env to enable SSL in production
+services:
+  conversationContext:
+    env:
+      DB_SSL_MODE: "require"
+  intentClassifier:
+    env:
+      DB_SSL_MODE: "require"
+  policyEngine:
+    env:
+      DB_SSL_MODE: "require"
+  llmOrchestrator:
+    env:
+      DB_SSL_MODE: "require"
+  moderationService:
+    env:
+      DB_SSL_MODE: "require"
+  auditService:
+    env:
+      DB_SSL_MODE: "require"
+  adminApi:
+    env:
+      DB_SSL_MODE: "require"
+  knowledgeEngine:
+    env:
+      DB_SSL_MODE: "require"
