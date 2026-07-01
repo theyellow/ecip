@@ -1,5 +1,6 @@
 package io.emcip.admin.api.service;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.dto.UserRequest;
 import io.emcip.admin.api.dto.UserResponse;
 import io.emcip.admin.api.entity.AdminUser;
@@ -7,6 +8,7 @@ import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.repository.TenantRepository;
 import io.emcip.admin.api.security.Role;
 import java.time.Instant;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -23,6 +25,7 @@ public class UserManagementService {
     private final AdminUserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAuditPublisher auditPublisher;
 
     public Flux<UserResponse> findAll() {
         return userRepository.findAll().flatMap(this::toResponse);
@@ -47,6 +50,19 @@ public class UserManagementService {
                                                     .build();
                                     return userRepository.save(user);
                                 }))
+                .doOnSuccess(
+                        user ->
+                                auditPublisher.publish(
+                                        "USER_CREATED",
+                                        "User",
+                                        user.getId().toString(),
+                                        "system",
+                                        user.getTenantId(),
+                                        Map.of(
+                                                "username",
+                                                user.getUsername(),
+                                                "role",
+                                                user.getRole().name())))
                 .flatMap(this::toResponse);
     }
 
@@ -118,6 +134,17 @@ public class UserManagementService {
                                                         user.setEnabled(req.getEnabled());
                                                     return userRepository.save(user);
                                                 })
+                                        .doOnSuccess(
+                                                user ->
+                                                        auditPublisher.publish(
+                                                                "USER_UPDATED",
+                                                                "User",
+                                                                user.getId().toString(),
+                                                                callerUsername,
+                                                                user.getTenantId(),
+                                                                Map.of(
+                                                                        "role",
+                                                                        req.getRole().name())))
                                         .flatMap(this::toResponse));
     }
 
@@ -149,10 +176,36 @@ public class UserManagementService {
                                                                                 + " enabled admin"
                                                                                 + " user"));
                                                     }
-                                                    return userRepository.delete(user);
+                                                    return userRepository
+                                                            .delete(user)
+                                                            .doOnSuccess(
+                                                                    v ->
+                                                                            auditPublisher.publish(
+                                                                                    "USER_DELETED",
+                                                                                    "User",
+                                                                                    id.toString(),
+                                                                                    callerUsername,
+                                                                                    user
+                                                                                            .getTenantId(),
+                                                                                    Map.of(
+                                                                                            "username",
+                                                                                            user
+                                                                                                    .getUsername())));
                                                 });
                             }
-                            return userRepository.delete(user);
+                            return userRepository
+                                    .delete(user)
+                                    .doOnSuccess(
+                                            v ->
+                                                    auditPublisher.publish(
+                                                            "USER_DELETED",
+                                                            "User",
+                                                            id.toString(),
+                                                            callerUsername,
+                                                            user.getTenantId(),
+                                                            Map.of(
+                                                                    "username",
+                                                                    user.getUsername())));
                         });
     }
 
@@ -168,6 +221,15 @@ public class UserManagementService {
                             user.setPasswordHash(passwordEncoder.encode(newPassword));
                             return userRepository.save(user);
                         })
+                .doOnSuccess(
+                        user ->
+                                auditPublisher.publish(
+                                        "PASSWORD_CHANGED",
+                                        "User",
+                                        id.toString(),
+                                        "system",
+                                        user.getTenantId(),
+                                        null))
                 .then();
     }
 

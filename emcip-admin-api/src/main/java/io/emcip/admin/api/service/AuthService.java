@@ -1,11 +1,13 @@
 package io.emcip.admin.api.service;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.dto.TokenResponse;
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.repository.TenantRepository;
 import io.emcip.admin.api.security.JwtService;
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final TenantRepository tenantRepository;
+    private final AdminAuditPublisher auditPublisher;
 
     public Mono<TokenResponse> authenticate(String username, String password) {
         return userRepository
@@ -68,7 +71,16 @@ public class AuthService {
                                                                                                 .plusMillis(
                                                                                                         JwtService
                                                                                                                 .EXPIRY_MS),
-                                                                                        rawRefresh))));
+                                                                                        rawRefresh)))
+                                        .doOnSuccess(
+                                                resp ->
+                                                        auditPublisher.publish(
+                                                                "LOGIN_SUCCESS",
+                                                                "Session",
+                                                                user.getUsername(),
+                                                                user.getUsername(),
+                                                                user.getTenantId(),
+                                                                Map.of("ip", "request-context"))));
     }
 
     public Mono<TokenResponse> refresh(String rawRefreshToken) {

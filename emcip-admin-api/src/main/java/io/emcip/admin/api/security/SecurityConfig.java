@@ -1,6 +1,9 @@
 package io.emcip.admin.api.security;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,11 +19,15 @@ import org.springframework.security.web.server.header.XFrameOptionsServerHttpHea
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final AdminAuditPublisher auditPublisher;
 
     @Value("${admin.cors.allowed-origins:http://localhost:14009}")
     private List<String> allowedOrigins;
@@ -68,6 +75,33 @@ public class SecurityConfig {
                                         .permitAll()
                                         .anyExchange()
                                         .authenticated())
+                .exceptionHandling(
+                        ex ->
+                                ex.accessDeniedHandler(
+                                        (exchange, denied) -> {
+                                            String path = exchange.getRequest().getPath().value();
+                                            return exchange.getPrincipal()
+                                                    .map(p -> p.getName())
+                                                    .defaultIfEmpty("anonymous")
+                                                    .flatMap(
+                                                            actor -> {
+                                                                auditPublisher.publish(
+                                                                        "ACCESS_DENIED",
+                                                                        "Endpoint",
+                                                                        path,
+                                                                        actor,
+                                                                        null,
+                                                                        Map.of(
+                                                                                "reason",
+                                                                                denied.getMessage()
+                                                                                                != null
+                                                                                        ? denied
+                                                                                                .getMessage()
+                                                                                        : "Access"
+                                                                                              + " denied"));
+                                                                return Mono.<Void>error(denied);
+                                                            });
+                                        }))
                 .addFilterAt(serviceTokenFilter, SecurityWebFiltersOrder.HTTP_BASIC)
                 .addFilterAt(jwtFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .addFilterAfter(adminTenantContextFilter, SecurityWebFiltersOrder.AUTHENTICATION)

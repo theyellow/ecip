@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.dto.UserRequest;
 import io.emcip.admin.api.entity.AdminUser;
 import io.emcip.admin.api.entity.Tenant;
@@ -28,6 +29,7 @@ class UserManagementServiceTest {
     @Mock private AdminUserRepository userRepository;
     @Mock private TenantRepository tenantRepository;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private AdminAuditPublisher auditPublisher;
 
     @InjectMocks private UserManagementService userManagementService;
 
