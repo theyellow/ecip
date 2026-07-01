@@ -45,8 +45,13 @@ public class PolicyDecisionConsumer {
                 record.offset());
 
         try {
-            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
+            return;
+        }
 
+        try {
             var decisionEvent =
                     objectMapper.readValue(record.value(), EventSchemas.PolicyDecisionEvent.class);
 

@@ -1,8 +1,9 @@
 package io.emcip.intent.classifier.service;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import io.emcip.common.validation.EventValidator;
-import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,14 +44,15 @@ public class TelegramMessageConsumer {
                 record.partition(),
                 record.offset());
 
+        UUID tenantId;
         try {
-            // Read tenant_id header to propagate through the pipeline
-            var tenantHeader = record.headers().lastHeader("tenant_id");
-            String tenantId =
-                    tenantHeader != null
-                            ? new String(tenantHeader.value(), StandardCharsets.UTF_8)
-                            : null;
+            tenantId = TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
+            return;
+        }
 
+        try {
             // Validate JSON structure
             EventValidator.ValidationResult validationResult =
                     eventValidator.validateJson(record.value(), "TelegramMessage");
@@ -63,7 +65,7 @@ public class TelegramMessageConsumer {
             EventSchemas.TelegramMessageEvent event =
                     objectMapper.readValue(record.value(), EventSchemas.TelegramMessageEvent.class);
             EventSchemas.IntentClassifiedEvent result =
-                    classificationService.classify(event, tenantId);
+                    classificationService.classify(event, tenantId.toString());
 
             log.info("Classified message {} as intent {}", result.sourceEventId(), result.intent());
         } catch (Exception e) {

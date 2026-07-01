@@ -1,13 +1,12 @@
 package io.emcip.knowledge.engine.service;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import io.emcip.common.tenant.TenantContext;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Header;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -26,10 +25,16 @@ public class KnowledgeMessageConsumer {
             groupId = "knowledge-engine",
             containerFactory = "kafkaListenerContainerFactory")
     public void consume(ConsumerRecord<String, String> record) {
-        UUID tenantId = extractTenantId(record);
+        UUID tenantId;
+        try {
+            tenantId = TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
+            return;
+        }
 
         try {
-            TenantContext.setTenantId(tenantId != null ? tenantId.toString() : null);
+            TenantContext.setTenantId(tenantId.toString());
 
             EventSchemas.TelegramMessageEvent event =
                     objectMapper.readValue(record.value(), EventSchemas.TelegramMessageEvent.class);
@@ -61,17 +66,5 @@ public class KnowledgeMessageConsumer {
         } finally {
             TenantContext.clear();
         }
-    }
-
-    private UUID extractTenantId(ConsumerRecord<String, String> record) {
-        Header tenantHeader = record.headers().lastHeader(TenantContext.KAFKA_HEADER);
-        if (tenantHeader != null) {
-            try {
-                return UUID.fromString(new String(tenantHeader.value(), StandardCharsets.UTF_8));
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid tenant ID in Kafka header");
-            }
-        }
-        return null;
     }
 }

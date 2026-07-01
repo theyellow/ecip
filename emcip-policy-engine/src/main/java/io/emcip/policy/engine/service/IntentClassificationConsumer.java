@@ -1,8 +1,8 @@
 package io.emcip.policy.engine.service;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import io.emcip.common.validation.EventValidator;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -44,6 +44,14 @@ public class IntentClassificationConsumer {
                 record.partition(),
                 record.offset());
 
+        UUID tenantId;
+        try {
+            tenantId = TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
+            return;
+        }
+
         try {
             // Validate
             var validationResult = eventValidator.validateJson(record.value(), "IntentClassified");
@@ -51,19 +59,6 @@ public class IntentClassificationConsumer {
                 log.error(
                         "Invalid classification received: {}", validationResult.getErrorMessage());
                 return;
-            }
-
-            // Read tenant from Kafka header
-            UUID tenantId = null;
-            var tenantHeader = record.headers().lastHeader("tenant_id");
-            if (tenantHeader != null) {
-                try {
-                    tenantId =
-                            UUID.fromString(
-                                    new String(tenantHeader.value(), StandardCharsets.UTF_8));
-                } catch (IllegalArgumentException e) {
-                    log.warn("Invalid tenant_id header value, ignoring");
-                }
             }
 
             // Parse and evaluate

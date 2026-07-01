@@ -1,6 +1,7 @@
 package io.emcip.conversation.context.service;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import io.emcip.common.validation.EventValidator;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
@@ -43,6 +44,13 @@ public class TelegramMessageConsumer {
                 "Received message from partition {} offset {}",
                 record.partition(),
                 record.offset());
+
+        try {
+            TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
+            return;
+        }
 
         Mono.fromCallable(
                         () -> {

@@ -43,13 +43,16 @@ public class PolicyDecisionConsumer {
             containerFactory = "kafkaListenerContainerFactory")
     public void consume(ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
         try {
-            TenantAwareKafkaSupport.bindTenantFromRecord(record);
-            String tenantId = TenantContext.getTenantId();
-            if (tenantId == null) {
-                log.warn("No tenant context for policy decision {}, skipping", record.key());
+            UUID tenantUuid;
+            try {
+                tenantUuid = TenantAwareKafkaSupport.validateTenantHeader(record);
+                TenantContext.setTenantId(tenantUuid.toString());
+            } catch (IllegalStateException e) {
+                log.error("Rejecting record: {}", e.getMessage());
                 acknowledgment.acknowledge();
                 return;
             }
+            String tenantId = tenantUuid.toString();
 
             PolicyDecisionEvent event =
                     objectMapper.readValue(record.value(), PolicyDecisionEvent.class);
