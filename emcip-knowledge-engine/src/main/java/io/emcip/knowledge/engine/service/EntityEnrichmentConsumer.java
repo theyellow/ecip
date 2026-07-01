@@ -1,6 +1,6 @@
 package io.emcip.knowledge.engine.service;
 
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import io.emcip.knowledge.engine.connector.TriggerMode;
 import io.emcip.knowledge.engine.entity.EnrichmentRun;
 import io.emcip.knowledge.engine.entity.EnrichmentSource;
@@ -8,7 +8,6 @@ import io.emcip.knowledge.engine.entity.RunStatus;
 import io.emcip.knowledge.engine.entity.TriggerType;
 import io.emcip.knowledge.engine.repository.EnrichmentRunRepository;
 import io.emcip.knowledge.engine.repository.EnrichmentSourceRepository;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,6 +35,14 @@ public class EntityEnrichmentConsumer {
 
     @KafkaListener(topics = "knowledge.events", groupId = "knowledge-engine-entity-enrichment")
     public void consume(ConsumerRecord<String, String> record) {
+        UUID tenantId;
+        try {
+            tenantId = TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
+            return;
+        }
+
         try {
             Map<String, Object> event =
                     objectMapper.readValue(
@@ -48,11 +55,7 @@ public class EntityEnrichmentConsumer {
             Map<String, Object> payload = (Map<String, Object>) event.get("payload");
             String entityName = (String) payload.get("entityName");
 
-            UUID tenantId = extractTenantId(record);
-            List<EnrichmentSource> sources =
-                    (tenantId != null)
-                            ? sourceRepo.findAllByEnabledTrueAndTenantId(tenantId)
-                            : sourceRepo.findAllByEnabledTrueAndTenantIdIsNull();
+            List<EnrichmentSource> sources = sourceRepo.findAllByEnabledTrueAndTenantId(tenantId);
 
             for (EnrichmentSource source : sources) {
                 EnrichmentRun run = new EnrichmentRun();
@@ -60,7 +63,6 @@ public class EntityEnrichmentConsumer {
                 run.setTriggerType(TriggerType.TOPIC_DRIVEN);
                 run.setStatus(RunStatus.RUNNING);
                 EnrichmentRun saved = runRepo.save(run);
-                UUID finalTenantId = tenantId;
                 EXECUTOR.submit(
                         () -> {
                             try {
@@ -70,7 +72,7 @@ public class EntityEnrichmentConsumer {
                                         TriggerMode.TOPIC_DRIVEN,
                                         entityName,
                                         null,
-                                        finalTenantId);
+                                        tenantId);
                             } catch (Exception e) {
                                 log.error(
                                         "Topic-driven enrichment failed for source {}: {}",
@@ -82,17 +84,6 @@ public class EntityEnrichmentConsumer {
             }
         } catch (Exception e) {
             log.error("Failed to process knowledge event: {}", e.getMessage(), e);
-        }
-    }
-
-    private UUID extractTenantId(ConsumerRecord<String, String> record) {
-        try {
-            var header = record.headers().lastHeader(TenantContext.KAFKA_HEADER);
-            if (header == null) return null;
-            return UUID.fromString(new String(header.value(), StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            log.warn("Invalid tenant ID in Kafka header");
-            return null;
         }
     }
 }

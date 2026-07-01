@@ -29,6 +29,7 @@ class SecurityFilterChainTest {
     private static final String DEFAULT_SERVICE_TOKEN = "internal-service-token";
 
     private JwtService jwtService;
+    private JwtRevocationService revocationService;
     private JwtAuthenticationFilter jwtFilter;
     private ServiceTokenAuthenticationFilter serviceTokenFilter;
 
@@ -37,7 +38,8 @@ class SecurityFilterChainTest {
         jwtService = new JwtService();
         ReflectionTestUtils.setField(jwtService, "secret", TEST_SECRET);
 
-        jwtFilter = new JwtAuthenticationFilter(jwtService);
+        revocationService = new JwtRevocationService();
+        jwtFilter = new JwtAuthenticationFilter(jwtService, revocationService);
 
         serviceTokenFilter = new ServiceTokenAuthenticationFilter();
         ReflectionTestUtils.setField(
@@ -187,7 +189,8 @@ class SecurityFilterChainTest {
                                 .doOnNext(ctx -> capturedAuth.set(ctx.getAuthentication()))
                                 .then();
 
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter(jwtService);
+        JwtAuthenticationFilter filter =
+                new JwtAuthenticationFilter(jwtService, new JwtRevocationService());
         StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
 
         org.springframework.security.core.Authentication auth = capturedAuth.get();

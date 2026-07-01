@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-06-30 (Intent Rules management complete, knowledge-engine safeguards)
+> Last updated: 2026-07-01 (Red Team remediation complete)
 > Single source of truth for all open work. Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
@@ -32,6 +32,11 @@
 | # | Item | Size | Needs | Notes |
 |---|------|------|-------|-------|
 | 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed first. |
+| RT-F1 | **Per-user/IP rate limiting** | S | — | Current Resilience4j rate limiters (auth 10/min, llm-trigger 20/min, admin-crud 100/min) are global counters shared across all users. A single user can exhaust the quota for everyone. Implement per-IP bucketing on auth endpoints and per-user on authenticated endpoints using a custom `RateLimiterConfig` key resolver. Ref: RT-014, `SecurityConfig.java`, `AuthController.java`. |
+| RT-F2 | **SSRF prevention on document ingestion** | XS | — | `DocumentIngestionService.fetchWithTimeout()` accepts arbitrary URLs without scheme or host validation. Add URL scheme whitelist (`http://`, `https://` only) and blocklist private/link-local IP ranges (`169.254.x.x`, `10.x.x.x`, `localhost`). Ref: RT-002, `DocumentIngestionService.java`. |
+| RT-F3 | **JWT single-parse optimization** | XS | — | `JwtAuthenticationFilter` calls `validateToken()` 4× per request (extractJti, extractUsername, extractRole, extractTenantId — each re-parses + re-verifies HMAC). Parse `Claims` once, read all fields from the single object. Pre-existing issue worsened by +1 parse for jti. Ref: `JwtAuthenticationFilter.java`, `JwtService.java`. |
+| RT-F4 | **Combine double save on login** | XS | — | `AuthService.authenticate()` calls `userRepository.save()` twice — once for `lastLogin`, once for `currentJti`. Set both fields before a single save. Ref: `AuthService.java`. |
+| RT-F5 | **BackfillService partial completion status** | XS | — | When backfill hits `MAX_ITERATIONS` (5000), status is set to `COMPLETED` despite truncation. Add `PARTIAL` status or include a warning in status metadata so the caller knows not all messages were processed. Ref: `BackfillService.java`. |
 
 ---
 
@@ -62,6 +67,9 @@
 | 20 | **Mixed-cluster: node taints + tolerations** | S | Fine-grained pod scheduling. `nodeSelector` is sufficient today. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
 | 19 | **Mixed-cluster: arm64 native images** | L | Cross-compile GraalVM native for Pi 4 nodes. Needs QEMU or dedicated arm64 runner. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
 | 13 | **GraalVM native — R2DBC services** | XL | 4 services JVM-only (`moderation-service`, `audit-service`, `admin-api`, `intent-classifier`). Blocked on R2DBC + GraalVM reflection hints. Ref: `specs/2026-04-29-graalvm-native-migration-design.md`. |
+| RT-005 | **Kafka SASL authentication + topic ACLs** | M | Red Team finding RT-005 / LC-2. All services connect to Kafka without authentication; any pod in the cluster can produce/consume any topic. Currently acceptable because Kafka runs on a trusted internal network with no external exposure. Revisit when: multi-tenant cluster, external Kafka access, or compliance audit requires transport-level auth. Implementation: enable `SASL_PLAINTEXT` or `SASL_SSL`, per-service credentials, topic ACLs restricting produce/consume to owning services. Ref: `documentation/RED_TEAM_REPORT.md`. |
+| RT-012 | **Kubernetes pod security hardening** | S | Red Team finding RT-012. Pods run without `securityContext` restrictions — no `readOnlyRootFilesystem`, no `runAsNonRoot`, no `allowPrivilegeEscalation: false`, no dropped capabilities. This is infrastructure-level hardening (not application code). Implementation: add `securityContext` to all Deployment templates in `helm/emcip/templates/apps/standard-deployments.yaml` and the StatefulSet. Ref: `documentation/RED_TEAM_REPORT.md`. |
+| RT-013 | **Encrypt API keys at rest in database** | M | Red Team finding RT-013. `vendor_api_keys.api_key` and `llm_provider_configs.api_key` are stored as plaintext `VARCHAR` in PostgreSQL. Deferred until a secrets management strategy is decided (options: application-level AES-256-GCM encryption with key from env/Vault, or PostgreSQL `pgcrypto` column encryption, or external secrets manager like HashiCorp Vault / K8s External Secrets Operator). Ref: `documentation/RED_TEAM_REPORT.md`. |
 
 ---
 
@@ -114,6 +122,7 @@
 | — | Bugfixes: policy evaluator string params, costs NPE, research 400, knowledge search 500, LLM provider self-deactivation, intent-classifier datasource/Liquibase config, signal config JSONB default, knowledge-engine backfill auth | ✅ PRs #156–#167 — 2026-06-24/29. |
 | — | Admin UI polish: Watched Groups rename, sticky columns, themed scrollbar, dot legend on Pipeline Trace, Global badge on tenant-less policy rules, research page error states | ✅ 2026-06-25/28. |
 | — | Knowledge-engine safeguards — fetch timeout (30s), content size limit (10 MB), chunk cap (500), backfill iteration limit (5000), stuck-pagination detection, batch delay, frontend polling timeouts | ✅ 2026-06-30. Branch: `fix/knowledge-engine-backfill-auth`. |
+| — | **Red Team remediation** — 16 quick wins + 10 structural changes. Wave 1: Kafka tenant fail-closed (RT-007), per-service DB users (RT-006), DB SSL (RT-016), ingress TLS/cert-manager (RT-032), audit publishing (RT-017), audit tamper resistance with hash chaining (RT-027). Wave 2: LLM prompt injection defense — boundary markers + output validation + ingestion scanning (RT-002/003/009), JWT revocation with jti tracking (RT-010). Standalone: rate limiting (RT-014), KE↔LLM-O circuit breakers (RT-025). Deferred: RT-005 Kafka SASL, RT-012 pod hardening, RT-013 encrypted API keys. Follow-ups: RT-F1–F5. | ✅ 2026-07-01. Branch: `fix/knowledge-engine-backfill-auth`. Spec: `specs/2026-06-30-red-team-remediation-design.md`. |
 
 ---
 

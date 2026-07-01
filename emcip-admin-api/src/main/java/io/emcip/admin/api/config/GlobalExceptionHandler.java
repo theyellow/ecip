@@ -1,6 +1,7 @@
 package io.emcip.admin.api.config;
 
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +50,15 @@ public class GlobalExceptionHandler {
         ProblemDetail problem =
                 ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         return Mono.just(ResponseEntity.badRequest().body(problem));
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public Mono<ResponseEntity<ProblemDetail>> handleRateLimitExceeded(RequestNotPermitted ex) {
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.TOO_MANY_REQUESTS, "Rate limit exceeded");
+        return Mono.just(ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(problem));
     }
 
     @ExceptionHandler(CallNotPermittedException.class)

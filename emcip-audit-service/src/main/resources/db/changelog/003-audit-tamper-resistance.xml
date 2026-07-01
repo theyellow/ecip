@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="003-audit-tamper-resistance-columns" author="redteam-remediation">
+        <comment>RT-027: Add integrity hash columns for tamper-evident audit chain</comment>
+        <addColumn tableName="audit_events">
+            <column name="integrity_hash" type="VARCHAR(64)"/>
+            <column name="prev_hash" type="VARCHAR(64)"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="003-audit-prevent-update-trigger" author="redteam-remediation">
+        <comment>RT-027: Prevent UPDATE on audit_events rows</comment>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION prevent_audit_update() RETURNS trigger AS $$
+            BEGIN
+                RAISE EXCEPTION 'audit_events rows cannot be updated';
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER audit_no_update
+                BEFORE UPDATE ON audit_events
+                FOR EACH ROW
+                EXECUTE FUNCTION prevent_audit_update();
+        </sql>
+        <rollback>
+            DROP TRIGGER IF EXISTS audit_no_update ON audit_events;
+            DROP FUNCTION IF EXISTS prevent_audit_update();
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

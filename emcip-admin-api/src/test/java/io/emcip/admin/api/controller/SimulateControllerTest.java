@@ -2,6 +2,7 @@ package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +11,9 @@ import io.emcip.admin.api.dto.SimulateMessageRequest;
 import io.emcip.admin.api.service.SimulationService;
 import io.emcip.admin.api.service.SimulationService.SimulateTraceResult;
 import io.emcip.admin.api.service.SimulationService.TraceStage;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +33,7 @@ import reactor.test.StepVerifier;
 class SimulateControllerTest {
 
     @Mock private SimulationService simulationService;
+    @Mock private RateLimiterRegistry rateLimiterRegistry;
 
     private SimulateController controller;
     private WebTestClient webTestClient;
@@ -78,7 +83,10 @@ class SimulateControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new SimulateController(simulationService);
+        RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
+        when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
+
+        controller = new SimulateController(simulationService, rateLimiterRegistry);
         webTestClient =
                 WebTestClient.bindToController(controller)
                         .controllerAdvice(new GlobalExceptionHandler())

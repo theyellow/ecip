@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="015-create-service-roles" author="redteam-remediation"
+               context="!test">
+        <comment>RT-006: Create per-service PostgreSQL roles with least-privilege grants</comment>
+        <sql splitStatements="true" endDelimiter=";">
+            -- Role for admin-api
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_admin_api') THEN
+                    CREATE ROLE emcip_admin_api LOGIN PASSWORD 'emcip_admin_api';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON admin_users, tenants,
+                telegram_accounts, group_profiles, account_watched_groups,
+                refresh_tokens
+                TO emcip_admin_api;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_admin_api;
+
+            -- Role for audit-service
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_audit') THEN
+                    CREATE ROLE emcip_audit LOGIN PASSWORD 'emcip_audit';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON audit_events, metrics_snapshots TO emcip_audit;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_audit;
+
+            -- Role for moderation-service
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_moderation') THEN
+                    CREATE ROLE emcip_moderation LOGIN PASSWORD 'emcip_moderation';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON moderation_rules TO emcip_moderation;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_moderation;
+
+            -- Role for policy-engine
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_policy') THEN
+                    CREATE ROLE emcip_policy LOGIN PASSWORD 'emcip_policy';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON policy_rules, policy_decisions, policy_rule_history TO emcip_policy;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_policy;
+
+            -- Role for intent-classifier
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_intent') THEN
+                    CREATE ROLE emcip_intent LOGIN PASSWORD 'emcip_intent';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON intent_rules, intent_signal_config TO emcip_intent;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_intent;
+
+            -- Role for llm-orchestrator
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_llm') THEN
+                    CREATE ROLE emcip_llm LOGIN PASSWORD 'emcip_llm';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON llm_provider_configs, model_cost_logs,
+                prompt_templates, model_configs TO emcip_llm;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_llm;
+
+            -- Role for knowledge-engine
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_knowledge') THEN
+                    CREATE ROLE emcip_knowledge LOGIN PASSWORD 'emcip_knowledge';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ke_knowledge_documents, ke_ingestion_jobs,
+                ke_concept_types, ke_relationship_types, ke_graph_node_embeddings,
+                ke_enrichment_runs, ke_research_sessions, ke_research_evidence,
+                ke_research_reports, ke_entity_aliases, ke_resolution_flags,
+                ke_vendor_api_keys, ke_enrichment_sources
+                TO emcip_knowledge;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_knowledge;
+
+            -- Role for conversation-context
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_context') THEN
+                    CREATE ROLE emcip_context LOGIN PASSWORD 'emcip_context';
+                END IF;
+            END $$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON users, message_threads, messages TO emcip_context;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO emcip_context;
+        </sql>
+    </changeSet>
+</databaseChangeLog>

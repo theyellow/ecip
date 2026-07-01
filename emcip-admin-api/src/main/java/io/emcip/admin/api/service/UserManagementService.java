@@ -1,14 +1,19 @@
 package io.emcip.admin.api.service;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.dto.UserRequest;
 import io.emcip.admin.api.dto.UserResponse;
 import io.emcip.admin.api.entity.AdminUser;
 import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.repository.TenantRepository;
+import io.emcip.admin.api.security.JwtRevocationService;
+import io.emcip.admin.api.security.JwtService;
 import io.emcip.admin.api.security.Role;
 import java.time.Instant;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,6 +27,8 @@ public class UserManagementService {
     private final AdminUserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AdminAuditPublisher auditPublisher;
+    private final JwtRevocationService revocationService;
 
     public Flux<UserResponse> findAll() {
         return userRepository.findAll().flatMap(this::toResponse);
@@ -46,36 +53,109 @@ public class UserManagementService {
                                                     .build();
                                     return userRepository.save(user);
                                 }))
+                .doOnSuccess(
+                        user ->
+                                auditPublisher.publish(
+                                        "USER_CREATED",
+                                        "User",
+                                        user.getId().toString(),
+                                        "system",
+                                        user.getTenantId(),
+                                        Map.of(
+                                                "username",
+                                                user.getUsername(),
+                                                "role",
+                                                user.getRole().name())))
                 .flatMap(this::toResponse);
     }
 
     public Mono<UserResponse> update(Long id, UserRequest req, String callerUsername) {
         return userRepository
-                .findById(id)
+                .findByUsername(callerUsername)
                 .switchIfEmpty(
                         Mono.error(
                                 new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND, "User not found")))
+                                        HttpStatus.UNAUTHORIZED, "Caller not found")))
                 .flatMap(
-                        user -> {
-                            if (user.getUsername().equals(callerUsername)
-                                    && user.getRole() == Role.ADMIN
-                                    && req.getRole() != Role.ADMIN) {
-                                return Mono.error(
-                                        new ResponseStatusException(
-                                                HttpStatus.BAD_REQUEST,
-                                                "Cannot remove your own admin role"));
-                            }
-                            return validateRequest(req).thenReturn(user);
-                        })
-                .flatMap(
-                        user -> {
-                            user.setRole(req.getRole());
-                            user.setTenantId(req.getTenantId());
-                            if (req.getEnabled() != null) user.setEnabled(req.getEnabled());
-                            return userRepository.save(user);
-                        })
-                .flatMap(this::toResponse);
+                        caller ->
+                                userRepository
+                                        .findById(id)
+                                        .switchIfEmpty(
+                                                Mono.error(
+                                                        new ResponseStatusException(
+                                                                HttpStatus.NOT_FOUND,
+                                                                "User not found")))
+                                        .flatMap(
+                                                user -> {
+                                                    if (user.getUsername().equals(callerUsername)
+                                                            && user.getRole() == Role.ADMIN
+                                                            && req.getRole() != Role.ADMIN) {
+                                                        return Mono.error(
+                                                                new ResponseStatusException(
+                                                                        HttpStatus.BAD_REQUEST,
+                                                                        "Cannot remove your own"
+                                                                                + " admin role"));
+                                                    }
+                                                    // TENANT_ADMIN may only update users within
+                                                    // their own tenant
+                                                    if (caller.getRole() != Role.ADMIN) {
+                                                        if (user.getTenantId() == null
+                                                                || !user.getTenantId()
+                                                                        .equals(
+                                                                                caller
+                                                                                        .getTenantId())) {
+                                                            return Mono.error(
+                                                                    new AccessDeniedException(
+                                                                            "Cannot update users"
+                                                                                    + " outside"
+                                                                                    + " your"
+                                                                                    + " tenant"));
+                                                        }
+                                                        // Only ADMIN may reassign a user to a
+                                                        // different tenant
+                                                        if (req.getTenantId() != null
+                                                                && !req.getTenantId()
+                                                                        .equals(
+                                                                                caller
+                                                                                        .getTenantId())) {
+                                                            return Mono.error(
+                                                                    new AccessDeniedException(
+                                                                            "Only ADMIN may"
+                                                                                    + " reassign"
+                                                                                    + " users to a"
+                                                                                    + " different"
+                                                                                    + " tenant"));
+                                                        }
+                                                    }
+                                                    return validateRequest(req).thenReturn(user);
+                                                })
+                                        .flatMap(
+                                                user -> {
+                                                    user.setRole(req.getRole());
+                                                    user.setTenantId(req.getTenantId());
+                                                    if (req.getEnabled() != null)
+                                                        user.setEnabled(req.getEnabled());
+                                                    return userRepository.save(user);
+                                                })
+                                        .doOnSuccess(
+                                                user -> {
+                                                    if (user.getCurrentJti() != null) {
+                                                        revocationService.revoke(
+                                                                user.getCurrentJti(),
+                                                                Instant.now()
+                                                                        .plusMillis(
+                                                                                JwtService
+                                                                                        .EXPIRY_MS));
+                                                    }
+                                                    auditPublisher.publish(
+                                                            "USER_UPDATED",
+                                                            "User",
+                                                            user.getId().toString(),
+                                                            callerUsername,
+                                                            user.getTenantId(),
+                                                            Map.of("role", req.getRole().name()));
+                                                })
+                                        .flatMap(this::toResponse));
     }
 
     public Mono<Void> delete(Long id, String callerUsername) {
@@ -93,6 +173,11 @@ public class UserManagementService {
                                                 HttpStatus.BAD_REQUEST,
                                                 "Cannot delete your own account"));
                             }
+                            if (user.getCurrentJti() != null) {
+                                revocationService.revoke(
+                                        user.getCurrentJti(),
+                                        Instant.now().plusMillis(JwtService.EXPIRY_MS));
+                            }
                             if (user.getRole() == Role.ADMIN) {
                                 return userRepository
                                         .countByRoleAndEnabled(Role.ADMIN, true)
@@ -106,10 +191,36 @@ public class UserManagementService {
                                                                                 + " enabled admin"
                                                                                 + " user"));
                                                     }
-                                                    return userRepository.delete(user);
+                                                    return userRepository
+                                                            .delete(user)
+                                                            .doOnSuccess(
+                                                                    v ->
+                                                                            auditPublisher.publish(
+                                                                                    "USER_DELETED",
+                                                                                    "User",
+                                                                                    id.toString(),
+                                                                                    callerUsername,
+                                                                                    user
+                                                                                            .getTenantId(),
+                                                                                    Map.of(
+                                                                                            "username",
+                                                                                            user
+                                                                                                    .getUsername())));
                                                 });
                             }
-                            return userRepository.delete(user);
+                            return userRepository
+                                    .delete(user)
+                                    .doOnSuccess(
+                                            v ->
+                                                    auditPublisher.publish(
+                                                            "USER_DELETED",
+                                                            "User",
+                                                            id.toString(),
+                                                            callerUsername,
+                                                            user.getTenantId(),
+                                                            Map.of(
+                                                                    "username",
+                                                                    user.getUsername())));
                         });
     }
 
@@ -124,6 +235,21 @@ public class UserManagementService {
                         user -> {
                             user.setPasswordHash(passwordEncoder.encode(newPassword));
                             return userRepository.save(user);
+                        })
+                .doOnSuccess(
+                        user -> {
+                            if (user.getCurrentJti() != null) {
+                                revocationService.revoke(
+                                        user.getCurrentJti(),
+                                        Instant.now().plusMillis(JwtService.EXPIRY_MS));
+                            }
+                            auditPublisher.publish(
+                                    "PASSWORD_CHANGED",
+                                    "User",
+                                    id.toString(),
+                                    "system",
+                                    user.getTenantId(),
+                                    null);
                         })
                 .then();
     }

@@ -167,15 +167,14 @@ public class AuditEventConsumer {
             Function<T, String> correlationIdFn,
             Function<T, Map<String, Object>> detailsFn) {
         try {
-            TenantAwareKafkaSupport.bindTenantFromRecord(record);
-            String tenantIdStr = TenantContext.getTenantId();
-            UUID tenantUuid = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
-            if (tenantUuid == null) {
-                log.warn(
-                        "No tenant_id header on record offset {} topic {} — saving with null"
-                                + " tenant",
-                        record.offset(),
-                        record.topic());
+            UUID tenantUuid;
+            try {
+                tenantUuid = TenantAwareKafkaSupport.validateTenantHeader(record);
+                TenantContext.setTenantId(tenantUuid.toString());
+            } catch (IllegalStateException e) {
+                log.error("Rejecting record: {}", e.getMessage());
+                acknowledgment.acknowledge();
+                return;
             }
 
             T event = objectMapper.readValue(record.value(), eventClass);

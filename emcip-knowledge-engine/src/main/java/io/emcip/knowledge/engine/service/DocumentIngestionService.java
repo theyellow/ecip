@@ -22,6 +22,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tika.Tika;
@@ -42,6 +43,19 @@ public class DocumentIngestionService {
     private static final Duration FETCH_TIMEOUT = Duration.ofSeconds(30);
     private static final ExecutorService INGESTION_EXECUTOR =
             Executors.newVirtualThreadPerTaskExecutor();
+
+    // RT-009: Prompt injection pattern detection
+    private static final List<Pattern> INJECTION_PATTERNS =
+            List.of(
+                    Pattern.compile(
+                            "ignore\\s+(all\\s+)?previous\\s+instructions",
+                            Pattern.CASE_INSENSITIVE),
+                    Pattern.compile("you\\s+are\\s+now\\s+", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile(
+                            "^\\s*system\\s*:", Pattern.CASE_INSENSITIVE | Pattern.MULTILINE),
+                    Pattern.compile("disregard\\s+(all\\s+)?prior", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile("forget\\s+(all\\s+)?previous", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile("new\\s+instructions?\\s*:", Pattern.CASE_INSENSITIVE));
 
     private final IngestionJobRepository jobRepository;
     private final KnowledgeExtractionService extractionService;
@@ -103,6 +117,11 @@ public class DocumentIngestionService {
         try {
             byte[] body = fetchWithTimeout(url);
             String text = tika.parseToString(new ByteArrayInputStream(body));
+            if (containsInjectionPatterns(text)) {
+                log.warn("Potential injection patterns detected in document from {}", url);
+                updateJobStatus(jobId, IngestionStatus.FLAGGED_INJECTION_RISK, null, null);
+                return;
+            }
             int chunkCount = processChunks(text, url, tenantId);
             updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
             log.info(
@@ -140,6 +159,11 @@ public class DocumentIngestionService {
         updateJobStatus(jobId, IngestionStatus.RUNNING, null, null);
         try {
             String text = tika.parseToString(new ByteArrayInputStream(fileBytes));
+            if (containsInjectionPatterns(text)) {
+                log.warn("Potential injection patterns detected in document from {}", filename);
+                updateJobStatus(jobId, IngestionStatus.FLAGGED_INJECTION_RISK, null, null);
+                return;
+            }
             int chunkCount = processChunks(text, filename, tenantId);
             updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
             log.info(
@@ -210,5 +234,16 @@ public class DocumentIngestionService {
             start += chunkSize - overlap;
         }
         return chunks;
+    }
+
+    /** RT-009: Scan content for common prompt injection patterns. Case-insensitive. */
+    private boolean containsInjectionPatterns(String content) {
+        if (content == null || content.isBlank()) return false;
+        for (Pattern pattern : INJECTION_PATTERNS) {
+            if (pattern.matcher(content).find()) {
+                return true;
+            }
+        }
+        return false;
     }
 }

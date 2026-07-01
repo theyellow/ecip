@@ -1,6 +1,7 @@
 package io.emcip.knowledge.engine.service;
 
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
+import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.model.GraphNode;
 import io.emcip.knowledge.engine.model.SearchRequest;
@@ -10,9 +11,12 @@ import io.emcip.knowledge.engine.model.SearchResponse.DocumentResult;
 import io.emcip.knowledge.engine.model.SearchResponse.GraphNodeResult;
 import io.emcip.knowledge.engine.model.SearchResult;
 import io.emcip.knowledge.engine.repository.GraphRepository;
+import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,6 +29,7 @@ public class KnowledgeQueryService {
     private final VectorSearchRepository vectorSearchRepository;
     private final GraphRepository graphRepository;
     private final LlmOrchestratorClient llmClient;
+    private final IngestionJobRepository ingestionJobRepository;
 
     public SearchResponse search(SearchRequest request) {
         List<GraphNodeResult> graphResults = new ArrayList<>();
@@ -43,12 +48,16 @@ public class KnowledgeQueryService {
             }
         }
 
+        Set<String> flaggedSourceRefs = loadFlaggedSourceRefs();
+
         if (queryEmbedding != null) {
             List<SearchResult<KnowledgeDocument>> scored =
                     vectorSearchRepository.search(
                             queryEmbedding, request.limit(), request.tenantId());
             for (SearchResult<KnowledgeDocument> sr : scored) {
-                documentResults.add(new DocumentResult(sr.item(), sr.score()));
+                if (!flaggedSourceRefs.contains(sr.item().getSourceRef())) {
+                    documentResults.add(new DocumentResult(sr.item(), sr.score()));
+                }
             }
         }
 
@@ -75,5 +84,17 @@ public class KnowledgeQueryService {
                 documentResults.size());
 
         return new SearchResponse(graphResults, documentResults);
+    }
+
+    /**
+     * RT-009: Retrieve the set of source refs whose ingestion jobs are flagged for injection risk.
+     * These documents are excluded from LLM context retrieval.
+     */
+    private Set<String> loadFlaggedSourceRefs() {
+        return ingestionJobRepository
+                .findAllByStatus(IngestionJob.IngestionStatus.FLAGGED_INJECTION_RISK)
+                .stream()
+                .map(IngestionJob::getSourceRef)
+                .collect(Collectors.toSet());
     }
 }

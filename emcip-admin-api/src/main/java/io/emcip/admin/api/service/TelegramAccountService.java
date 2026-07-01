@@ -73,12 +73,19 @@ public class TelegramAccountService {
     }
 
     public Mono<TelegramAccount> getById(UUID id) {
-        return repository
-                .findById(id)
-                .switchIfEmpty(
-                        Mono.error(
-                                new ResponseStatusException(
-                                        HttpStatus.NOT_FOUND, "Account not found: " + id)));
+        return Mono.deferContextual(
+                ctx -> {
+                    Mono<TelegramAccount> query =
+                            ReactorTenantContext.isAdminMode(ctx)
+                                    ? repository.findById(id)
+                                    : repository.findByIdAndTenantId(
+                                            id,
+                                            UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                    return query.switchIfEmpty(
+                            Mono.error(
+                                    new ResponseStatusException(
+                                            HttpStatus.NOT_FOUND, "Account not found: " + id)));
+                });
     }
 
     public Mono<TelegramAccount> create(

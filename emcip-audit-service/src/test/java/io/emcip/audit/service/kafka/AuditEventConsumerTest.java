@@ -12,8 +12,10 @@ import io.emcip.audit.service.service.AuditService;
 import io.emcip.common.events.EventSchemas.ModerationFlagEvent;
 import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
 import io.r2dbc.postgresql.codec.Json;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,10 +35,19 @@ class AuditEventConsumerTest {
     private AuditEventConsumer consumer;
     private ObjectMapper objectMapper;
 
+    private static final String TEST_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
         consumer = new AuditEventConsumer(auditService, objectMapper);
+    }
+
+    private static void addTenantHeader(ConsumerRecord<?, ?> record) {
+        record.headers()
+                .add(
+                        new RecordHeader(
+                                "tenant_id", TEST_TENANT_ID.getBytes(StandardCharsets.UTF_8)));
     }
 
     // --- handleTelegramMessage ---
@@ -67,6 +78,7 @@ class AuditEventConsumerTest {
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("telegram.messages", 0, 0L, "key", json);
+        addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         when(auditService.save(any(AuditEventEntity.class)))
@@ -115,6 +127,7 @@ class AuditEventConsumerTest {
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("telegram.messages", 0, 2L, "key", json);
+        addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         when(auditService.save(any(AuditEventEntity.class)))
@@ -144,6 +157,7 @@ class AuditEventConsumerTest {
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("messages.classified", 0, 0L, "key", json);
+        addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
@@ -187,6 +201,7 @@ class AuditEventConsumerTest {
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "key", json);
+        addTenantHeader(record);
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
         when(auditService.save(captor.capture()))
@@ -213,6 +228,7 @@ class AuditEventConsumerTest {
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("messages.classified", 0, 0L, "key", json);
+        addTenantHeader(record);
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
         when(auditService.save(captor.capture()))
@@ -241,6 +257,7 @@ class AuditEventConsumerTest {
         String json = objectMapper.writeValueAsString(event);
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("moderation.flags", 0, 0L, "key", json);
+        addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);

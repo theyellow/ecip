@@ -341,7 +341,7 @@ public class AgeGraphRepository implements GraphRepository {
         sb.append("created_at: '").append(now).append("', ");
         sb.append("updated_at: '").append(now).append("'");
         for (Map.Entry<String, Object> entry : properties.entrySet()) {
-            sb.append(", ").append(entry.getKey()).append(": ");
+            sb.append(", ").append(sanitizeLabel(entry.getKey())).append(": ");
             if (entry.getValue() instanceof String s) {
                 sb.append("'").append(escapeString(s)).append("'");
             } else {
@@ -361,7 +361,7 @@ public class AgeGraphRepository implements GraphRepository {
         }
         sb.append("created_at: '").append(now).append("'");
         for (Map.Entry<String, Object> entry : properties.entrySet()) {
-            sb.append(", ").append(entry.getKey()).append(": ");
+            sb.append(", ").append(sanitizeLabel(entry.getKey())).append(": ");
             if (entry.getValue() instanceof String s) {
                 sb.append("'").append(escapeString(s)).append("'");
             } else {
@@ -377,6 +377,6 @@ public class AgeGraphRepository implements GraphRepository {
     }
 
     private String escapeString(String input) {
-        return input.replace("'", "\\'").replace("\\", "\\\\");
+        return input.replace("\\", "\\\\").replace("'", "\\'");
     }
 }

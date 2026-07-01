@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,7 @@ public class ModerationRuleController {
 
     @Operation(summary = "List all moderation rules")
     @GetMapping
+    @PreAuthorize("hasAuthority('MODERATION_RULES_READ')")
     public Flux<JsonNode> list() {
         return moderationServiceClient.listRules();
     }
@@ -35,12 +37,14 @@ public class ModerationRuleController {
     @Operation(summary = "Create a moderation rule")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('MODERATION_RULES_WRITE')")
     public Mono<JsonNode> create(@RequestBody JsonNode body) {
         return moderationServiceClient.createRule(body);
     }
 
     @Operation(summary = "Update a moderation rule")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('MODERATION_RULES_WRITE')")
     public Mono<JsonNode> update(@PathVariable("id") String id, @RequestBody JsonNode body) {
         return moderationServiceClient.updateRule(id, body);
     }
@@ -48,6 +52,7 @@ public class ModerationRuleController {
     @Operation(summary = "Delete a moderation rule")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('MODERATION_RULES_WRITE')")
     public Mono<Void> delete(@PathVariable("id") String id) {
         return moderationServiceClient.deleteRule(id);
     }

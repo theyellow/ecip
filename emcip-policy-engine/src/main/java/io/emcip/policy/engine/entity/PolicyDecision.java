@@ -1,5 +1,6 @@
 package io.emcip.policy.engine.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.Map;
@@ -28,6 +29,7 @@ import org.hibernate.type.SqlTypes;
 @Data
 public class PolicyDecision {
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
@@ -64,6 +66,7 @@ public class PolicyDecision {
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> metadata;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(nullable = false)
     private Instant timestamp;
 

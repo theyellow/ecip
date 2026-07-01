@@ -4,6 +4,8 @@ import io.emcip.admin.api.dto.PasswordResetRequest;
 import io.emcip.admin.api.dto.UserRequest;
 import io.emcip.admin.api.dto.UserResponse;
 import io.emcip.admin.api.service.UserManagementService;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,6 +32,7 @@ import reactor.core.publisher.Mono;
 public class UserManagementController {
 
     private final UserManagementService userManagementService;
+    private final RateLimiterRegistry rateLimiterRegistry;
 
     @Operation(summary = "List all admin users")
     @GetMapping
@@ -43,7 +46,10 @@ public class UserManagementController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('USERS_WRITE')")
     public Mono<UserResponse> createUser(@Valid @RequestBody UserRequest req) {
-        return userManagementService.create(req);
+        return userManagementService
+                .create(req)
+                .transformDeferred(
+                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
     }
 
     @Operation(summary = "Update a user's role, tenant, or enabled status")
@@ -54,7 +60,9 @@ public class UserManagementController {
         return principal
                 .map(Principal::getName)
                 .defaultIfEmpty("")
-                .flatMap(callerUsername -> userManagementService.update(id, req, callerUsername));
+                .flatMap(callerUsername -> userManagementService.update(id, req, callerUsername))
+                .transformDeferred(
+                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
     }
 
     @Operation(summary = "Delete a user")
@@ -65,7 +73,9 @@ public class UserManagementController {
         return principal
                 .map(Principal::getName)
                 .defaultIfEmpty("")
-                .flatMap(callerUsername -> userManagementService.delete(id, callerUsername));
+                .flatMap(callerUsername -> userManagementService.delete(id, callerUsername))
+                .transformDeferred(
+                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
     }
 
     @Operation(summary = "Reset a user's password")
@@ -74,6 +84,9 @@ public class UserManagementController {
     @PreAuthorize("hasAuthority('USERS_WRITE')")
     public Mono<Void> resetPassword(
             @PathVariable Long id, @Valid @RequestBody PasswordResetRequest req) {
-        return userManagementService.resetPassword(id, req.getNewPassword());
+        return userManagementService
+                .resetPassword(id, req.getNewPassword())
+                .transformDeferred(
+                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
     }
 }

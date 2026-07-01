@@ -33,6 +33,7 @@ public class PolicyDecisionConsumer {
     private final ObjectMapper objectMapper;
     private final LlmCallService llmCallService;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final LlmResponseValidator responseValidator;
 
     @KafkaListener(
             topics = TOPIC,
@@ -45,8 +46,13 @@ public class PolicyDecisionConsumer {
                 record.offset());
 
         try {
-            TenantAwareKafkaSupport.bindTenantFromRecord(record);
+            TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
+            return;
+        }
 
+        try {
             var decisionEvent =
                     objectMapper.readValue(record.value(), EventSchemas.PolicyDecisionEvent.class);
 
@@ -138,6 +144,15 @@ public class PolicyDecisionConsumer {
                     "LLM call did not produce content for event {} (request={})",
                     event.sourceEventId(),
                     result.requestId());
+            return;
+        }
+
+        var validation = responseValidator.validate(result.content(), null);
+        if (!validation.valid()) {
+            log.warn(
+                    "LLM response validation failed for event {}: {}",
+                    event.sourceEventId(),
+                    validation.reason());
             return;
         }
 

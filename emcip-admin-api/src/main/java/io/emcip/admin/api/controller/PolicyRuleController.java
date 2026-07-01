@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,6 +30,7 @@ public class PolicyRuleController {
 
     @Operation(summary = "List active policy rules")
     @GetMapping
+    @PreAuthorize("hasAuthority('POLICY_RULES_READ')")
     public Flux<JsonNode> listActiveRules() {
         return policyEngineClient.listRules();
     }
@@ -36,12 +38,14 @@ public class PolicyRuleController {
     @Operation(summary = "Create a policy rule")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('POLICY_RULES_WRITE')")
     public Mono<JsonNode> createRule(@RequestBody JsonNode body) {
         return policyEngineClient.createRule(body);
     }
 
     @Operation(summary = "Update a policy rule; passes caller identity for history snapshot")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('POLICY_RULES_WRITE')")
     public Mono<JsonNode> updateRule(@PathVariable("id") String id, @RequestBody JsonNode body) {
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> ctx.getAuthentication().getName())
@@ -52,18 +56,21 @@ public class PolicyRuleController {
     @Operation(summary = "Delete a policy rule")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('POLICY_RULES_WRITE')")
     public Mono<Void> deleteRule(@PathVariable("id") String id) {
         return policyEngineClient.deleteRule(id);
     }
 
     @Operation(summary = "Evaluate an unsaved rule against a test context — no side effects")
     @PostMapping("/dry-run")
+    @PreAuthorize("hasAuthority('POLICY_RULES_READ')")
     public Mono<JsonNode> dryRun(@RequestBody JsonNode body) {
         return policyEngineClient.dryRun(body);
     }
 
     @Operation(summary = "Get version history snapshots for a rule")
     @GetMapping("/{id}/history")
+    @PreAuthorize("hasAuthority('POLICY_RULES_READ')")
     public Flux<JsonNode> getRuleHistory(@PathVariable("id") String id) {
         return policyEngineClient.getRuleHistory(id);
     }

@@ -89,7 +89,9 @@ class TelegramAccountServiceTest {
         UUID id = UUID.randomUUID();
         when(repository.findById(id)).thenReturn(Mono.empty());
 
-        StepVerifier.create(service.getById(id))
+        StepVerifier.create(
+                        service.getById(id)
+                                .contextWrite(ctx -> ReactorTenantContext.withAdminMode(ctx)))
                 .expectErrorMatches(e -> e.getMessage() != null && e.getMessage().contains("404"))
                 .verify();
     }

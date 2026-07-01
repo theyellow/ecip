@@ -47,11 +47,15 @@ class PolicyDecisionConsumerTest {
         objectMapper = new ObjectMapper();
     }
 
+    private static final String TEST_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
     private ConsumerRecord<String, String> toRecord(String key, String value) {
         ConsumerRecord<String, String> record =
                 new ConsumerRecord<>("policies.decisions", 0, 0L, key, value);
         record.headers()
-                .add(new RecordHeader("tenant_id", "test-tenant".getBytes(StandardCharsets.UTF_8)));
+                .add(
+                        new RecordHeader(
+                                "tenant_id", TEST_TENANT_ID.getBytes(StandardCharsets.UTF_8)));
         return record;
     }
 

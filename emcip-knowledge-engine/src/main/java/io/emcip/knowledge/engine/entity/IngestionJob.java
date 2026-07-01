@@ -37,7 +37,7 @@ public class IngestionJob {
     private String sourceRef;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 30)
     private IngestionStatus status;
 
     @Column(nullable = true)
@@ -58,7 +58,8 @@ public class IngestionJob {
         QUEUED,
         RUNNING,
         COMPLETED,
-        FAILED
+        FAILED,
+        FLAGGED_INJECTION_RISK
     }
 
     public enum SourceType {

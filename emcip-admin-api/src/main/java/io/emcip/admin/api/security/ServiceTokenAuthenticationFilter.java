@@ -1,5 +1,8 @@
 package io.emcip.admin.api.security;
 
+import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,8 +27,19 @@ public class ServiceTokenAuthenticationFilter implements WebFilter {
 
     private static final String SERVICE_TOKEN_HEADER = "X-Service-Token";
 
+    private static final String DEFAULT_TOKEN = "internal-service-token";
+
     @Value("${admin.service-token:internal-service-token}")
     private String configuredServiceToken;
+
+    @PostConstruct
+    void validateToken() {
+        if (DEFAULT_TOKEN.equals(configuredServiceToken)) {
+            throw new IllegalStateException(
+                    "Service token must be overridden via ADMIN_SERVICE_TOKEN environment"
+                            + " variable");
+        }
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
@@ -35,7 +49,9 @@ public class ServiceTokenAuthenticationFilter implements WebFilter {
             return chain.filter(exchange);
         }
 
-        if (!configuredServiceToken.equals(serviceToken)) {
+        if (!MessageDigest.isEqual(
+                configuredServiceToken.getBytes(StandardCharsets.UTF_8),
+                serviceToken.getBytes(StandardCharsets.UTF_8))) {
             log.warn("Invalid X-Service-Token from {}", exchange.getRequest().getRemoteAddress());
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();

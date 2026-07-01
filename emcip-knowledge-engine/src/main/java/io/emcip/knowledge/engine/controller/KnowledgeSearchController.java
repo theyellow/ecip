@@ -8,9 +8,11 @@ import io.emcip.knowledge.engine.service.KnowledgeQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/knowledge")
 @RequiredArgsConstructor
+@Validated
 public class KnowledgeSearchController {
 
     private final KnowledgeQueryService queryService;
@@ -54,7 +57,8 @@ public class KnowledgeSearchController {
     @GetMapping("/graph/node/{id}/neighbors")
     public List<GraphNode> getNeighbors(
             @PathVariable UUID id,
-            @RequestParam(required = false) String relationshipType,
+            @Pattern(regexp = "[a-zA-Z_]{1,100}") @RequestParam(required = false)
+                    String relationshipType,
             @RequestParam(defaultValue = "1") int depth) {
         return graphRepository.findConnected(id, relationshipType, depth);
     }

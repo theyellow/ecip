@@ -2,12 +2,15 @@ package io.emcip.admin.api.controller;
 
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.service.GroupProfileService;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,41 +29,56 @@ import reactor.core.publisher.Mono;
 public class GroupProfileController {
 
     private final GroupProfileService service;
+    private final RateLimiterRegistry rateLimiterRegistry;
 
     @Operation(summary = "List all group profiles")
     @GetMapping
+    @PreAuthorize("hasAuthority('GROUPS_READ')")
     public Flux<GroupProfile> listAll() {
         return service.findAll();
     }
 
     @Operation(summary = "Get a group profile by chat ID")
     @GetMapping("/{chatId}")
+    @PreAuthorize("hasAuthority('GROUPS_READ')")
     public Mono<ResponseEntity<GroupProfile>> getByChatId(@PathVariable("chatId") Long chatId) {
         return service.findByChatId(chatId).map(ResponseEntity::ok);
     }
 
     @Operation(summary = "Create a group profile")
     @PostMapping
+    @PreAuthorize("hasAuthority('GROUPS_WRITE')")
     public Mono<ResponseEntity<GroupProfile>> create(@Valid @RequestBody GroupProfile profile) {
         return service.create(profile)
-                .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved));
+                .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved))
+                .transformDeferred(
+                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
     }
 
     @Operation(summary = "Update a group profile")
     @PutMapping("/{chatId}")
+    @PreAuthorize("hasAuthority('GROUPS_WRITE')")
     public Mono<ResponseEntity<GroupProfile>> update(
             @PathVariable("chatId") Long chatId, @Valid @RequestBody GroupProfile update) {
-        return service.update(chatId, update).map(ResponseEntity::ok);
+        return service.update(chatId, update)
+                .map(ResponseEntity::ok)
+                .transformDeferred(
+                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
     }
 
     @Operation(summary = "Delete a group profile")
     @DeleteMapping("/{chatId}")
+    @PreAuthorize("hasAuthority('GROUPS_WRITE')")
     public Mono<ResponseEntity<Void>> delete(@PathVariable("chatId") Long chatId) {
-        return service.delete(chatId).thenReturn(ResponseEntity.<Void>noContent().<Void>build());
+        return service.delete(chatId)
+                .thenReturn(ResponseEntity.<Void>noContent().<Void>build())
+                .transformDeferred(
+                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
     }
 
     @Operation(summary = "List accounts watching a group")
     @GetMapping("/{chatId}/watchers")
+    @PreAuthorize("hasAuthority('GROUPS_READ')")
     public Flux<java.util.Map<String, Object>> getWatchers(@PathVariable("chatId") Long chatId) {
         return service.findWatchersByChatId(chatId);
     }

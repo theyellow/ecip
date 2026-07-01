@@ -1,10 +1,14 @@
 package io.emcip.admin.api.controller;
 
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.service.AccountSelectionException;
 import io.emcip.admin.api.service.FlagService;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Mono;
@@ -21,15 +27,21 @@ import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class FlagControllerTest {
 
     @Mock private FlagService flagService;
+    @Mock private RateLimiterRegistry rateLimiterRegistry;
+
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
+        RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
+        when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
+
         webTestClient =
-                WebTestClient.bindToController(new FlagController(flagService))
+                WebTestClient.bindToController(new FlagController(flagService, rateLimiterRegistry))
                         .controllerAdvice(new GlobalExceptionHandler())
                         .build();
     }

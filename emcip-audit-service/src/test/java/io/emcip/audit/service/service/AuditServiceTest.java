@@ -1,5 +1,6 @@
 package io.emcip.audit.service.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -149,5 +150,137 @@ class AuditServiceTest {
         when(repository.findByEventId("not-found")).thenReturn(Mono.empty());
 
         StepVerifier.create(auditService.findByEventId("not-found")).verifyComplete();
+    }
+
+    // --- hash chaining ---
+
+    @Test
+    void saveWithChain_firstRecord_setsNullPrevHashAndComputesIntegrityHash() {
+        AuditEventEntity entity =
+                AuditEventEntity.builder()
+                        .eventId("evt-chain-001")
+                        .eventType("AUTH")
+                        .actorId("user-1")
+                        .resourceType("SESSION")
+                        .resourceId("sess-1")
+                        .createdAt(Instant.parse("2026-01-01T00:00:00Z"))
+                        .build();
+        AuditEventEntity saved = AuditEventEntity.builder().id(1L).eventId("evt-chain-001").build();
+
+        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.empty());
+        when(repository.save(any(AuditEventEntity.class))).thenReturn(Mono.just(saved));
+
+        StepVerifier.create(auditService.saveWithChain(entity))
+                .expectNextMatches(r -> r.getId().equals(1L))
+                .verifyComplete();
+
+        // entity should have had prevHash=null and integrityHash set
+        assertThat(entity.getPrevHash()).isNull();
+        assertThat(entity.getIntegrityHash()).isNotNull().hasSize(64);
+    }
+
+    @Test
+    void saveWithChain_subsequentRecord_linksPrevHash() {
+        AuditEventEntity previous =
+                AuditEventEntity.builder()
+                        .id(1L)
+                        .integrityHash(
+                                "aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011")
+                        .build();
+        AuditEventEntity entity =
+                AuditEventEntity.builder()
+                        .eventId("evt-chain-002")
+                        .eventType("AUTH")
+                        .createdAt(Instant.parse("2026-01-01T00:01:00Z"))
+                        .build();
+        AuditEventEntity saved = AuditEventEntity.builder().id(2L).eventId("evt-chain-002").build();
+
+        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.just(previous));
+        when(repository.save(any(AuditEventEntity.class))).thenReturn(Mono.just(saved));
+
+        StepVerifier.create(auditService.saveWithChain(entity))
+                .expectNextMatches(r -> r.getId().equals(2L))
+                .verifyComplete();
+
+        assertThat(entity.getPrevHash())
+                .isEqualTo("aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011");
+        assertThat(entity.getIntegrityHash()).isNotNull().hasSize(64);
+    }
+
+    @Test
+    void deleteRecordsOlderThan_noRecords_returnsZero() {
+        Instant cutoff = Instant.now().minus(3650, ChronoUnit.DAYS);
+        when(repository.findOldestBeforeCutoff(cutoff)).thenReturn(Mono.empty());
+
+        StepVerifier.create(auditService.deleteRecordsOlderThan(cutoff))
+                .expectNext(0L)
+                .verifyComplete();
+    }
+
+    @Test
+    void deleteRecordsOlderThan_withRecords_deletesAndReturnsCount() {
+        Instant cutoff = Instant.now().minus(3650, ChronoUnit.DAYS);
+        AuditEventEntity oldest =
+                AuditEventEntity.builder()
+                        .id(1L)
+                        .integrityHash("oldhash")
+                        .createdAt(Instant.parse("2010-01-01T00:00:00Z"))
+                        .build();
+
+        when(repository.findOldestBeforeCutoff(cutoff)).thenReturn(Mono.just(oldest));
+        when(repository.deleteByCreatedAtBefore(cutoff)).thenReturn(Mono.just(42L));
+
+        StepVerifier.create(auditService.deleteRecordsOlderThan(cutoff))
+                .expectNext(42L)
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_emptyDatabase_returnsValidWithZeroRecords() {
+        when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.empty());
+
+        StepVerifier.create(auditService.verifyChain(100))
+                .expectNextMatches(r -> r.valid() && r.recordsChecked() == 0)
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_validChain_returnsValid() {
+        String hash1 = "aaaa";
+        String hash2 = "bbbb";
+        // records returned newest-first: record2 then record1
+        AuditEventEntity record2 =
+                AuditEventEntity.builder().id(2L).integrityHash(hash2).prevHash(hash1).build();
+        AuditEventEntity record1 =
+                AuditEventEntity.builder().id(1L).integrityHash(hash1).prevHash(null).build();
+
+        when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.just(record2, record1));
+
+        StepVerifier.create(auditService.verifyChain(100))
+                .expectNextMatches(r -> r.valid() && r.recordsChecked() == 2)
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_brokenChain_returnsBrokenResult() {
+        AuditEventEntity record2 =
+                AuditEventEntity.builder()
+                        .id(2L)
+                        .integrityHash("bbbb")
+                        .prevHash("WRONG_HASH")
+                        .build();
+        AuditEventEntity record1 =
+                AuditEventEntity.builder().id(1L).integrityHash("aaaa").prevHash(null).build();
+
+        when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.just(record2, record1));
+
+        StepVerifier.create(auditService.verifyChain(100))
+                .expectNextMatches(
+                        r ->
+                                !r.valid()
+                                        && r.brokenAtId().equals(2L)
+                                        && "aaaa".equals(r.expectedHash())
+                                        && "WRONG_HASH".equals(r.actualHash()))
+                .verifyComplete();
     }
 }

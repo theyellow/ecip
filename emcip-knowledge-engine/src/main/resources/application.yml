@@ -5,7 +5,7 @@ spring:
   application:
     name: emcip-knowledge-engine
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:14005/emcip}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:14005/emcip?sslmode=${DB_SSL_MODE:disable}}
     username: ${SPRING_DATASOURCE_USERNAME:emcip}
     password: ${SPRING_DATASOURCE_PASSWORD:emcip}
     driver-class-name: org.postgresql.Driver
@@ -64,6 +64,17 @@ management:
 
 admin:
   service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      llm-orchestrator:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-duration-threshold: 10s
+        slow-call-rate-threshold: 80
 
 logging:
   structured:

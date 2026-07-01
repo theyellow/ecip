@@ -1,6 +1,9 @@
 package io.emcip.admin.api.security;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import java.util.List;
+import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,14 +15,19 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final AdminAuditPublisher auditPublisher;
 
     @Value("${admin.cors.allowed-origins:http://localhost:14009}")
     private List<String> allowedOrigins;
@@ -32,6 +40,28 @@ public class SecurityConfig {
             AdminTenantContextFilter adminTenantContextFilter) {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource()))
+                .headers(
+                        headers ->
+                                headers.contentSecurityPolicy(
+                                                csp ->
+                                                        csp.policyDirectives(
+                                                                "default-src 'self'; script-src"
+                                                                    + " 'self'; style-src 'self'"
+                                                                    + " 'unsafe-inline'; img-src"
+                                                                    + " 'self' data:; font-src"
+                                                                    + " 'self'"))
+                                        .frameOptions(
+                                                frame ->
+                                                        frame.mode(
+                                                                XFrameOptionsServerHttpHeadersWriter
+                                                                        .Mode.DENY))
+                                        .hsts(
+                                                hsts ->
+                                                        hsts.includeSubdomains(true)
+                                                                .maxAge(
+                                                                        java.time.Duration.ofDays(
+                                                                                365)))
+                                        .contentTypeOptions(contentType -> {}))
                 .authorizeExchange(
                         auth ->
                                 auth.pathMatchers(
@@ -41,10 +71,37 @@ public class SecurityConfig {
                                                 "/api/auth/refresh",
                                                 "/api/auth/logout")
                                         .permitAll()
-                                        .pathMatchers("/actuator/**")
+                                        .pathMatchers("/actuator/health", "/actuator/health/**")
                                         .permitAll()
                                         .anyExchange()
                                         .authenticated())
+                .exceptionHandling(
+                        ex ->
+                                ex.accessDeniedHandler(
+                                        (exchange, denied) -> {
+                                            String path = exchange.getRequest().getPath().value();
+                                            return exchange.getPrincipal()
+                                                    .map(p -> p.getName())
+                                                    .defaultIfEmpty("anonymous")
+                                                    .flatMap(
+                                                            actor -> {
+                                                                auditPublisher.publish(
+                                                                        "ACCESS_DENIED",
+                                                                        "Endpoint",
+                                                                        path,
+                                                                        actor,
+                                                                        null,
+                                                                        Map.of(
+                                                                                "reason",
+                                                                                denied.getMessage()
+                                                                                                != null
+                                                                                        ? denied
+                                                                                                .getMessage()
+                                                                                        : "Access"
+                                                                                              + " denied"));
+                                                                return Mono.<Void>error(denied);
+                                                            });
+                                        }))
                 .addFilterAt(serviceTokenFilter, SecurityWebFiltersOrder.HTTP_BASIC)
                 .addFilterAt(jwtFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .addFilterAfter(adminTenantContextFilter, SecurityWebFiltersOrder.AUTHENTICATION)
@@ -72,6 +129,6 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12);
     }
 }

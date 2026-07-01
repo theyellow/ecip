@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,9 @@ class KnowledgeEngineClientTest {
         bodySpec = mock(RestClient.RequestBodySpec.class);
         responseSpec = mock(RestClient.ResponseSpec.class);
         restClient = mock(RestClient.class);
-        client = new KnowledgeEngineClient(restClient, new ObjectMapper());
+        client =
+                new KnowledgeEngineClient(
+                        restClient, new ObjectMapper(), CircuitBreakerRegistry.ofDefaults());
 
         when(restClient.post()).thenReturn(uriSpec);
         when(uriSpec.uri("/api/knowledge/search")).thenReturn(bodySpec);

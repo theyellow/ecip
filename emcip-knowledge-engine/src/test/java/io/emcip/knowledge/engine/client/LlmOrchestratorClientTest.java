@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.emcip.knowledge.engine.entity.ConceptType;
 import io.emcip.knowledge.engine.entity.RelationshipType;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.List;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -25,7 +26,9 @@ class LlmOrchestratorClientTest {
         String baseUrl = mockWebServer.url("/").toString();
         client =
                 new LlmOrchestratorClient(
-                        RestClient.builder().baseUrl(baseUrl).build(), new ObjectMapper());
+                        RestClient.builder().baseUrl(baseUrl).build(),
+                        new ObjectMapper(),
+                        CircuitBreakerRegistry.ofDefaults());
     }
 
     @AfterEach

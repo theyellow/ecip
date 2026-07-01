@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="018-ingestion-status-length" author="redteam-remediation">
+        <comment>RT-009: Widen status column to support FLAGGED_INJECTION_RISK (22 chars)</comment>
+        <modifyDataType tableName="ke_ingestion_jobs" columnName="status"
+                        newDataType="VARCHAR(30)"/>
+    </changeSet>
+
+</databaseChangeLog>
