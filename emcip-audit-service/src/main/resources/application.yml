@@ -26,8 +26,12 @@ admin:
   service-token: ${ADMIN_SERVICE_TOKEN:internal-service-token}
 
 audit:
-  retention:
-    days: 90
+  retention: ${AUDIT_RETENTION:P10Y}
+  retention-cleanup:
+    cron: "0 42 4 1 * *"  # 04:00:42 on 1st of month
+  chain-verification:
+    batch-size: 1000
+    cron: "0 17 3 * * *"  # 03:00:17 daily (offset seconds per project convention)
 
 management:
   tracing:

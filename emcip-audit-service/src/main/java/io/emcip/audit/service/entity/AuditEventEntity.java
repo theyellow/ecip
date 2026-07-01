@@ -97,4 +97,12 @@ public class AuditEventEntity {
     @Schema(description = "Event creation timestamp (UTC)")
     @Column("created_at")
     private Instant createdAt;
+
+    @Schema(description = "SHA-256 hash of key event fields for tamper detection")
+    @Column("integrity_hash")
+    private String integrityHash;
+
+    @Schema(description = "integrity_hash of the preceding audit event (chain linkage)")
+    @Column("prev_hash")
+    private String prevHash;
 }

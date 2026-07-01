@@ -5,6 +5,9 @@ import io.emcip.audit.service.repository.AuditEventRepository;
 import io.emcip.common.pagination.PageResponse;
 import io.emcip.common.tenant.ReactorTenantContext;
 import io.r2dbc.postgresql.codec.Json;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -153,6 +156,129 @@ public class AuditService {
         } catch (JacksonException e) {
             log.warn("Failed to serialize details map: {}", e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Save an audit event with hash chaining. Fetches the last record's integrity_hash to use as
+     * prev_hash, computes the new record's integrity_hash, then persists.
+     */
+    public Mono<AuditEventEntity> saveWithChain(AuditEventEntity entity) {
+        return repository
+                .findTopByOrderByIdDesc()
+                .map(AuditEventEntity::getIntegrityHash)
+                .defaultIfEmpty("")
+                .flatMap(
+                        prevHash -> {
+                            entity.setPrevHash(prevHash.isEmpty() ? null : prevHash);
+                            entity.setIntegrityHash(computeIntegrityHash(entity));
+                            return repository.save(entity);
+                        });
+    }
+
+    /**
+     * Delete audit records older than the given cutoff. Logs the anchor hash of the oldest deleted
+     * record before purging.
+     */
+    public Mono<Long> deleteRecordsOlderThan(Instant cutoff) {
+        return repository
+                .findOldestBeforeCutoff(cutoff)
+                .flatMap(
+                        oldest -> {
+                            String anchorHash = oldest.getIntegrityHash();
+                            return repository
+                                    .deleteByCreatedAtBefore(cutoff)
+                                    .doOnSuccess(
+                                            count -> {
+                                                if (count > 0) {
+                                                    log.info(
+                                                            "Purged {} audit records, anchor"
+                                                                    + " hash: {}",
+                                                            count,
+                                                            anchorHash);
+                                                }
+                                            });
+                        })
+                .defaultIfEmpty(0L);
+    }
+
+    /**
+     * Verify the hash chain integrity for the last {@code batchSize} records. Walks from newest to
+     * oldest, comparing each record's prevHash to the next-newer record's integrityHash.
+     */
+    public Mono<ChainVerificationResult> verifyChain(int batchSize) {
+        return repository
+                .findTopNByOrderByIdDesc(batchSize)
+                .collectList()
+                .map(
+                        records -> {
+                            if (records.isEmpty()) {
+                                return ChainVerificationResult.ok(0);
+                            }
+                            // records[0] = newest, records[n-1] = oldest
+                            for (int i = 0; i < records.size() - 1; i++) {
+                                AuditEventEntity newer = records.get(i);
+                                AuditEventEntity older = records.get(i + 1);
+                                String expectedPrevHash = older.getIntegrityHash();
+                                String actualPrevHash = newer.getPrevHash();
+                                if (expectedPrevHash == null && actualPrevHash == null) {
+                                    continue;
+                                }
+                                if (expectedPrevHash == null
+                                        || !expectedPrevHash.equals(actualPrevHash)) {
+                                    return ChainVerificationResult.broken(
+                                            i + 1, newer.getId(), expectedPrevHash, actualPrevHash);
+                                }
+                            }
+                            return ChainVerificationResult.ok(records.size());
+                        });
+    }
+
+    private String computeIntegrityHash(AuditEventEntity entity) {
+        String input =
+                entity.getEventId()
+                        + "|"
+                        + entity.getCreatedAt()
+                        + "|"
+                        + entity.getEventType()
+                        + "|"
+                        + entity.getActorId()
+                        + "|"
+                        + entity.getResourceType()
+                        + "|"
+                        + entity.getResourceId();
+        return sha256Hex(input);
+    }
+
+    private String sha256Hex(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** Result of a chain integrity verification run. */
+    public record ChainVerificationResult(
+            boolean valid,
+            int recordsChecked,
+            Long brokenAtId,
+            String expectedHash,
+            String actualHash) {
+
+        public static ChainVerificationResult ok(int count) {
+            return new ChainVerificationResult(true, count, null, null, null);
+        }
+
+        public static ChainVerificationResult broken(
+                int count, Long id, String expected, String actual) {
+            return new ChainVerificationResult(false, count, id, expected, actual);
         }
     }
 }
