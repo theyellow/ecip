@@ -65,6 +65,11 @@ services:
       - postgres-data:/var/lib/postgresql/data
     networks:
       - data-tier
+    # To enable SSL locally, uncomment and mount certs:
+    # command: >
+    #   -c ssl=on
+    #   -c ssl_cert_file=/var/lib/postgresql/server.crt
+    #   -c ssl_key_file=/var/lib/postgresql/server.key
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U emcip"]
       interval: 10s

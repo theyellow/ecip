@@ -6,7 +6,7 @@ spring:
     name: emcip-llm-orchestrator
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:14005/emcip}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:14005/emcip?sslmode=${DB_SSL_MODE:disable}}
     username: ${SPRING_DATASOURCE_USERNAME:emcip}
     password: ${SPRING_DATASOURCE_PASSWORD:emcip}
     driver-class-name: org.postgresql.Driver

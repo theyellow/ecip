@@ -5,11 +5,11 @@ spring:
   application:
     name: emcip-moderation-service
   r2dbc:
-    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:14005/emcip}
+    url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:14005/emcip?sslMode=${DB_SSL_MODE:disable}}
     username: ${SPRING_R2DBC_USERNAME:emcip}
     password: ${SPRING_R2DBC_PASSWORD:emcip}
   datasource:
-    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip}
+    url: ${SPRING_LIQUIBASE_URL:jdbc:postgresql://localhost:14005/emcip?sslmode=${DB_SSL_MODE:disable}}
     username: ${SPRING_LIQUIBASE_USERNAME:emcip}
     password: ${SPRING_LIQUIBASE_PASSWORD:emcip}
     driver-class-name: org.postgresql.Driver
