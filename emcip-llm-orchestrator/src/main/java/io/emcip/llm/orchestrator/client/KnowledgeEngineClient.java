@@ -1,5 +1,8 @@
 package io.emcip.llm.orchestrator.client;
 
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +28,7 @@ public class KnowledgeEngineClient {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     // ── Local DTOs ────────────────────────────────────────────────────────────
 
@@ -40,6 +44,10 @@ public class KnowledgeEngineClient {
         public static SearchResponse empty() {
             return new SearchResponse(List.of(), List.of());
         }
+    }
+
+    private CircuitBreaker circuitBreaker() {
+        return circuitBreakerRegistry.circuitBreaker("knowledge-engine");
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -64,25 +72,34 @@ public class KnowledgeEngineClient {
 
         try {
             String bodyJson = objectMapper.writeValueAsString(body);
-            String responseJson =
-                    restClient
-                            .post()
-                            .uri("/api/knowledge/search")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .body(bodyJson)
-                            .retrieve()
-                            .body(String.class);
-
-            if (responseJson == null) {
-                return SearchResponse.empty();
-            }
-            return objectMapper.readValue(responseJson, SearchResponse.class);
-
+            return CircuitBreaker.decorateCheckedSupplier(
+                            circuitBreaker(),
+                            () -> {
+                                String responseJson =
+                                        restClient
+                                                .post()
+                                                .uri("/api/knowledge/search")
+                                                .contentType(MediaType.APPLICATION_JSON)
+                                                .body(bodyJson)
+                                                .retrieve()
+                                                .body(String.class);
+                                if (responseJson == null) {
+                                    return SearchResponse.empty();
+                                }
+                                return objectMapper.readValue(responseJson, SearchResponse.class);
+                            })
+                    .get();
+        } catch (CallNotPermittedException e) {
+            log.warn("Circuit breaker open for knowledge-engine, returning empty context");
+            return SearchResponse.empty();
         } catch (JacksonException e) {
             log.warn("Knowledge search serialization error: {}", e.getMessage());
             return SearchResponse.empty();
         } catch (RestClientException e) {
             log.warn("Knowledge engine unreachable — skipping enrichment: {}", e.getMessage());
+            return SearchResponse.empty();
+        } catch (Throwable e) {
+            log.error("Knowledge engine search failed: {}", e.getMessage());
             return SearchResponse.empty();
         }
     }

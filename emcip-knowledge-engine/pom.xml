@@ -123,6 +123,13 @@
       <type>pom</type>
     </dependency>
 
+    <!-- Resilience4j circuit breakers -->
+    <dependency>
+      <groupId>io.github.resilience4j</groupId>
+      <artifactId>resilience4j-spring-boot3</artifactId>
+      <version>2.3.0</version>
+    </dependency>
+
     <!-- Testing -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

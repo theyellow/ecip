@@ -5,6 +5,9 @@ import io.emcip.knowledge.engine.entity.RelationshipType;
 import io.emcip.knowledge.engine.model.ExtractionResult;
 import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedEntity;
 import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedRelationship;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,24 +24,40 @@ public class LlmOrchestratorClient {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
+
+    private CircuitBreaker circuitBreaker() {
+        return circuitBreakerRegistry.circuitBreaker("llm-orchestrator");
+    }
 
     public float[] embed(String text) {
-        Map<String, String> request = Map.of("prompt", text, "taskType", "EMBED");
-
-        var response =
-                restClient
-                        .post()
-                        .uri("/api/analyse")
-                        .body(request)
-                        .retrieve()
-                        .body(AnalyseResponse.class);
-
-        if (response == null || !response.success()) {
-            log.error("Embedding failed: {}", response);
+        try {
+            return CircuitBreaker.decorateCheckedSupplier(
+                            circuitBreaker(),
+                            () -> {
+                                Map<String, String> request =
+                                        Map.of("prompt", text, "taskType", "EMBED");
+                                var response =
+                                        restClient
+                                                .post()
+                                                .uri("/api/analyse")
+                                                .body(request)
+                                                .retrieve()
+                                                .body(AnalyseResponse.class);
+                                if (response == null || !response.success()) {
+                                    log.error("Embedding failed: {}", response);
+                                    return new float[0];
+                                }
+                                return parseEmbedding(response.analysis());
+                            })
+                    .get();
+        } catch (CallNotPermittedException e) {
+            log.warn("Circuit breaker open for llm-orchestrator, returning empty embedding");
+            return new float[0];
+        } catch (Throwable e) {
+            log.error("LLM orchestrator embed call failed: {}", e.getMessage());
             return new float[0];
         }
-
-        return parseEmbedding(response.analysis());
     }
 
     public ExtractionResult extract(
@@ -91,41 +110,67 @@ public class LlmOrchestratorClient {
                                 + " \"properties\": {}}]\n"
                                 + "}");
 
-        Map<String, String> request = Map.of("prompt", prompt.toString(), "taskType", "EXTRACT");
-
-        var response =
-                restClient
-                        .post()
-                        .uri("/api/analyse")
-                        .body(request)
-                        .retrieve()
-                        .body(AnalyseResponse.class);
-
-        if (response == null || !response.success()) {
-            log.error("Extraction failed: {}", response);
+        String finalPrompt = prompt.toString();
+        try {
+            return CircuitBreaker.decorateCheckedSupplier(
+                            circuitBreaker(),
+                            () -> {
+                                Map<String, String> request =
+                                        Map.of("prompt", finalPrompt, "taskType", "EXTRACT");
+                                var response =
+                                        restClient
+                                                .post()
+                                                .uri("/api/analyse")
+                                                .body(request)
+                                                .retrieve()
+                                                .body(AnalyseResponse.class);
+                                if (response == null || !response.success()) {
+                                    log.error("Extraction failed: {}", response);
+                                    return new ExtractionResult(List.of(), List.of());
+                                }
+                                return parseExtractionResult(response.analysis());
+                            })
+                    .get();
+        } catch (CallNotPermittedException e) {
+            log.warn("Circuit breaker open for llm-orchestrator, returning empty extraction");
+            return new ExtractionResult(List.of(), List.of());
+        } catch (Throwable e) {
+            log.error("LLM orchestrator extract call failed: {}", e.getMessage());
             return new ExtractionResult(List.of(), List.of());
         }
-
-        return parseExtractionResult(response.analysis());
     }
 
     public String analyse(String prompt, String taskType) {
-        Map<String, String> request = Map.of("prompt", prompt, "taskType", taskType);
-
-        var response =
-                restClient
-                        .post()
-                        .uri("/api/analyse")
-                        .body(request)
-                        .retrieve()
-                        .body(AnalyseResponse.class);
-
-        if (response == null || !response.success()) {
-            log.error("Analyse failed (taskType={}): {}", taskType, response);
+        try {
+            return CircuitBreaker.decorateCheckedSupplier(
+                            circuitBreaker(),
+                            () -> {
+                                Map<String, String> request =
+                                        Map.of("prompt", prompt, "taskType", taskType);
+                                var response =
+                                        restClient
+                                                .post()
+                                                .uri("/api/analyse")
+                                                .body(request)
+                                                .retrieve()
+                                                .body(AnalyseResponse.class);
+                                if (response == null || !response.success()) {
+                                    log.error(
+                                            "Analyse failed (taskType={}): {}", taskType, response);
+                                    return null;
+                                }
+                                return response.analysis();
+                            })
+                    .get();
+        } catch (CallNotPermittedException e) {
+            log.warn(
+                    "Circuit breaker open for llm-orchestrator, returning null for taskType={}",
+                    taskType);
+            return null;
+        } catch (Throwable e) {
+            log.error("LLM orchestrator analyse call failed: {}", e.getMessage());
             return null;
         }
-
-        return response.analysis();
     }
 
     public String resolve(String label, String conceptType, List<String> candidates) {
@@ -138,21 +183,32 @@ Respond with the matching candidate label, or "NEW" if no match.
 """,
                         label, conceptType, String.join(", ", candidates));
 
-        Map<String, String> request = Map.of("prompt", prompt, "taskType", "RESOLVE");
-
-        var response =
-                restClient
-                        .post()
-                        .uri("/api/analyse")
-                        .body(request)
-                        .retrieve()
-                        .body(AnalyseResponse.class);
-
-        if (response == null || !response.success()) {
+        try {
+            return CircuitBreaker.decorateCheckedSupplier(
+                            circuitBreaker(),
+                            () -> {
+                                Map<String, String> request =
+                                        Map.of("prompt", prompt, "taskType", "RESOLVE");
+                                var response =
+                                        restClient
+                                                .post()
+                                                .uri("/api/analyse")
+                                                .body(request)
+                                                .retrieve()
+                                                .body(AnalyseResponse.class);
+                                if (response == null || !response.success()) {
+                                    return "NEW";
+                                }
+                                return response.analysis().trim();
+                            })
+                    .get();
+        } catch (CallNotPermittedException e) {
+            log.warn("Circuit breaker open for llm-orchestrator, defaulting resolve to NEW");
+            return "NEW";
+        } catch (Throwable e) {
+            log.error("LLM orchestrator resolve call failed: {}", e.getMessage());
             return "NEW";
         }
-
-        return response.analysis().trim();
     }
 
     @SuppressWarnings("unchecked")
