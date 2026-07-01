@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class JwtService {
 
+    public record TokenWithJti(String token, String jti) {}
+
     @Value("${admin.jwt.secret}")
     private String secret;
 
@@ -35,12 +37,14 @@ public class JwtService {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String generateToken(
+    public TokenWithJti generateTokenWithJti(
             String username, String role, @Nullable UUID tenantId, @Nullable String tenantName) {
+        String jti = UUID.randomUUID().toString();
         Date now = new Date();
         Date expiry = new Date(now.getTime() + EXPIRY_MS);
         var builder =
                 Jwts.builder()
+                        .id(jti)
                         .subject(username)
                         .claim("role", role)
                         .issuedAt(now)
@@ -51,7 +55,12 @@ public class JwtService {
         if (tenantName != null) {
             builder.claim("tenantName", tenantName);
         }
-        return builder.signWith(signingKey(), Jwts.SIG.HS256).compact();
+        return new TokenWithJti(builder.signWith(signingKey(), Jwts.SIG.HS256).compact(), jti);
+    }
+
+    public String generateToken(
+            String username, String role, @Nullable UUID tenantId, @Nullable String tenantName) {
+        return generateTokenWithJti(username, role, tenantId, tenantName).token();
     }
 
     public Claims validateToken(String token) {
@@ -74,5 +83,10 @@ public class JwtService {
     @Nullable
     public String extractTenantName(String token) {
         return validateToken(token).get("tenantName", String.class);
+    }
+
+    @Nullable
+    public String extractJti(String token) {
+        return validateToken(token).getId();
     }
 }

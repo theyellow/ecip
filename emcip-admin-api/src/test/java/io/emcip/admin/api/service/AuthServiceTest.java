@@ -47,7 +47,8 @@ class AuthServiceTest {
         when(userRepository.findByUsername("admin")).thenReturn(Mono.just(enabledUser()));
         when(passwordEncoder.matches("secret", "$2a$hash")).thenReturn(true);
         when(userRepository.save(any())).thenReturn(Mono.just(enabledUser()));
-        when(jwtService.generateToken("admin", "ADMIN", null, null)).thenReturn("jwt-abc");
+        when(jwtService.generateTokenWithJti("admin", "ADMIN", null, null))
+                .thenReturn(new JwtService.TokenWithJti("jwt-abc", "jti-123"));
         when(refreshTokenService.issue(1L)).thenReturn(Mono.just("refresh-xyz"));
 
         StepVerifier.create(authService.authenticate("admin", "secret"))
@@ -65,7 +66,8 @@ class AuthServiceTest {
         when(userRepository.findByUsername("admin")).thenReturn(Mono.just(enabledUser()));
         when(passwordEncoder.matches("secret", "$2a$hash")).thenReturn(true);
         when(userRepository.save(any())).thenReturn(Mono.just(enabledUser()));
-        when(jwtService.generateToken("admin", "ADMIN", null, null)).thenReturn("jwt-abc");
+        when(jwtService.generateTokenWithJti("admin", "ADMIN", null, null))
+                .thenReturn(new JwtService.TokenWithJti("jwt-abc", "jti-123"));
         when(refreshTokenService.issue(1L)).thenReturn(Mono.just("refresh-xyz"));
 
         Instant before = Instant.now();
@@ -75,9 +77,11 @@ class AuthServiceTest {
 
         org.mockito.ArgumentCaptor<AdminUser> captor =
                 org.mockito.ArgumentCaptor.forClass(AdminUser.class);
-        org.mockito.Mockito.verify(userRepository).save(captor.capture());
-        assertThat(captor.getValue().getLastLogin()).isNotNull();
-        assertThat(captor.getValue().getLastLogin()).isAfterOrEqualTo(before);
+        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.times(2))
+                .save(captor.capture());
+        // First save sets lastLogin; second save sets currentJti
+        assertThat(captor.getAllValues().get(0).getLastLogin()).isNotNull();
+        assertThat(captor.getAllValues().get(0).getLastLogin()).isAfterOrEqualTo(before);
     }
 
     @Test
@@ -120,7 +124,9 @@ class AuthServiceTest {
                 new RefreshTokenService.RotateResult("new-refresh", 1L);
         when(refreshTokenService.rotate("old-refresh")).thenReturn(Mono.just(rotated));
         when(userRepository.findById(1L)).thenReturn(Mono.just(enabledUser()));
-        when(jwtService.generateToken("admin", "ADMIN", null, null)).thenReturn("new-jwt");
+        when(userRepository.save(any())).thenReturn(Mono.just(enabledUser()));
+        when(jwtService.generateTokenWithJti("admin", "ADMIN", null, null))
+                .thenReturn(new JwtService.TokenWithJti("new-jwt", "jti-456"));
 
         StepVerifier.create(authService.refresh("old-refresh"))
                 .assertNext(

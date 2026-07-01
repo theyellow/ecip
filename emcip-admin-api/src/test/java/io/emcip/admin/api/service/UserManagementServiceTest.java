@@ -10,6 +10,7 @@ import io.emcip.admin.api.entity.AdminUser;
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.repository.TenantRepository;
+import io.emcip.admin.api.security.JwtRevocationService;
 import io.emcip.admin.api.security.Role;
 import java.time.Instant;
 import java.util.UUID;
@@ -30,6 +31,7 @@ class UserManagementServiceTest {
     @Mock private TenantRepository tenantRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private AdminAuditPublisher auditPublisher;
+    @Mock private JwtRevocationService revocationService;
 
     @InjectMocks private UserManagementService userManagementService;
 

@@ -6,6 +6,8 @@ import static org.mockito.Mockito.when;
 import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.dto.RefreshRequest;
 import io.emcip.admin.api.dto.TokenResponse;
+import io.emcip.admin.api.repository.AdminUserRepository;
+import io.emcip.admin.api.security.JwtRevocationService;
 import io.emcip.admin.api.service.AuthService;
 import io.emcip.admin.api.service.RefreshTokenService;
 import java.time.Instant;
@@ -25,13 +27,20 @@ class AuthControllerTest {
 
     @Mock private AuthService authService;
     @Mock private RefreshTokenService refreshTokenService;
+    @Mock private AdminUserRepository userRepository;
+    @Mock private JwtRevocationService revocationService;
 
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
         webTestClient =
-                WebTestClient.bindToController(new AuthController(authService, refreshTokenService))
+                WebTestClient.bindToController(
+                                new AuthController(
+                                        authService,
+                                        refreshTokenService,
+                                        userRepository,
+                                        revocationService))
                         .controllerAdvice(new GlobalExceptionHandler())
                         .build();
     }

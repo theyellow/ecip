@@ -6,6 +6,8 @@ import io.emcip.admin.api.dto.UserResponse;
 import io.emcip.admin.api.entity.AdminUser;
 import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.repository.TenantRepository;
+import io.emcip.admin.api.security.JwtRevocationService;
+import io.emcip.admin.api.security.JwtService;
 import io.emcip.admin.api.security.Role;
 import java.time.Instant;
 import java.util.Map;
@@ -26,6 +28,7 @@ public class UserManagementService {
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminAuditPublisher auditPublisher;
+    private final JwtRevocationService revocationService;
 
     public Flux<UserResponse> findAll() {
         return userRepository.findAll().flatMap(this::toResponse);
@@ -135,16 +138,23 @@ public class UserManagementService {
                                                     return userRepository.save(user);
                                                 })
                                         .doOnSuccess(
-                                                user ->
-                                                        auditPublisher.publish(
-                                                                "USER_UPDATED",
-                                                                "User",
-                                                                user.getId().toString(),
-                                                                callerUsername,
-                                                                user.getTenantId(),
-                                                                Map.of(
-                                                                        "role",
-                                                                        req.getRole().name())))
+                                                user -> {
+                                                    if (user.getCurrentJti() != null) {
+                                                        revocationService.revoke(
+                                                                user.getCurrentJti(),
+                                                                Instant.now()
+                                                                        .plusMillis(
+                                                                                JwtService
+                                                                                        .EXPIRY_MS));
+                                                    }
+                                                    auditPublisher.publish(
+                                                            "USER_UPDATED",
+                                                            "User",
+                                                            user.getId().toString(),
+                                                            callerUsername,
+                                                            user.getTenantId(),
+                                                            Map.of("role", req.getRole().name()));
+                                                })
                                         .flatMap(this::toResponse));
     }
 
@@ -162,6 +172,11 @@ public class UserManagementService {
                                         new ResponseStatusException(
                                                 HttpStatus.BAD_REQUEST,
                                                 "Cannot delete your own account"));
+                            }
+                            if (user.getCurrentJti() != null) {
+                                revocationService.revoke(
+                                        user.getCurrentJti(),
+                                        Instant.now().plusMillis(JwtService.EXPIRY_MS));
                             }
                             if (user.getRole() == Role.ADMIN) {
                                 return userRepository
@@ -222,14 +237,20 @@ public class UserManagementService {
                             return userRepository.save(user);
                         })
                 .doOnSuccess(
-                        user ->
-                                auditPublisher.publish(
-                                        "PASSWORD_CHANGED",
-                                        "User",
-                                        id.toString(),
-                                        "system",
-                                        user.getTenantId(),
-                                        null))
+                        user -> {
+                            if (user.getCurrentJti() != null) {
+                                revocationService.revoke(
+                                        user.getCurrentJti(),
+                                        Instant.now().plusMillis(JwtService.EXPIRY_MS));
+                            }
+                            auditPublisher.publish(
+                                    "PASSWORD_CHANGED",
+                                    "User",
+                                    id.toString(),
+                                    "system",
+                                    user.getTenantId(),
+                                    null);
+                        })
                 .then();
     }
 

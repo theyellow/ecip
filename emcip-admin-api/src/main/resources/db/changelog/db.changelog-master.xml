@@ -79,5 +79,6 @@
     <include file="db/changelog/changes/013-telegram-accounts-adapter-id.xml"/>
     <include file="db/changelog/changes/014-group-profiles-knowledge-fork.xml"/>
     <include file="db/changelog/015-create-service-roles.xml"/>
+    <include file="db/changelog/016-admin-users-add-current-jti.xml"/>
 
 </databaseChangeLog>

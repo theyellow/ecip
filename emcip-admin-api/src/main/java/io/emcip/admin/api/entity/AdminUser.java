@@ -41,4 +41,7 @@ public class AdminUser {
 
     @Column("created_at")
     private Instant createdAt;
+
+    @Column("current_jti")
+    private String currentJti;
 }

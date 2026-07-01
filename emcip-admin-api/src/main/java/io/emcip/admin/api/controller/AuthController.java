@@ -2,14 +2,20 @@ package io.emcip.admin.api.controller;
 
 import io.emcip.admin.api.dto.RefreshRequest;
 import io.emcip.admin.api.dto.TokenResponse;
+import io.emcip.admin.api.repository.AdminUserRepository;
+import io.emcip.admin.api.security.JwtRevocationService;
+import io.emcip.admin.api.security.JwtService;
 import io.emcip.admin.api.service.AuthService;
 import io.emcip.admin.api.service.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +28,8 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
+    private final AdminUserRepository userRepository;
+    private final JwtRevocationService revocationService;
 
     @Operation(summary = "Obtain a JWT token")
     @PostMapping({"/api/auth/token", "/auth/token"})
@@ -43,6 +51,24 @@ public class AuthController {
         return refreshTokenService
                 .revoke(request.refreshToken())
                 .thenReturn(ResponseEntity.<Void>noContent().build());
+    }
+
+    @Operation(summary = "Revoke a user's access token (admin only)")
+    @PreAuthorize("hasAuthority('USERS_WRITE')")
+    @PostMapping("/api/auth/revoke/{userId}")
+    public Mono<ResponseEntity<Void>> revokeAccess(@PathVariable Long userId) {
+        return userRepository
+                .findById(userId)
+                .<ResponseEntity<Void>>flatMap(
+                        user -> {
+                            if (user.getCurrentJti() != null) {
+                                revocationService.revoke(
+                                        user.getCurrentJti(),
+                                        Instant.now().plusMillis(JwtService.EXPIRY_MS));
+                            }
+                            return Mono.just(ResponseEntity.<Void>noContent().build());
+                        })
+                .defaultIfEmpty(ResponseEntity.<Void>notFound().build());
     }
 
     public record AuthRequest(

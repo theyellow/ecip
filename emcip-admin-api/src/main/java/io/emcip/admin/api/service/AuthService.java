@@ -48,30 +48,36 @@ public class AuthService {
                         user ->
                                 resolveTenantName(user.getTenantId())
                                         .flatMap(
-                                                tenantName ->
-                                                        refreshTokenService
-                                                                .issue(user.getId())
-                                                                .map(
-                                                                        rawRefresh ->
-                                                                                new TokenResponse(
-                                                                                        jwtService
-                                                                                                .generateToken(
-                                                                                                        user
-                                                                                                                .getUsername(),
-                                                                                                        user.getRole()
-                                                                                                                .name(),
-                                                                                                        user
-                                                                                                                .getTenantId(),
-                                                                                                        tenantName
-                                                                                                                        .isEmpty()
-                                                                                                                ? null
-                                                                                                                : tenantName),
-                                                                                        Instant
-                                                                                                .now()
-                                                                                                .plusMillis(
-                                                                                                        JwtService
-                                                                                                                .EXPIRY_MS),
-                                                                                        rawRefresh)))
+                                                tenantName -> {
+                                                    var tokenWithJti =
+                                                            jwtService.generateTokenWithJti(
+                                                                    user.getUsername(),
+                                                                    user.getRole().name(),
+                                                                    user.getTenantId(),
+                                                                    tenantName.isEmpty()
+                                                                            ? null
+                                                                            : tenantName);
+                                                    user.setCurrentJti(tokenWithJti.jti());
+                                                    return userRepository
+                                                            .save(user)
+                                                            .flatMap(
+                                                                    saved ->
+                                                                            refreshTokenService
+                                                                                    .issue(
+                                                                                            saved
+                                                                                                    .getId())
+                                                                                    .map(
+                                                                                            rawRefresh ->
+                                                                                                    new TokenResponse(
+                                                                                                            tokenWithJti
+                                                                                                                    .token(),
+                                                                                                            Instant
+                                                                                                                    .now()
+                                                                                                                    .plusMillis(
+                                                                                                                            JwtService
+                                                                                                                                    .EXPIRY_MS),
+                                                                                                            rawRefresh)));
+                                                })
                                         .doOnSuccess(
                                                 resp ->
                                                         auditPublisher.publish(
@@ -98,28 +104,39 @@ public class AuthService {
                                         .flatMap(
                                                 user ->
                                                         resolveTenantName(user.getTenantId())
-                                                                .map(
-                                                                        tenantName ->
-                                                                                new TokenResponse(
-                                                                                        jwtService
-                                                                                                .generateToken(
-                                                                                                        user
-                                                                                                                .getUsername(),
-                                                                                                        user.getRole()
-                                                                                                                .name(),
-                                                                                                        user
-                                                                                                                .getTenantId(),
-                                                                                                        tenantName
-                                                                                                                        .isEmpty()
-                                                                                                                ? null
-                                                                                                                : tenantName),
-                                                                                        Instant
-                                                                                                .now()
-                                                                                                .plusMillis(
-                                                                                                        JwtService
-                                                                                                                .EXPIRY_MS),
-                                                                                        result
-                                                                                                .newRawToken()))));
+                                                                .flatMap(
+                                                                        tenantName -> {
+                                                                            var tokenWithJti =
+                                                                                    jwtService
+                                                                                            .generateTokenWithJti(
+                                                                                                    user
+                                                                                                            .getUsername(),
+                                                                                                    user.getRole()
+                                                                                                            .name(),
+                                                                                                    user
+                                                                                                            .getTenantId(),
+                                                                                                    tenantName
+                                                                                                                    .isEmpty()
+                                                                                                            ? null
+                                                                                                            : tenantName);
+                                                                            user.setCurrentJti(
+                                                                                    tokenWithJti
+                                                                                            .jti());
+                                                                            return userRepository
+                                                                                    .save(user)
+                                                                                    .map(
+                                                                                            saved ->
+                                                                                                    new TokenResponse(
+                                                                                                            tokenWithJti
+                                                                                                                    .token(),
+                                                                                                            Instant
+                                                                                                                    .now()
+                                                                                                                    .plusMillis(
+                                                                                                                            JwtService
+                                                                                                                                    .EXPIRY_MS),
+                                                                                                            result
+                                                                                                                    .newRawToken()));
+                                                                        })));
     }
 
     private Mono<String> resolveTenantName(UUID tenantId) {

@@ -22,6 +22,7 @@ public class JwtAuthenticationFilter implements WebFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final JwtRevocationService revocationService;
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
@@ -34,6 +35,11 @@ public class JwtAuthenticationFilter implements WebFilter {
         String token = authHeader.substring(BEARER_PREFIX.length());
 
         try {
+            String jti = jwtService.extractJti(token);
+            if (jti != null && revocationService.isRevoked(jti)) {
+                log.debug("JWT revoked: jti={}", jti);
+                return chain.filter(exchange);
+            }
             String username = jwtService.extractUsername(token);
             String roleStr = jwtService.extractRole(token);
             Role role = Role.valueOf(roleStr);
