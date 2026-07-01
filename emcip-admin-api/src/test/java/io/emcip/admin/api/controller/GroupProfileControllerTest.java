@@ -2,6 +2,7 @@ package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -9,6 +10,9 @@ import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.service.GroupProfileService;
 import io.emcip.common.tenant.TenantContext;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,9 +30,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class GroupProfileControllerTest {
 
     @Mock private GroupProfileService service;
+    @Mock private RateLimiterRegistry rateLimiterRegistry;
 
     private GroupProfileController controller;
     private WebTestClient webTestClient;
@@ -40,7 +48,10 @@ class GroupProfileControllerTest {
     @BeforeEach
     void setUp() {
         TenantContext.setAdminMode(true);
-        controller = new GroupProfileController(service);
+        RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
+        when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
+
+        controller = new GroupProfileController(service, rateLimiterRegistry);
         webTestClient =
                 WebTestClient.bindToController(controller)
                         .controllerAdvice(new GlobalExceptionHandler())
