@@ -1,0 +1,9 @@
+# Production overrides — use with: helm install -f values.yaml -f values-prod.yaml
+ingress:
+  tls:
+    enabled: true
+    issuer: letsencrypt-prod
+    email: ""  # MUST be set during install: --set ingress.tls.email=admin@example.com
+
+# Database SSL
+DB_SSL_MODE: "require"

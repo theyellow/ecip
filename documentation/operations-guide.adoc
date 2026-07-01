@@ -133,6 +133,14 @@ helm install strimzi-operator strimzi/strimzi-kafka-operator \
 
 |Namespace
 |`kubectl create namespace emcip`
+
+|cert-manager (optional — required only for TLS)
+a|
+[source,bash]
+----
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml
+kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s
+----
 |===
 
 === Image Overview
@@ -411,6 +419,32 @@ echo "$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].a
 |http://emcip.local/grafana
 |admin / <grafana-admin-password>
 |===
+
+=== TLS Certificate Management
+
+EMCIP uses https://cert-manager.io[cert-manager] for automated TLS certificate provisioning via Let's Encrypt.
+
+==== Prerequisites
+
+cert-manager must be installed cluster-wide before enabling TLS:
+
+[source,bash]
+----
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml
+kubectl wait --for=condition=Available deployment/cert-manager -n cert-manager --timeout=120s
+----
+
+==== Enabling TLS
+
+[source,bash]
+----
+helm upgrade emcip ./helm/emcip \
+  -f helm/emcip/values.yaml \
+  -f helm/emcip/values-prod.yaml \
+  --set ingress.tls.email=admin@example.com
+----
+
+This creates a `ClusterIssuer` for Let's Encrypt and configures the Ingress to use it. Certificates are automatically provisioned and renewed.
 
 === Namespace Strategy
 

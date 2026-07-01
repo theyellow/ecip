@@ -42,10 +42,10 @@ ingress:
   className: nginx
   host: emcip.local
   tls:
-    # Set enabled: true to activate cert-manager TLS (self-signed, works offline).
-    # Requires cert-manager to be installed in the cluster.
     enabled: false
-    issuer: emcip-selfsigned
+    issuer: letsencrypt-prod
+    email: ""
+    acmeServer: ""  # defaults to Let's Encrypt production
 
 # ============================================================
 # Application services
