@@ -12,13 +12,17 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
 class AdminAuditPublisherTest {
 
     @Mock private KafkaTemplate<String, String> kafkaTemplate;
+
+    @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks private AdminAuditPublisher publisher;
 

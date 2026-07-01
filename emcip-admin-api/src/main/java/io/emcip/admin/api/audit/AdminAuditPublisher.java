@@ -18,7 +18,7 @@ public class AdminAuditPublisher {
     private static final String TOPIC = "audit.events";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
     /**
      * Publishes an admin audit event to the audit.events Kafka topic.
