@@ -41,25 +41,25 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.secretName }}
-                  key: {{ $svc.name }}-db-user
+                  key: postgres-user
                   optional: true
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.secretName }}
-                  key: {{ $svc.name }}-db-password
+                  key: postgres-password
                   optional: true
             - name: SPRING_R2DBC_USERNAME
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.secretName }}
-                  key: {{ $svc.name }}-db-user
+                  key: postgres-user
                   optional: true
             - name: SPRING_R2DBC_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ $.Values.secretName }}
-                  key: {{ $svc.name }}-db-password
+                  key: postgres-password
                   optional: true
             - name: SPRING_LIQUIBASE_USERNAME
               valueFrom:

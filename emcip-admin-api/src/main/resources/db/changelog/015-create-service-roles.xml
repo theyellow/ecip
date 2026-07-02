@@ -7,7 +7,7 @@
     <changeSet id="015-create-service-roles" author="redteam-remediation"
                context="!test">
         <comment>RT-006: Create per-service PostgreSQL roles with least-privilege grants</comment>
-        <sql splitStatements="true" endDelimiter=";">
+        <sql splitStatements="false">
             -- Role for admin-api
             DO $$ BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'emcip_admin_api') THEN
