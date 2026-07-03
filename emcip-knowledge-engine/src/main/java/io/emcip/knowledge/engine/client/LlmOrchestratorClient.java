@@ -35,20 +35,21 @@ public class LlmOrchestratorClient {
             return CircuitBreaker.decorateCheckedSupplier(
                             circuitBreaker(),
                             () -> {
-                                Map<String, String> request =
-                                        Map.of("prompt", text, "taskType", "EMBED");
+                                Map<String, String> request = Map.of("input", text);
                                 var response =
                                         restClient
                                                 .post()
-                                                .uri("/api/analyse")
+                                                .uri("/api/embed")
                                                 .body(request)
                                                 .retrieve()
-                                                .body(AnalyseResponse.class);
+                                                .body(EmbedResponse.class);
                                 if (response == null || !response.success()) {
                                     log.error("Embedding failed: {}", response);
                                     return new float[0];
                                 }
-                                return parseEmbedding(response.analysis());
+                                return response.embedding() != null
+                                        ? response.embedding()
+                                        : new float[0];
                             })
                     .get();
         } catch (CallNotPermittedException e) {
@@ -254,20 +255,7 @@ Respond with the matching candidate label, or "NEW" if no match.
         }
     }
 
-    private float[] parseEmbedding(String text) {
-        try {
-            String cleaned = text.replaceAll("[\\[\\]\\s]", "");
-            String[] parts = cleaned.split(",");
-            float[] embedding = new float[parts.length];
-            for (int i = 0; i < parts.length; i++) {
-                embedding[i] = Float.parseFloat(parts[i].trim());
-            }
-            return embedding;
-        } catch (Exception e) {
-            log.error("Failed to parse embedding: {}", text, e);
-            return new float[0];
-        }
-    }
-
     private record AnalyseResponse(boolean success, String analysis, String model) {}
+
+    private record EmbedResponse(boolean success, float[] embedding, String model) {}
 }

@@ -2,6 +2,7 @@ package io.emcip.llm.orchestrator.client;
 
 import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
 import io.emcip.llm.orchestrator.service.LlmProviderConfigService;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -170,6 +171,77 @@ public class OpenAiCompatibleLlmClient {
         } catch (Exception e) {
             throw new RuntimeException(
                     "LiteLLM API call failed [" + provider.getBaseUrl() + "]: " + e.getMessage(),
+                    e);
+        }
+    }
+
+    /**
+     * Call the OpenAI-compatible embeddings endpoint.
+     *
+     * @param model Model name as configured in LiteLLM (e.g. "bge-m3")
+     * @param input Text to embed
+     * @return float array of the embedding vector
+     */
+    public float[] embed(String model, String input) {
+        LlmProviderConfig provider =
+                providerConfigService
+                        .getActiveProvider()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "No active LLM provider configured — set one via"
+                                                        + " Admin UI > AI Config > LLM Provider"));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("input", input);
+
+        log.debug("Calling LiteLLM embeddings: url={}, model={}", provider.getBaseUrl(), model);
+
+        try {
+            String apiKey = provider.getApiKey();
+            RestClient restClient = RestClient.create();
+            String responseJson =
+                    restClient
+                            .post()
+                            .uri(provider.getBaseUrl() + "/v1/embeddings")
+                            .headers(
+                                    h -> {
+                                        h.setContentType(MediaType.APPLICATION_JSON);
+                                        if (apiKey != null && !apiKey.isBlank()) {
+                                            h.setBearerAuth(apiKey);
+                                        }
+                                    })
+                            .body(body)
+                            .retrieve()
+                            .body(String.class);
+
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode embeddingArray = root.path("data").get(0).path("embedding");
+
+            List<Float> values = new ArrayList<>();
+            for (JsonNode val : embeddingArray) {
+                values.add((float) val.asDouble());
+            }
+
+            float[] result = new float[values.size()];
+            for (int i = 0; i < values.size(); i++) {
+                result[i] = values.get(i);
+            }
+
+            log.debug(
+                    "LiteLLM embeddings response: model={}, dimensions={}",
+                    root.path("model").asText(model),
+                    result.length);
+
+            return result;
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "LiteLLM embeddings call failed ["
+                            + provider.getBaseUrl()
+                            + "]: "
+                            + e.getMessage(),
                     e);
         }
     }

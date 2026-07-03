@@ -57,6 +57,10 @@ public class OrchestratorController {
 
     public record AnalyseResponse(boolean success, String analysis, String model) {}
 
+    public record EmbedRequest(String input) {}
+
+    public record EmbedResponse(boolean success, float[] embedding, String model) {}
+
     public record ChatMessage(String role, String content) {}
 
     public record ChatRequest(List<ChatMessage> messages, String taskType) {}
@@ -332,6 +336,26 @@ public class OrchestratorController {
             log.error("Ad-hoc LLM analysis failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(new AnalyseResponse(false, "LLM call failed: " + e.getMessage(), null));
+        }
+    }
+
+    @Operation(
+            summary = "Generate an embedding vector for the given text using the EMBED task model")
+    @PostMapping("/embed")
+    public ResponseEntity<EmbedResponse> embed(@RequestBody EmbedRequest req) {
+        Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask("EMBED");
+        if (modelOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new EmbedResponse(false, new float[0], null));
+        }
+        ModelConfig model = modelOpt.get();
+        try {
+            float[] embedding = llmClient.embed(model.getModelName(), req.input());
+            return ResponseEntity.ok(new EmbedResponse(true, embedding, model.getModelName()));
+        } catch (Exception e) {
+            log.error("Embedding call failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new EmbedResponse(false, new float[0], null));
         }
     }
 

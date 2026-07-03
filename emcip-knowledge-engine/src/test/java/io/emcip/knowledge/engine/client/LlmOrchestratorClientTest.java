@@ -100,10 +100,10 @@ class LlmOrchestratorClientTest {
     }
 
     @Test
-    void shouldCallAnalyseEndpointWithEmbedTaskType() throws Exception {
+    void shouldCallEmbedEndpoint() throws Exception {
         String responseJson =
                 """
-                {"success":true,"analysis":"[0.1,0.2,0.3]","model":"embed-model"}
+                {"success":true,"embedding":[0.1,0.2,0.3],"model":"embed-model"}
                 """;
         mockWebServer.enqueue(
                 new MockResponse()
@@ -113,7 +113,10 @@ class LlmOrchestratorClientTest {
         float[] embedding = client.embed("Some text to embed");
 
         assertThat(embedding).isNotEmpty();
+        assertThat(embedding).hasSize(3);
+        assertThat(embedding[0]).isEqualTo(0.1f, org.assertj.core.data.Offset.offset(0.001f));
         var request = mockWebServer.takeRequest();
-        assertThat(request.getBody().readUtf8()).contains("EMBED");
+        assertThat(request.getPath()).isEqualTo("/api/embed");
+        assertThat(request.getBody().readUtf8()).contains("Some text to embed");
     }
 }
