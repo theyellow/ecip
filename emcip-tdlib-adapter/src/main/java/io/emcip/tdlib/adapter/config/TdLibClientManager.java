@@ -132,14 +132,19 @@ public class TdLibClientManager {
         tenantIds.remove(accountId);
     }
 
-    public void updateWatchedChats(UUID accountId, Set<Long> chatIds, Set<Long> knowledgeChatIds) {
+    public void updateWatchedChats(
+            UUID accountId, Set<Long> chatIds, Set<Long> knowledgeChatIds, String tenantId) {
         watchedChatIds.put(accountId, chatIds);
         knowledgeForkChatIds.put(accountId, knowledgeChatIds);
+        if (tenantId != null && !tenantId.isBlank()) {
+            tenantIds.put(accountId, tenantId);
+        }
         log.debug(
-                "[{}] Watched chat IDs updated: {}, knowledge fork: {}",
+                "[{}] Watched chat IDs updated: {}, knowledge fork: {}, tenantId: {}",
                 accountId,
                 chatIds,
-                knowledgeChatIds);
+                knowledgeChatIds,
+                tenantId);
     }
 
     public Set<Long> getWatchedChatIds(UUID accountId) {

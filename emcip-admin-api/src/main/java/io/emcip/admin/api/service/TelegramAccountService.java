@@ -310,56 +310,97 @@ public class TelegramAccountService {
     }
 
     public Mono<Void> pushWatchedGroups(UUID accountId) {
-        return watchedGroupRepository
-                .findByAccountId(accountId)
-                .flatMap(awg -> groupProfileRepository.findById(awg.getGroupProfileId()))
-                .collectList()
+        return repository
+                .findById(accountId)
                 .flatMap(
-                        profiles -> {
-                            List<Long> chatIds =
-                                    profiles.stream().map(GroupProfile::getTelegramChatId).toList();
-                            List<Long> knowledgeChatIds =
-                                    profiles.stream()
-                                            .filter(GroupProfile::isKnowledgeForkEnabled)
-                                            .map(GroupProfile::getTelegramChatId)
-                                            .toList();
-                            Map<String, Object> payload = new LinkedHashMap<>();
-                            payload.put("chatIds", chatIds);
-                            payload.put("knowledgeChatIds", knowledgeChatIds);
-                            return tdlibClient
-                                    .post()
-                                    .uri("/internal/watched-groups/{id}", accountId)
-                                    .bodyValue(payload)
-                                    .retrieve()
-                                    .bodyToMono(Void.class)
-                                    .transformDeferred(
-                                            CircuitBreakerOperator.of(tdlibCircuitBreaker))
-                                    .retryWhen(
-                                            reactor.util.retry.Retry.backoff(
-                                                            5, Duration.ofSeconds(2))
-                                                    .maxBackoff(Duration.ofSeconds(30))
-                                                    .doBeforeRetry(
-                                                            signal ->
-                                                                    log.warn(
-                                                                            "[{}] Retrying"
-                                                                                + " watched-groups"
-                                                                                + " push (attempt"
-                                                                                + " {}): {}",
-                                                                            accountId,
-                                                                            signal.totalRetries()
-                                                                                    + 1,
-                                                                            signal.failure()
-                                                                                    .getMessage())))
-                                    .onErrorResume(
-                                            e -> {
-                                                log.error(
-                                                        "[{}] Failed to push watched groups"
-                                                                + " after retries: {}",
-                                                        accountId,
-                                                        e.getMessage());
-                                                return Mono.empty();
-                                            });
-                        })
+                        account ->
+                                watchedGroupRepository
+                                        .findByAccountId(accountId)
+                                        .flatMap(
+                                                awg ->
+                                                        groupProfileRepository.findById(
+                                                                awg.getGroupProfileId()))
+                                        .collectList()
+                                        .flatMap(
+                                                profiles -> {
+                                                    List<Long> chatIds =
+                                                            profiles.stream()
+                                                                    .map(
+                                                                            GroupProfile
+                                                                                    ::getTelegramChatId)
+                                                                    .toList();
+                                                    List<Long> knowledgeChatIds =
+                                                            profiles.stream()
+                                                                    .filter(
+                                                                            GroupProfile
+                                                                                    ::isKnowledgeForkEnabled)
+                                                                    .map(
+                                                                            GroupProfile
+                                                                                    ::getTelegramChatId)
+                                                                    .toList();
+                                                    Map<String, Object> payload =
+                                                            new LinkedHashMap<>();
+                                                    payload.put("chatIds", chatIds);
+                                                    payload.put(
+                                                            "knowledgeChatIds", knowledgeChatIds);
+                                                    if (account.getTenantId() != null) {
+                                                        payload.put(
+                                                                "tenantId",
+                                                                account.getTenantId().toString());
+                                                    }
+                                                    return tdlibClient
+                                                            .post()
+                                                            .uri(
+                                                                    "/internal/watched-groups/{id}",
+                                                                    accountId)
+                                                            .bodyValue(payload)
+                                                            .retrieve()
+                                                            .bodyToMono(Void.class)
+                                                            .transformDeferred(
+                                                                    CircuitBreakerOperator.of(
+                                                                            tdlibCircuitBreaker))
+                                                            .retryWhen(
+                                                                    reactor.util.retry.Retry
+                                                                            .backoff(
+                                                                                    5,
+                                                                                    Duration
+                                                                                            .ofSeconds(
+                                                                                                    2))
+                                                                            .maxBackoff(
+                                                                                    Duration
+                                                                                            .ofSeconds(
+                                                                                                    30))
+                                                                            .doBeforeRetry(
+                                                                                    signal ->
+                                                                                            log
+                                                                                                    .warn(
+                                                                                                            "[{}] Retrying"
+                                                                                                                + " watched-groups"
+                                                                                                                + " push"
+                                                                                                                + " (attempt"
+                                                                                                                + " {}):"
+                                                                                                                + " {}",
+                                                                                                            accountId,
+                                                                                                            signal
+                                                                                                                            .totalRetries()
+                                                                                                                    + 1,
+                                                                                                            signal.failure()
+                                                                                                                    .getMessage())))
+                                                            .onErrorResume(
+                                                                    e -> {
+                                                                        log.error(
+                                                                                "[{}] Failed to"
+                                                                                    + " push"
+                                                                                    + " watched"
+                                                                                    + " groups"
+                                                                                    + " after"
+                                                                                    + " retries:"
+                                                                                    + " {}",
+                                                                                accountId,
+                                                                                e.getMessage());
+                                                                        return Mono.empty();
+                                                                    });
+                                                }))
                 .then();
     }
 
