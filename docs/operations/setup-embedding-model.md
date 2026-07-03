@@ -1,7 +1,11 @@
-# Setting Up an Embedding Model for Knowledge Search
+# Setting Up Embedding and Extraction Models for Knowledge Search
 
-The knowledge-engine requires an embedding model to power vector and hybrid search.
-Without it, only graph search works (and only if graph data has been ingested).
+The knowledge-engine requires two special-purpose models:
+
+1. **EMBED** — an embedding model to power vector and hybrid search
+2. **EXTRACT** — a language model for entity/relationship extraction (knowledge graph)
+
+Without EMBED, only graph search works. Without EXTRACT, no graph data is built.
 
 ## Architecture
 
@@ -130,3 +134,110 @@ embedding models (e.g., from 768-dim to 1024-dim), you must:
 1. Truncate existing embeddings: `UPDATE ke_knowledge_documents SET embedding = NULL;`
 2. Clear graph embeddings: `DELETE FROM ke_graph_node_embeddings;`
 3. Re-ingest all documents
+
+---
+
+## Setting Up an Extraction Model (task_type: EXTRACT)
+
+The knowledge-engine uses a second LLM call to extract entities and relationships
+from ingested messages. This builds the knowledge graph that powers graph search.
+
+### What the EXTRACT task does
+
+The knowledge-engine sends a structured prompt like:
+
+```
+Extract structured knowledge from the text below.
+
+CONCEPT TYPES:
+- Person: A human individual
+- Organisation: A company or group
+...
+
+TEXT:
+<the message>
+
+Return JSON:
+{"entities": [...], "relationships": [...]}
+```
+
+This is a **structured JSON extraction** task — it needs a model that:
+- Understands the languages in your monitored groups (German, English, etc.)
+- Can follow instructions and output valid JSON
+- Does NOT need to be large — this is pattern matching, not reasoning
+
+### Choosing the right model
+
+| Model                  | Size  | Languages     | Speed   | Quality | Recommendation           |
+|------------------------|-------|---------------|---------|---------|--------------------------|
+| `qwen3:1.7b`           | 1.7B  | 100+ langs    | Very fast | Good    | **Best for EXTRACT** — smallest Qwen3 with multilingual + JSON |
+| `qwen3:4b`             | 4B    | 100+ langs    | Fast    | Better  | If 1.7B quality isn't enough |
+| `gemma3:4b`             | 4B    | 140+ langs    | Fast    | Good    | Alternative to Qwen       |
+| `phi4-mini:3.8b`        | 3.8B  | Multi         | Fast    | Good    | Strong JSON adherence     |
+| `standard-qwen3.6-moe` | 35B   | 100+ langs    | Slow    | Best    | Overkill for extraction   |
+
+**Recommendation: `qwen3:1.7b`** — It's the sweet spot for EXTRACT:
+- Tiny (1.2 GB RAM), runs alongside your embedding model without strain
+- Qwen3 family has excellent multilingual coverage (German, English, Russian, etc.)
+- Supports structured output / JSON mode
+- Fast enough to process message batches without bottlenecking ingestion
+
+You do **not** need your big 35B MoE model for this. Entity extraction is a
+focused task — a small model that understands the language and can output JSON
+is all you need. Save the big model for GENERAL/CHAT/MODERATION tasks that
+require reasoning.
+
+### Step 1: Pull the model
+
+```bash
+ollama pull qwen3:1.7b
+```
+
+### Step 2: Add to LiteLLM config
+
+```yaml
+model_list:
+  - model_name: qwen3-1.7b-extract
+    litellm_params:
+      model: ollama/qwen3:1.7b
+      api_base: http://localhost:11434
+```
+
+### Step 3: Register in EMCIP
+
+```sql
+INSERT INTO model_configs (
+    id, model_key, provider, model_name, description,
+    task_type, input_cost_per1k_tokens, output_cost_per1k_tokens,
+    context_window, max_output_tokens, avg_latency_ms,
+    supports_streaming, active, priority, created_at, updated_at, version_lock
+) VALUES (
+    gen_random_uuid(),
+    'qwen3-1.7b-extract',
+    'local-litellm',
+    'qwen3-1.7b-extract',        -- must match LiteLLM model_name
+    'Small multilingual model for knowledge entity extraction',
+    'EXTRACT',                     -- IMPORTANT: must be exactly 'EXTRACT'
+    0.0, 0.0,
+    32768,                         -- context window
+    4096,                          -- max output tokens (JSON can be verbose)
+    200.0,                         -- avg latency in ms
+    false,
+    true,
+    100,
+    now(), now(), 0
+);
+```
+
+### Step 4: Verify
+
+```bash
+# Test via LLM orchestrator
+kubectl exec -n emcip <llm-orchestrator-pod> -- curl -s -X POST \
+  http://localhost:9085/api/analyse \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Extract entities: Alice discussed AI safety with Bob", "taskType": "EXTRACT"}'
+# Should return JSON with entities and relationships
+```
+
+After configuring EXTRACT, re-run backfill to populate the knowledge graph.
