@@ -52,6 +52,11 @@ public class BackfillProxyController {
         return Mono.deferContextual(
                         ctx -> {
                             String tenantIdStr = ReactorTenantContext.getTenantId(ctx);
+                            // For ADMIN users the Reactor context carries no tenant; fall back to
+                            // the tenantId supplied by the UI from the group profile.
+                            if (tenantIdStr == null && request.tenantId() != null) {
+                                tenantIdStr = request.tenantId().toString();
+                            }
 
                             long fromEpoch = Instant.parse(request.fromDate()).getEpochSecond();
 
@@ -111,5 +116,5 @@ public class BackfillProxyController {
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
-    public record BackfillTriggerRequest(UUID accountId, String fromDate) {}
+    public record BackfillTriggerRequest(UUID accountId, String fromDate, UUID tenantId) {}
 }

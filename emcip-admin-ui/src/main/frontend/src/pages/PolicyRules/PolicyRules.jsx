@@ -23,15 +23,17 @@ const WILDCARD = '*'
 const CUSTOM_SENTINEL = '__custom__'
 
 function IntentSelect({ value, onChange, knownIntents }) {
-  const isCustom = value !== WILDCARD && value !== '' && !knownIntents.includes(value)
-  const [custom, setCustom] = useState(isCustom ? value : '')
-  const selectValue = isCustom ? CUSTOM_SENTINEL : value
+  const isCustomValue = value !== WILDCARD && value !== '' && !knownIntents.includes(value)
+  const [customMode, setCustomMode] = useState(isCustomValue)
+  const [custom, setCustom] = useState(isCustomValue ? value : '')
+  const selectValue = customMode || isCustomValue ? CUSTOM_SENTINEL : value
 
   const handleSelect = e => {
     const v = e.target.value
     if (v === CUSTOM_SENTINEL) {
-      onChange(custom)
+      setCustomMode(true)
     } else {
+      setCustomMode(false)
       setCustom('')
       onChange(v)
     }
@@ -52,7 +54,7 @@ function IntentSelect({ value, onChange, knownIntents }) {
         ))}
         <option value={CUSTOM_SENTINEL}>Custom…</option>
       </select>
-      {(selectValue === CUSTOM_SENTINEL || isCustom) && (
+      {(customMode || isCustomValue) && (
         <input
           type="text"
           className={styles.input}
