@@ -141,19 +141,27 @@ public class InternalController {
                                 return new ChatHistoryResponse(List.of(), false, 0L);
                             }
                             List<String> jsons = new ArrayList<>();
-                            boolean hasMore = messages.messages.length == limit;
-                            long lastId = 0L;
+                            // TDLib returns messages newest-first. We paginate backwards by
+                            // passing the smallest (oldest) message ID as the next offset.
+                            // lastId tracks the oldest ID seen in this batch.
+                            long lastId = Long.MAX_VALUE;
+                            boolean allOlderThanCutoff = true;
 
                             for (TdApi.Message msg : messages.messages) {
-                                if (msg.date < fromDate) {
-                                    hasMore = false;
-                                    break;
+                                // Track the oldest message ID for the next pagination offset.
+                                if (msg.id < lastId) {
+                                    lastId = msg.id;
                                 }
+                                // Skip messages older than the requested cutoff but continue
+                                // iterating so we find the true oldest ID in the batch.
+                                if (msg.date < fromDate) {
+                                    continue;
+                                }
+                                allOlderThanCutoff = false;
                                 try {
                                     EventSchemas.TelegramMessageEvent event =
                                             toHistoricalEvent(msg);
                                     jsons.add(objectMapper.writeValueAsString(event));
-                                    lastId = msg.id;
                                 } catch (JacksonException e) {
                                     log.warn(
                                             "[{}] Failed to serialize message {}: {}",
@@ -162,6 +170,18 @@ public class InternalController {
                                             e.getMessage());
                                 }
                             }
+
+                            // Resolve sentinel: if no messages at all, lastId stays MAX_VALUE.
+                            if (lastId == Long.MAX_VALUE) {
+                                lastId = 0L;
+                            }
+
+                            // Continue pagination only when:
+                            //  - the batch was full (implies more messages exist in TDLib), AND
+                            //  - we have not yet gone past the cutoff (i.e. not every message in
+                            //    this batch was older than fromDate).
+                            boolean hasMore =
+                                    messages.messages.length == limit && !allOlderThanCutoff;
 
                             return new ChatHistoryResponse(jsons, hasMore, lastId);
                         });

@@ -69,6 +69,7 @@ public class GroupProfileService {
                             existing.setModerationLevel(patch.getModerationLevel());
                             existing.setAutoRespond(patch.isAutoRespond());
                             existing.setWelcomeMessage(patch.getWelcomeMessage());
+                            existing.setKnowledgeForkEnabled(patch.isKnowledgeForkEnabled());
                             existing.setUpdatedAt(Instant.now());
                             return repository.save(existing);
                         });

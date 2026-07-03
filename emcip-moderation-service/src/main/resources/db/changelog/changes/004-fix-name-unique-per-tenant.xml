@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="004-fix-name-unique-per-tenant" author="phase5">
+        <sql splitStatements="false">
+            ALTER TABLE moderation_rules DROP CONSTRAINT IF EXISTS moderation_rules_name_key;
+        </sql>
+        <addUniqueConstraint
+                tableName="moderation_rules"
+                columnNames="name, tenant_id"
+                constraintName="uq_moderation_rules_name_tenant"/>
+    </changeSet>
+
+</databaseChangeLog>

@@ -84,10 +84,14 @@ export function BackfillModal({ group, onClose, api }) {
 
   async function handleSubmit() {
     try {
-      const result = await api.backfill(group.telegramChatId, {
+      const body = {
         accountId: selectedAccountId,
         fromDate: resolvedFromDate,
-      })
+      }
+      if (group.tenantId) {
+        body.tenantId = group.tenantId
+      }
+      const result = await api.backfill(group.telegramChatId, body)
       setBackfillId(result.backfillId)
       setPhase('polling')
     } catch (e) {
