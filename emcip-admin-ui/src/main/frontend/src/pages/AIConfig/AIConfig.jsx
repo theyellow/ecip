@@ -91,7 +91,7 @@ function ModelModal({ model, onClose, onSave }) {
         <label>Task Type</label>
         <select className={styles.input} value={form.taskType}
           onChange={e => set('taskType', e.target.value)}>
-          {['GENERAL', 'CLASSIFICATION', 'MODERATION', 'SUMMARIZATION', 'CHAT'].map(t => (
+          {['GENERAL', 'CLASSIFICATION', 'MODERATION', 'EMBED', 'EXTRACT', 'CHAT', 'SUMMARIZATION'].map(t => (
             <option key={t}>{t}</option>
           ))}
         </select>
