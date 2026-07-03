@@ -63,6 +63,7 @@ public class ModelConfig {
                 "CLASSIFICATION",
                 "MODERATION",
                 "EMBED",
+                "EXTRACT",
                 "CHAT",
                 "SUMMARIZATION"
             })
