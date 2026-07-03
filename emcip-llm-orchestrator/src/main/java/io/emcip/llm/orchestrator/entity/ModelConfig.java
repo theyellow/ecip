@@ -58,7 +58,14 @@ public class ModelConfig {
     @Schema(
             description = "Task category this model is optimised for",
             example = "CHAT",
-            allowableValues = {"CHAT", "CLASSIFICATION", "EMBEDDING", "COMPLETION"})
+            allowableValues = {
+                "GENERAL",
+                "CLASSIFICATION",
+                "MODERATION",
+                "EMBED",
+                "CHAT",
+                "SUMMARIZATION"
+            })
     @Column(nullable = false, length = 50)
     private String taskType;
 
