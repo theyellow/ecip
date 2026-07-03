@@ -241,3 +241,128 @@ kubectl exec -n emcip <llm-orchestrator-pod> -- curl -s -X POST \
 ```
 
 After configuring EXTRACT, re-run backfill to populate the knowledge graph.
+
+---
+
+## Using One Model for Multiple Task Types
+
+A single Ollama model can serve multiple EMCIP task types (e.g. EXTRACT +
+CLASSIFICATION). This saves RAM — Ollama loads the model once regardless of
+how many LiteLLM aliases point to it.
+
+### How it works
+
+```
+EMCIP model_configs          LiteLLM config              Ollama
+┌──────────────────┐    ┌─────────────────────┐    ┌──────────────┐
+│ task: EXTRACT    │───▶│ qwen3-4b-extract    │───▶│              │
+│ model: qwen3-4b- │    │ model: ollama_chat/  │    │  qwen3:4b    │
+│        extract   │    │        qwen3:4b      │    │  (loaded     │
+├──────────────────┤    ├─────────────────────┤    │   once)      │
+│ task: CLASSIFY   │───▶│ qwen3-4b-classify   │───▶│              │
+│ model: qwen3-4b- │    │ model: ollama_chat/  │    │              │
+│        classify  │    │        qwen3:4b      │    └──────────────┘
+└──────────────────┘    └─────────────────────┘
+```
+
+### LiteLLM config
+
+Create separate aliases pointing to the same Ollama model. Each alias needs
+its own `model_info.mode` declaration so LiteLLM routes health checks and
+requests correctly.
+
+```yaml
+model_list:
+  # --- Embedding model (dedicated, cannot be shared) ---
+  - model_name: bge-m3
+    litellm_params:
+      model: ollama/bge-m3
+      api_base: http://localhost:11434
+    model_info:
+      mode: embedding        # REQUIRED: routes to /api/embed in Ollama
+
+  # --- Small model for EXTRACT ---
+  - model_name: qwen3-4b-extract
+    litellm_params:
+      model: ollama_chat/qwen3:4b      # ollama_chat/ routes to /api/chat
+      api_base: http://localhost:11434
+    model_info:
+      mode: completion
+
+  # --- Same model, different alias for CLASSIFICATION ---
+  - model_name: qwen3-4b-classify
+    litellm_params:
+      model: ollama_chat/qwen3:4b      # same underlying model
+      api_base: http://localhost:11434
+    model_info:
+      mode: completion
+```
+
+**Key points:**
+- Use `ollama_chat/` prefix for chat/completion models (routes to `/api/chat`)
+- Use `ollama/` prefix for embedding models (routes to `/api/embed`)
+- Set `model_info.mode` explicitly — `embedding` or `completion` — so health
+  checks and request routing work correctly
+- Ollama loads `qwen3:4b` into RAM once; both aliases share it
+
+### EMCIP model_configs (DB or Admin UI)
+
+Add one row per task type, each pointing to its LiteLLM alias:
+
+```sql
+-- EXTRACT task
+INSERT INTO model_configs (
+    id, model_key, provider, model_name, description,
+    task_type, input_cost_per1k_tokens, output_cost_per1k_tokens,
+    context_window, max_output_tokens, avg_latency_ms,
+    supports_streaming, active, priority, created_at, updated_at, version_lock
+) VALUES (
+    gen_random_uuid(),
+    'qwen3-4b-extract',
+    'local-litellm',
+    'qwen3-4b-extract',
+    'Small multilingual model for entity extraction',
+    'EXTRACT', 0.0, 0.0, 32768, 4096, 200.0,
+    false, true, 100, now(), now(), 0
+);
+
+-- CLASSIFICATION task (same underlying model, different alias)
+INSERT INTO model_configs (
+    id, model_key, provider, model_name, description,
+    task_type, input_cost_per1k_tokens, output_cost_per1k_tokens,
+    context_window, max_output_tokens, avg_latency_ms,
+    supports_streaming, active, priority, created_at, updated_at, version_lock
+) VALUES (
+    gen_random_uuid(),
+    'qwen3-4b-classify',
+    'local-litellm',
+    'qwen3-4b-classify',
+    'Small multilingual model for intent classification',
+    'CLASSIFICATION', 0.0, 0.0, 32768, 1024, 150.0,
+    false, true, 100, now(), now(), 0
+);
+```
+
+### Why separate aliases?
+
+You could point both model_configs rows at the same LiteLLM `model_name`,
+but separate aliases give you:
+- **Per-task-type metrics** in LiteLLM dashboard (extract vs classify traffic)
+- **Independent rate limits** if needed later
+- **Easy migration** — swap one task to a different model without touching the other
+
+### Embedding models cannot be shared
+
+Embedding models (bge-m3, nomic-embed-text) are special-purpose and only
+support the `/v1/embeddings` API. They cannot serve EXTRACT, CLASSIFICATION,
+or any other chat/completion task type. They always need their own dedicated
+alias with `mode: embedding`.
+
+### Model size guidance
+
+| Task types to cover | Recommended model | RAM |
+|---|---|---|
+| EXTRACT only | `qwen3:1.7b` | ~1.2 GB |
+| EXTRACT + CLASSIFICATION | `qwen3:4b` | ~2.5 GB |
+| EXTRACT + CLASSIFICATION + MODERATION | `qwen3:4b` | ~2.5 GB |
+| GENERAL + CHAT (reasoning needed) | Keep your 35B MoE | ~20 GB |
