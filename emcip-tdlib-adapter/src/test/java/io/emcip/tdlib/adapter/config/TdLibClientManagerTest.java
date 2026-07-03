@@ -57,15 +57,15 @@ class TdLibClientManagerTest {
     @Test
     void updateWatchedChats_storesSetForAccount() {
         UUID id = UUID.randomUUID();
-        manager.updateWatchedChats(id, Set.of(111L, 222L), Set.of());
+        manager.updateWatchedChats(id, Set.of(111L, 222L), Set.of(), null);
         assertThat(manager.getWatchedChatIds(id)).containsExactlyInAnyOrder(111L, 222L);
     }
 
     @Test
     void updateWatchedChats_replacesExistingSet() {
         UUID id = UUID.randomUUID();
-        manager.updateWatchedChats(id, Set.of(111L), Set.of());
-        manager.updateWatchedChats(id, Set.of(999L), Set.of());
+        manager.updateWatchedChats(id, Set.of(111L), Set.of(), null);
+        manager.updateWatchedChats(id, Set.of(999L), Set.of(), null);
         assertThat(manager.getWatchedChatIds(id)).containsExactly(999L);
     }
 
@@ -73,7 +73,7 @@ class TdLibClientManagerTest {
     void removeClient_clearsWatchedSet() {
         UUID id = UUID.randomUUID();
         manager.registerClient(id, stubClient(id));
-        manager.updateWatchedChats(id, Set.of(111L), Set.of());
+        manager.updateWatchedChats(id, Set.of(111L), Set.of(), null);
         manager.removeClient(id);
         assertThat(manager.getWatchedChatIds(id)).isEmpty();
     }

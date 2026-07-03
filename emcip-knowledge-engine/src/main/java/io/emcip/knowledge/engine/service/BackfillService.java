@@ -21,6 +21,7 @@ import org.springframework.web.client.RestClient;
 public class BackfillService {
 
     private static final String TOPIC_KNOWLEDGE_RAW = "knowledge.raw.messages";
+    private static final String TOPIC_TELEGRAM_RAW = "telegram.raw.messages";
     private static final int MAX_ITERATIONS = 5000;
     private static final long BATCH_DELAY_MS = 100;
     private static final ExecutorService BACKFILL_EXECUTOR =
@@ -101,16 +102,19 @@ public class BackfillService {
                 }
 
                 for (String msgJson : batch.messages()) {
-                    ProducerRecord<String, String> record =
+                    ProducerRecord<String, String> knowledgeRecord =
                             new ProducerRecord<>(
                                     TOPIC_KNOWLEDGE_RAW, String.valueOf(chatId), msgJson);
+                    ProducerRecord<String, String> telegramRecord =
+                            new ProducerRecord<>(
+                                    TOPIC_TELEGRAM_RAW, String.valueOf(chatId), msgJson);
                     if (tenantId != null) {
-                        record.headers()
-                                .add(
-                                        TenantContext.KAFKA_HEADER,
-                                        tenantId.toString().getBytes(StandardCharsets.UTF_8));
+                        byte[] tenantBytes = tenantId.toString().getBytes(StandardCharsets.UTF_8);
+                        knowledgeRecord.headers().add(TenantContext.KAFKA_HEADER, tenantBytes);
+                        telegramRecord.headers().add(TenantContext.KAFKA_HEADER, tenantBytes);
                     }
-                    kafkaTemplate.send(record);
+                    kafkaTemplate.send(knowledgeRecord);
+                    kafkaTemplate.send(telegramRecord);
                 }
 
                 processed += batch.messages().size();

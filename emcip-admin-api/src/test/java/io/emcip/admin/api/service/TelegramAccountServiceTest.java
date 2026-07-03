@@ -172,6 +172,13 @@ class TelegramAccountServiceTest {
         AccountWatchedGroup awg2 = new AccountWatchedGroup();
         awg2.setGroupProfileId(2L);
 
+        TelegramAccount account =
+                TelegramAccount.builder()
+                        .id(accountId)
+                        .phoneNumber("+49000")
+                        .tenantId(UUID.randomUUID())
+                        .build();
+        when(repository.findById(accountId)).thenReturn(Mono.just(account));
         when(watchedGroupRepository.findByAccountId(accountId)).thenReturn(Flux.just(awg1, awg2));
         when(groupProfileRepository.findById(1L)).thenReturn(Mono.just(gp1));
         when(groupProfileRepository.findById(2L)).thenReturn(Mono.just(gp2));

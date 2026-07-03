@@ -37,11 +37,11 @@ class InternalControllerTest {
     void updateWatchedGroups_callsManager() {
         UUID accountId = UUID.randomUUID();
         InternalController.WatchedGroupsRequest req =
-                new InternalController.WatchedGroupsRequest(List.of(111L, 222L), List.of());
+                new InternalController.WatchedGroupsRequest(List.of(111L, 222L), List.of(), null);
 
         StepVerifier.create(controller.updateWatchedGroups(accountId, req)).verifyComplete();
 
-        verify(manager).updateWatchedChats(accountId, Set.of(111L, 222L), Set.of());
+        verify(manager).updateWatchedChats(accountId, Set.of(111L, 222L), Set.of(), null);
     }
 
     @Test
