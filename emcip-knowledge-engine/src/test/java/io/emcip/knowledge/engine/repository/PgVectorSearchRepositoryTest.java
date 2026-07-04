@@ -9,12 +9,16 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 
 @IntegrationTest
 class PgVectorSearchRepositoryTest {
 
     @Autowired private VectorSearchRepository vectorSearchRepository;
     @Autowired private KnowledgeDocumentRepository documentRepository;
+
+    @Value("${knowledge.embedding.dimension}")
+    private int embeddingDimension;
 
     @Test
     void shouldReturnRealSimilarityScores() {
@@ -38,15 +42,15 @@ class PgVectorSearchRepositoryTest {
         docB.setChunkIndex(0);
         KnowledgeDocument savedB = documentRepository.save(docB);
 
-        float[] closeEmbedding = new float[1024];
+        float[] closeEmbedding = new float[embeddingDimension];
         closeEmbedding[0] = 1.0f;
-        float[] farEmbedding = new float[1024];
+        float[] farEmbedding = new float[embeddingDimension];
         farEmbedding[1] = 1.0f; // orthogonal dimension
 
         vectorSearchRepository.storeEmbedding(savedA.getId(), closeEmbedding);
         vectorSearchRepository.storeEmbedding(savedB.getId(), farEmbedding);
 
-        float[] queryEmbedding = new float[1024];
+        float[] queryEmbedding = new float[embeddingDimension];
         queryEmbedding[0] = 1.0f; // identical to docA
 
         List<SearchResult<KnowledgeDocument>> results =

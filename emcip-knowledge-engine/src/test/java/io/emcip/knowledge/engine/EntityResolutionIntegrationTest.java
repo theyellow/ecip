@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -29,6 +30,9 @@ class EntityResolutionIntegrationTest {
     @MockitoBean private GraphRepository graphRepository;
     @MockitoBean private LlmOrchestratorClient llmClient;
 
+    @Value("${knowledge.embedding.dimension}")
+    private int embeddingDimension;
+
     private static final UUID SEEDED_NODE_ID =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
     private static final String TEST_CONCEPT_TYPE = "TOPIC";
@@ -40,9 +44,9 @@ class EntityResolutionIntegrationTest {
         jdbcTemplate.update("DELETE FROM ke_graph_node_embeddings");
     }
 
-    /** Build a 1024-dim float[] with value 1.0 at position 0 and 0.0 elsewhere. */
+    /** Build a float[] matching configured dimension with value 1.0 at position 0. */
     private float[] seedVector() {
-        float[] v = new float[1024];
+        float[] v = new float[embeddingDimension];
         v[0] = 1.0f;
         return v;
     }
@@ -77,7 +81,7 @@ class EntityResolutionIntegrationTest {
                 .thenReturn(Optional.empty());
 
         // Level 3: findEmbedding("ai", ...) returns empty (label "ai" not in DB),
-        // so llmClient.embed is called — return the same 1024-dim vector → cosine similarity = 1.0
+        // so llmClient.embed is called — return the same vector → cosine similarity = 1.0
         when(llmClient.embed("ai")).thenReturn(vector);
 
         UUID result = resolutionService.resolve("AI", TEST_CONCEPT_TYPE, tenantId);
