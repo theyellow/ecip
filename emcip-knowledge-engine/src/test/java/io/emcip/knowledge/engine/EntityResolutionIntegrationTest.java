@@ -40,9 +40,9 @@ class EntityResolutionIntegrationTest {
         jdbcTemplate.update("DELETE FROM ke_graph_node_embeddings");
     }
 
-    /** Build a 1536-dim float[] with value 1.0 at position 0 and 0.0 elsewhere. */
+    /** Build a 1024-dim float[] with value 1.0 at position 0 and 0.0 elsewhere. */
     private float[] seedVector() {
-        float[] v = new float[1536];
+        float[] v = new float[1024];
         v[0] = 1.0f;
         return v;
     }
@@ -77,7 +77,7 @@ class EntityResolutionIntegrationTest {
                 .thenReturn(Optional.empty());
 
         // Level 3: findEmbedding("ai", ...) returns empty (label "ai" not in DB),
-        // so llmClient.embed is called — return the same 1536-dim vector → cosine similarity = 1.0
+        // so llmClient.embed is called — return the same 1024-dim vector → cosine similarity = 1.0
         when(llmClient.embed("ai")).thenReturn(vector);
 
         UUID result = resolutionService.resolve("AI", TEST_CONCEPT_TYPE, tenantId);

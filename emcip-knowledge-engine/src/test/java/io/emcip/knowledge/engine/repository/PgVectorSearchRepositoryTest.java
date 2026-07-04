@@ -38,15 +38,15 @@ class PgVectorSearchRepositoryTest {
         docB.setChunkIndex(0);
         KnowledgeDocument savedB = documentRepository.save(docB);
 
-        float[] closeEmbedding = new float[1536];
+        float[] closeEmbedding = new float[1024];
         closeEmbedding[0] = 1.0f;
-        float[] farEmbedding = new float[1536];
+        float[] farEmbedding = new float[1024];
         farEmbedding[1] = 1.0f; // orthogonal dimension
 
         vectorSearchRepository.storeEmbedding(savedA.getId(), closeEmbedding);
         vectorSearchRepository.storeEmbedding(savedB.getId(), farEmbedding);
 
-        float[] queryEmbedding = new float[1536];
+        float[] queryEmbedding = new float[1024];
         queryEmbedding[0] = 1.0f; // identical to docA
 
         List<SearchResult<KnowledgeDocument>> results =

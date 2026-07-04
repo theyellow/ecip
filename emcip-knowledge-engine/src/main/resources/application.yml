@@ -32,7 +32,7 @@ spring:
 
 knowledge:
   embedding:
-    dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:1536}
+    dimension: ${KNOWLEDGE_EMBEDDING_DIMENSION:1024}
   llm-orchestrator:
     base-url: ${LLM_ORCHESTRATOR_URL:http://localhost:9084}
   tdlib-adapter:
