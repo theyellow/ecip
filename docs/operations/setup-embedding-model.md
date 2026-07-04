@@ -128,12 +128,17 @@ After the embedding model is configured:
 
 ## Dimension Consistency
 
-All embeddings in the database must have the same dimension count. If you switch
-embedding models (e.g., from 768-dim to 1024-dim), you must:
+The database vector columns are set to **1024 dimensions** (matching bge-m3).
+All embeddings must have the same dimension count. If you switch to an embedding
+model with a different dimension (e.g., 768 or 1536), you must:
 
-1. Truncate existing embeddings: `UPDATE ke_knowledge_documents SET embedding = NULL;`
-2. Clear graph embeddings: `DELETE FROM ke_graph_node_embeddings;`
-3. Re-ingest all documents
+1. Drop indexes: `DROP INDEX idx_ke_docs_embedding; DROP INDEX idx_ke_node_emb_vector;`
+2. Alter columns: `ALTER TABLE ke_knowledge_documents ALTER COLUMN embedding TYPE vector(NEW_DIM);`
+3. Alter graph: `ALTER TABLE ke_graph_node_embeddings ALTER COLUMN embedding TYPE vector(NEW_DIM);`
+4. Recreate indexes (see migration 019)
+5. Truncate existing embeddings: `UPDATE ke_knowledge_documents SET embedding = NULL;`
+6. Clear graph embeddings: `DELETE FROM ke_graph_node_embeddings;`
+7. Re-ingest all documents
 
 ---
 
