@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="019-fix-embedding-dimensions" author="emcip">
+        <comment>Change embedding columns from 1536 (OpenAI default) to 1024 (bge-m3).
+            Drops and recreates IVFFlat indexes since ALTER COLUMN TYPE invalidates them.</comment>
+        <sql>DROP INDEX IF EXISTS idx_ke_docs_embedding;</sql>
+        <sql>DROP INDEX IF EXISTS idx_ke_node_emb_vector;</sql>
+        <sql>ALTER TABLE ke_knowledge_documents ALTER COLUMN embedding TYPE vector(1024);</sql>
+        <sql>ALTER TABLE ke_graph_node_embeddings ALTER COLUMN embedding TYPE vector(1024);</sql>
+        <sql>CREATE INDEX idx_ke_docs_embedding ON ke_knowledge_documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);</sql>
+        <sql>CREATE INDEX idx_ke_node_emb_vector ON ke_graph_node_embeddings USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);</sql>
+    </changeSet>
+
+</databaseChangeLog>

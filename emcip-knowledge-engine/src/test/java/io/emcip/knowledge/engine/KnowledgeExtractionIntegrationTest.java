@@ -63,7 +63,7 @@ class KnowledgeExtractionIntegrationTest {
                                         Instant.now(),
                                         Instant.now()));
 
-        // Return empty float[] so storeEmbedding is skipped (vector(1536) constraint in DB)
+        // Return empty float[] so storeEmbedding is skipped (vector(1024) constraint in DB)
         when(llmClient.embed(any())).thenReturn(new float[0]);
         when(llmClient.extract(any(), any(), any()))
                 .thenReturn(

@@ -5,7 +5,7 @@ spring:
 
 knowledge:
   embedding:
-    dimension: 3
+    dimension: 1024
   llm-orchestrator:
     base-url: http://localhost:${mockwebserver.port:9999}
 
