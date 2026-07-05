@@ -51,9 +51,12 @@ public class LlmOrchestratorClient {
                                     log.error("Embedding failed: {}", response);
                                     return new float[0];
                                 }
-                                return response.embedding() != null
-                                        ? response.embedding()
-                                        : new float[0];
+                                float[] emb =
+                                        response.embedding() != null
+                                                ? response.embedding()
+                                                : new float[0];
+                                log.info("Embedding received: dimensions={}", emb.length);
+                                return emb;
                             })
                     .get();
         } catch (CallNotPermittedException e) {
