@@ -60,7 +60,7 @@ class KnowledgeExtractionServiceTest {
         String sourceRef = "msg-42";
 
         when(llmClient.embed(text)).thenReturn(new float[] {0.1f, 0.2f, 0.3f});
-        when(documentRepository.save(any()))
+        when(documentRepository.saveAndFlush(any()))
                 .thenAnswer(
                         inv -> {
                             KnowledgeDocument doc = inv.getArgument(0);
@@ -112,7 +112,7 @@ class KnowledgeExtractionServiceTest {
         service.processMessage(
                 text, sourceRef, tenantId, 100L, "999", "TestUser", "TestGroup", 1718272800);
 
-        verify(documentRepository).save(any());
+        verify(documentRepository).saveAndFlush(any());
         verify(vectorSearchRepository).storeEmbedding(any(), any());
         verify(graphRepository)
                 .createRelationship(eq("DISCUSSES"), eq(aliceId), eq(aiId), any(), any());
@@ -127,7 +127,7 @@ class KnowledgeExtractionServiceTest {
         String sourceRef = "tg:100:42";
 
         when(llmClient.embed(text)).thenReturn(new float[] {0.1f});
-        when(documentRepository.save(any()))
+        when(documentRepository.saveAndFlush(any()))
                 .thenAnswer(
                         inv -> {
                             KnowledgeDocument doc = inv.getArgument(0);
@@ -143,7 +143,7 @@ class KnowledgeExtractionServiceTest {
                 text, sourceRef, tenantId, 100L, "999", "TestUser", "TestGroup", 1718272800);
 
         ArgumentCaptor<KnowledgeDocument> captor = ArgumentCaptor.forClass(KnowledgeDocument.class);
-        verify(documentRepository).save(captor.capture());
+        verify(documentRepository).saveAndFlush(captor.capture());
         KnowledgeDocument saved = captor.getValue();
         assertThat(saved.getMetadata()).isNotNull();
         assertThat(saved.getMetadata()).containsEntry("chatId", 100L);
@@ -158,7 +158,7 @@ class KnowledgeExtractionServiceTest {
         UUID tenantId = UUID.randomUUID();
         String text = "entity with null type";
         when(llmClient.embed(text)).thenReturn(new float[] {0.1f});
-        when(documentRepository.save(any()))
+        when(documentRepository.saveAndFlush(any()))
                 .thenAnswer(
                         inv -> {
                             KnowledgeDocument doc = inv.getArgument(0);
@@ -187,7 +187,7 @@ class KnowledgeExtractionServiceTest {
         person.setDescription("A human");
         person.setShared(false);
         when(llmClient.embed(text)).thenReturn(new float[] {0.1f});
-        when(documentRepository.save(any()))
+        when(documentRepository.saveAndFlush(any()))
                 .thenAnswer(
                         inv -> {
                             KnowledgeDocument doc = inv.getArgument(0);
@@ -222,7 +222,7 @@ class KnowledgeExtractionServiceTest {
         knows.setSourceTypes(List.of("PERSON"));
         knows.setTargetTypes(List.of("PERSON"));
         when(llmClient.embed(text)).thenReturn(new float[] {0.1f});
-        when(documentRepository.save(any()))
+        when(documentRepository.saveAndFlush(any()))
                 .thenAnswer(
                         inv -> {
                             KnowledgeDocument doc = inv.getArgument(0);

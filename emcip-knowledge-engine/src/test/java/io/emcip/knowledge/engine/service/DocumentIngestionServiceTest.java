@@ -87,7 +87,7 @@ class DocumentIngestionServiceTest {
         when(ontologyService.getAllConceptTypes()).thenReturn(List.of());
         when(ontologyService.getAllRelationshipTypes()).thenReturn(List.of());
         when(llmClient.embed(any())).thenReturn(new float[] {0.1f, 0.2f});
-        when(documentRepository.save(any()))
+        when(documentRepository.saveAndFlush(any()))
                 .thenAnswer(
                         inv -> {
                             KnowledgeDocument doc = inv.getArgument(0);
