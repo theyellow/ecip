@@ -26,14 +26,18 @@ public class LlmOrchestratorClient {
     private final ObjectMapper objectMapper;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
 
-    private CircuitBreaker circuitBreaker() {
-        return circuitBreakerRegistry.circuitBreaker("llm-orchestrator");
+    private CircuitBreaker embedCircuitBreaker() {
+        return circuitBreakerRegistry.circuitBreaker("llm-orchestrator-embed");
+    }
+
+    private CircuitBreaker analyseCircuitBreaker() {
+        return circuitBreakerRegistry.circuitBreaker("llm-orchestrator-analyse");
     }
 
     public float[] embed(String text) {
         try {
             return CircuitBreaker.decorateCheckedSupplier(
-                            circuitBreaker(),
+                            embedCircuitBreaker(),
                             () -> {
                                 Map<String, String> request = Map.of("input", text);
                                 var response =
@@ -53,7 +57,7 @@ public class LlmOrchestratorClient {
                             })
                     .get();
         } catch (CallNotPermittedException e) {
-            log.warn("Circuit breaker open for llm-orchestrator, returning empty embedding");
+            log.warn("Circuit breaker open for llm-orchestrator-embed, returning empty embedding");
             return new float[0];
         } catch (Throwable e) {
             log.error("LLM orchestrator embed call failed: {}", e.getMessage());
@@ -114,7 +118,7 @@ public class LlmOrchestratorClient {
         String finalPrompt = prompt.toString();
         try {
             return CircuitBreaker.decorateCheckedSupplier(
-                            circuitBreaker(),
+                            analyseCircuitBreaker(),
                             () -> {
                                 Map<String, String> request =
                                         Map.of("prompt", finalPrompt, "taskType", "EXTRACT");
@@ -133,7 +137,9 @@ public class LlmOrchestratorClient {
                             })
                     .get();
         } catch (CallNotPermittedException e) {
-            log.warn("Circuit breaker open for llm-orchestrator, returning empty extraction");
+            log.warn(
+                    "Circuit breaker open for llm-orchestrator-analyse, returning empty"
+                            + " extraction");
             return new ExtractionResult(List.of(), List.of());
         } catch (Throwable e) {
             log.error("LLM orchestrator extract call failed: {}", e.getMessage());
@@ -144,7 +150,7 @@ public class LlmOrchestratorClient {
     public String analyse(String prompt, String taskType) {
         try {
             return CircuitBreaker.decorateCheckedSupplier(
-                            circuitBreaker(),
+                            analyseCircuitBreaker(),
                             () -> {
                                 Map<String, String> request =
                                         Map.of("prompt", prompt, "taskType", taskType);
@@ -165,7 +171,8 @@ public class LlmOrchestratorClient {
                     .get();
         } catch (CallNotPermittedException e) {
             log.warn(
-                    "Circuit breaker open for llm-orchestrator, returning null for taskType={}",
+                    "Circuit breaker open for llm-orchestrator-analyse, returning null for"
+                            + " taskType={}",
                     taskType);
             return null;
         } catch (Throwable e) {
@@ -186,7 +193,7 @@ Respond with the matching candidate label, or "NEW" if no match.
 
         try {
             return CircuitBreaker.decorateCheckedSupplier(
-                            circuitBreaker(),
+                            analyseCircuitBreaker(),
                             () -> {
                                 Map<String, String> request =
                                         Map.of("prompt", prompt, "taskType", "RESOLVE");
@@ -204,7 +211,8 @@ Respond with the matching candidate label, or "NEW" if no match.
                             })
                     .get();
         } catch (CallNotPermittedException e) {
-            log.warn("Circuit breaker open for llm-orchestrator, defaulting resolve to NEW");
+            log.warn(
+                    "Circuit breaker open for llm-orchestrator-analyse, defaulting resolve to NEW");
             return "NEW";
         } catch (Throwable e) {
             log.error("LLM orchestrator resolve call failed: {}", e.getMessage());
