@@ -184,8 +184,12 @@ public class KnowledgeExtractionService {
 
         // Step 2: Generate and store embedding
         float[] embedding = llmClient.embed(chunk);
+        log.info("Embed result for doc {}: dimensions={}", saved.getId(), embedding.length);
         if (embedding.length > 0) {
             vectorSearchRepository.storeEmbedding(saved.getId(), embedding);
+            log.info("Stored embedding for doc {}", saved.getId());
+        } else {
+            log.warn("Empty embedding for doc {}, skipping store", saved.getId());
         }
 
         // Step 3: LLM entity/relationship extraction
