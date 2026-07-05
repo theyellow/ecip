@@ -63,7 +63,7 @@ public class KnowledgeExtractionService {
         metadata.put("messageDate", messageDate);
         doc.setMetadata(metadata);
         doc.setChunkIndex(0);
-        KnowledgeDocument saved = documentRepository.save(doc);
+        KnowledgeDocument saved = documentRepository.saveAndFlush(doc);
 
         // Step 2: Generate and store embedding
         float[] embedding = llmClient.embed(text);
@@ -180,7 +180,7 @@ public class KnowledgeExtractionService {
         doc.setContent(chunk);
         doc.setChunkIndex(0);
         doc.setMetadata(Map.of("sourceRef", sourceRef != null ? sourceRef : ""));
-        KnowledgeDocument saved = documentRepository.save(doc);
+        KnowledgeDocument saved = documentRepository.saveAndFlush(doc);
 
         // Step 2: Generate and store embedding
         float[] embedding = llmClient.embed(chunk);
