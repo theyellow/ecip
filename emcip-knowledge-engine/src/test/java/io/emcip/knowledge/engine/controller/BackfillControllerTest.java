@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import io.emcip.knowledge.engine.service.BackfillService;
 import io.emcip.knowledge.engine.service.BackfillService.BackfillStatus;
+import io.emcip.knowledge.engine.service.EmbeddingBackfillService;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,12 +24,16 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class BackfillControllerTest {
 
     @Mock BackfillService backfillService;
+    @Mock EmbeddingBackfillService embeddingBackfillService;
 
     MockMvc mvc;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new BackfillController(backfillService)).build();
+        mvc =
+                MockMvcBuilders.standaloneSetup(
+                                new BackfillController(backfillService, embeddingBackfillService))
+                        .build();
     }
 
     @Test
