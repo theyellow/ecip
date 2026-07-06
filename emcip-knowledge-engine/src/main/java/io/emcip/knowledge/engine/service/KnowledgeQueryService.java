@@ -50,7 +50,7 @@ public class KnowledgeQueryService {
 
         Set<String> flaggedSourceRefs = loadFlaggedSourceRefs();
 
-        if (queryEmbedding != null) {
+        if (queryEmbedding != null && queryEmbedding.length > 0) {
             List<SearchResult<KnowledgeDocument>> scored =
                     vectorSearchRepository.search(
                             queryEmbedding, request.limit(), request.tenantId());
