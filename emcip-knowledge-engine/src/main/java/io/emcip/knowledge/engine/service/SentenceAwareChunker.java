@@ -105,6 +105,7 @@ public class SentenceAwareChunker {
         int i = 0;
 
         while (i < sentences.size() && chunks.size() < maxChunks) {
+            int chunkStart = i;
             List<String> currentSentences = new ArrayList<>();
             double currentTokens = 0;
 
@@ -117,9 +118,9 @@ public class SentenceAwareChunker {
 
             chunks.add(String.join(" ", currentSentences));
 
-            // Apply overlap: step back by overlapSentences
+            // Apply overlap: step back by overlapSentences, but guarantee forward progress
             if (i < sentences.size() && overlapSentences > 0) {
-                i = Math.max(i - overlapSentences, chunks.isEmpty() ? 0 : i - overlapSentences);
+                i = Math.max(i - overlapSentences, chunkStart + 1);
             }
         }
 
