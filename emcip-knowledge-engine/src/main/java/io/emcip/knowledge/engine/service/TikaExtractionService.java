@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 public class TikaExtractionService {
 
     private static final ExtractedContent EMPTY = new ExtractedContent("", Map.of());
-    private final AutoDetectParser parser = new AutoDetectParser();
 
     public ExtractedContent extract(byte[] content) {
         if (content == null || content.length == 0) {
@@ -29,7 +28,8 @@ public class TikaExtractionService {
             Metadata metadata = new Metadata();
             ParseContext context = new ParseContext();
 
-            this.parser.parse(new ByteArrayInputStream(content), handler, metadata, context);
+            new AutoDetectParser()
+                    .parse(new ByteArrayInputStream(content), handler, metadata, context);
 
             String text = handler.toString().trim();
             Map<String, String> metadataMap = extractMetadata(metadata);

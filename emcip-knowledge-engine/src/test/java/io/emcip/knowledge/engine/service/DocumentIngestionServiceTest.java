@@ -226,7 +226,7 @@ class DocumentIngestionServiceTest {
     }
 
     @Test
-    void submitUrlIngestion_setsJobToFailedOnParseError() throws Exception {
+    void submitUrlIngestion_setsJobToFailedOnEmptyExtraction() throws Exception {
         // Serve content that returns empty extraction (no text extracted)
         httpServer.createContext(
                 "/bad",
