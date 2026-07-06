@@ -124,6 +124,11 @@ public class DocumentIngestionService {
                 return;
             }
             int chunkCount = processChunks(extracted, url, tenantId);
+            if (chunkCount == 0) {
+                updateJobStatus(
+                        jobId, IngestionStatus.FAILED, null, "No chunks produced after splitting");
+                return;
+            }
             updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
             log.info(
                     "URL ingestion COMPLETED: jobId={}, url={}, chunks={}", jobId, url, chunkCount);
@@ -170,6 +175,11 @@ public class DocumentIngestionService {
                 return;
             }
             int chunkCount = processChunks(extracted, filename, tenantId);
+            if (chunkCount == 0) {
+                updateJobStatus(
+                        jobId, IngestionStatus.FAILED, null, "No chunks produced after splitting");
+                return;
+            }
             updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
             log.info(
                     "File ingestion COMPLETED: jobId={}, file={}, chunks={}",
@@ -191,8 +201,10 @@ public class DocumentIngestionService {
         List<String> chunks = chunker.chunk(extracted.text());
         Map<String, String> metadata = new HashMap<>(extracted.metadata());
         metadata.put("totalChunks", String.valueOf(chunks.size()));
+        Map<String, String> immutableMetadata = Map.copyOf(metadata);
         for (int i = 0; i < chunks.size(); i++) {
-            extractionService.processDocument(chunks.get(i), sourceRef, tenantId, i, metadata);
+            extractionService.processDocument(
+                    chunks.get(i), sourceRef, tenantId, i, immutableMetadata);
         }
         return chunks.size();
     }
