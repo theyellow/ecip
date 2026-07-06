@@ -4,6 +4,12 @@ spring:
       auto-offset-reset: earliest
 
 knowledge:
+  chunking:
+    target-tokens: 300
+    overlap-sentences: 2
+    min-sentence-length: 20
+    max-chunks: 500
+    abbreviations: "Dr.,Prof.,Dipl.,Ing.,Str.,z.B.,bzw.,usw.,etc.,Nr.,Abs.,Art.,ggf.,ca.,d.h.,u.a.,o.ä.,i.d.R.,e.V.,GmbH.,AG."
   embedding:
     dimension: 1024
   llm-orchestrator:
