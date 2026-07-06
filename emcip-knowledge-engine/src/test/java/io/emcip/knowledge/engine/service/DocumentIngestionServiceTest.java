@@ -16,19 +16,19 @@ import com.sun.net.httpserver.HttpServer;
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
+import io.emcip.knowledge.engine.model.ExtractedContent;
 import io.emcip.knowledge.engine.model.ExtractionResult;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.apache.tika.Tika;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,7 +49,8 @@ class DocumentIngestionServiceTest {
     @Mock KnowledgeEventPublisher eventPublisher;
     @Mock IngestionJobRepository jobRepository;
     @Mock KnowledgeExtractionService extractionService;
-    @Mock Tika tika;
+    @Mock TikaExtractionService tikaExtractionService;
+    @Mock SentenceAwareChunker chunker;
 
     KnowledgeExtractionService realExtractionService;
     DocumentIngestionService service;
@@ -66,7 +67,9 @@ class DocumentIngestionServiceTest {
                         llmClient,
                         ontologyService,
                         eventPublisher);
-        service = new DocumentIngestionService(jobRepository, extractionService, tika);
+        service =
+                new DocumentIngestionService(
+                        jobRepository, extractionService, tikaExtractionService, chunker);
 
         httpServer = HttpServer.create(new InetSocketAddress(0), 0);
         httpServer.start();
@@ -97,14 +100,15 @@ class DocumentIngestionServiceTest {
         when(llmClient.extract(eq(chunk), anyList(), anyList()))
                 .thenReturn(new ExtractionResult(List.of(), List.of()));
 
-        realExtractionService.processDocument(chunk, "https://example.com/doc", tenantId);
+        realExtractionService.processDocument(
+                chunk, "https://example.com/doc", tenantId, 0, Map.of());
 
         verify(llmClient).extract(eq(chunk), anyList(), anyList());
     }
 
     @Test
     void processDocument_skipsBlankChunk() {
-        realExtractionService.processDocument("   ", "https://example.com/doc", null);
+        realExtractionService.processDocument("   ", "https://example.com/doc", null, 0, Map.of());
         verifyNoInteractions(llmClient, documentRepository);
     }
 
@@ -158,8 +162,9 @@ class DocumentIngestionServiceTest {
                             return j;
                         });
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        // Tika parses the fetched bytes (InputStream) → returns 3 words → 1 chunk
-        when(tika.parseToString(any(InputStream.class))).thenReturn(content);
+        when(tikaExtractionService.extract(any(byte[].class)))
+                .thenReturn(new ExtractedContent(content, Map.of()));
+        when(chunker.chunk(content)).thenReturn(List.of(content));
 
         service.submitUrlIngestion(testUrl, null);
 
@@ -167,7 +172,8 @@ class DocumentIngestionServiceTest {
                 .untilAsserted(
                         () ->
                                 verify(extractionService, atLeastOnce())
-                                        .processDocument(eq(content), eq(testUrl), isNull()));
+                                        .processDocument(
+                                                eq(content), eq(testUrl), isNull(), eq(0), any()));
     }
 
     @Test
@@ -197,7 +203,8 @@ class DocumentIngestionServiceTest {
                             return j;
                         });
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(tika.parseToString(any(InputStream.class))).thenReturn(injectionContent);
+        when(tikaExtractionService.extract(any(byte[].class)))
+                .thenReturn(new ExtractedContent(injectionContent, Map.of()));
 
         service.submitUrlIngestion(testUrl, null);
 
@@ -219,8 +226,8 @@ class DocumentIngestionServiceTest {
     }
 
     @Test
-    void submitUrlIngestion_setsJobToFailedOnParseError() throws Exception {
-        // Serve content that Tika will fail to parse
+    void submitUrlIngestion_setsJobToFailedOnEmptyExtraction() throws Exception {
+        // Serve content that returns empty extraction (no text extracted)
         httpServer.createContext(
                 "/bad",
                 exchange -> {
@@ -245,8 +252,8 @@ class DocumentIngestionServiceTest {
                             return j;
                         });
         when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
-        when(tika.parseToString(any(InputStream.class)))
-                .thenThrow(new java.io.IOException("parse error"));
+        when(tikaExtractionService.extract(any(byte[].class)))
+                .thenReturn(new ExtractedContent("", Map.of()));
 
         service.submitUrlIngestion(testUrl, null);
 

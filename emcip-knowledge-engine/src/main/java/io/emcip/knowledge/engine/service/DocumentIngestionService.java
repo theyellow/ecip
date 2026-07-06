@@ -3,9 +3,9 @@ package io.emcip.knowledge.engine.service;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
 import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
+import io.emcip.knowledge.engine.model.ExtractedContent;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import jakarta.annotation.PreDestroy;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -14,9 +14,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -25,7 +25,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tika.Tika;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -36,9 +35,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DocumentIngestionService {
 
-    private static final int CHUNK_SIZE = 500;
-    private static final int CHUNK_OVERLAP = 50;
-    private static final int MAX_CHUNKS = 500;
     private static final int MAX_CONTENT_BYTES = 10 * 1024 * 1024; // 10 MB
     private static final Duration FETCH_TIMEOUT = Duration.ofSeconds(30);
     private static final ExecutorService INGESTION_EXECUTOR =
@@ -59,7 +55,8 @@ public class DocumentIngestionService {
 
     private final IngestionJobRepository jobRepository;
     private final KnowledgeExtractionService extractionService;
-    private final Tika tika;
+    private final TikaExtractionService tikaExtractionService;
+    private final SentenceAwareChunker chunker;
 
     /** Submit a URL for async ingestion. Returns the job ID immediately. */
     public String submitUrlIngestion(String url, UUID tenantId) {
@@ -116,13 +113,22 @@ public class DocumentIngestionService {
         updateJobStatus(jobId, IngestionStatus.RUNNING, null, null);
         try {
             byte[] body = fetchWithTimeout(url);
-            String text = tika.parseToString(new ByteArrayInputStream(body));
-            if (containsInjectionPatterns(text)) {
+            ExtractedContent extracted = tikaExtractionService.extract(body);
+            if (extracted.text().isBlank()) {
+                updateJobStatus(jobId, IngestionStatus.FAILED, null, "No text extracted");
+                return;
+            }
+            if (containsInjectionPatterns(extracted.text())) {
                 log.warn("Potential injection patterns detected in document from {}", url);
                 updateJobStatus(jobId, IngestionStatus.FLAGGED_INJECTION_RISK, null, null);
                 return;
             }
-            int chunkCount = processChunks(text, url, tenantId);
+            int chunkCount = processChunks(extracted, url, tenantId);
+            if (chunkCount == 0) {
+                updateJobStatus(
+                        jobId, IngestionStatus.FAILED, null, "No chunks produced after splitting");
+                return;
+            }
             updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
             log.info(
                     "URL ingestion COMPLETED: jobId={}, url={}, chunks={}", jobId, url, chunkCount);
@@ -158,13 +164,22 @@ public class DocumentIngestionService {
     private void processFileAsync(UUID jobId, byte[] fileBytes, String filename, UUID tenantId) {
         updateJobStatus(jobId, IngestionStatus.RUNNING, null, null);
         try {
-            String text = tika.parseToString(new ByteArrayInputStream(fileBytes));
-            if (containsInjectionPatterns(text)) {
+            ExtractedContent extracted = tikaExtractionService.extract(fileBytes);
+            if (extracted.text().isBlank()) {
+                updateJobStatus(jobId, IngestionStatus.FAILED, null, "No text extracted");
+                return;
+            }
+            if (containsInjectionPatterns(extracted.text())) {
                 log.warn("Potential injection patterns detected in document from {}", filename);
                 updateJobStatus(jobId, IngestionStatus.FLAGGED_INJECTION_RISK, null, null);
                 return;
             }
-            int chunkCount = processChunks(text, filename, tenantId);
+            int chunkCount = processChunks(extracted, filename, tenantId);
+            if (chunkCount == 0) {
+                updateJobStatus(
+                        jobId, IngestionStatus.FAILED, null, "No chunks produced after splitting");
+                return;
+            }
             updateJobStatus(jobId, IngestionStatus.COMPLETED, chunkCount, null);
             log.info(
                     "File ingestion COMPLETED: jobId={}, file={}, chunks={}",
@@ -182,18 +197,14 @@ public class DocumentIngestionService {
         }
     }
 
-    private int processChunks(String text, String sourceRef, UUID tenantId) {
-        List<String> chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
-        if (chunks.size() > MAX_CHUNKS) {
-            log.warn(
-                    "Chunk count {} exceeds limit {} for source={}, truncating",
-                    chunks.size(),
-                    MAX_CHUNKS,
-                    sourceRef);
-            chunks = chunks.subList(0, MAX_CHUNKS);
-        }
-        for (String chunk : chunks) {
-            extractionService.processDocument(chunk, sourceRef, tenantId);
+    private int processChunks(ExtractedContent extracted, String sourceRef, UUID tenantId) {
+        List<String> chunks = chunker.chunk(extracted.text());
+        Map<String, String> metadata = new HashMap<>(extracted.metadata());
+        metadata.put("totalChunks", String.valueOf(chunks.size()));
+        Map<String, String> immutableMetadata = Map.copyOf(metadata);
+        for (int i = 0; i < chunks.size(); i++) {
+            extractionService.processDocument(
+                    chunks.get(i), sourceRef, tenantId, i, immutableMetadata);
         }
         return chunks.size();
     }
@@ -221,19 +232,6 @@ public class DocumentIngestionService {
         if (chunkCount != null) job.setChunkCount(chunkCount);
         if (errorMessage != null) job.setErrorMessage(errorMessage);
         jobRepository.save(job);
-    }
-
-    private List<String> chunkText(String text, int chunkSize, int overlap) {
-        List<String> chunks = new ArrayList<>();
-        if (text == null || text.isBlank()) return chunks;
-        String[] words = text.split("\\s+");
-        int start = 0;
-        while (start < words.length) {
-            int end = Math.min(start + chunkSize, words.length);
-            chunks.add(String.join(" ", Arrays.copyOfRange(words, start, end)));
-            start += chunkSize - overlap;
-        }
-        return chunks;
     }
 
     /** RT-009: Scan content for common prompt injection patterns. Case-insensitive. */

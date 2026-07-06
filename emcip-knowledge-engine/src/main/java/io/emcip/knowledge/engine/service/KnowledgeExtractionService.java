@@ -166,7 +166,12 @@ public class KnowledgeExtractionService {
     }
 
     @Transactional
-    public void processDocument(String chunk, String sourceRef, UUID tenantId) {
+    public void processDocument(
+            String chunk,
+            String sourceRef,
+            UUID tenantId,
+            int chunkIndex,
+            Map<String, String> documentMetadata) {
         if (chunk == null || chunk.isBlank()) {
             log.debug("Skipping empty chunk for: {}", sourceRef);
             return;
@@ -178,8 +183,13 @@ public class KnowledgeExtractionService {
         doc.setSourceType("DOCUMENT");
         doc.setSourceRef(sourceRef);
         doc.setContent(chunk);
-        doc.setChunkIndex(0);
-        doc.setMetadata(Map.of("sourceRef", sourceRef != null ? sourceRef : ""));
+        doc.setChunkIndex(chunkIndex);
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("sourceRef", sourceRef != null ? sourceRef : "");
+        if (documentMetadata != null) {
+            metadata.putAll(documentMetadata);
+        }
+        doc.setMetadata(metadata);
         KnowledgeDocument saved = documentRepository.saveAndFlush(doc);
 
         // Step 2: Generate and store embedding
