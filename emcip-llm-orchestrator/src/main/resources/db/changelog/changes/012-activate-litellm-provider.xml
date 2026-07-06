@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="012-activate-litellm-provider" author="ecip">
+        <comment>Activate local LiteLLM provider and set default API key for local dev.
+            The api_key can be overridden at runtime via Admin UI > AI Config.</comment>
+
+        <update tableName="llm_provider_configs">
+            <column name="api_key" value="sk-local-dev"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <where>name = 'local-litellm'</where>
+        </update>
+    </changeSet>
+
+</databaseChangeLog>
