@@ -48,13 +48,7 @@ public class LlmCallService {
             String sourceEventId,
             String conversationId) {
 
-        Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
         Optional<PromptTemplate> templateOpt = orchestratorService.getPromptTemplate(templateName);
-
-        if (modelOpt.isEmpty()) {
-            log.warn("No model configured for task type '{}' - skipping LLM call", taskType);
-            return Optional.empty();
-        }
 
         if (templateOpt.isEmpty()) {
             log.warn(
@@ -64,10 +58,27 @@ public class LlmCallService {
             return Optional.empty();
         }
 
+        PromptTemplate template = templateOpt.get();
+
+        // Template owns model choice; fall back to taskType selection if not set
+        ModelConfig modelConfig;
+        if (template.getModelConfig() != null) {
+            modelConfig = template.getModelConfig();
+            log.debug("Using template's model config: {}", modelConfig.getModelKey());
+        } else {
+            Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+            if (modelOpt.isEmpty()) {
+                log.warn("No model configured for task type '{}' - skipping LLM call", taskType);
+                return Optional.empty();
+            }
+            modelConfig = modelOpt.get();
+            log.debug("Template has no model config, falling back to task type: {}", taskType);
+        }
+
         return Optional.of(
                 call(
-                        modelOpt.get(),
-                        templateOpt.get(),
+                        modelConfig,
+                        template,
                         userContent,
                         contextVars,
                         sourceEventId,
