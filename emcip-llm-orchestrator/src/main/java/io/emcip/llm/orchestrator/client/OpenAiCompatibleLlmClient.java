@@ -33,7 +33,7 @@ public class OpenAiCompatibleLlmClient {
      * @param systemPrompt System instructions
      * @param userContent User message
      * @param maxTokens Maximum tokens to generate
-     * @param temperature Sampling temperature (0.0–2.0)
+     * @param temperature Sampling temperature (0.0–2.0), or null to omit
      * @return LlmResponse with content and token counts
      */
     public LlmResponse call(
@@ -41,7 +41,7 @@ public class OpenAiCompatibleLlmClient {
             String systemPrompt,
             String userContent,
             int maxTokens,
-            double temperature) {
+            Double temperature) {
 
         LlmProviderConfig provider =
                 providerConfigService
@@ -55,7 +55,9 @@ public class OpenAiCompatibleLlmClient {
         Map<String, Object> body = new HashMap<>();
         body.put("model", model);
         body.put("max_tokens", maxTokens);
-        body.put("temperature", temperature);
+        if (temperature != null) {
+            body.put("temperature", temperature);
+        }
         body.put(
                 "messages",
                 List.of(
@@ -112,7 +114,7 @@ public class OpenAiCompatibleLlmClient {
      * Supports multi-turn conversations.
      */
     public LlmResponse chat(
-            String model, List<Map<String, String>> messages, int maxTokens, double temperature) {
+            String model, List<Map<String, String>> messages, int maxTokens, Double temperature) {
 
         LlmProviderConfig provider =
                 providerConfigService
@@ -126,7 +128,9 @@ public class OpenAiCompatibleLlmClient {
         Map<String, Object> body = new HashMap<>();
         body.put("model", model);
         body.put("max_tokens", maxTokens);
-        body.put("temperature", temperature);
+        if (temperature != null) {
+            body.put("temperature", temperature);
+        }
         body.put("messages", messages);
 
         log.debug(
