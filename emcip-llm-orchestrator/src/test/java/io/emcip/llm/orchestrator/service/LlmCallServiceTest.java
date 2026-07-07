@@ -73,8 +73,6 @@ class LlmCallServiceTest {
                 .name("response-template")
                 .version("1.0")
                 .description("Template for generating responses")
-                .modelProvider("anthropic")
-                .modelName("claude-haiku-4-5-20251001")
                 .systemPrompt("You are a helpful AI assistant.")
                 .userPromptTemplate("Please respond to the following: {{content}}")
                 .temperature(0.7)

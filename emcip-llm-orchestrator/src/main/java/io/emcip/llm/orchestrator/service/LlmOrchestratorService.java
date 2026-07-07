@@ -91,12 +91,6 @@ public class LlmOrchestratorService {
         return promptTemplateRepository.findByActiveTrueOrderByPriorityAsc();
     }
 
-    /** Get prompt templates for a specific model provider. */
-    @Transactional(readOnly = true)
-    public List<PromptTemplate> getPromptTemplatesForProvider(String modelProvider) {
-        return promptTemplateRepository.findByModelProviderAndActiveTrue(modelProvider);
-    }
-
     /**
      * Render a prompt template with variables.
      *

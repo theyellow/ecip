@@ -150,8 +150,7 @@ public class OrchestratorController {
         existing.setName(update.getName());
         existing.setVersion(update.getVersion());
         existing.setDescription(update.getDescription());
-        existing.setModelProvider(update.getModelProvider());
-        existing.setModelName(update.getModelName());
+        existing.setModelConfig(update.getModelConfig());
         existing.setSystemPrompt(update.getSystemPrompt());
         existing.setUserPromptTemplate(update.getUserPromptTemplate());
         existing.setTemperature(update.getTemperature());

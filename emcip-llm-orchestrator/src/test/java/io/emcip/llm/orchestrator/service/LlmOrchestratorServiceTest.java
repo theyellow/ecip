@@ -58,8 +58,6 @@ class LlmOrchestratorServiceTest {
                 .description("Test template")
                 .userPromptTemplate("Respond to: {{content}}")
                 .systemPrompt("You are helpful.")
-                .modelProvider("anthropic")
-                .modelName("claude-haiku-4-5-20251001")
                 .temperature(0.7)
                 .maxTokens(2048)
                 .active(true)
@@ -176,8 +174,6 @@ class LlmOrchestratorServiceTest {
                         .description("Test")
                         .userPromptTemplate("Hello {{name}}, you said: {{content}}")
                         .systemPrompt("You are helpful.")
-                        .modelProvider("anthropic")
-                        .modelName("claude-haiku-4-5-20251001")
                         .build();
         Map<String, String> variables = Map.of("name", "Alice", "content", "test");
 
@@ -203,8 +199,6 @@ class LlmOrchestratorServiceTest {
                         .description("Test")
                         .userPromptTemplate("Static prompt")
                         .systemPrompt("You are helpful.")
-                        .modelProvider("anthropic")
-                        .modelName("claude-haiku-4-5-20251001")
                         .build();
 
         String result = service.renderPromptTemplate(tmpl, Map.of());
@@ -222,8 +216,6 @@ class LlmOrchestratorServiceTest {
                         .description("Test")
                         .userPromptTemplate("Hello {{unknown}}")
                         .systemPrompt("You are helpful.")
-                        .modelProvider("anthropic")
-                        .modelName("claude-haiku-4-5-20251001")
                         .build();
         Map<String, String> variables = Map.of("name", "Alice");
 
