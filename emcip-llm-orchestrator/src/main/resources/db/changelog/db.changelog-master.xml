@@ -17,5 +17,6 @@
     <include file="classpath:db/changelog/changes/010-seed-knowledge-task-types.xml"/>
     <include file="classpath:db/changelog/changes/011-seed-general-model-config.xml"/>
     <include file="classpath:db/changelog/changes/012-activate-litellm-provider.xml"/>
+    <include file="classpath:db/changelog/changes/013-prompt-template-system-and-model-ref.xml"/>
 
 </databaseChangeLog>
