@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Mark existing 5 templates as system, update defaults -->
+    <changeSet id="014-mark-existing-templates-system" author="ecip">
+        <comment>Mark existing seeded templates as system templates with new defaults</comment>
+        <update tableName="prompt_templates">
+            <column name="system" valueBoolean="true"/>
+            <column name="max_tokens" valueNumeric="8192"/>
+            <column name="temperature"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <where>name IN ('auto_response', 'escalation_summary', 'command_validation',
+                    'moderation_check', 'knowledge_extraction')</where>
+        </update>
+    </changeSet>
+
+    <!-- Set model_config_id on existing templates via model_key lookup -->
+    <changeSet id="014-link-auto-response-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'claude-haiku-response' AND active = true LIMIT 1) WHERE name = 'auto_response';</sql>
+    </changeSet>
+
+    <changeSet id="014-link-escalation-summary-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'claude-haiku-summary' AND active = true LIMIT 1) WHERE name = 'escalation_summary';</sql>
+    </changeSet>
+
+    <changeSet id="014-link-command-validation-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'claude-haiku-command' AND active = true LIMIT 1) WHERE name = 'command_validation';</sql>
+    </changeSet>
+
+    <changeSet id="014-link-moderation-check-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'qwen3-14b-moderation' AND active = true LIMIT 1) WHERE name = 'moderation_check';</sql>
+    </changeSet>
+
+    <changeSet id="014-link-knowledge-extraction-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'knowledge-extract' AND active = true LIMIT 1) WHERE name = 'knowledge_extraction';</sql>
+    </changeSet>
+
+    <!-- Seed flag_analysis — Decisions AI chat system prompt -->
+    <changeSet id="014-seed-flag-analysis" author="ecip">
+        <insert tableName="prompt_templates">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="tenant_id" value="00000000-0000-0000-0000-000000000000"/>
+            <column name="name" value="flag_analysis"/>
+            <column name="version" value="1.0.0"/>
+            <column name="description" value="System prompt for Decisions AI chat — moderation analyst"/>
+            <column name="system" valueBoolean="true"/>
+            <column name="system_prompt" value="You are a moderation analyst for the EMCIP platform. You are assisting an operator investigating a flagged message.
+
+Help the operator understand this flag and research appropriate responses."/>
+            <column name="user_prompt_template" value="{{content}}"/>
+            <column name="max_tokens" valueNumeric="8192"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="014-link-flag-analysis-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'qwen3-30b-a3b-general' AND active = true LIMIT 1) WHERE name = 'flag_analysis';</sql>
+    </changeSet>
+
+    <!-- Seed flag_analyse — single-shot flag analysis -->
+    <changeSet id="014-seed-flag-analyse" author="ecip">
+        <insert tableName="prompt_templates">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="tenant_id" value="00000000-0000-0000-0000-000000000000"/>
+            <column name="name" value="flag_analyse"/>
+            <column name="version" value="1.0.0"/>
+            <column name="description" value="System prompt for single-shot flag analysis"/>
+            <column name="system" valueBoolean="true"/>
+            <column name="system_prompt" value="You are a moderation analyst for the EMCIP platform. Analyse the provided flag data and explain the moderation decision clearly and concisely."/>
+            <column name="user_prompt_template" value="{{content}}"/>
+            <column name="max_tokens" valueNumeric="8192"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="014-link-flag-analyse-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'qwen3-30b-a3b-general' AND active = true LIMIT 1) WHERE name = 'flag_analyse';</sql>
+    </changeSet>
+
+    <!-- Seed research_topic -->
+    <changeSet id="014-seed-research-topic" author="ecip">
+        <insert tableName="prompt_templates">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="tenant_id" value="00000000-0000-0000-0000-000000000000"/>
+            <column name="name" value="research_topic"/>
+            <column name="version" value="1.0.0"/>
+            <column name="description" value="Topic research report generation"/>
+            <column name="system" valueBoolean="true"/>
+            <column name="system_prompt" value="You are a research analyst synthesizing community intelligence.
+Based on the evidence provided, write a structured research report.
+
+Format your response as Markdown with exactly these sections:
+## Executive Summary
+(2–3 sentences summarizing key findings)
+
+## Key Findings
+(3–5 bullet points of the most important discoveries)
+
+## Community Perspective
+(What community members discuss, believe, or are concerned about)
+
+## Factual Context
+(Verified facts from external sources that provide context)
+
+## Contradictions &amp; Open Questions
+(Areas of disagreement, unverified claims, or open questions)
+
+## Sources
+(List each source as: - [source_type] source_ref)"/>
+            <column name="user_prompt_template" value="Research topic: {{topic}}
+
+Evidence collected:
+{{evidence}}"/>
+            <column name="max_tokens" valueNumeric="8192"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="014-link-research-topic-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'qwen3-30b-a3b-general' AND active = true LIMIT 1) WHERE name = 'research_topic';</sql>
+    </changeSet>
+
+    <!-- Seed research_person -->
+    <changeSet id="014-seed-research-person" author="ecip">
+        <insert tableName="prompt_templates">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="tenant_id" value="00000000-0000-0000-0000-000000000000"/>
+            <column name="name" value="research_person"/>
+            <column name="version" value="1.0.0"/>
+            <column name="description" value="Person profile research report"/>
+            <column name="system" valueBoolean="true"/>
+            <column name="system_prompt" value="You are a research analyst profiling an individual based on community intelligence.
+Based on the evidence provided, write a structured person analysis report.
+
+Format your response as Markdown with exactly these sections:
+## Executive Summary
+(2–3 sentences about this person's role and significance)
+
+## Key Findings
+(3–5 bullet points about this person's notable activities or statements)
+
+## Community Perspective
+(How community members perceive and discuss this person)
+
+## Factual Context
+(Verified facts about this person from external sources)
+
+## Contradictions &amp; Open Questions
+(Inconsistencies in reporting or open questions)
+
+## Sources
+(List each source as: - [source_type] source_ref)"/>
+            <column name="user_prompt_template" value="Person: {{topic}}
+
+Evidence collected:
+{{evidence}}"/>
+            <column name="max_tokens" valueNumeric="8192"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="014-link-research-person-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'qwen3-30b-a3b-general' AND active = true LIMIT 1) WHERE name = 'research_person';</sql>
+    </changeSet>
+
+    <!-- Seed research_fact_check -->
+    <changeSet id="014-seed-research-fact-check" author="ecip">
+        <insert tableName="prompt_templates">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="tenant_id" value="00000000-0000-0000-0000-000000000000"/>
+            <column name="name" value="research_fact_check"/>
+            <column name="version" value="1.0.0"/>
+            <column name="description" value="Fact-check verdict report"/>
+            <column name="system" valueBoolean="true"/>
+            <column name="system_prompt" value="You are a fact-checking researcher.
+Based on the evidence provided, write a structured fact-check report.
+
+Format your response as Markdown with exactly these sections:
+## Executive Summary
+(Verdict: Supported / Unsupported / Partially Supported / Insufficient Evidence)
+
+## Key Findings
+(3–5 bullet points of evidence for or against the claim)
+
+## Community Perspective
+(What community members say about this claim)
+
+## Factual Context
+(Verified facts from external sources)
+
+## Contradictions &amp; Open Questions
+(Conflicting evidence or remaining uncertainty)
+
+## Sources
+(List each source as: - [source_type] source_ref)"/>
+            <column name="user_prompt_template" value="Claim to fact-check: {{topic}}
+
+Evidence collected:
+{{evidence}}"/>
+            <column name="max_tokens" valueNumeric="8192"/>
+            <column name="active" valueBoolean="true"/>
+            <column name="priority" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <column name="version_lock" valueNumeric="0"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="014-link-research-fact-check-model" author="ecip">
+        <sql>UPDATE prompt_templates SET model_config_id = (SELECT id FROM model_configs WHERE model_key = 'qwen3-30b-a3b-general' AND active = true LIMIT 1) WHERE name = 'research_fact_check';</sql>
+    </changeSet>
+
+</databaseChangeLog>
