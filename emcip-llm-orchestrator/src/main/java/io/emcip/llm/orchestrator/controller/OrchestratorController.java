@@ -140,6 +140,7 @@ public class OrchestratorController {
     @Operation(summary = "Create a new prompt template")
     @PostMapping("/templates")
     public ResponseEntity<PromptTemplate> createTemplate(@RequestBody PromptTemplate template) {
+        resolveModelConfig(template);
         PromptTemplate saved = orchestratorService.savePromptTemplate(template);
         log.info("Created prompt template: {}", saved.getName());
         return ResponseEntity.status(201).body(saved);
@@ -164,6 +165,7 @@ public class OrchestratorController {
         existing.setName(update.getName());
         existing.setVersion(update.getVersion());
         existing.setDescription(update.getDescription());
+        resolveModelConfig(update);
         existing.setModelConfig(update.getModelConfig());
         existing.setSystemPrompt(update.getSystemPrompt());
         existing.setUserPromptTemplate(update.getUserPromptTemplate());
@@ -190,6 +192,28 @@ public class OrchestratorController {
                     HttpStatus.BAD_REQUEST, "Cannot delete system template: " + template.getName());
         }
         promptTemplateRepository.deleteById(id);
+    }
+
+    /**
+     * Resolve a ModelConfig stub (Jackson-deserialized with only id) into a managed entity. Without
+     * this, Hibernate throws TransientPropertyValueException when saving because the stub is not
+     * managed in the persistence context.
+     */
+    private void resolveModelConfig(PromptTemplate template) {
+        if (template.getModelConfig() != null && template.getModelConfig().getId() != null) {
+            ModelConfig managed =
+                    modelConfigRepository
+                            .findById(template.getModelConfig().getId())
+                            .orElseThrow(
+                                    () ->
+                                            new ResponseStatusException(
+                                                    HttpStatus.BAD_REQUEST,
+                                                    "Model config not found: "
+                                                            + template.getModelConfig().getId()));
+            template.setModelConfig(managed);
+        } else {
+            template.setModelConfig(null);
+        }
     }
 
     // --- Costs ---
