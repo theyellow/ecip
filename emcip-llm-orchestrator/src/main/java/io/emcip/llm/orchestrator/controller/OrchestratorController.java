@@ -14,6 +14,7 @@ import io.emcip.llm.orchestrator.service.LlmProviderConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +67,12 @@ public class OrchestratorController {
     public record ChatRequest(List<ChatMessage> messages, String taskType) {}
 
     public record ChatResponse(boolean success, String content, String model) {}
+
+    public record WarmUpRequest(List<String> taskTypes) {}
+
+    public record WarmUpResult(boolean ready, String model, long latencyMs, String error) {}
+
+    public record WarmUpResponse(Map<String, WarmUpResult> results) {}
 
     // --- Models ---
 
@@ -493,5 +500,44 @@ public class OrchestratorController {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(new ChatResponse(false, "LLM call failed: " + e.getMessage(), null));
         }
+    }
+
+    @Operation(summary = "Warm up LLM models by sending a minimal inference request")
+    @PostMapping("/warm-up")
+    public ResponseEntity<WarmUpResponse> warmUp(@RequestBody WarmUpRequest req) {
+        Map<String, WarmUpResult> results = new LinkedHashMap<>();
+        for (String taskType : req.taskTypes()) {
+            Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+            if (modelOpt.isEmpty()) {
+                results.put(
+                        taskType,
+                        new WarmUpResult(
+                                false, null, 0, "No model configured for task type: " + taskType));
+                continue;
+            }
+            ModelConfig model = modelOpt.get();
+            long start = System.nanoTime();
+            try {
+                if ("EMBED".equals(taskType)) {
+                    llmClient.embed(model.getModelName(), "ping");
+                } else {
+                    llmClient.chat(
+                            model.getModelName(),
+                            List.of(Map.of("role", "user", "content", "ping")),
+                            16,
+                            null);
+                }
+                long latencyMs = (System.nanoTime() - start) / 1_000_000;
+                results.put(
+                        taskType, new WarmUpResult(true, model.getModelName(), latencyMs, null));
+            } catch (Exception e) {
+                long latencyMs = (System.nanoTime() - start) / 1_000_000;
+                log.warn("Warm-up failed for {}: {}", taskType, e.getMessage());
+                results.put(
+                        taskType,
+                        new WarmUpResult(false, model.getModelName(), latencyMs, e.getMessage()));
+            }
+        }
+        return ResponseEntity.ok(new WarmUpResponse(results));
     }
 }
