@@ -133,28 +133,38 @@ function ModelModal({ model, onClose, onSave }) {
   )
 }
 
-function TemplateModal({ template, onClose, onSave }) {
+function TemplateModal({ template, models, onClose, onSave }) {
+  const isSystem = template?.system === true
   const [form, setForm] = useState({
     name: template?.name ?? '',
     version: template?.version ?? '1.0',
     description: template?.description ?? '',
-    modelProvider: template?.modelProvider ?? '',
-    modelName: template?.modelName ?? '',
+    modelConfigId: template?.modelConfig?.id ?? '',
     systemPrompt: template?.systemPrompt ?? '',
     userPromptTemplate: template?.userPromptTemplate ?? '',
-    temperature: template?.temperature ?? 0.7,
-    maxTokens: template?.maxTokens ?? 2048,
+    temperature: template?.temperature ?? '',
+    maxTokens: template?.maxTokens ?? 8192,
     active: template?.active ?? true,
     priority: template?.priority ?? 100,
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  const handleSave = () => {
+    const payload = {
+      ...form,
+      temperature: form.temperature === '' ? null : parseFloat(form.temperature),
+      modelConfig: form.modelConfigId ? { id: form.modelConfigId } : null,
+    }
+    delete payload.modelConfigId
+    onSave(payload)
+  }
+
   return (
-    <Modal title={template ? 'Edit Template' : 'Add Template'} onClose={onClose} onSubmit={() => onSave(form)}>
+    <Modal title={template ? 'Edit Template' : 'Add Template'} onClose={onClose} onSubmit={handleSave}>
       <div className={styles.field}>
         <label>Name *</label>
         <input type="text" className={styles.input} value={form.name}
-          onChange={e => set('name', e.target.value)} required />
+          onChange={e => set('name', e.target.value)} required disabled={isSystem} />
       </div>
       <div className={styles.field}>
         <label>Version</label>
@@ -167,14 +177,14 @@ function TemplateModal({ template, onClose, onSave }) {
           onChange={e => set('description', e.target.value)} />
       </div>
       <div className={styles.field}>
-        <label>Model Provider</label>
-        <input type="text" className={styles.input} value={form.modelProvider}
-          onChange={e => set('modelProvider', e.target.value)} placeholder="openai" />
-      </div>
-      <div className={styles.field}>
-        <label>Model Name</label>
-        <input type="text" className={styles.input} value={form.modelName}
-          onChange={e => set('modelName', e.target.value)} placeholder="gpt-4o" />
+        <label>Model</label>
+        <select className={styles.input} value={form.modelConfigId}
+          onChange={e => set('modelConfigId', e.target.value)}>
+          <option value="">Default (auto)</option>
+          {models.map(m => (
+            <option key={m.id} value={m.id}>{m.modelKey} — {m.modelName}</option>
+          ))}
+        </select>
       </div>
       <div className={styles.field}>
         <label>System Prompt *</label>
@@ -190,7 +200,8 @@ function TemplateModal({ template, onClose, onSave }) {
       <div className={styles.field}>
         <label>Temperature</label>
         <input type="number" step="0.1" min="0" max="2" className={styles.input}
-          value={form.temperature} onChange={e => set('temperature', parseFloat(e.target.value))} />
+          value={form.temperature} onChange={e => set('temperature', e.target.value)}
+          placeholder="Model default" />
       </div>
       <div className={styles.field}>
         <label>Max Tokens</label>
@@ -468,8 +479,8 @@ export function AIConfig() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Version</th>
-              <th>Provider</th>
+              <th>Type</th>
+              <th>Model</th>
               <th>System Prompt</th>
               <th>Active</th>
               <th></th>
@@ -479,12 +490,12 @@ export function AIConfig() {
             {templates.map(t => (
               <tr key={t.id} className={styles.clickable} onClick={() => setTemplateModal(t)}>
                 <td>{t.name}</td>
-                <td className={styles.mono}>{t.version}</td>
-                <td>{t.modelProvider}</td>
+                <td>{t.system ? <Badge variant="blue">System</Badge> : <Badge variant="gray">Custom</Badge>}</td>
+                <td className={styles.mono}>{t.modelConfig?.modelKey ?? '—'}</td>
                 <td className={styles.preview} title={t.systemPrompt}>{t.systemPrompt}</td>
                 <td><Badge variant={t.active ? 'green' : 'red'}>{t.active ? 'Yes' : 'No'}</Badge></td>
                 <td className={styles.actions} onClick={e => e.stopPropagation()}>
-                  <Button variant="danger" onClick={() => setPendingDelete({ kind: 'template', row: t })}>Delete</Button>
+                  {!t.system && <Button variant="danger" onClick={() => setPendingDelete({ kind: 'template', row: t })}>Delete</Button>}
                 </td>
               </tr>
             ))}
@@ -506,6 +517,7 @@ export function AIConfig() {
       {templateModal && (
         <TemplateModal
           template={templateModal === 'add' ? null : templateModal}
+          models={models}
           onClose={() => setTemplateModal(null)}
           onSave={saveTemplate}
         />
