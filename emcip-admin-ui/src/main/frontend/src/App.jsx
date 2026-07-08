@@ -2,6 +2,7 @@ import { Component } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './theme/ThemeContext'
 import { AuthProvider, useAuth } from './auth/AuthContext'
+import ToastProvider from './components/Toast/ToastProvider'
 import { AppShell } from './layout/AppShell/AppShell'
 import { SpaceBackground } from './layout/SpaceBackground/SpaceBackground'
 import { Login } from './pages/Login/Login'
@@ -82,8 +83,10 @@ export function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <SpaceBackground />
-          <AuthGate />
+          <ToastProvider>
+            <SpaceBackground />
+            <AuthGate />
+          </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
