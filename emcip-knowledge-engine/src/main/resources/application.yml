@@ -21,6 +21,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
   kafka:

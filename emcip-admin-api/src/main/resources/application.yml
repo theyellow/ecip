@@ -13,6 +13,8 @@ spring:
     url: ${SPRING_R2DBC_URL:r2dbc:postgresql://localhost:14005/emcip?sslMode=${DB_SSL_MODE:disable}}
     username: ${SPRING_R2DBC_USERNAME:emcip}
     password: ${SPRING_R2DBC_PASSWORD:emcip}
+  codec:
+    max-in-memory-size: 20MB
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:14003}
   datasource:
