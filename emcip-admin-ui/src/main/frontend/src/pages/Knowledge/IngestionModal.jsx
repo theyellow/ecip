@@ -70,7 +70,7 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
     phase === 'config' &&
     (mode === 'url' ? url.trim().startsWith('http') : file != null)
 
-  const handleClose = phase === 'polling' ? () => {} : onClose
+  const handleClose = onClose
 
   return (
     <Modal title="ADD DOCUMENT" onClose={handleClose}>
