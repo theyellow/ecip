@@ -68,6 +68,10 @@ public class OrchestratorController {
 
     public record ChatResponse(boolean success, String content, String model) {}
 
+    public record BatchEmbedRequest(List<String> inputs) {}
+
+    public record BatchEmbedResponse(boolean success, List<float[]> embeddings, String model) {}
+
     public record WarmUpRequest(List<String> taskTypes) {}
 
     public record WarmUpResult(boolean ready, String model, long latencyMs, String error) {}
@@ -441,6 +445,29 @@ public class OrchestratorController {
             log.error("Embedding call failed: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                     .body(new EmbedResponse(false, new float[0], null));
+        }
+    }
+
+    @Operation(summary = "Generate embedding vectors for a batch of texts")
+    @PostMapping("/embed/batch")
+    public ResponseEntity<BatchEmbedResponse> batchEmbed(@RequestBody BatchEmbedRequest req) {
+        if (req.inputs() == null || req.inputs().size() > 32) {
+            return ResponseEntity.badRequest().body(new BatchEmbedResponse(false, List.of(), null));
+        }
+        Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask("EMBED");
+        if (modelOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new BatchEmbedResponse(false, List.of(), null));
+        }
+        ModelConfig model = modelOpt.get();
+        try {
+            List<float[]> embeddings = llmClient.embedBatch(model.getModelName(), req.inputs());
+            return ResponseEntity.ok(
+                    new BatchEmbedResponse(true, embeddings, model.getModelName()));
+        } catch (Exception e) {
+            log.error("Batch embedding call failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(new BatchEmbedResponse(false, List.of(), null));
         }
     }
 
