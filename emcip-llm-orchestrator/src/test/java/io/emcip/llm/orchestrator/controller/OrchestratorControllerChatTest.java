@@ -2,9 +2,9 @@ package io.emcip.llm.orchestrator.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
 import io.emcip.llm.orchestrator.client.LlmResponse;
@@ -42,7 +42,8 @@ class OrchestratorControllerChatTest {
         ModelConfig model = new ModelConfig();
         model.setModelName("qwen3-30b-a3b");
         when(orchestratorService.selectModelForTask("GENERAL")).thenReturn(Optional.of(model));
-        when(llmClient.chat(anyString(), any(), anyInt(), anyDouble()))
+        // flag_analysis template not found → falls back to taskType with null temperature
+        when(llmClient.chat(anyString(), any(), anyInt(), isNull()))
                 .thenReturn(new LlmResponse("analysis result", 100, 50, "qwen3-30b-a3b"));
 
         var request =

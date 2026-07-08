@@ -74,13 +74,28 @@ admin:
 resilience4j:
   circuitbreaker:
     instances:
-      llm-orchestrator:
+      llm-orchestrator-embed:
         sliding-window-size: 10
         failure-rate-threshold: 50
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 3
         slow-call-duration-threshold: 10s
         slow-call-rate-threshold: 80
+      llm-orchestrator-analyse:
+        sliding-window-size: 10
+        failure-rate-threshold: 70
+        wait-duration-in-open-state: 120s
+        permitted-number-of-calls-in-half-open-state: 5
+        slow-call-duration-threshold: 180s
+        slow-call-rate-threshold: 90
+  retry:
+    instances:
+      llm-orchestrator-analyse:
+        max-attempts: 2
+        wait-duration: 10s
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.net.SocketTimeoutException
 
 logging:
   structured:

@@ -114,9 +114,8 @@ public class ResearchReportService {
     public ResearchReport generateReport(
             ResearchSession session, List<ResearchEvidence> evidence, ReportTemplate template) {
 
-        String promptTemplate = selectPromptTemplate(template);
         String evidenceSummary = buildEvidenceSummary(evidence);
-        String prompt = promptTemplate.formatted(session.getQuestion(), evidenceSummary);
+        String prompt = buildPrompt(session.getQuestion(), evidenceSummary, template);
 
         String content = llmClient.analyse(prompt, "REPORT");
         if (content == null || content.isBlank()) {
@@ -134,6 +133,34 @@ public class ResearchReportService {
         report.setContent(content);
 
         return reportRepository.save(report);
+    }
+
+    private String buildPrompt(String question, String evidenceSummary, ReportTemplate template) {
+        String templateName =
+                switch (template) {
+                    case TOPIC -> "research_topic";
+                    case PERSON -> "research_person";
+                    case FACT_CHECK -> "research_fact_check";
+                };
+
+        LlmOrchestratorClient.TemplateResponse tmpl = llmClient.getTemplate(templateName);
+        if (tmpl != null && tmpl.systemPrompt() != null) {
+            log.info("Using template '{}' from orchestrator for report generation", templateName);
+            String userTemplate =
+                    tmpl.userPromptTemplate() != null
+                            ? tmpl.userPromptTemplate()
+                            : "{{topic}}\n\n{{evidence}}";
+            return tmpl.systemPrompt()
+                    + "\n\n"
+                    + userTemplate
+                            .replace("{{topic}}", question)
+                            .replace("{{evidence}}", evidenceSummary);
+        }
+
+        // Fallback to hardcoded prompts
+        log.warn("Template '{}' not found, falling back to hardcoded prompt", templateName);
+        String promptTemplate = selectPromptTemplate(template);
+        return promptTemplate.formatted(question, evidenceSummary);
     }
 
     // ── Private ──────────────────────────────────────────────────────────────

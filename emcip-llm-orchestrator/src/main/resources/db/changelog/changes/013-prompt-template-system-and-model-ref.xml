@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <changeSet id="013-add-system-column" author="ecip">
+        <comment>Add 'system' boolean to distinguish built-in templates from custom ones</comment>
+        <addColumn tableName="prompt_templates">
+            <column name="system" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="013-make-temperature-nullable" author="ecip">
+        <comment>Allow null temperature — null means let LiteLLM/model decide</comment>
+        <dropNotNullConstraint tableName="prompt_templates"
+                               columnName="temperature"
+                               columnDataType="DOUBLE PRECISION"/>
+    </changeSet>
+
+    <changeSet id="013-add-model-config-ref" author="ecip">
+        <comment>Replace dead model_provider/model_name with FK to model_configs.
+            Template now owns the model choice.</comment>
+        <addColumn tableName="prompt_templates">
+            <column name="model_config_id" type="UUID">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <addForeignKeyConstraint
+                baseTableName="prompt_templates" baseColumnNames="model_config_id"
+                referencedTableName="model_configs" referencedColumnNames="id"
+                constraintName="fk_template_model_config"/>
+    </changeSet>
+
+    <changeSet id="013-drop-dead-model-fields" author="ecip">
+        <comment>model_provider and model_name were never used in any LLM call — remove them</comment>
+        <dropIndex tableName="prompt_templates" indexName="idx_prompt_templates_provider"/>
+        <dropColumn tableName="prompt_templates" columnName="model_provider"/>
+        <dropColumn tableName="prompt_templates" columnName="model_name"/>
+    </changeSet>
+
+</databaseChangeLog>

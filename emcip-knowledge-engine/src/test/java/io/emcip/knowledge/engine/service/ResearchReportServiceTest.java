@@ -122,6 +122,49 @@ class ResearchReportServiceTest {
     }
 
     @Test
+    void generateReport_usesTemplateFromOrchestrator_whenTemplateFound() {
+        ResearchSession session = buildSession("Climate change impacts on agriculture");
+        ResearchEvidence evidence =
+                buildEvidence(
+                        session,
+                        "What crops are most affected?",
+                        "Wheat yields declining in southern Europe",
+                        "msg-042");
+
+        LlmOrchestratorClient.TemplateResponse templateResponse =
+                new LlmOrchestratorClient.TemplateResponse(
+                        "research_topic",
+                        "You are an expert research synthesizer.",
+                        "Topic: {{topic}}\n\nEvidence:\n{{evidence}}",
+                        2000,
+                        0.3);
+
+        when(llmClient.getTemplate("research_topic")).thenReturn(templateResponse);
+        when(llmClient.analyse(anyString(), eq("REPORT"))).thenReturn("## Report\nSome findings.");
+        when(reportRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        ResearchReport report =
+                service.generateReport(session, List.of(evidence), ReportTemplate.TOPIC);
+
+        assertThat(report).isNotNull();
+        assertThat(report.getContent()).isEqualTo("## Report\nSome findings.");
+
+        ArgumentCaptor<String> promptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(llmClient).analyse(promptCaptor.capture(), eq("REPORT"));
+        String capturedPrompt = promptCaptor.getValue();
+        assertThat(capturedPrompt).contains("Climate change impacts on agriculture");
+        assertThat(capturedPrompt).contains("Wheat yields declining in southern Europe");
+        assertThat(capturedPrompt).doesNotContain("{{topic}}");
+        assertThat(capturedPrompt).doesNotContain("{{evidence}}");
+        // Verify it uses the template structure, not the hardcoded prompt
+        assertThat(capturedPrompt).contains("Topic: Climate change impacts on agriculture");
+        // Verify systemPrompt is prepended before the user template
+        assertThat(capturedPrompt).startsWith("You are an expert research synthesizer.");
+        assertThat(capturedPrompt)
+                .contains("You are an expert research synthesizer.\n\nTopic: Climate change");
+    }
+
+    @Test
     void generateReport_storesFallbackContent_whenLlmReturnsNull() {
         ResearchSession session = buildSession("Is claim X true?");
         when(llmClient.analyse(anyString(), eq("REPORT"))).thenReturn(null);

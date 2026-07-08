@@ -6,6 +6,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.Instant;
@@ -58,13 +60,15 @@ public class PromptTemplate {
     @Column(nullable = false, length = 200)
     private String description;
 
-    @Schema(description = "LLM provider this template targets", example = "openai")
-    @Column(nullable = false, length = 50)
-    private String modelProvider;
+    @Schema(description = "Whether this is a built-in system template (cannot be deleted/renamed)")
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean system = false;
 
-    @Schema(description = "Model name this template is tuned for", example = "gpt-4-turbo")
-    @Column(nullable = false, length = 50)
-    private String modelName;
+    @Schema(description = "Model configuration this template uses for LLM calls")
+    @ManyToOne
+    @JoinColumn(name = "model_config_id")
+    private ModelConfig modelConfig;
 
     @Schema(description = "System prompt text sent to the LLM")
     @Column(nullable = false, length = 5000)
@@ -77,14 +81,13 @@ public class PromptTemplate {
     @Schema(
             description = "Sampling temperature (0.0 = deterministic, 1.0 = creative)",
             example = "0.7")
-    @Column(nullable = false)
-    @Builder.Default
-    private Double temperature = 0.7;
+    @Column
+    private Double temperature;
 
-    @Schema(description = "Maximum tokens to generate in the response", example = "2048")
+    @Schema(description = "Maximum tokens to generate in the response", example = "8192")
     @Column(nullable = false)
     @Builder.Default
-    private Integer maxTokens = 2048;
+    private Integer maxTokens = 8192;
 
     @Schema(description = "Whether this template is available for use")
     @Column(nullable = false)

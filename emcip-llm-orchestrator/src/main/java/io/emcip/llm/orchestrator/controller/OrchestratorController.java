@@ -128,6 +128,15 @@ public class OrchestratorController {
         return orchestratorService.getAllActivePromptTemplates();
     }
 
+    @Operation(summary = "Get a prompt template by name")
+    @GetMapping("/templates/{name}")
+    public ResponseEntity<PromptTemplate> getTemplateByName(@PathVariable String name) {
+        return orchestratorService
+                .getPromptTemplate(name)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @Operation(summary = "Create a new prompt template")
     @PostMapping("/templates")
     public ResponseEntity<PromptTemplate> createTemplate(@RequestBody PromptTemplate template) {
@@ -147,11 +156,15 @@ public class OrchestratorController {
                                 () ->
                                         new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND, "Template not found: " + id));
+        if (Boolean.TRUE.equals(existing.getSystem())
+                && !existing.getName().equals(update.getName())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Cannot rename system template: " + existing.getName());
+        }
         existing.setName(update.getName());
         existing.setVersion(update.getVersion());
         existing.setDescription(update.getDescription());
-        existing.setModelProvider(update.getModelProvider());
-        existing.setModelName(update.getModelName());
+        existing.setModelConfig(update.getModelConfig());
         existing.setSystemPrompt(update.getSystemPrompt());
         existing.setUserPromptTemplate(update.getUserPromptTemplate());
         existing.setTemperature(update.getTemperature());
@@ -165,8 +178,16 @@ public class OrchestratorController {
     @DeleteMapping("/templates/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTemplate(@PathVariable UUID id) {
-        if (!promptTemplateRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Template not found: " + id);
+        PromptTemplate template =
+                promptTemplateRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new ResponseStatusException(
+                                                HttpStatus.NOT_FOUND, "Template not found: " + id));
+        if (Boolean.TRUE.equals(template.getSystem())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Cannot delete system template: " + template.getName());
         }
         promptTemplateRepository.deleteById(id);
     }
@@ -308,28 +329,61 @@ public class OrchestratorController {
                         !models.isEmpty()));
     }
 
-    @Operation(summary = "Run an ad-hoc LLM analysis using the GENERAL task model")
+    @Operation(summary = "Run an ad-hoc LLM analysis using the flag_analyse template")
     @PostMapping("/analyse")
     public ResponseEntity<AnalyseResponse> analyse(@RequestBody AnalyseRequest req) {
-        String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
-        Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
-        if (modelOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(
-                            new AnalyseResponse(
-                                    false, "No model configured for task: " + taskType, null));
+        // Look up the flag_analyse template first
+        Optional<PromptTemplate> templateOpt =
+                orchestratorService.getPromptTemplate("flag_analyse");
+
+        String systemPrompt;
+        int maxTokens;
+        Double temperature;
+        String modelName;
+
+        if (templateOpt.isPresent()) {
+            PromptTemplate template = templateOpt.get();
+            systemPrompt = template.getSystemPrompt();
+            maxTokens = template.getMaxTokens();
+            temperature = template.getTemperature();
+
+            if (template.getModelConfig() != null) {
+                modelName = template.getModelConfig().getModelName();
+            } else {
+                String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+                Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+                if (modelOpt.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body(
+                                    new AnalyseResponse(
+                                            false,
+                                            "No model configured for task: " + taskType,
+                                            null));
+                }
+                modelName = modelOpt.get().getModelName();
+            }
+        } else {
+            // Fallback to hardcoded defaults
+            String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+            Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+            if (modelOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(
+                                new AnalyseResponse(
+                                        false, "No model configured for task: " + taskType, null));
+            }
+            modelName = modelOpt.get().getModelName();
+            systemPrompt =
+                    "You are a moderation analyst for the EMCIP platform. Analyse the"
+                            + " provided flag data and explain the moderation decision clearly"
+                            + " and concisely.";
+            maxTokens = 8192;
+            temperature = null;
         }
-        ModelConfig model = modelOpt.get();
+
         try {
             LlmResponse response =
-                    llmClient.call(
-                            model.getModelName(),
-                            "You are a moderation analyst for the EMCIP platform. Analyse the"
-                                + " provided flag data and explain the moderation decision clearly"
-                                + " and concisely.",
-                            req.prompt(),
-                            1024,
-                            0.3);
+                    llmClient.call(modelName, systemPrompt, req.prompt(), maxTokens, temperature);
             return ResponseEntity.ok(
                     new AnalyseResponse(true, response.content(), response.model()));
         } catch (Exception e) {
@@ -359,24 +413,56 @@ public class OrchestratorController {
         }
     }
 
-    @Operation(summary = "Multi-turn chat using the specified task model")
+    @Operation(summary = "Multi-turn chat using the flag_analysis template")
     @PostMapping("/chat")
     public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest req) {
-        String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
-        Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
-        if (modelOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(
-                            new ChatResponse(
-                                    false, "No model configured for task: " + taskType, null));
+        Optional<PromptTemplate> templateOpt =
+                orchestratorService.getPromptTemplate("flag_analysis");
+
+        int maxTokens;
+        Double temperature;
+        String modelName;
+
+        if (templateOpt.isPresent()) {
+            PromptTemplate template = templateOpt.get();
+            maxTokens = template.getMaxTokens();
+            temperature = template.getTemperature();
+
+            if (template.getModelConfig() != null) {
+                modelName = template.getModelConfig().getModelName();
+            } else {
+                String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+                Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+                if (modelOpt.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .body(
+                                    new ChatResponse(
+                                            false,
+                                            "No model configured for task: " + taskType,
+                                            null));
+                }
+                modelName = modelOpt.get().getModelName();
+            }
+        } else {
+            String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+            Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
+            if (modelOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body(
+                                new ChatResponse(
+                                        false, "No model configured for task: " + taskType, null));
+            }
+            modelName = modelOpt.get().getModelName();
+            maxTokens = 8192;
+            temperature = null;
         }
-        ModelConfig model = modelOpt.get();
+
         try {
             List<Map<String, String>> messages =
                     req.messages().stream()
                             .map(m -> Map.of("role", m.role(), "content", m.content()))
                             .toList();
-            LlmResponse response = llmClient.chat(model.getModelName(), messages, 1024, 0.3);
+            LlmResponse response = llmClient.chat(modelName, messages, maxTokens, temperature);
             return ResponseEntity.ok(new ChatResponse(true, response.content(), response.model()));
         } catch (Exception e) {
             log.error("Chat call failed: {}", e.getMessage(), e);
