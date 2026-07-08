@@ -4,6 +4,15 @@ Raw ideas not yet in the backlog. Once an item gets a backlog entry it is remove
 
 ---
 
+## Prompt Template System Follow-Ons
+
+- FlagService.chat() test coverage — the enrichment path (prepending flag context to first user message) has no unit test
+- OrchestratorController analyse/chat template resolution deduplication — both methods have ~60 lines of duplicated template lookup + model resolution + fallback logic; extract a shared `resolveTemplateConfig(templateName, taskType)` helper
+- Merge `flag_analysis` and `flag_analyse` into a single template once both paths are proven stable
+- Wire custom templates to policy actions — allow operators to reference a custom template name in policy rule action config (e.g. "when SPAM, use template `spam_response_german`")
+- KEYWORD word-boundary matching — the intent classifier's KEYWORD mode uses substring `contains()`, causing false positives (e.g. "history" matches keyword "is"); should use word-boundary matching
+- LLM-based intent classification — wire qwen3-4b as a fallback classifier for UNKNOWN intents
+
 ## LLM Routing & Multi-Model
 
 - Multi-model routing strategy: intent-based (GREETING → cheap model, REPORT → capable model), cost-based (approaching budget → cheaper model), load balancing across providers
