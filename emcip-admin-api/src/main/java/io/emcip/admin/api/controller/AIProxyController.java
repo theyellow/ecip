@@ -157,6 +157,26 @@ public class AIProxyController {
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
+    @Operation(summary = "Get a prompt template by name")
+    @GetMapping("/templates/{name}")
+    public Mono<String> getTemplateByName(@PathVariable String name) {
+        return orchestratorClient
+                .get()
+                .uri("/api/templates/{name}", name)
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                body ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(), body))))
+                .bodyToMono(String.class)
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
     @Operation(summary = "Create a prompt template")
     @PostMapping(value = "/templates", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
