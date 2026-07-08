@@ -23,6 +23,7 @@ import reactor.core.publisher.Mono;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -168,8 +169,7 @@ public class FlagService {
                             String context = buildFlagContext(flag);
                             JsonNode clientMessages = body.get("messages");
 
-                            tools.jackson.databind.node.ArrayNode messages =
-                                    JsonNodeFactory.instance.arrayNode();
+                            ArrayNode messages = JsonNodeFactory.instance.arrayNode();
 
                             // Add flag context as first user message if client messages exist
                             if (clientMessages != null && clientMessages.isArray()) {
@@ -222,7 +222,6 @@ public class FlagService {
         return sb.toString();
     }
 
-    // TODO: remove after template migration confirmed stable
     private String buildAnalysisPrompt(tools.jackson.databind.JsonNode flag) {
         StringBuilder sb = new StringBuilder();
         sb.append("Analyse this moderation flag:\n\n");
