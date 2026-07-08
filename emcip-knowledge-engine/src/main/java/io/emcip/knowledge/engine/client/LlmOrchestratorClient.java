@@ -266,6 +266,26 @@ Respond with the matching candidate label, or "NEW" if no match.
         }
     }
 
+    public TemplateResponse getTemplate(String name) {
+        try {
+            return restClient
+                    .get()
+                    .uri("/api/templates/{name}", name)
+                    .retrieve()
+                    .body(TemplateResponse.class);
+        } catch (Exception e) {
+            log.warn("Failed to fetch template '{}': {}", name, e.getMessage());
+            return null;
+        }
+    }
+
+    public record TemplateResponse(
+            String name,
+            String systemPrompt,
+            String userPromptTemplate,
+            Integer maxTokens,
+            Double temperature) {}
+
     private record AnalyseResponse(boolean success, String analysis, String model) {}
 
     private record EmbedResponse(boolean success, float[] embedding, String model) {}
