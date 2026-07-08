@@ -112,7 +112,12 @@ resilience4j:
       tdlib-adapter:
         baseConfig: default
       orchestrator:
-        baseConfig: default
+        slidingWindowSize: 10
+        failureRateThreshold: 70
+        waitDurationInOpenState: 120s
+        permittedNumberOfCallsInHalfOpenState: 5
+        slowCallDurationThreshold: 180s
+        slowCallRateThreshold: 90
       knowledge:
         baseConfig: default
       intent-classifier:
