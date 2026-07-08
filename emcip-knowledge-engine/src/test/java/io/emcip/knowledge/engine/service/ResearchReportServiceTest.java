@@ -158,6 +158,10 @@ class ResearchReportServiceTest {
         assertThat(capturedPrompt).doesNotContain("{{evidence}}");
         // Verify it uses the template structure, not the hardcoded prompt
         assertThat(capturedPrompt).contains("Topic: Climate change impacts on agriculture");
+        // Verify systemPrompt is prepended before the user template
+        assertThat(capturedPrompt).startsWith("You are an expert research synthesizer.");
+        assertThat(capturedPrompt)
+                .contains("You are an expert research synthesizer.\n\nTopic: Climate change");
     }
 
     @Test

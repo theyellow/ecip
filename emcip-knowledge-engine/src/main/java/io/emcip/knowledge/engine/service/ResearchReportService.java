@@ -150,9 +150,11 @@ public class ResearchReportService {
                     tmpl.userPromptTemplate() != null
                             ? tmpl.userPromptTemplate()
                             : "{{topic}}\n\n{{evidence}}";
-            return userTemplate
-                    .replace("{{topic}}", question)
-                    .replace("{{evidence}}", evidenceSummary);
+            return tmpl.systemPrompt()
+                    + "\n\n"
+                    + userTemplate
+                            .replace("{{topic}}", question)
+                            .replace("{{evidence}}", evidenceSummary);
         }
 
         // Fallback to hardcoded prompts
