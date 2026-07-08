@@ -32,6 +32,13 @@ export function knowledgeApi(request, rawFetch) {
       return request(`/api/admin/knowledge/ingest?${params}`)
     },
 
+    /** POST /api/ai/warm-up — primes the knowledge engine for specified task types */
+    warmUp: (taskTypes) =>
+      request('/api/ai/warm-up', {
+        method: 'POST',
+        body: JSON.stringify({ taskTypes }),
+      }),
+
     /**
      * POST /api/admin/knowledge/search
      * Returns { graphResults: [...], documentResults: [...] }
