@@ -78,3 +78,10 @@ These build on Epic 26.10 (knowledge context injected into LLM prompts, merged P
 - Media/file replies: images, documents, or voice messages as operator responses (Phase 1 is text-only)
 - Edit or delete sent operator messages
 - Bulk replies: respond to multiple flagged messages at once (e.g., same response to a spam wave)
+
+## Ingestion Pipeline Follow-Ons
+
+- Cross-page job completion notifications — currently the ingestion completion/failure toast only fires while the Knowledge page is mounted. To notify users who navigated away, add a lightweight WebSocket/SSE channel: orchestrator publishes job state changes to a topic, admin-api forwards to connected browsers, ToastProvider listens and fires toasts. Alternative: a global polling hook at the App level that checks for recently-completed jobs.
+- Migrate inline error banners to toast system — every page has its own `alertBanner` / `errorBanner` / `errorMsg` / `alert` CSS class with identical styling (red text, red-tinted background, mono font). Replace with `useToast()` calls. Pages affected: Costs, AuditLog, Flags, ReplyComposer, ResearchPage, PolicyRules, IntentRules, IntentSignalConfig, Groups, Tenants, Telegram, ModerationRules, AIConfig. Some pages also silently swallow errors in `useEffect` `.catch(() => {})` — these should fire error toasts instead.
+- Model warm-up on other pages — the warm-up endpoint (`POST /api/warm-up`) can be called from any page that triggers LLM work. Candidates: Decisions page (flag analysis), Research page (report generation), Simulate page (pipeline trace). Each would warm the specific model for its task type when the user opens the relevant dialog.
+- Configurable ingestion parallelism in Admin UI — expose the `knowledge.ingestion.parallelism` setting (default 3) as an editable field on the AI Config page or a Knowledge settings section, so operators can tune concurrency based on current hardware load.
