@@ -50,6 +50,8 @@ knowledge:
   resolution:
     merge-threshold: ${KNOWLEDGE_RESOLUTION_MERGE_THRESHOLD:0.92}
     flag-threshold: ${KNOWLEDGE_RESOLUTION_FLAG_THRESHOLD:0.80}
+  ingestion:
+    parallelism: ${KNOWLEDGE_INGESTION_PARALLELISM:3}
 
 web:
   search:
