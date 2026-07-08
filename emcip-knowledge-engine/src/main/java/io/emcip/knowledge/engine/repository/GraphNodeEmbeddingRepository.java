@@ -16,19 +16,34 @@ public class GraphNodeEmbeddingRepository {
     private final JdbcTemplate jdbcTemplate;
 
     public Optional<float[]> findEmbedding(String label, String conceptType, UUID tenantId) {
-        String sql =
-                """
-                SELECT embedding::text
-                FROM ke_graph_node_embeddings
-                WHERE label = ?
-                  AND concept_type = ?
-                  AND (tenant_id = ? OR (tenant_id IS NULL AND ? IS NULL))
-                  AND embedding IS NOT NULL
-                """;
         try {
-            String raw =
-                    jdbcTemplate.queryForObject(
-                            sql, String.class, label, conceptType, tenantId, tenantId);
+            String raw;
+            if (tenantId != null) {
+                raw =
+                        jdbcTemplate.queryForObject(
+                                """
+                                SELECT embedding::text
+                                FROM ke_graph_node_embeddings
+                                WHERE label = ? AND concept_type = ? AND tenant_id = ?
+                                  AND embedding IS NOT NULL
+                                """,
+                                String.class,
+                                label,
+                                conceptType,
+                                tenantId);
+            } else {
+                raw =
+                        jdbcTemplate.queryForObject(
+                                """
+                                SELECT embedding::text
+                                FROM ke_graph_node_embeddings
+                                WHERE label = ? AND concept_type = ? AND tenant_id IS NULL
+                                  AND embedding IS NOT NULL
+                                """,
+                                String.class,
+                                label,
+                                conceptType);
+            }
             return Optional.of(parseVector(raw));
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return Optional.empty();
@@ -59,31 +74,51 @@ ON CONFLICT (label, concept_type, tenant_id)
     public Optional<NodeSimilarityResult> findNearestNeighbour(
             float[] embedding, String conceptType, UUID tenantId) {
         String vectorStr = toVectorString(embedding);
-        String sql =
-                """
-                SELECT node_id, label, 1 - (embedding <=> ?::vector) AS score
-                FROM ke_graph_node_embeddings
-                WHERE concept_type = ?
-                  AND (tenant_id = ? OR tenant_id IS NULL)
-                  AND embedding IS NOT NULL
-                ORDER BY embedding <=> ?::vector
-                LIMIT 1
-                """;
         try {
-            return jdbcTemplate
-                    .query(
-                            sql,
-                            (rs, rowNum) ->
-                                    new NodeSimilarityResult(
-                                            UUID.fromString(rs.getString("node_id")),
-                                            rs.getString("label"),
-                                            rs.getDouble("score")),
-                            vectorStr,
-                            conceptType,
-                            tenantId,
-                            vectorStr)
-                    .stream()
-                    .findFirst();
+            if (tenantId != null) {
+                return jdbcTemplate
+                        .query(
+                                """
+                                SELECT node_id, label, 1 - (embedding <=> ?::vector) AS score
+                                FROM ke_graph_node_embeddings
+                                WHERE concept_type = ? AND tenant_id = ?
+                                  AND embedding IS NOT NULL
+                                ORDER BY embedding <=> ?::vector
+                                LIMIT 1
+                                """,
+                                (rs, rowNum) ->
+                                        new NodeSimilarityResult(
+                                                UUID.fromString(rs.getString("node_id")),
+                                                rs.getString("label"),
+                                                rs.getDouble("score")),
+                                vectorStr,
+                                conceptType,
+                                tenantId,
+                                vectorStr)
+                        .stream()
+                        .findFirst();
+            } else {
+                return jdbcTemplate
+                        .query(
+                                """
+                                SELECT node_id, label, 1 - (embedding <=> ?::vector) AS score
+                                FROM ke_graph_node_embeddings
+                                WHERE concept_type = ? AND tenant_id IS NULL
+                                  AND embedding IS NOT NULL
+                                ORDER BY embedding <=> ?::vector
+                                LIMIT 1
+                                """,
+                                (rs, rowNum) ->
+                                        new NodeSimilarityResult(
+                                                UUID.fromString(rs.getString("node_id")),
+                                                rs.getString("label"),
+                                                rs.getDouble("score")),
+                                vectorStr,
+                                conceptType,
+                                vectorStr)
+                        .stream()
+                        .findFirst();
+            }
         } catch (Exception e) {
             log.warn("Similarity query failed: {}", e.getMessage());
             return Optional.empty();
