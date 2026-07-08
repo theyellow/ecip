@@ -164,18 +164,33 @@ public class FlagService {
                 .getDecision(flagId)
                 .flatMap(
                         flag -> {
-                            String systemPrompt = buildChatSystemPrompt(flag);
+                            // Build context string for the template's user prompt
+                            String context = buildFlagContext(flag);
                             JsonNode clientMessages = body.get("messages");
 
                             tools.jackson.databind.node.ArrayNode messages =
                                     JsonNodeFactory.instance.arrayNode();
-                            ObjectNode systemMsg = JsonNodeFactory.instance.objectNode();
-                            systemMsg.put("role", "system");
-                            systemMsg.put("content", systemPrompt);
-                            messages.add(systemMsg);
+
+                            // Add flag context as first user message if client messages exist
                             if (clientMessages != null && clientMessages.isArray()) {
+                                boolean firstMessage = true;
                                 for (JsonNode msg : clientMessages) {
-                                    messages.add(msg);
+                                    if (firstMessage && "user".equals(msg.path("role").asText())) {
+                                        // Prepend flag context to first user message
+                                        ObjectNode enriched = JsonNodeFactory.instance.objectNode();
+                                        enriched.put("role", "user");
+                                        enriched.put(
+                                                "content",
+                                                "Context:\n"
+                                                        + context
+                                                        + "\n\nOperator question: "
+                                                        + msg.path("content").asText());
+                                        messages.add(enriched);
+                                        firstMessage = false;
+                                    } else {
+                                        messages.add(msg);
+                                        firstMessage = false;
+                                    }
                                 }
                             }
 
@@ -192,12 +207,8 @@ public class FlagService {
                         });
     }
 
-    private String buildChatSystemPrompt(JsonNode flag) {
+    private String buildFlagContext(JsonNode flag) {
         StringBuilder sb = new StringBuilder();
-        sb.append(
-                "You are a moderation analyst for the EMCIP platform. You are assisting an"
-                        + " operator investigating a flagged message.\n\n");
-        sb.append("Context:\n");
         sb.append("- Intent: ").append(flag.path("originalIntent").asText("unknown")).append("\n");
         sb.append("- Decision: ").append(flag.path("decision").asText("unknown")).append("\n");
         sb.append("- Confidence: ")
@@ -208,10 +219,10 @@ public class FlagService {
         if (!meta.isMissingNode() && !meta.isNull() && meta.has("messageText")) {
             sb.append("- Message text: ").append(meta.path("messageText").asText()).append("\n");
         }
-        sb.append("\nHelp the operator understand this flag and research appropriate responses.");
         return sb.toString();
     }
 
+    // TODO: remove after template migration confirmed stable
     private String buildAnalysisPrompt(tools.jackson.databind.JsonNode flag) {
         StringBuilder sb = new StringBuilder();
         sb.append("Analyse this moderation flag:\n\n");
