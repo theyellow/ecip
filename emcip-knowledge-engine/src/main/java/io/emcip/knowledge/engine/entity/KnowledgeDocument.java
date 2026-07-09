@@ -31,6 +31,9 @@ public class KnowledgeDocument {
     @Column(name = "tenant_id")
     private UUID tenantId;
 
+    @Column(name = "job_id")
+    private UUID jobId;
+
     @Column(name = "source_type", nullable = false, length = 50)
     private String sourceType;
 

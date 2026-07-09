@@ -10,7 +10,8 @@ public record IngestionJobDto(
         String status,
         Integer chunkCount,
         String errorMessage,
-        String createdAt) {
+        String createdAt,
+        String contentHash) {
 
     public static IngestionJobDto from(IngestionJob job) {
         return new IngestionJobDto(
@@ -21,6 +22,7 @@ public record IngestionJobDto(
                 job.getStatus().name(),
                 job.getChunkCount(),
                 job.getErrorMessage(),
-                job.getCreatedAt() != null ? job.getCreatedAt().toString() : null);
+                job.getCreatedAt() != null ? job.getCreatedAt().toString() : null,
+                job.getContentHash());
     }
 }

@@ -49,6 +49,9 @@ public class IngestionJob {
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) createdAt = OffsetDateTime.now();
