@@ -1,192 +1,137 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Modal } from '../../components/Modal/Modal'
-import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { SegmentedControl } from '../../components/SegmentedControl/SegmentedControl'
+import { useToast } from '../../components/Toast/useToast'
 import styles from './IngestionModal.module.css'
 
+const WARM_UP_TIMEOUT_MS = 15000
+
 export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
-  const [mode, setMode] = useState('url') // 'url' | 'file'
+  const [mode, setMode] = useState('url')
   const [url, setUrl] = useState('')
   const [file, setFile] = useState(null)
   const [tenantId, setTenantId] = useState('')
-  const [phase, setPhase] = useState('config') // 'config' | 'polling' | 'done' | 'error'
-  const [jobId, setJobId] = useState(null)
-  const [jobStatus, setJobStatus] = useState(null)
-  const [errorMsg, setErrorMsg] = useState('')
-  const pollRef = useRef(null)
-  const pollCountRef = useRef(0)
-  const MAX_POLLS = 150 // 5 minutes at 2s intervals
+  const [submitting, setSubmitting] = useState(false)
+  const [warmUpState, setWarmUpState] = useState('loading') // loading | ready | failed
+  const [warmUpLatency, setWarmUpLatency] = useState(null)
+  const { addToast } = useToast()
 
+  // Warm up models on mount
   useEffect(() => {
-    if (phase !== 'polling' || !jobId) return
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), WARM_UP_TIMEOUT_MS)
 
-    pollCountRef.current = 0
-
-    pollRef.current = setInterval(async () => {
-      pollCountRef.current += 1
-      if (pollCountRef.current > MAX_POLLS) {
-        clearInterval(pollRef.current)
-        setErrorMsg('Timed out waiting for ingestion to complete.')
-        setPhase('error')
-        return
-      }
-      try {
-        const s = await api.status(jobId)
-        setJobStatus(s)
-        if (s.status === 'COMPLETED') {
-          setPhase('done')
-        } else if (s.status === 'FAILED') {
-          setErrorMsg(s.errorMessage || 'Ingestion failed.')
-          setPhase('error')
+    api
+      .warmUp(['EMBED', 'EXTRACT'])
+      .then(data => {
+        const results = data.results || {}
+        const allReady = Object.values(results).every(r => r.ready)
+        const maxLatency = Math.max(...Object.values(results).map(r => r.latencyMs || 0))
+        if (allReady) {
+          setWarmUpState('ready')
+          setWarmUpLatency(maxLatency)
+        } else {
+          setWarmUpState('failed')
+          addToast('warning', 'Model warm-up failed — ingestion may be slow')
         }
-      } catch (e) {
-        setErrorMsg(e.message || 'Failed to fetch status.')
-        setPhase('error')
-      }
-    }, 2000)
+      })
+      .catch(() => {
+        setWarmUpState('failed')
+        addToast('warning', 'Model warm-up failed — ingestion may be slow')
+      })
+      .finally(() => clearTimeout(timeout))
 
-    return () => clearInterval(pollRef.current)
-  }, [phase, jobId, api])
-
-  async function handleSubmit() {
-    try {
-      const tid = tenantId || null
-      let result
-      if (mode === 'url') {
-        result = await api.ingestUrl(url, tid)
-      } else {
-        result = await api.ingestUpload(file, tid)
-      }
-      setJobId(result.jobId)
-      if (onJobCreated) onJobCreated()
-      setPhase('polling')
-    } catch (e) {
-      setErrorMsg(e.message || 'Failed to submit.')
-      setPhase('error')
+    return () => {
+      controller.abort()
+      clearTimeout(timeout)
     }
-  }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const canSubmit =
-    phase === 'config' &&
-    (mode === 'url' ? url.trim().startsWith('http') : file != null)
+    warmUpState !== 'loading' &&
+    !submitting &&
+    (mode === 'url' ? url.trim() : file) &&
+    tenantId
 
-  const handleClose = onClose
+  const handleSubmit = useCallback(async () => {
+    setSubmitting(true)
+    try {
+      if (mode === 'url') {
+        await api.ingestUrl(url, tenantId)
+      } else {
+        await api.ingestUpload(file, tenantId)
+      }
+      const sourceRef = mode === 'url' ? url : file.name
+      addToast('info', `Document submitted: ${sourceRef}`)
+      onJobCreated()
+      onClose()
+    } catch (err) {
+      addToast('error', `Submission failed: ${err.message || 'Unknown error'}`)
+      setSubmitting(false)
+    }
+  }, [mode, url, file, tenantId, api, addToast, onJobCreated, onClose])
 
   return (
-    <Modal title="ADD DOCUMENT" onClose={handleClose}>
-      {phase === 'config' && (
-        <>
-          <div className={styles.segRow}>
-            <button
-              type="button"
-              className={`${styles.seg}${mode === 'url' ? ` ${styles.segActive}` : ''}`}
-              onClick={() => setMode('url')}
-            >
-              URL
-            </button>
-            <button
-              type="button"
-              className={`${styles.seg}${mode === 'file' ? ` ${styles.segActive}` : ''}`}
-              onClick={() => setMode('file')}
-            >
-              File Upload
-            </button>
-          </div>
+    <Modal title="Add Document" onClose={onClose}>
+      <div className={styles.form}>
+        <SegmentedControl
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'url', label: 'URL' },
+            { value: 'file', label: 'File' },
+          ]}
+        />
 
-          {mode === 'url' ? (
-            <div className={styles.field}>
-              <label className={styles.label}>URL</label>
-              <input
-                className={styles.input}
-                type="url"
-                placeholder="https://example.com/article"
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-              />
-            </div>
-          ) : (
-            <div className={styles.field}>
-              <label className={styles.label}>File</label>
-              <input
-                className={styles.input}
-                type="file"
-                accept=".txt,.html,.pdf,.docx"
-                onChange={e => setFile(e.target.files[0] ?? null)}
-              />
-              {file && <span className={styles.filename}>{file.name}</span>}
-            </div>
+        {mode === 'url' ? (
+          <input
+            className={styles.input}
+            type="url"
+            placeholder="https://example.com/document.pdf"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+          />
+        ) : (
+          <input
+            className={styles.input}
+            type="file"
+            accept=".pdf,.txt,.html,.docx,.doc,.odt,.rtf"
+            onChange={e => setFile(e.target.files?.[0] || null)}
+          />
+        )}
+
+        <select
+          className={styles.input}
+          value={tenantId}
+          onChange={e => setTenantId(e.target.value)}
+        >
+          <option value="">Select tenant...</option>
+          {(tenants ?? []).map(t => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+
+        <div className={styles.warmUpStatus}>
+          {warmUpState === 'loading' && (
+            <span className={styles.warmUpLoading}>Preparing models...</span>
           )}
-
-          <div className={styles.field}>
-            <label className={styles.label}>Tenant</label>
-            <select
-              className={styles.select}
-              value={tenantId}
-              onChange={e => setTenantId(e.target.value)}
-            >
-              <option value="">Global (shared)</option>
-              {(tenants ?? []).map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className={styles.footer}>
-            <Button variant="secondary" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button variant="primary" disabled={!canSubmit} onClick={handleSubmit}>
-              Submit
-            </Button>
-          </div>
-        </>
-      )}
-
-      {phase === 'polling' && (
-        <div className={styles.status}>
-          <div className={styles.spinner} aria-hidden="true" />
-          <div>
-            <div>Processing...</div>
-            <div className={styles.sourceRef}>{mode === 'url' ? url : file?.name}</div>
-          </div>
+          {warmUpState === 'ready' && (
+            <span className={styles.warmUpReady}>Models ready ({warmUpLatency}ms)</span>
+          )}
         </div>
-      )}
+      </div>
 
-      {phase === 'done' && (
-        <>
-          <div className={styles.doneRow}>
-            <Badge variant="green">COMPLETED</Badge>
-            <span className={styles.done}>{jobStatus?.chunkCount ?? 0} chunks extracted.</span>
-          </div>
-          <div className={styles.footer}>
-            <Button variant="secondary" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        </>
-      )}
-
-      {phase === 'error' && (
-        <>
-          <p className={styles.error}>{errorMsg}</p>
-          <div className={styles.footer}>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setPhase('config')
-                setErrorMsg('')
-              }}
-            >
-              Retry
-            </Button>
-            <Button variant="secondary" onClick={onClose}>
-              Close
-            </Button>
-          </div>
-        </>
-      )}
+      <div className={styles.footer}>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
+          {submitting ? 'Submitting...' : 'Submit'}
+        </Button>
+      </div>
     </Modal>
   )
 }
