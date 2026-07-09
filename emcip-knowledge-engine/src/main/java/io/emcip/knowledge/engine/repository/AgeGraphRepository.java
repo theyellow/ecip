@@ -139,6 +139,34 @@ public class AgeGraphRepository implements GraphRepository {
     }
 
     @Override
+    public List<GraphEdge> findEdgesBySourceMessageIds(List<UUID> documentIds) {
+        if (documentIds.isEmpty()) return List.of();
+        List<GraphEdge> allEdges = new ArrayList<>();
+        for (UUID docId : documentIds) {
+            String cypher =
+                    String.format(
+                            """
+                            MATCH (a)-[r {source_message_id: '%s'}]->(b)
+                            RETURN {edge_id: r.edge_id,
+                                    relationship_type: type(r),
+                                    source_node_id: a.node_id,
+                                    target_node_id: b.node_id,
+                                    source_message_id: r.source_message_id}
+                            """,
+                            docId);
+            allEdges.addAll(queryEdges(cypher));
+        }
+        return allEdges;
+    }
+
+    @Override
+    public Optional<GraphNode> findNodeById(UUID nodeId) {
+        String cypher = String.format("MATCH (n {node_id: '%s'}) RETURN n", nodeId);
+        List<GraphNode> results = queryNodes(cypher);
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
+    }
+
+    @Override
     public void mergeNodes(UUID candidateNodeId, UUID targetNodeId) {
         // Query outgoing edges: candidate -> n (excluding edges to target itself)
         List<GraphEdge> outgoing =

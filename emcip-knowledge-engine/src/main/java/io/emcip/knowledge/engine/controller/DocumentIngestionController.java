@@ -1,5 +1,8 @@
 package io.emcip.knowledge.engine.controller;
 
+import io.emcip.knowledge.engine.entity.IngestionJob;
+import io.emcip.knowledge.engine.model.DuplicateSourceException;
+import io.emcip.knowledge.engine.model.IngestionJobDetailDto;
 import io.emcip.knowledge.engine.model.IngestionJobDto;
 import io.emcip.knowledge.engine.service.DocumentIngestionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,8 +15,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -84,6 +91,53 @@ public class DocumentIngestionController {
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
                     Pageable pageable) {
         return ingestionService.listJobs(tenantId, pageable).map(IngestionJobDto::from);
+    }
+
+    @Operation(summary = "Get ingestion job details with chunks and entities")
+    @GetMapping("/{jobId}/details")
+    public IngestionJobDetailDto getJobDetails(@PathVariable UUID jobId) {
+        return ingestionService.getJobDetails(jobId);
+    }
+
+    @Operation(summary = "Delete an ingestion job and its chunks")
+    @DeleteMapping("/{jobId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteJob(@PathVariable UUID jobId) {
+        ingestionService.deleteJob(jobId);
+    }
+
+    @Operation(summary = "Re-ingest a URL job (re-fetches content, replaces old chunks)")
+    @PostMapping("/{jobId}/reingest")
+    public ResponseEntity<Map<String, Object>> reingestJob(@PathVariable UUID jobId) {
+        try {
+            String newJobId = ingestionService.reingestJob(jobId);
+            return ResponseEntity.accepted().body(Map.of("jobId", newJobId));
+        } catch (IllegalArgumentException e) {
+            if ("REUPLOAD_REQUIRED".equals(e.getMessage())) {
+                IngestionJob oldJob = ingestionService.getJob(jobId);
+                return ResponseEntity.badRequest()
+                        .body(
+                                Map.of(
+                                        "error",
+                                        "REUPLOAD_REQUIRED",
+                                        "sourceRef",
+                                        oldJob.getSourceRef()));
+            }
+            throw e;
+        }
+    }
+
+    @ExceptionHandler(DuplicateSourceException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicate(DuplicateSourceException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(
+                        Map.of(
+                                "error",
+                                "DUPLICATE_SOURCE",
+                                "existingJobId",
+                                ex.getExistingJobId().toString(),
+                                "message",
+                                ex.getMessage()));
     }
 
     public record UrlRequest(String url, UUID tenantId) {}

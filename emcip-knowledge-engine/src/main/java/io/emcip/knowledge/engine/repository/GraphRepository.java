@@ -33,4 +33,9 @@ public interface GraphRepository {
 
     /** Delete all edges whose source_message_id is in the given list of document IDs. */
     void deleteEdgesBySourceMessageIds(List<UUID> documentIds);
+
+    /** Find all edges originating from given document IDs, returning source/target node info. */
+    List<GraphEdge> findEdgesBySourceMessageIds(List<UUID> documentIds);
+
+    Optional<GraphNode> findNodeById(UUID nodeId);
 }

@@ -22,6 +22,7 @@ import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.model.ExtractedContent;
 import io.emcip.knowledge.engine.model.ExtractionResult;
+import io.emcip.knowledge.engine.model.IngestionJobDetailDto;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
@@ -400,6 +401,37 @@ class DocumentIngestionServiceTest {
         verify(graphRepository).deleteEdgesBySourceMessageIds(List.of(doc1Id, doc2Id));
         verify(documentRepository).deleteAllByJobId(jobId);
         verify(jobRepository).deleteById(jobId);
+    }
+
+    @Test
+    void getJobDetails_returnsChunksAndCounts() {
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setSourceType(IngestionJob.SourceType.URL);
+        job.setSourceRef("https://example.com");
+        job.setStatus(IngestionJob.IngestionStatus.COMPLETED);
+        job.setChunkCount(1);
+        job.setCreatedAt(java.time.OffsetDateTime.now());
+
+        UUID docId = UUID.randomUUID();
+        KnowledgeDocument doc = new KnowledgeDocument();
+        doc.setId(docId);
+        doc.setJobId(jobId);
+        doc.setContent("Test chunk content here");
+        doc.setChunkIndex(0);
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(documentRepository.findAllByJobId(jobId)).thenReturn(List.of(doc));
+        when(graphRepository.findEdgesBySourceMessageIds(List.of(docId))).thenReturn(List.of());
+
+        IngestionJobDetailDto detail = service.getJobDetails(jobId);
+
+        assertThat(detail.totalChunks()).isEqualTo(1);
+        assertThat(detail.chunks()).hasSize(1);
+        assertThat(detail.chunks().getFirst().contentPreview())
+                .isEqualTo("Test chunk content here");
+        assertThat(detail.entities()).isEmpty();
     }
 
     @Test

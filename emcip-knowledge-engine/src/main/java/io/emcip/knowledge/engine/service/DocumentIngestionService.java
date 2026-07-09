@@ -5,8 +5,13 @@ import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
 import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
+import io.emcip.knowledge.engine.model.ChunkSummaryDto;
 import io.emcip.knowledge.engine.model.DuplicateSourceException;
+import io.emcip.knowledge.engine.model.EntitySummaryDto;
 import io.emcip.knowledge.engine.model.ExtractedContent;
+import io.emcip.knowledge.engine.model.GraphEdge;
+import io.emcip.knowledge.engine.model.IngestionJobDetailDto;
+import io.emcip.knowledge.engine.model.IngestionJobDto;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
@@ -23,10 +28,12 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -148,6 +155,89 @@ public class DocumentIngestionService {
                 "Deleted ingestion job {}: {} chunks and their edges removed",
                 jobId,
                 chunkIds.size());
+    }
+
+    public IngestionJobDetailDto getJobDetails(UUID jobId) {
+        IngestionJob job = getJob(jobId);
+        List<KnowledgeDocument> chunks = documentRepository.findAllByJobId(jobId);
+        List<UUID> chunkIds = chunks.stream().map(KnowledgeDocument::getId).toList();
+
+        List<GraphEdge> edges = graphRepository.findEdgesBySourceMessageIds(chunkIds);
+
+        // Build chunk summaries with per-chunk entity/relationship counts
+        Map<UUID, Long> entityCountByDoc = new HashMap<>();
+        Map<UUID, Long> relCountByDoc = new HashMap<>();
+        for (GraphEdge edge : edges) {
+            UUID docId = edge.sourceMessageId();
+            relCountByDoc.merge(docId, 1L, Long::sum);
+            // Each edge has a target node — count unique target nodes per doc
+            entityCountByDoc.merge(docId, 1L, Long::sum);
+        }
+
+        List<ChunkSummaryDto> chunkSummaries =
+                chunks.stream()
+                        .sorted(java.util.Comparator.comparingInt(KnowledgeDocument::getChunkIndex))
+                        .map(
+                                doc -> {
+                                    String preview =
+                                            doc.getContent().length() > 200
+                                                    ? doc.getContent().substring(0, 200)
+                                                    : doc.getContent();
+                                    return new ChunkSummaryDto(
+                                            doc.getId(),
+                                            doc.getChunkIndex(),
+                                            preview,
+                                            entityCountByDoc
+                                                    .getOrDefault(doc.getId(), 0L)
+                                                    .intValue(),
+                                            relCountByDoc.getOrDefault(doc.getId(), 0L).intValue());
+                                })
+                        .toList();
+
+        // Deduplicated entities from edge target nodes
+        Set<UUID> seenNodeIds = new HashSet<>();
+        List<EntitySummaryDto> entities = new ArrayList<>();
+        for (GraphEdge edge : edges) {
+            if (edge.targetNodeId() != null && seenNodeIds.add(edge.targetNodeId())) {
+                // We need node label + conceptType — query from graph
+                graphRepository
+                        .findNodeById(edge.targetNodeId())
+                        .ifPresent(
+                                node ->
+                                        entities.add(
+                                                new EntitySummaryDto(
+                                                        node.label(),
+                                                        node.conceptType(),
+                                                        node.id())));
+            }
+        }
+
+        return new IngestionJobDetailDto(
+                IngestionJobDto.from(job),
+                chunkSummaries,
+                entities,
+                chunks.size(),
+                entities.size(),
+                edges.size());
+    }
+
+    public String reingestJob(UUID jobId) {
+        IngestionJob oldJob = getJob(jobId);
+
+        if (oldJob.getSourceType() == SourceType.FILE_UPLOAD) {
+            throw new IllegalArgumentException("REUPLOAD_REQUIRED");
+        }
+
+        // Delete old data
+        List<KnowledgeDocument> oldChunks = documentRepository.findAllByJobId(jobId);
+        List<UUID> oldChunkIds = oldChunks.stream().map(KnowledgeDocument::getId).toList();
+        if (!oldChunkIds.isEmpty()) {
+            graphRepository.deleteEdgesBySourceMessageIds(oldChunkIds);
+            documentRepository.deleteAllByJobId(jobId);
+        }
+
+        // Create new job and process
+        return submitUrlIngestion(oldJob.getSourceRef(), oldJob.getTenantId(), jobId);
     }
 
     @PreDestroy
