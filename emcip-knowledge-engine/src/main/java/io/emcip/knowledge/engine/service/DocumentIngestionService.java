@@ -165,13 +165,16 @@ public class DocumentIngestionService {
         List<GraphEdge> edges = graphRepository.findEdgesBySourceMessageIds(chunkIds);
 
         // Build chunk summaries with per-chunk entity/relationship counts
-        Map<UUID, Long> entityCountByDoc = new HashMap<>();
+        Map<UUID, Set<UUID>> entityNodesByDoc = new HashMap<>();
         Map<UUID, Long> relCountByDoc = new HashMap<>();
         for (GraphEdge edge : edges) {
             UUID docId = edge.sourceMessageId();
             relCountByDoc.merge(docId, 1L, Long::sum);
-            // Each edge has a target node — count unique target nodes per doc
-            entityCountByDoc.merge(docId, 1L, Long::sum);
+            if (edge.targetNodeId() != null) {
+                entityNodesByDoc
+                        .computeIfAbsent(docId, k -> new HashSet<>())
+                        .add(edge.targetNodeId());
+            }
         }
 
         List<ChunkSummaryDto> chunkSummaries =
@@ -187,9 +190,9 @@ public class DocumentIngestionService {
                                             doc.getId(),
                                             doc.getChunkIndex(),
                                             preview,
-                                            entityCountByDoc
-                                                    .getOrDefault(doc.getId(), 0L)
-                                                    .intValue(),
+                                            entityNodesByDoc
+                                                    .getOrDefault(doc.getId(), Set.of())
+                                                    .size(),
                                             relCountByDoc.getOrDefault(doc.getId(), 0L).intValue());
                                 })
                         .toList();

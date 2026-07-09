@@ -1,0 +1,38 @@
+graph TB
+    subgraph "Developer Machine"
+        DEV[Developer]
+        LOCAL[(Local Git<br/>repo)]
+    end
+
+    subgraph "github.com"
+        GH_GIT[(GitHub<br/>Git Hosting)]
+        GH_CI[(GitHub Actions<br/>CI/CD)]
+        GH_CR[(GHCR<br/>Container Registry)]
+        GH_SEC[(GitHub Security<br/>SARIF / Trivy)]
+    end
+
+    subgraph "emcip.io - Application"
+        APP[Application Services<br/>TDLib, Context, Classifier,<br/>Policy Engine, LLM Orchestrator,<br/>Moderation, Audit, Admin API]
+        DB[(PostgreSQL)]
+        KAFKA[Kafka + Zookeeper]
+        MONITOR[Grafana / Prometheus / Loki / Tempo]
+    end
+
+    subgraph "External APIs"
+        TELEGRAM[Telegram API]
+        ANTHROPIC[Anthropic API]
+    end
+
+    DEV -->|git push| GH_GIT
+    LOCAL -->|remote| GH_GIT
+    GH_GIT -->|webhook| GH_CI
+    GH_CI -->|build + test| GH_CI
+    GH_CI -->|push images| GH_CR
+    GH_CI -->|scan results| GH_SEC
+
+    APP -->|pull images| GH_CR
+    APP -->|connect| TELEGRAM
+    APP -->|LLM calls| ANTHROPIC
+    APP -->|reads/writes| DB
+    APP -->|events| KAFKA
+    MONITOR -->|scrape| APP
