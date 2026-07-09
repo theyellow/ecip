@@ -77,5 +77,21 @@ export function knowledgeApi(request, rawFetch) {
         `/api/admin/knowledge/graph/node/${encodeURIComponent(nodeId)}/neighbors?${params}`
       )
     },
+
+    /** GET /api/admin/knowledge/ingest/{jobId}/details — returns IngestionJobDetailDto */
+    jobDetails: jobId =>
+      request(`/api/admin/knowledge/ingest/${encodeURIComponent(jobId)}/details`),
+
+    /** DELETE /api/admin/knowledge/ingest/{jobId} — returns 204 */
+    deleteJob: jobId =>
+      request(`/api/admin/knowledge/ingest/${encodeURIComponent(jobId)}`, {
+        method: 'DELETE',
+      }),
+
+    /** POST /api/admin/knowledge/ingest/{jobId}/reingest — returns { jobId } or 400 */
+    reingest: jobId =>
+      request(`/api/admin/knowledge/ingest/${encodeURIComponent(jobId)}/reingest`, {
+        method: 'POST',
+      }),
   }
 }
