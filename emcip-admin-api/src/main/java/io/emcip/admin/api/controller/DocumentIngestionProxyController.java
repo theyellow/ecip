@@ -18,6 +18,7 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -63,7 +64,14 @@ public class DocumentIngestionProxyController {
                 .bodyToMono(String.class)
                 .map(responseBody -> ResponseEntity.accepted().<String>body(responseBody))
                 .onErrorResume(
+                        org.springframework.web.reactive.function.client.WebClientResponseException
+                                .class,
                         e -> {
+                            if (e.getStatusCode().value() == 409) {
+                                return Mono.just(
+                                        ResponseEntity.status(HttpStatus.CONFLICT)
+                                                .<String>body(e.getResponseBodyAsString()));
+                            }
                             log.error("Ingest URL proxy error: {}", e.getMessage());
                             return Mono.just(
                                     ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -137,6 +145,67 @@ public class DocumentIngestionProxyController {
                                     "Ingest status proxy error jobId={}: {}",
                                     jobId,
                                     e.getMessage());
+                            return Mono.just(
+                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                            .<String>build());
+                        })
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    @Operation(summary = "Get ingestion job details")
+    @GetMapping("/{jobId}/details")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
+    public Mono<ResponseEntity<String>> getJobDetails(@PathVariable String jobId) {
+        return knowledgeWebClient
+                .get()
+                .uri("/api/knowledge/ingest/{jobId}/details", jobId)
+                .retrieve()
+                .bodyToMono(String.class)
+                .map(ResponseEntity::ok)
+                .onErrorResume(
+                        e -> {
+                            log.error(
+                                    "Job details proxy error jobId={}: {}", jobId, e.getMessage());
+                            return Mono.just(
+                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                            .<String>build());
+                        })
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    @Operation(summary = "Delete an ingestion job and its chunks")
+    @DeleteMapping("/{jobId}")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
+    public Mono<ResponseEntity<Void>> deleteJob(@PathVariable String jobId) {
+        return knowledgeWebClient
+                .delete()
+                .uri("/api/knowledge/ingest/{jobId}", jobId)
+                .retrieve()
+                .toBodilessEntity()
+                .map(r -> ResponseEntity.noContent().<Void>build())
+                .onErrorResume(
+                        e -> {
+                            log.error("Job delete proxy error jobId={}: {}", jobId, e.getMessage());
+                            return Mono.just(
+                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                                            .<Void>build());
+                        })
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    @Operation(summary = "Re-ingest a job (re-fetch URL or request file re-upload)")
+    @PostMapping("/{jobId}/reingest")
+    @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
+    public Mono<ResponseEntity<String>> reingestJob(@PathVariable String jobId) {
+        return knowledgeWebClient
+                .post()
+                .uri("/api/knowledge/ingest/{jobId}/reingest", jobId)
+                .retrieve()
+                .bodyToMono(String.class)
+                .map(body -> ResponseEntity.accepted().<String>body(body))
+                .onErrorResume(
+                        e -> {
+                            log.error("Reingest proxy error jobId={}: {}", jobId, e.getMessage());
                             return Mono.just(
                                     ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                                             .<String>build());
