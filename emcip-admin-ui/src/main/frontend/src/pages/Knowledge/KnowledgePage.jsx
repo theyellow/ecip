@@ -231,44 +231,47 @@ export function Knowledge() {
     setQuery(label)
   }
 
-  const jobColumns = [
-    ...JOB_COLUMNS,
-    {
-      key: '_actions',
-      label: '',
-      width: '120px',
-      render: (_, row) => (
-        <span className={styles.actionBtns} onClick={e => e.stopPropagation()}>
-          <button
-            type="button"
-            className={styles.actionBtn}
-            title="View details"
-            onClick={() => setDetailJobId(row.id)}
-          >
-            {'\u25b8'}
-          </button>
-          <button
-            type="button"
-            className={styles.actionBtn}
-            title="Delete"
-            onClick={() => setConfirmDelete(row)}
-          >
-            {'\u2715'}
-          </button>
-          {(row.rawStatus === 'COMPLETED' || row.rawStatus === 'FAILED') && (
+  const jobColumns = useMemo(
+    () => [
+      ...JOB_COLUMNS,
+      {
+        key: '_actions',
+        label: '',
+        width: '120px',
+        render: (_, row) => (
+          <span className={styles.actionBtns} onClick={e => e.stopPropagation()}>
             <button
               type="button"
               className={styles.actionBtn}
-              title="Re-ingest"
-              onClick={() => setReingestJob(row)}
+              title="View details"
+              onClick={() => setDetailJobId(row.id)}
             >
-              {'\u21bb'}
+              {'\u25b8'}
             </button>
-          )}
-        </span>
-      ),
-    },
-  ]
+            <button
+              type="button"
+              className={styles.actionBtn}
+              title="Delete"
+              onClick={() => setConfirmDelete(row)}
+            >
+              {'\u2715'}
+            </button>
+            {(row.rawStatus === 'COMPLETED' || row.rawStatus === 'FAILED') && (
+              <button
+                type="button"
+                className={styles.actionBtn}
+                title="Re-ingest"
+                onClick={() => setReingestJob(row)}
+              >
+                {'\u21bb'}
+              </button>
+            )}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
 
   const graphResults = results?.graphResults ?? []
   const documentResults = results?.documentResults ?? []

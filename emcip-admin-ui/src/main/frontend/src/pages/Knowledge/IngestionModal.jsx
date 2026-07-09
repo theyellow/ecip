@@ -104,7 +104,7 @@ export function IngestionModal({
   }, [mode, url, file, tenantId, api, addToast, onJobCreated, onClose, replaceJobId])
 
   return (
-    <Modal title="Add Document" onClose={onClose}>
+    <Modal title={replaceJobId ? 'Re-ingest Document' : 'Add Document'} onClose={onClose}>
       <div className={styles.form}>
         <SegmentedControl
           value={mode}
