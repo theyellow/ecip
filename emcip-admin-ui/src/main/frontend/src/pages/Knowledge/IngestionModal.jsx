@@ -7,11 +7,19 @@ import styles from './IngestionModal.module.css'
 
 const WARM_UP_TIMEOUT_MS = 15000
 
-export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
+export function IngestionModal({
+  api,
+  tenants,
+  onClose,
+  onJobCreated,
+  replaceJobId = null,
+  initialSourceRef = null,
+  initialTenantId = null,
+}) {
   const [mode, setMode] = useState('url')
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState(initialSourceRef ?? '')
   const [file, setFile] = useState(null)
-  const [tenantId, setTenantId] = useState('')
+  const [tenantId, setTenantId] = useState(initialTenantId ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [warmUpState, setWarmUpState] = useState('loading') // loading | ready | failed
   const [warmUpLatency, setWarmUpLatency] = useState(null)
@@ -66,20 +74,34 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
     setSubmitting(true)
     try {
       const effectiveTenantId = tenantId || null
+      if (replaceJobId) {
+        // Re-upload: delete old data first, then ingest normally
+        try {
+          await api.deleteJob(replaceJobId)
+        } catch {
+          // Old job may already be deleted
+        }
+      }
       if (mode === 'url') {
         await api.ingestUrl(url, effectiveTenantId)
       } else {
         await api.ingestUpload(file, effectiveTenantId)
       }
       const sourceRef = mode === 'url' ? url : file.name
-      addToast('info', `Document submitted: ${sourceRef}`)
+      addToast('info', replaceJobId ? `Re-ingestion started: ${sourceRef}` : `Document submitted: ${sourceRef}`)
       onJobCreated()
       onClose()
     } catch (err) {
+      // Handle 409 dedup
+      if (err.message?.includes('409') || err.status === 409) {
+        addToast('info', `Already ingested: ${mode === 'url' ? url : file?.name}. Use re-ingest to update.`)
+        onClose()
+        return
+      }
       addToast('error', `Submission failed: ${err.message || 'Unknown error'}`)
       setSubmitting(false)
     }
-  }, [mode, url, file, tenantId, api, addToast, onJobCreated, onClose])
+  }, [mode, url, file, tenantId, api, addToast, onJobCreated, onClose, replaceJobId])
 
   return (
     <Modal title="Add Document" onClose={onClose}>
@@ -138,7 +160,7 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
           Cancel
         </Button>
         <Button variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
-          {submitting ? 'Submitting...' : 'Submit'}
+          {submitting ? 'Submitting...' : replaceJobId ? 'Re-ingest' : 'Submit'}
         </Button>
       </div>
     </Modal>
