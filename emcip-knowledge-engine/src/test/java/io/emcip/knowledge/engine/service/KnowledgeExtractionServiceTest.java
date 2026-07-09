@@ -2,6 +2,7 @@ package io.emcip.knowledge.engine.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -245,5 +246,50 @@ class KnowledgeExtractionServiceTest {
         service.processMessage(text, "tg:1:1", tenantId, 1L, "1", "Alice", "G", 0);
 
         verifyNoInteractions(graphRepository);
+    }
+
+    @Test
+    void processDocument_batchEmbedsEntityLabels() {
+        // Given
+        String chunk = "Berlin is the capital of Germany.";
+        UUID tenantId = UUID.randomUUID();
+
+        when(llmClient.embed(chunk)).thenReturn(new float[] {0.1f, 0.2f});
+        when(documentRepository.saveAndFlush(any()))
+                .thenAnswer(
+                        inv -> {
+                            KnowledgeDocument doc = inv.getArgument(0);
+                            doc.setId(UUID.randomUUID());
+                            return doc;
+                        });
+
+        var result =
+                new ExtractionResult(
+                        List.of(
+                                new ExtractedEntity("LOCATION", "Berlin", Map.of()),
+                                new ExtractedEntity("LOCATION", "Germany", Map.of())),
+                        List.of());
+        when(llmClient.extract(anyString(), any(), any())).thenReturn(result);
+
+        ConceptType locationConcept = new ConceptType();
+        locationConcept.setName("LOCATION");
+        locationConcept.setDescription("A place");
+        locationConcept.setShared(false);
+        when(ontologyService.getAllConceptTypes()).thenReturn(List.of(locationConcept));
+        when(ontologyService.getAllRelationshipTypes()).thenReturn(List.of());
+        when(llmClient.embedBatch(List.of("berlin", "germany")))
+                .thenReturn(List.of(new float[] {0.3f}, new float[] {0.4f}));
+        when(entityResolutionService.resolve(anyString(), anyString(), any(), any(float[].class)))
+                .thenReturn(UUID.randomUUID());
+
+        // When
+        service.processDocument(chunk, "test.pdf", tenantId, 0, Map.of());
+
+        // Then: embedBatch called once with both labels
+        verify(llmClient).embedBatch(List.of("berlin", "germany"));
+        // resolve called with precomputed embeddings
+        verify(entityResolutionService).resolve("Berlin", "LOCATION", tenantId, new float[] {0.3f});
+        verify(entityResolutionService)
+                .resolve("Germany", "LOCATION", tenantId, new float[] {0.4f});
     }
 }

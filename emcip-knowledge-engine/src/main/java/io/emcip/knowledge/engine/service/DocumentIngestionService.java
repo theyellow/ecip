@@ -1,5 +1,6 @@
 package io.emcip.knowledge.engine.service;
 
+import io.emcip.knowledge.engine.config.IngestionProperties;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
 import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
@@ -14,13 +15,16 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +61,7 @@ public class DocumentIngestionService {
     private final KnowledgeExtractionService extractionService;
     private final TikaExtractionService tikaExtractionService;
     private final SentenceAwareChunker chunker;
+    private final IngestionProperties ingestionProperties;
 
     /** Submit a URL for async ingestion. Returns the job ID immediately. */
     public String submitUrlIngestion(String url, UUID tenantId) {
@@ -202,10 +207,41 @@ public class DocumentIngestionService {
         Map<String, String> metadata = new HashMap<>(extracted.metadata());
         metadata.put("totalChunks", String.valueOf(chunks.size()));
         Map<String, String> immutableMetadata = Map.copyOf(metadata);
+
+        Semaphore semaphore = new Semaphore(ingestionProperties.parallelism());
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
         for (int i = 0; i < chunks.size(); i++) {
-            extractionService.processDocument(
-                    chunks.get(i), sourceRef, tenantId, i, immutableMetadata);
+            final int chunkIndex = i;
+            final String chunk = chunks.get(i);
+            CompletableFuture<Void> future =
+                    CompletableFuture.runAsync(
+                            () -> {
+                                try {
+                                    semaphore.acquire();
+                                    try {
+                                        extractionService.processDocument(
+                                                chunk,
+                                                sourceRef,
+                                                tenantId,
+                                                chunkIndex,
+                                                immutableMetadata);
+                                    } finally {
+                                        semaphore.release();
+                                    }
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    throw new RuntimeException("Chunk processing interrupted", e);
+                                }
+                            },
+                            INGESTION_EXECUTOR);
+            futures.add(future);
         }
+
+        // Virtual threads park on join() without consuming carrier threads.
+        // Each chunk runs in its own @Transactional scope — chunk failures are isolated.
+        // allOf().join() propagates the first failure; other chunk exceptions are lost.
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
         return chunks.size();
     }
 

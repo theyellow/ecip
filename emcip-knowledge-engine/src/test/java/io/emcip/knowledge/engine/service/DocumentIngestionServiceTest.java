@@ -4,16 +4,20 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.sun.net.httpserver.HttpServer;
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
+import io.emcip.knowledge.engine.config.IngestionProperties;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.model.ExtractedContent;
@@ -25,6 +29,7 @@ import io.emcip.knowledge.engine.repository.VectorSearchRepository;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -69,7 +74,11 @@ class DocumentIngestionServiceTest {
                         eventPublisher);
         service =
                 new DocumentIngestionService(
-                        jobRepository, extractionService, tikaExtractionService, chunker);
+                        jobRepository,
+                        extractionService,
+                        tikaExtractionService,
+                        chunker,
+                        new IngestionProperties(3));
 
         httpServer = HttpServer.create(new InetSocketAddress(0), 0);
         httpServer.start();
@@ -174,6 +183,55 @@ class DocumentIngestionServiceTest {
                                 verify(extractionService, atLeastOnce())
                                         .processDocument(
                                                 eq(content), eq(testUrl), isNull(), eq(0), any()));
+    }
+
+    @Test
+    void submitUrlIngestion_processesChunksInParallel() throws Exception {
+        // Given: a document that produces 6 chunks via a local HTTP server
+        String content = "chunk1. chunk2. chunk3. chunk4. chunk5. chunk6.";
+        httpServer.createContext(
+                "/parallel",
+                exchange -> {
+                    byte[] body = content.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        String testUrl = "http://localhost:" + httpServer.getAddress().getPort() + "/parallel";
+
+        UUID jobId = UUID.randomUUID();
+        IngestionJob savedJob = new IngestionJob();
+        savedJob.setId(jobId);
+        savedJob.setStatus(IngestionJob.IngestionStatus.QUEUED);
+
+        when(jobRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            IngestionJob j = inv.getArgument(0);
+                            if (j.getId() == null) j.setId(jobId);
+                            return j;
+                        });
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(savedJob));
+        when(tikaExtractionService.extract(any(byte[].class)))
+                .thenReturn(new ExtractedContent(content, Map.of()));
+        when(chunker.chunk(content))
+                .thenReturn(List.of("chunk1", "chunk2", "chunk3", "chunk4", "chunk5", "chunk6"));
+
+        // When
+        service.submitUrlIngestion(testUrl, null);
+
+        // Then: all 6 chunks processed (verifiable via processDocument calls)
+        await().atMost(Duration.ofSeconds(10))
+                .untilAsserted(
+                        () ->
+                                verify(extractionService, times(6))
+                                        .processDocument(
+                                                anyString(),
+                                                eq(testUrl),
+                                                isNull(),
+                                                anyInt(),
+                                                any()));
     }
 
     @Test

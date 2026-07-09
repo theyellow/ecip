@@ -31,6 +31,13 @@ public class EntityResolutionService {
 
     public UUID resolve(String label, String conceptType, UUID tenantId) {
         String normalized = label.toLowerCase().trim();
+        float[] embedding = resolveEmbedding(normalized, conceptType, tenantId);
+        return resolve(label, conceptType, tenantId, embedding);
+    }
+
+    public UUID resolve(
+            String label, String conceptType, UUID tenantId, float[] precomputedEmbedding) {
+        String normalized = label.toLowerCase().trim();
 
         // Level 1: Exact match
         Optional<GraphNode> exact =
@@ -58,11 +65,13 @@ public class EntityResolutionService {
             }
         }
 
-        // Level 3: Embedding similarity
-        float[] embedding = resolveEmbedding(normalized, conceptType, tenantId);
-        if (embedding.length > 0) {
+        // Level 3: Embedding similarity (using precomputed embedding)
+        if (precomputedEmbedding.length > 0) {
+            nodeEmbeddingRepository.storeEmbedding(
+                    normalized, conceptType, tenantId, precomputedEmbedding);
             Optional<NodeSimilarityResult> nearest =
-                    nodeEmbeddingRepository.findNearestNeighbour(embedding, conceptType, tenantId);
+                    nodeEmbeddingRepository.findNearestNeighbour(
+                            precomputedEmbedding, conceptType, tenantId);
             if (nearest.isPresent()) {
                 double score = nearest.get().score();
                 if (score >= resolutionProperties.mergeThreshold()) {
@@ -78,7 +87,8 @@ public class EntityResolutionService {
                     writeFlagSafely(
                             label, newNode.id(), nearest.get(), conceptType, score, tenantId);
                     log.info(
-                            "Created new node and flagged ambiguous similarity: {} ~ {} (score={})",
+                            "Created new node and flagged ambiguous similarity:"
+                                    + " {} ~ {} (score={})",
                             label,
                             nearest.get().label(),
                             score);

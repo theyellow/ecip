@@ -249,4 +249,79 @@ public class OpenAiCompatibleLlmClient {
                     e);
         }
     }
+
+    /**
+     * Call the OpenAI-compatible embeddings endpoint with a batch of inputs.
+     *
+     * @param model Model name as configured in LiteLLM (e.g. "bge-m3")
+     * @param inputs List of texts to embed
+     * @return list of float arrays, one per input, in the same order
+     */
+    public List<float[]> embedBatch(String model, List<String> inputs) {
+        LlmProviderConfig provider =
+                providerConfigService
+                        .getActiveProvider()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "No active LLM provider configured — set one via"
+                                                        + " Admin UI > AI Config > LLM Provider"));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", model);
+        body.put("input", inputs);
+
+        log.debug(
+                "Calling LiteLLM batch embeddings: url={}, model={}, count={}",
+                provider.getBaseUrl(),
+                model,
+                inputs.size());
+
+        try {
+            String apiKey = provider.getApiKey();
+            RestClient restClient = RestClient.create();
+            String responseJson =
+                    restClient
+                            .post()
+                            .uri(provider.getBaseUrl() + "/v1/embeddings")
+                            .headers(
+                                    h -> {
+                                        h.setContentType(MediaType.APPLICATION_JSON);
+                                        if (apiKey != null && !apiKey.isBlank()) {
+                                            h.setBearerAuth(apiKey);
+                                        }
+                                    })
+                            .body(body)
+                            .retrieve()
+                            .body(String.class);
+
+            JsonNode root = objectMapper.readTree(responseJson);
+            JsonNode dataArray = root.path("data");
+
+            List<float[]> results = new ArrayList<>();
+            for (JsonNode item : dataArray) {
+                JsonNode embeddingArray = item.path("embedding");
+                float[] emb = new float[embeddingArray.size()];
+                for (int i = 0; i < embeddingArray.size(); i++) {
+                    emb[i] = (float) embeddingArray.get(i).asDouble();
+                }
+                results.add(emb);
+            }
+
+            log.debug(
+                    "LiteLLM batch embeddings response: model={}, count={}",
+                    root.path("model").asText(model),
+                    results.size());
+
+            return results;
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "LiteLLM batch embeddings call failed ["
+                            + provider.getBaseUrl()
+                            + "]: "
+                            + e.getMessage(),
+                    e);
+        }
+    }
 }

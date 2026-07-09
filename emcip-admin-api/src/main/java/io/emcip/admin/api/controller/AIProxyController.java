@@ -333,6 +333,31 @@ public class AIProxyController {
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
+    // ---- Warm-Up ----
+
+    @Operation(summary = "Warm up LLM models (health probe — no circuit breaker)")
+    @PostMapping(value = "/warm-up", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<String> warmUp(@RequestBody String body) {
+        return orchestratorClient
+                .post()
+                .uri("/api/warm-up")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        resp ->
+                                resp.bodyToMono(String.class)
+                                        .flatMap(
+                                                respBody ->
+                                                        Mono.error(
+                                                                new ResponseStatusException(
+                                                                        resp.statusCode(),
+                                                                        respBody))))
+                .bodyToMono(String.class);
+        // No circuit breaker — warm-up is itself a health probe
+    }
+
     @GetMapping("/provider-config/models")
     public Mono<String> listProxyModels(
             @org.springframework.web.bind.annotation.RequestParam(required = false) String baseUrl,

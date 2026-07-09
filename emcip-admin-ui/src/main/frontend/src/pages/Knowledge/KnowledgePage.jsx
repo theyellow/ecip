@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { DataTable } from '../../components/DataTable/DataTable'
+import { useToast } from '../../components/Toast/useToast'
 import { knowledgeApi } from '../../api/knowledge'
 import { tenantsApi } from '../../api/tenants'
 import { IngestionModal } from './IngestionModal'
@@ -36,7 +37,9 @@ const SEARCH_TYPES = ['VECTOR', 'GRAPH', 'HYBRID']
 export function Knowledge() {
   const { token } = useAuth()
   const request = useAuthRequest()
+  const { addToast } = useToast()
   const [activeTab, setActiveTab] = useState('search')
+  const prevJobStatuses = useRef({})
 
   // — Tenants (shared) —
   const [tenants, setTenants] = useState([])
@@ -83,9 +86,31 @@ export function Knowledge() {
     setJobsLoading(true)
     try {
       const data = await api.jobs(page, 20)
+
+      // Detect status transitions and fire toasts
+      const prev = prevJobStatuses.current
+      for (const job of data?.content ?? []) {
+        const oldStatus = prev[job.id]
+        if (oldStatus && oldStatus !== job.status) {
+          if (job.status === 'COMPLETED') {
+            addToast('success', `Ingestion complete: ${job.sourceRef} — ${job.chunkCount || 0} chunks`)
+          } else if (job.status === 'FAILED') {
+            addToast('error', `Ingestion failed: ${job.sourceRef} — ${job.errorMessage || 'Unknown error'}`)
+          }
+        }
+      }
+
+      // Update tracked statuses
+      const newStatuses = {}
+      for (const job of data?.content ?? []) {
+        newStatuses[job.id] = job.status
+      }
+      prevJobStatuses.current = newStatuses
+
       setJobs(
         (data?.content ?? []).map(j => ({
           ...j,
+          rawStatus: j.status,
           tenantId: j.tenantId
             ? (tenants.find(t => t.id === j.tenantId)?.name ?? j.tenantId)
             : 'Global',
@@ -94,15 +119,26 @@ export function Knowledge() {
       )
       setTotalPages(data?.totalPages ?? 0)
     } catch {
-      setJobs([])
+      // keep stale data visible
     } finally {
       setJobsLoading(false)
     }
-  }, [page, tenants, api])
+  }, [page, tenants, api, addToast])
 
   useEffect(() => {
     if (activeTab === 'jobs') loadJobs()
   }, [activeTab, loadJobs])
+
+  // Auto-poll when any visible job is QUEUED or RUNNING
+  useEffect(() => {
+    if (activeTab !== 'jobs') return
+
+    const hasActiveJobs = jobs.some(j => j.rawStatus === 'QUEUED' || j.rawStatus === 'RUNNING')
+    if (!hasActiveJobs) return
+
+    const interval = setInterval(loadJobs, 5000)
+    return () => clearInterval(interval)
+  }, [activeTab, jobs, loadJobs])
 
   // Search
   async function handleSearch() {

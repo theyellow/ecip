@@ -10,6 +10,7 @@ import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedRelationship;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -237,17 +238,65 @@ public class KnowledgeExtractionService {
                                                 && knownRelNames.contains(r.type()))
                         .toList();
 
-        // Step 5: Entity resolution + graph storage
+        // Step 5: Batch-embed novel entity labels, then resolve with precomputed embeddings
+        List<String> allLabels = new ArrayList<>();
+        allLabels.addAll(validEntities.stream().map(e -> e.label().toLowerCase().trim()).toList());
+        for (ExtractedRelationship rel : validRelationships) {
+            allLabels.add(rel.source().toLowerCase().trim());
+            allLabels.add(rel.target().toLowerCase().trim());
+        }
+
+        // Deduplicate labels for a single batch embed call
+        List<String> novelLabels = allLabels.stream().distinct().toList();
+
+        // Single batch embed call for all novel labels
+        Map<String, float[]> embeddingMap = new HashMap<>();
+        if (!novelLabels.isEmpty()) {
+            List<float[]> embeddings = llmClient.embedBatch(novelLabels);
+            for (int idx = 0; idx < novelLabels.size() && idx < embeddings.size(); idx++) {
+                embeddingMap.put(novelLabels.get(idx), embeddings.get(idx));
+            }
+        }
+
         for (ExtractedEntity entity : validEntities) {
-            entityResolutionService.resolve(entity.label(), entity.type(), tenantId);
+            String normalized = entity.label().toLowerCase().trim();
+            float[] emb = embeddingMap.getOrDefault(normalized, new float[0]);
+            if (emb.length > 0) {
+                entityResolutionService.resolve(entity.label(), entity.type(), tenantId, emb);
+            } else {
+                entityResolutionService.resolve(entity.label(), entity.type(), tenantId);
+            }
             eventPublisher.publishEntityCreated(entity.label(), tenantId);
         }
 
         for (ExtractedRelationship rel : validRelationships) {
-            UUID sourceId =
-                    entityResolutionService.resolve(rel.source(), inferType(rel, true), tenantId);
-            UUID targetId =
-                    entityResolutionService.resolve(rel.target(), inferType(rel, false), tenantId);
+            String sourceNorm = rel.source().toLowerCase().trim();
+            String targetNorm = rel.target().toLowerCase().trim();
+            float[] sourceEmb = embeddingMap.getOrDefault(sourceNorm, new float[0]);
+            float[] targetEmb = embeddingMap.getOrDefault(targetNorm, new float[0]);
+
+            UUID sourceId;
+            if (sourceEmb.length > 0) {
+                sourceId =
+                        entityResolutionService.resolve(
+                                rel.source(), inferType(rel, true), tenantId, sourceEmb);
+            } else {
+                sourceId =
+                        entityResolutionService.resolve(
+                                rel.source(), inferType(rel, true), tenantId);
+            }
+
+            UUID targetId;
+            if (targetEmb.length > 0) {
+                targetId =
+                        entityResolutionService.resolve(
+                                rel.target(), inferType(rel, false), tenantId, targetEmb);
+            } else {
+                targetId =
+                        entityResolutionService.resolve(
+                                rel.target(), inferType(rel, false), tenantId);
+            }
+
             graphRepository.createRelationship(
                     rel.type(), sourceId, targetId, rel.properties(), saved.getId());
         }

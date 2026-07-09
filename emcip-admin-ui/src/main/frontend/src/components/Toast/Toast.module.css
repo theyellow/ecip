@@ -1,0 +1,77 @@
+.container {
+  position: fixed;
+  bottom: var(--sp-5);
+  right: var(--sp-5);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  min-width: 280px;
+  max-width: 420px;
+  animation: fadeIn 150ms ease-out;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.typeLabel {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--sp-1);
+}
+
+.message {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--fg-1);
+  word-break: break-word;
+}
+
+.close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* Type variants */
+.success .typeLabel { color: var(--signal-ok-fg); }
+.success .close { color: var(--signal-ok-fg); }
+.success { border-color: var(--signal-ok-fg); }
+
+.error .typeLabel { color: var(--signal-stop-fg); }
+.error .close { color: var(--signal-stop-fg); }
+.error { border-color: var(--signal-stop-fg); }
+
+.info .typeLabel { color: var(--signal-info-fg); }
+.info .close { color: var(--signal-info-fg); }
+.info { border-color: var(--signal-info-fg); }
+
+.warning .typeLabel { color: var(--signal-warn-fg); }
+.warning .close { color: var(--signal-warn-fg); }
+.warning { border-color: var(--signal-warn-fg); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

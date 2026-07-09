@@ -119,4 +119,25 @@ class LlmOrchestratorClientTest {
         assertThat(request.getPath()).isEqualTo("/api/embed");
         assertThat(request.getBody().readUtf8()).contains("Some text to embed");
     }
+
+    @Test
+    void shouldCallBatchEmbedEndpoint() throws Exception {
+        String responseJson =
+                """
+                {"success":true,"embeddings":[[0.1,0.2],[0.3,0.4]],"model":"bge-m3"}
+                """;
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setBody(responseJson)
+                        .addHeader("Content-Type", "application/json"));
+
+        List<float[]> result = client.embedBatch(List.of("text one", "text two"));
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0)).containsExactly(0.1f, 0.2f);
+        assertThat(result.get(1)).containsExactly(0.3f, 0.4f);
+
+        var recordedRequest = mockWebServer.takeRequest();
+        assertThat(recordedRequest.getPath()).isEqualTo("/api/embed/batch");
+    }
 }

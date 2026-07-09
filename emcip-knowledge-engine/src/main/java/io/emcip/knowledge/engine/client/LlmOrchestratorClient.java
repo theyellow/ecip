@@ -68,6 +68,38 @@ public class LlmOrchestratorClient {
         }
     }
 
+    public List<float[]> embedBatch(List<String> texts) {
+        try {
+            return CircuitBreaker.decorateCheckedSupplier(
+                            embedCircuitBreaker(),
+                            () -> {
+                                Map<String, Object> request = Map.of("inputs", texts);
+                                var response =
+                                        restClient
+                                                .post()
+                                                .uri("/api/embed/batch")
+                                                .body(request)
+                                                .retrieve()
+                                                .body(BatchEmbedResponse.class);
+                                if (response == null || !response.success()) {
+                                    log.error("Batch embedding failed: {}", response);
+                                    return List.<float[]>of();
+                                }
+                                log.info(
+                                        "Batch embedding received: count={}",
+                                        response.embeddings().size());
+                                return response.embeddings();
+                            })
+                    .get();
+        } catch (CallNotPermittedException e) {
+            log.warn("Circuit breaker open for llm-orchestrator-embed, returning empty batch");
+            return List.of();
+        } catch (Throwable e) {
+            log.error("LLM orchestrator batch embed call failed: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
     public ExtractionResult extract(
             String text, List<ConceptType> conceptTypes, List<RelationshipType> relationshipTypes) {
         StringBuilder prompt = new StringBuilder();
@@ -289,4 +321,6 @@ Respond with the matching candidate label, or "NEW" if no match.
     private record AnalyseResponse(boolean success, String analysis, String model) {}
 
     private record EmbedResponse(boolean success, float[] embedding, String model) {}
+
+    private record BatchEmbedResponse(boolean success, List<float[]> embeddings, String model) {}
 }
