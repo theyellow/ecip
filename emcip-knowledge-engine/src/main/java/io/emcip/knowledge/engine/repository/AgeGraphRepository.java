@@ -125,6 +125,20 @@ public class AgeGraphRepository implements GraphRepository {
     }
 
     @Override
+    public void deleteEdgesBySourceMessageIds(List<UUID> documentIds) {
+        if (documentIds.isEmpty()) return;
+        for (UUID docId : documentIds) {
+            String cypher =
+                    String.format("MATCH ()-[r {source_message_id: '%s'}]->() DELETE r", docId);
+            try {
+                executeCypher(cypher);
+            } catch (Exception e) {
+                log.warn("Failed to delete edges for document {}: {}", docId, e.getMessage());
+            }
+        }
+    }
+
+    @Override
     public void mergeNodes(UUID candidateNodeId, UUID targetNodeId) {
         // Query outgoing edges: candidate -> n (excluding edges to target itself)
         List<GraphEdge> outgoing =

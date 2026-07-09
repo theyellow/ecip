@@ -4,9 +4,12 @@ import io.emcip.knowledge.engine.config.IngestionProperties;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
 import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
+import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.model.DuplicateSourceException;
 import io.emcip.knowledge.engine.model.ExtractedContent;
+import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
+import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,6 +69,8 @@ public class DocumentIngestionService {
     private final TikaExtractionService tikaExtractionService;
     private final SentenceAwareChunker chunker;
     private final IngestionProperties ingestionProperties;
+    private final GraphRepository graphRepository;
+    private final KnowledgeDocumentRepository documentRepository;
 
     /** Submit a URL for async ingestion. Returns the job ID immediately. */
     public String submitUrlIngestion(String url, UUID tenantId) {
@@ -118,6 +123,31 @@ public class DocumentIngestionService {
             return jobRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId, pageable);
         }
         return jobRepository.findAllByOrderByCreatedAtDesc(pageable);
+    }
+
+    @Transactional
+    public void deleteJob(UUID jobId) {
+        IngestionJob job =
+                jobRepository
+                        .findById(jobId)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Ingestion job not found: " + jobId));
+
+        List<KnowledgeDocument> chunks = documentRepository.findAllByJobId(jobId);
+        List<UUID> chunkIds = chunks.stream().map(KnowledgeDocument::getId).toList();
+
+        if (!chunkIds.isEmpty()) {
+            graphRepository.deleteEdgesBySourceMessageIds(chunkIds);
+            documentRepository.deleteAllByJobId(jobId);
+        }
+
+        jobRepository.deleteById(jobId);
+        log.info(
+                "Deleted ingestion job {}: {} chunks and their edges removed",
+                jobId,
+                chunkIds.size());
     }
 
     @PreDestroy

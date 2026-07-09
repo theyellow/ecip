@@ -78,7 +78,9 @@ class DocumentIngestionServiceTest {
                         extractionService,
                         tikaExtractionService,
                         chunker,
-                        new IngestionProperties(3));
+                        new IngestionProperties(3),
+                        graphRepository,
+                        documentRepository);
 
         httpServer = HttpServer.create(new InetSocketAddress(0), 0);
         httpServer.start();
@@ -371,6 +373,33 @@ class DocumentIngestionServiceTest {
                                                                     .contains("Duplicate content"));
                         });
         verifyNoInteractions(extractionService);
+    }
+
+    @Test
+    void deleteJob_cascadeDeletesChunksAndEdgesButNotNodes() {
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setStatus(IngestionJob.IngestionStatus.COMPLETED);
+        job.setChunkCount(2);
+
+        UUID doc1Id = UUID.randomUUID();
+        UUID doc2Id = UUID.randomUUID();
+        KnowledgeDocument doc1 = new KnowledgeDocument();
+        doc1.setId(doc1Id);
+        doc1.setJobId(jobId);
+        KnowledgeDocument doc2 = new KnowledgeDocument();
+        doc2.setId(doc2Id);
+        doc2.setJobId(jobId);
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(documentRepository.findAllByJobId(jobId)).thenReturn(List.of(doc1, doc2));
+
+        service.deleteJob(jobId);
+
+        verify(graphRepository).deleteEdgesBySourceMessageIds(List.of(doc1Id, doc2Id));
+        verify(documentRepository).deleteAllByJobId(jobId);
+        verify(jobRepository).deleteById(jobId);
     }
 
     @Test

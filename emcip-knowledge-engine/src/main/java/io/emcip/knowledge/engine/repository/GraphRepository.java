@@ -30,4 +30,7 @@ public interface GraphRepository {
      * candidate node. Throws RuntimeException on any failure (triggers rollback at service layer).
      */
     void mergeNodes(UUID candidateNodeId, UUID targetNodeId);
+
+    /** Delete all edges whose source_message_id is in the given list of document IDs. */
+    void deleteEdgesBySourceMessageIds(List<UUID> documentIds);
 }
