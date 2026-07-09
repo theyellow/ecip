@@ -31,70 +31,8 @@ public class EntityResolutionService {
 
     public UUID resolve(String label, String conceptType, UUID tenantId) {
         String normalized = label.toLowerCase().trim();
-
-        // Level 1: Exact match
-        Optional<GraphNode> exact =
-                graphRepository.findByLabelAndType(normalized, conceptType, tenantId);
-        if (exact.isPresent()) {
-            log.debug("Entity resolved by exact match: {} -> {}", label, exact.get().id());
-            return exact.get().id();
-        }
-
-        // Level 2: Alias table
-        Optional<EntityAlias> alias =
-                entityAliasRepository.findByConceptTypeAndAliasAndTenantId(
-                        conceptType, normalized, tenantId);
-        if (alias.isPresent()) {
-            String canonical = alias.get().getCanonicalLabel().toLowerCase().trim();
-            Optional<GraphNode> aliasNode =
-                    graphRepository.findByLabelAndType(canonical, conceptType, tenantId);
-            if (aliasNode.isPresent()) {
-                log.debug(
-                        "Entity resolved by alias: {} -> {} -> {}",
-                        label,
-                        alias.get().getCanonicalLabel(),
-                        aliasNode.get().id());
-                return aliasNode.get().id();
-            }
-        }
-
-        // Level 3: Embedding similarity
         float[] embedding = resolveEmbedding(normalized, conceptType, tenantId);
-        if (embedding.length > 0) {
-            Optional<NodeSimilarityResult> nearest =
-                    nodeEmbeddingRepository.findNearestNeighbour(embedding, conceptType, tenantId);
-            if (nearest.isPresent()) {
-                double score = nearest.get().score();
-                if (score >= resolutionProperties.mergeThreshold()) {
-                    log.debug(
-                            "Entity merged by similarity: {} -> {} (score={})",
-                            label,
-                            nearest.get().label(),
-                            score);
-                    return nearest.get().nodeId();
-                } else if (score >= resolutionProperties.flagThreshold()) {
-                    GraphNode newNode =
-                            graphRepository.createNode(conceptType, normalized, Map.of(), tenantId);
-                    writeFlagSafely(
-                            label, newNode.id(), nearest.get(), conceptType, score, tenantId);
-                    log.info(
-                            "Created new node and flagged ambiguous similarity: {} ~ {} (score={})",
-                            label,
-                            nearest.get().label(),
-                            score);
-                    return newNode.id();
-                }
-            }
-        }
-
-        // Level 4: Create new node
-        GraphNode newNode = graphRepository.createNode(conceptType, normalized, Map.of(), tenantId);
-        log.info(
-                "Created new graph node: type={}, label={}, id={}",
-                conceptType,
-                label,
-                newNode.id());
-        return newNode.id();
+        return resolve(label, conceptType, tenantId, embedding);
     }
 
     public UUID resolve(

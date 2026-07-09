@@ -238,6 +238,9 @@ public class DocumentIngestionService {
             futures.add(future);
         }
 
+        // Virtual threads park on join() without consuming carrier threads.
+        // Each chunk runs in its own @Transactional scope — chunk failures are isolated.
+        // allOf().join() propagates the first failure; other chunk exceptions are lost.
         CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
         return chunks.size();
     }

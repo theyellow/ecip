@@ -19,34 +19,43 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
 
   // Warm up models on mount
   useEffect(() => {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), WARM_UP_TIMEOUT_MS)
+    let cancelled = false;
+    const timeout = setTimeout(() => {
+      cancelled = true;
+      setWarmUpState('failed');
+      addToast('warning', 'Model warm-up timed out — ingestion may be slow');
+    }, WARM_UP_TIMEOUT_MS);
 
     api
       .warmUp(['EMBED', 'EXTRACT'])
       .then(data => {
-        const results = data.results || {}
-        const allReady = Object.values(results).every(r => r.ready)
-        const maxLatency = Math.max(...Object.values(results).map(r => r.latencyMs || 0))
+        if (cancelled) return;
+        clearTimeout(timeout);
+        const results = data.results || {};
+        const allReady = Object.values(results).every(r => r.ready);
+        const maxLatency = Math.max(
+          ...Object.values(results).map(r => r.latencyMs || 0)
+        );
         if (allReady) {
-          setWarmUpState('ready')
-          setWarmUpLatency(maxLatency)
+          setWarmUpState('ready');
+          setWarmUpLatency(maxLatency);
         } else {
-          setWarmUpState('failed')
-          addToast('warning', 'Model warm-up failed — ingestion may be slow')
+          setWarmUpState('failed');
+          addToast('warning', 'Model warm-up failed — ingestion may be slow');
         }
       })
       .catch(() => {
-        setWarmUpState('failed')
-        addToast('warning', 'Model warm-up failed — ingestion may be slow')
-      })
-      .finally(() => clearTimeout(timeout))
+        if (cancelled) return;
+        clearTimeout(timeout);
+        setWarmUpState('failed');
+        addToast('warning', 'Model warm-up failed — ingestion may be slow');
+      });
 
     return () => {
-      controller.abort()
-      clearTimeout(timeout)
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const canSubmit =
     warmUpState !== 'loading' &&
