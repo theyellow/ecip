@@ -172,7 +172,8 @@ public class KnowledgeExtractionService {
             String sourceRef,
             UUID tenantId,
             int chunkIndex,
-            Map<String, String> documentMetadata) {
+            Map<String, String> documentMetadata,
+            UUID jobId) {
         if (chunk == null || chunk.isBlank()) {
             log.debug("Skipping empty chunk for: {}", sourceRef);
             return;
@@ -191,6 +192,7 @@ public class KnowledgeExtractionService {
             metadata.putAll(documentMetadata);
         }
         doc.setMetadata(metadata);
+        doc.setJobId(jobId);
         KnowledgeDocument saved = documentRepository.saveAndFlush(doc);
 
         // Step 2: Generate and store embedding

@@ -110,14 +110,15 @@ class DocumentIngestionServiceTest {
                 .thenReturn(new ExtractionResult(List.of(), List.of()));
 
         realExtractionService.processDocument(
-                chunk, "https://example.com/doc", tenantId, 0, Map.of());
+                chunk, "https://example.com/doc", tenantId, 0, Map.of(), null);
 
         verify(llmClient).extract(eq(chunk), anyList(), anyList());
     }
 
     @Test
     void processDocument_skipsBlankChunk() {
-        realExtractionService.processDocument("   ", "https://example.com/doc", null, 0, Map.of());
+        realExtractionService.processDocument(
+                "   ", "https://example.com/doc", null, 0, Map.of(), null);
         verifyNoInteractions(llmClient, documentRepository);
     }
 
@@ -182,7 +183,12 @@ class DocumentIngestionServiceTest {
                         () ->
                                 verify(extractionService, atLeastOnce())
                                         .processDocument(
-                                                eq(content), eq(testUrl), isNull(), eq(0), any()));
+                                                eq(content),
+                                                eq(testUrl),
+                                                isNull(),
+                                                eq(0),
+                                                any(),
+                                                any()));
     }
 
     @Test
@@ -231,6 +237,7 @@ class DocumentIngestionServiceTest {
                                                 eq(testUrl),
                                                 isNull(),
                                                 anyInt(),
+                                                any(),
                                                 any()));
     }
 
@@ -280,6 +287,89 @@ class DocumentIngestionServiceTest {
                                                                     .FLAGGED_INJECTION_RISK);
                         });
         // Document should NOT be chunked/ingested
+        verifyNoInteractions(extractionService);
+    }
+
+    @Test
+    void submitUrlIngestion_throwsDuplicateSourceExceptionWhenAlreadyIngested() {
+        UUID existingJobId = UUID.randomUUID();
+        IngestionJob existingJob = new IngestionJob();
+        existingJob.setId(existingJobId);
+        existingJob.setStatus(IngestionJob.IngestionStatus.COMPLETED);
+        existingJob.setSourceRef("https://example.com/doc.pdf");
+
+        when(jobRepository.findCompletedBySourceRefAndTenant(
+                        eq("https://example.com/doc.pdf"),
+                        isNull(),
+                        eq(IngestionJob.IngestionStatus.COMPLETED)))
+                .thenReturn(Optional.of(existingJob));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                io.emcip.knowledge.engine.model.DuplicateSourceException.class,
+                () -> service.submitUrlIngestion("https://example.com/doc.pdf", null));
+    }
+
+    @Test
+    void processUrlAsync_marksJobAsDuplicateWhenContentHashMatches() throws Exception {
+        String content = "some unique document content";
+        httpServer.createContext(
+                "/hashdup",
+                exchange -> {
+                    byte[] body = content.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        String testUrl = "http://localhost:" + httpServer.getAddress().getPort() + "/hashdup";
+
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setStatus(IngestionJob.IngestionStatus.QUEUED);
+
+        UUID existingJobId = UUID.randomUUID();
+        IngestionJob existingJob = new IngestionJob();
+        existingJob.setId(existingJobId);
+        existingJob.setSourceRef("other-file.pdf");
+
+        when(jobRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            IngestionJob j = inv.getArgument(0);
+                            if (j.getId() == null) j.setId(jobId);
+                            return j;
+                        });
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(tikaExtractionService.extract(any(byte[].class)))
+                .thenReturn(new ExtractedContent(content, Map.of()));
+        when(jobRepository.findCompletedByContentHashAndTenant(
+                        anyString(),
+                        isNull(),
+                        eq(IngestionJob.IngestionStatus.COMPLETED),
+                        eq(jobId)))
+                .thenReturn(Optional.of(existingJob));
+
+        service.submitUrlIngestion(testUrl, null);
+
+        await().atMost(5, SECONDS)
+                .untilAsserted(
+                        () -> {
+                            ArgumentCaptor<IngestionJob> captor =
+                                    ArgumentCaptor.forClass(IngestionJob.class);
+                            verify(jobRepository, atLeastOnce()).save(captor.capture());
+                            assertThat(captor.getAllValues())
+                                    .anyMatch(
+                                            j ->
+                                                    j.getStatus()
+                                                                    == IngestionJob.IngestionStatus
+                                                                            .COMPLETED
+                                                            && j.getChunkCount() != null
+                                                            && j.getChunkCount() == 0
+                                                            && j.getErrorMessage() != null
+                                                            && j.getErrorMessage()
+                                                                    .contains("Duplicate content"));
+                        });
         verifyNoInteractions(extractionService);
     }
 

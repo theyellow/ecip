@@ -283,7 +283,7 @@ class KnowledgeExtractionServiceTest {
                 .thenReturn(UUID.randomUUID());
 
         // When
-        service.processDocument(chunk, "test.pdf", tenantId, 0, Map.of());
+        service.processDocument(chunk, "test.pdf", tenantId, 0, Map.of(), null);
 
         // Then: embedBatch called once with both labels
         verify(llmClient).embedBatch(List.of("berlin", "germany"));
