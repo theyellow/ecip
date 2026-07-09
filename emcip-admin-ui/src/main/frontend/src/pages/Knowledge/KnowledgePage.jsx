@@ -40,6 +40,8 @@ export function Knowledge() {
   const { addToast } = useToast()
   const [activeTab, setActiveTab] = useState('search')
   const prevJobStatuses = useRef({})
+  const toastedTransitions = useRef(new Set())
+  const hasActiveJobsRef = useRef(false)
 
   // — Tenants (shared) —
   const [tenants, setTenants] = useState([])
@@ -87,11 +89,14 @@ export function Knowledge() {
     try {
       const data = await api.jobs(page, 20)
 
-      // Detect status transitions and fire toasts
+      // Detect status transitions and fire toasts (deduplicated)
       const prev = prevJobStatuses.current
       for (const job of data?.content ?? []) {
         const oldStatus = prev[job.id]
         if (oldStatus && oldStatus !== job.status) {
+          const transitionKey = `${job.id}:${job.status}`
+          if (toastedTransitions.current.has(transitionKey)) continue
+          toastedTransitions.current.add(transitionKey)
           if (job.status === 'COMPLETED') {
             addToast('success', `Ingestion complete: ${job.sourceRef} — ${job.chunkCount || 0} chunks`)
           } else if (job.status === 'FAILED') {
@@ -107,16 +112,16 @@ export function Knowledge() {
       }
       prevJobStatuses.current = newStatuses
 
-      setJobs(
-        (data?.content ?? []).map(j => ({
-          ...j,
-          rawStatus: j.status,
-          tenantId: j.tenantId
-            ? (tenants.find(t => t.id === j.tenantId)?.name ?? j.tenantId)
-            : 'Global',
-          createdAt: j.createdAt ? new Date(j.createdAt).toLocaleString() : '\u2014',
-        }))
-      )
+      const mapped = (data?.content ?? []).map(j => ({
+        ...j,
+        rawStatus: j.status,
+        tenantId: j.tenantId
+          ? (tenants.find(t => t.id === j.tenantId)?.name ?? j.tenantId)
+          : 'Global',
+        createdAt: j.createdAt ? new Date(j.createdAt).toLocaleString() : '\u2014',
+      }))
+      hasActiveJobsRef.current = mapped.some(j => j.rawStatus === 'QUEUED' || j.rawStatus === 'RUNNING')
+      setJobs(mapped)
       setTotalPages(data?.totalPages ?? 0)
     } catch {
       // keep stale data visible
@@ -133,12 +138,11 @@ export function Knowledge() {
   useEffect(() => {
     if (activeTab !== 'jobs') return
 
-    const hasActiveJobs = jobs.some(j => j.rawStatus === 'QUEUED' || j.rawStatus === 'RUNNING')
-    if (!hasActiveJobs) return
-
-    const interval = setInterval(loadJobs, 5000)
+    const interval = setInterval(() => {
+      if (hasActiveJobsRef.current) loadJobs()
+    }, 5000)
     return () => clearInterval(interval)
-  }, [activeTab, jobs, loadJobs])
+  }, [activeTab, loadJobs])
 
   // Search
   async function handleSearch() {
