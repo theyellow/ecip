@@ -52,15 +52,32 @@ public class GraphNodeEmbeddingRepository {
 
     public void storeEmbedding(String label, String conceptType, UUID tenantId, float[] embedding) {
         String vectorStr = toVectorString(embedding);
-        String sql =
-                """
+        try {
+            if (tenantId != null) {
+                jdbcTemplate.update(
+                        """
 INSERT INTO ke_graph_node_embeddings (node_id, label, concept_type, tenant_id, embedding)
 VALUES (gen_random_uuid(), ?, ?, ?, ?::vector)
 ON CONFLICT (label, concept_type, tenant_id)
   DO UPDATE SET embedding = EXCLUDED.embedding
-""";
-        try {
-            jdbcTemplate.update(sql, label, conceptType, tenantId, vectorStr);
+""",
+                        label,
+                        conceptType,
+                        tenantId,
+                        vectorStr);
+            } else {
+                jdbcTemplate.update(
+                        """
+INSERT INTO ke_graph_node_embeddings (node_id, label, concept_type, embedding)
+VALUES (gen_random_uuid(), ?, ?, ?::vector)
+ON CONFLICT (label, concept_type, tenant_id)
+  WHERE tenant_id IS NULL
+  DO UPDATE SET embedding = EXCLUDED.embedding
+""",
+                        label,
+                        conceptType,
+                        vectorStr);
+            }
             log.debug("Stored node embedding: label={}, type={}", label, conceptType);
         } catch (Exception e) {
             log.warn(
