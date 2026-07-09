@@ -125,6 +125,59 @@ public class AgeGraphRepository implements GraphRepository {
     }
 
     @Override
+    public void deleteEdgesBySourceMessageIds(List<UUID> documentIds) {
+        if (documentIds.isEmpty()) return;
+        for (UUID docId : documentIds) {
+            String cypher =
+                    String.format("MATCH ()-[r {source_message_id: '%s'}]->() DELETE r", docId);
+            try {
+                executeCypher(cypher);
+            } catch (Exception e) {
+                log.warn("Failed to delete edges for document {}: {}", docId, e.getMessage());
+            }
+        }
+    }
+
+    @Override
+    public List<GraphEdge> findEdgesBySourceMessageIds(List<UUID> documentIds) {
+        if (documentIds.isEmpty()) return List.of();
+        List<GraphEdge> allEdges = new ArrayList<>();
+        for (UUID docId : documentIds) {
+            String cypher =
+                    String.format(
+                            """
+                            MATCH (a)-[r {source_message_id: '%s'}]->(b)
+                            RETURN {edge_id: r.edge_id,
+                                    relationship_type: type(r),
+                                    source_node_id: a.node_id,
+                                    target_node_id: b.node_id,
+                                    source_message_id: r.source_message_id}
+                            """,
+                            docId);
+            allEdges.addAll(queryEdges(cypher));
+        }
+        return allEdges;
+    }
+
+    @Override
+    public Optional<GraphNode> findNodeById(UUID nodeId) {
+        String cypher = String.format("MATCH (n {node_id: '%s'}) RETURN n", nodeId);
+        List<GraphNode> results = queryNodes(cypher);
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
+    }
+
+    @Override
+    public List<GraphNode> findNodesByIds(List<UUID> nodeIds) {
+        if (nodeIds.isEmpty()) return List.of();
+        String idList =
+                nodeIds.stream()
+                        .map(id -> "'" + id + "'")
+                        .collect(java.util.stream.Collectors.joining(", "));
+        String cypher = String.format("MATCH (n) WHERE n.node_id IN [%s] RETURN n", idList);
+        return queryNodes(cypher);
+    }
+
+    @Override
     public void mergeNodes(UUID candidateNodeId, UUID targetNodeId) {
         // Query outgoing edges: candidate -> n (excluding edges to target itself)
         List<GraphEdge> outgoing =

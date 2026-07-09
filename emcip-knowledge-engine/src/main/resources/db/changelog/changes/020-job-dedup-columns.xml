@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <!-- Add content_hash to ingestion jobs for dedup detection -->
+    <changeSet id="ke-20a" author="knowledge-engine">
+        <addColumn tableName="ke_ingestion_jobs">
+            <column name="content_hash" type="VARCHAR(64)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_ke_jobs_content_hash" tableName="ke_ingestion_jobs">
+            <column name="content_hash"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Add job_id FK to knowledge documents -->
+    <changeSet id="ke-20b" author="knowledge-engine">
+        <addColumn tableName="ke_knowledge_documents">
+            <column name="job_id" type="UUID">
+                <constraints nullable="true"
+                             foreignKeyName="fk_ke_docs_job_id"
+                             referencedTableName="ke_ingestion_jobs"
+                             referencedColumnNames="id"/>
+            </column>
+        </addColumn>
+        <createIndex indexName="idx_ke_docs_job_id" tableName="ke_knowledge_documents">
+            <column name="job_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Backfill job_id on existing documents by matching source_ref + tenant_id -->
+    <changeSet id="ke-20c" author="knowledge-engine">
+        <sql>
+            UPDATE ke_knowledge_documents d
+            SET job_id = sub.job_id
+            FROM (
+                SELECT DISTINCT ON (d2.id) d2.id AS doc_id, j.id AS job_id
+                FROM ke_knowledge_documents d2
+                JOIN ke_ingestion_jobs j
+                  ON d2.source_ref = j.source_ref
+                 AND (d2.tenant_id = j.tenant_id OR (d2.tenant_id IS NULL AND j.tenant_id IS NULL))
+                WHERE j.status = 'COMPLETED'
+                  AND d2.job_id IS NULL
+                ORDER BY d2.id, j.created_at DESC
+            ) sub
+            WHERE d.id = sub.doc_id;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -15,6 +15,10 @@ public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocu
 
     boolean existsBySourceRefAndSourceType(String sourceRef, String sourceType);
 
+    List<KnowledgeDocument> findAllByJobId(UUID jobId);
+
+    void deleteAllByJobId(UUID jobId);
+
     @Query(
             value = "SELECT * FROM ke_knowledge_documents WHERE embedding IS NULL",
             nativeQuery = true)

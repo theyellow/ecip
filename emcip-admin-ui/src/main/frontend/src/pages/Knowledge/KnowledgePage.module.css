@@ -344,3 +344,29 @@
   color: var(--fg-3);
   margin-left: 4px;
 }
+
+/* ── Job action buttons ── */
+.actionBtns {
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+
+.actionBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg-2);
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 0;
+}
+
+.actionBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

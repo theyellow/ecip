@@ -1,0 +1,128 @@
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.sectionLabel {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-align: center;
+  margin: var(--sp-2) 0 var(--sp-1);
+}
+
+.infoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.infoRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.infoLabel {
+  font-family: var(--font-display);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--fg-3);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+
+.infoValue {
+  color: var(--fg-1);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-2);
+}
+
+.errorBlock {
+  background: var(--signal-stop-bg);
+  color: var(--signal-stop-fg);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 13px;
+  border: 1px solid var(--border);
+}
+
+.warningBlock {
+  background: var(--signal-warn-bg);
+  color: var(--signal-warn-fg);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 13px;
+  border: 1px solid var(--border);
+}
+
+.loading,
+.error,
+.empty {
+  color: var(--fg-3);
+  font-style: italic;
+  text-align: center;
+  padding: var(--sp-4) 0;
+}
+
+.error {
+  color: var(--signal-stop-fg);
+}
+
+.chunkList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.chunkCard {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.chunkMeta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--sp-1);
+}
+
+.chunkPreview {
+  font-size: 13px;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+
+.entityChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.entityChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--fg-1);
+  cursor: pointer;
+}
+
+.entityChip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}

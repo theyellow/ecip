@@ -30,4 +30,15 @@ public interface GraphRepository {
      * candidate node. Throws RuntimeException on any failure (triggers rollback at service layer).
      */
     void mergeNodes(UUID candidateNodeId, UUID targetNodeId);
+
+    /** Delete all edges whose source_message_id is in the given list of document IDs. */
+    void deleteEdgesBySourceMessageIds(List<UUID> documentIds);
+
+    /** Find all edges originating from given document IDs, returning source/target node info. */
+    List<GraphEdge> findEdgesBySourceMessageIds(List<UUID> documentIds);
+
+    Optional<GraphNode> findNodeById(UUID nodeId);
+
+    /** Batch-fetch nodes by their IDs in a single query. */
+    List<GraphNode> findNodesByIds(List<UUID> nodeIds);
 }

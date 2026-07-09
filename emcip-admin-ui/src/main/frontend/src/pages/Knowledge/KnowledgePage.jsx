@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
 import { DataTable } from '../../components/DataTable/DataTable'
 import { useToast } from '../../components/Toast/useToast'
 import { knowledgeApi } from '../../api/knowledge'
 import { tenantsApi } from '../../api/tenants'
 import { IngestionModal } from './IngestionModal'
+import { JobDetailModal } from './JobDetailModal'
 import styles from './KnowledgePage.module.css'
 
 const STATUS_VARIANT = {
@@ -14,6 +16,7 @@ const STATUS_VARIANT = {
   RUNNING: 'blue',
   QUEUED: 'gray',
   FAILED: 'red',
+  FLAGGED_INJECTION_RISK: 'yellow',
 }
 
 const JOB_COLUMNS = [
@@ -39,7 +42,7 @@ export function Knowledge() {
   const request = useAuthRequest()
   const { addToast } = useToast()
   const [activeTab, setActiveTab] = useState('search')
-  const prevJobStatuses = useRef({})
+  const prevJobStatuses = useRef(null) // null = first load (seed only, no toasts)
   const toastedTransitions = useRef(new Set())
   const hasActiveJobsRef = useRef(false)
 
@@ -50,8 +53,11 @@ export function Knowledge() {
   const [jobs, setJobs] = useState([])
   const [totalPages, setTotalPages] = useState(0)
   const [page, setPage] = useState(0)
-  const [showModal, setShowModal] = useState(false)
+  const [showModal, setShowModal] = useState(null) // null | true | { replaceJobId, sourceRef, tenantId }
   const [jobsLoading, setJobsLoading] = useState(true)
+  const [detailJobId, setDetailJobId] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
+  const [reingestJob, setReingestJob] = useState(null)
 
   // — Search tab state —
   const [query, setQuery] = useState('')
@@ -89,18 +95,21 @@ export function Knowledge() {
     try {
       const data = await api.jobs(page, 20)
 
-      // Detect status transitions and fire toasts (deduplicated)
+      // Detect status transitions and fire toasts
+      // First load (prev === null): seed statuses only, don't toast stale results
       const prev = prevJobStatuses.current
-      for (const job of data?.content ?? []) {
-        const oldStatus = prev[job.id]
-        if (oldStatus && oldStatus !== job.status) {
-          const transitionKey = `${job.id}:${job.status}`
-          if (toastedTransitions.current.has(transitionKey)) continue
-          toastedTransitions.current.add(transitionKey)
-          if (job.status === 'COMPLETED') {
-            addToast('success', `Ingestion complete: ${job.sourceRef} — ${job.chunkCount || 0} chunks`)
-          } else if (job.status === 'FAILED') {
-            addToast('error', `Ingestion failed: ${job.sourceRef} — ${job.errorMessage || 'Unknown error'}`)
+      if (prev !== null) {
+        for (const job of data?.content ?? []) {
+          const oldStatus = prev[job.id]
+          if (oldStatus && oldStatus !== job.status) {
+            const transitionKey = `${job.id}:${job.status}`
+            if (toastedTransitions.current.has(transitionKey)) continue
+            toastedTransitions.current.add(transitionKey)
+            if (job.status === 'COMPLETED') {
+              addToast('success', `Ingestion complete: ${job.sourceRef} — ${job.chunkCount || 0} chunks`)
+            } else if (job.status === 'FAILED') {
+              addToast('error', `Ingestion failed: ${job.sourceRef} — ${job.errorMessage || 'Unknown error'}`)
+            }
           }
         }
       }
@@ -115,6 +124,7 @@ export function Knowledge() {
       const mapped = (data?.content ?? []).map(j => ({
         ...j,
         rawStatus: j.status,
+        rawTenantId: j.tenantId,
         tenantId: j.tenantId
           ? (tenants.find(t => t.id === j.tenantId)?.name ?? j.tenantId)
           : 'Global',
@@ -188,6 +198,80 @@ export function Knowledge() {
   function handleKeyDown(e) {
     if (e.key === 'Enter') handleSearch()
   }
+
+  async function handleDeleteJob(row) {
+    try {
+      await api.deleteJob(row.id)
+      addToast('info', `Job deleted: ${row.sourceRef}`)
+      loadJobs()
+    } catch (e) {
+      addToast('error', `Delete failed: ${e.message || 'Unknown error'}`)
+    }
+    setConfirmDelete(null)
+  }
+
+  async function handleReingest(row) {
+    try {
+      const result = await api.reingest(row.id)
+      if (result.error === 'REUPLOAD_REQUIRED') {
+        setReingestJob(null)
+        setShowModal({ replaceJobId: row.id, sourceRef: result.sourceRef, tenantId: row.rawTenantId })
+        return
+      }
+      addToast('info', `Re-ingestion started: ${row.sourceRef}`)
+      loadJobs()
+    } catch (e) {
+      addToast('error', `Re-ingest failed: ${e.message || 'Unknown error'}`)
+    }
+    setReingestJob(null)
+  }
+
+  function handleSearchEntity(label) {
+    setActiveTab('search')
+    setQuery(label)
+  }
+
+  const jobColumns = useMemo(
+    () => [
+      ...JOB_COLUMNS,
+      {
+        key: '_actions',
+        label: '',
+        width: '120px',
+        render: (_, row) => (
+          <span className={styles.actionBtns} onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className={styles.actionBtn}
+              title="View details"
+              onClick={() => setDetailJobId(row.id)}
+            >
+              {'\u25b8'}
+            </button>
+            <button
+              type="button"
+              className={styles.actionBtn}
+              title="Delete"
+              onClick={() => setConfirmDelete(row)}
+            >
+              {'\u2715'}
+            </button>
+            {(row.rawStatus === 'COMPLETED' || row.rawStatus === 'FAILED') && (
+              <button
+                type="button"
+                className={styles.actionBtn}
+                title="Re-ingest"
+                onClick={() => setReingestJob(row)}
+              >
+                {'\u21bb'}
+              </button>
+            )}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
 
   const graphResults = results?.graphResults ?? []
   const documentResults = results?.documentResults ?? []
@@ -393,7 +477,7 @@ export function Knowledge() {
       {activeTab === 'jobs' && (
         <>
           <DataTable
-            columns={JOB_COLUMNS}
+            columns={jobColumns}
             rows={jobs}
             emptyText={jobsLoading ? 'Loading…' : 'No ingestion jobs yet. Submit a URL or file.'}
           />
@@ -424,8 +508,43 @@ export function Knowledge() {
             <IngestionModal
               api={api}
               tenants={tenants}
-              onClose={() => setShowModal(false)}
+              onClose={() => setShowModal(null)}
               onJobCreated={loadJobs}
+              replaceJobId={showModal?.replaceJobId ?? null}
+              initialSourceRef={showModal?.sourceRef ?? null}
+              initialTenantId={showModal?.tenantId ?? null}
+            />
+          )}
+
+          {detailJobId && (
+            <JobDetailModal
+              api={api}
+              jobId={detailJobId}
+              tenants={tenants}
+              onClose={() => setDetailJobId(null)}
+              onSearchEntity={handleSearchEntity}
+            />
+          )}
+
+          {confirmDelete && (
+            <ConfirmDialog
+              title="Delete ingestion job"
+              message={`Delete job and its ${confirmDelete.chunkCount ?? 0} chunks? Graph nodes will be preserved.`}
+              onConfirm={() => handleDeleteJob(confirmDelete)}
+              onClose={() => setConfirmDelete(null)}
+            />
+          )}
+
+          {reingestJob && (
+            <ConfirmDialog
+              title="Re-ingest document"
+              message={
+                reingestJob.sourceType === 'URL'
+                  ? `Re-ingest from ${reingestJob.sourceRef}? Old chunks will be replaced.`
+                  : `File re-upload required for ${reingestJob.sourceRef}. Continue?`
+              }
+              onConfirm={() => handleReingest(reingestJob)}
+              onClose={() => setReingestJob(null)}
             />
           )}
         </>

@@ -4,8 +4,18 @@ import io.emcip.knowledge.engine.config.IngestionProperties;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.IngestionJob.IngestionStatus;
 import io.emcip.knowledge.engine.entity.IngestionJob.SourceType;
+import io.emcip.knowledge.engine.entity.KnowledgeDocument;
+import io.emcip.knowledge.engine.model.ChunkSummaryDto;
+import io.emcip.knowledge.engine.model.DuplicateSourceException;
+import io.emcip.knowledge.engine.model.EntitySummaryDto;
 import io.emcip.knowledge.engine.model.ExtractedContent;
+import io.emcip.knowledge.engine.model.GraphEdge;
+import io.emcip.knowledge.engine.model.GraphNode;
+import io.emcip.knowledge.engine.model.IngestionJobDetailDto;
+import io.emcip.knowledge.engine.model.IngestionJobDto;
+import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
+import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,13 +23,18 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -62,9 +77,19 @@ public class DocumentIngestionService {
     private final TikaExtractionService tikaExtractionService;
     private final SentenceAwareChunker chunker;
     private final IngestionProperties ingestionProperties;
+    private final GraphRepository graphRepository;
+    private final KnowledgeDocumentRepository documentRepository;
 
     /** Submit a URL for async ingestion. Returns the job ID immediately. */
     public String submitUrlIngestion(String url, UUID tenantId) {
+        return submitUrlIngestion(url, tenantId, null);
+    }
+
+    /** Submit a URL for async ingestion, bypassing dedup when replaceJobId is non-null. */
+    public String submitUrlIngestion(String url, UUID tenantId, UUID replaceJobId) {
+        if (replaceJobId == null) {
+            checkSourceRefDuplicate(url, tenantId);
+        }
         IngestionJob job = createAndSaveJob(SourceType.URL, url, tenantId);
         UUID jobId = job.getId();
         INGESTION_EXECUTOR.submit(() -> processUrlAsync(jobId, url, tenantId));
@@ -77,6 +102,16 @@ public class DocumentIngestionService {
      */
     public String submitFileIngestion(InputStream inputStream, String filename, UUID tenantId)
             throws IOException {
+        return submitFileIngestion(inputStream, filename, tenantId, null);
+    }
+
+    /** Submit a file for async ingestion, bypassing dedup when replaceJobId is non-null. */
+    public String submitFileIngestion(
+            InputStream inputStream, String filename, UUID tenantId, UUID replaceJobId)
+            throws IOException {
+        if (replaceJobId == null) {
+            checkSourceRefDuplicate(filename, tenantId);
+        }
         byte[] bytes = inputStream.readAllBytes();
         IngestionJob job = createAndSaveJob(SourceType.FILE_UPLOAD, filename, tenantId);
         UUID jobId = job.getId();
@@ -96,6 +131,124 @@ public class DocumentIngestionService {
             return jobRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId, pageable);
         }
         return jobRepository.findAllByOrderByCreatedAtDesc(pageable);
+    }
+
+    @Transactional
+    public void deleteJob(UUID jobId) {
+        IngestionJob job =
+                jobRepository
+                        .findById(jobId)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Ingestion job not found: " + jobId));
+
+        List<KnowledgeDocument> chunks = documentRepository.findAllByJobId(jobId);
+        List<UUID> chunkIds = chunks.stream().map(KnowledgeDocument::getId).toList();
+
+        if (!chunkIds.isEmpty()) {
+            graphRepository.deleteEdgesBySourceMessageIds(chunkIds);
+            documentRepository.deleteAllByJobId(jobId);
+        }
+
+        jobRepository.deleteById(jobId);
+        log.info(
+                "Deleted ingestion job {}: {} chunks and their edges removed",
+                jobId,
+                chunkIds.size());
+    }
+
+    public IngestionJobDetailDto getJobDetails(UUID jobId) {
+        IngestionJob job = getJob(jobId);
+        List<KnowledgeDocument> chunks = documentRepository.findAllByJobId(jobId);
+        List<UUID> chunkIds = chunks.stream().map(KnowledgeDocument::getId).toList();
+
+        List<GraphEdge> edges = graphRepository.findEdgesBySourceMessageIds(chunkIds);
+
+        // Build chunk summaries with per-chunk entity/relationship counts
+        Map<UUID, Set<UUID>> entityNodesByDoc = new HashMap<>();
+        Map<UUID, Long> relCountByDoc = new HashMap<>();
+        for (GraphEdge edge : edges) {
+            UUID docId = edge.sourceMessageId();
+            relCountByDoc.merge(docId, 1L, Long::sum);
+            if (edge.targetNodeId() != null) {
+                entityNodesByDoc
+                        .computeIfAbsent(docId, k -> new HashSet<>())
+                        .add(edge.targetNodeId());
+            }
+        }
+
+        List<ChunkSummaryDto> chunkSummaries =
+                chunks.stream()
+                        .sorted(java.util.Comparator.comparingInt(KnowledgeDocument::getChunkIndex))
+                        .map(
+                                doc -> {
+                                    String preview =
+                                            doc.getContent().length() > 200
+                                                    ? doc.getContent().substring(0, 200)
+                                                    : doc.getContent();
+                                    return new ChunkSummaryDto(
+                                            doc.getId(),
+                                            doc.getChunkIndex(),
+                                            preview,
+                                            entityNodesByDoc
+                                                    .getOrDefault(doc.getId(), Set.of())
+                                                    .size(),
+                                            relCountByDoc.getOrDefault(doc.getId(), 0L).intValue());
+                                })
+                        .toList();
+
+        // Deduplicated entities from edge target nodes — resolved in a single batch query
+        List<UUID> uniqueTargetNodeIds =
+                edges.stream()
+                        .map(GraphEdge::targetNodeId)
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .collect(java.util.stream.Collectors.toList());
+
+        List<GraphNode> entityNodes = graphRepository.findNodesByIds(uniqueTargetNodeIds);
+        List<EntitySummaryDto> entities =
+                entityNodes.stream()
+                        .map(
+                                node ->
+                                        new EntitySummaryDto(
+                                                node.label(), node.conceptType(), node.id()))
+                        .toList();
+
+        return new IngestionJobDetailDto(
+                IngestionJobDto.from(job),
+                chunkSummaries,
+                entities,
+                chunks.size(),
+                entities.size(),
+                edges.size());
+    }
+
+    @Transactional
+    public String reingestJob(UUID jobId) {
+        IngestionJob oldJob = getJob(jobId);
+
+        if (oldJob.getSourceType() == SourceType.FILE_UPLOAD) {
+            throw new IllegalArgumentException("REUPLOAD_REQUIRED");
+        }
+
+        // Delete old data
+        List<KnowledgeDocument> oldChunks = documentRepository.findAllByJobId(jobId);
+        List<UUID> oldChunkIds = oldChunks.stream().map(KnowledgeDocument::getId).toList();
+        if (!oldChunkIds.isEmpty()) {
+            graphRepository.deleteEdgesBySourceMessageIds(oldChunkIds);
+            documentRepository.deleteAllByJobId(jobId);
+        }
+
+        // Create new job and process (async submission happens outside transaction boundary)
+        String newJobId = submitUrlIngestion(oldJob.getSourceRef(), oldJob.getTenantId(), jobId);
+
+        // Mark old job as re-ingested
+        oldJob.setChunkCount(0);
+        oldJob.setErrorMessage("Re-ingested as job " + newJobId);
+        jobRepository.save(oldJob);
+
+        return newJobId;
     }
 
     @PreDestroy
@@ -128,7 +281,31 @@ public class DocumentIngestionService {
                 updateJobStatus(jobId, IngestionStatus.FLAGGED_INJECTION_RISK, null, null);
                 return;
             }
-            int chunkCount = processChunks(extracted, url, tenantId);
+            String contentHash = computeContentHash(extracted.text());
+            if (contentHash != null) {
+                updateJobContentHash(jobId, contentHash);
+                Optional<IngestionJob> hashDuplicate =
+                        jobRepository.findCompletedByContentHashAndTenant(
+                                contentHash, tenantId, IngestionStatus.COMPLETED, jobId);
+                if (hashDuplicate.isPresent()) {
+                    IngestionJob dup = hashDuplicate.get();
+                    updateJobStatus(
+                            jobId,
+                            IngestionStatus.COMPLETED,
+                            0,
+                            "Duplicate content (matches job "
+                                    + dup.getId()
+                                    + ", source: "
+                                    + dup.getSourceRef()
+                                    + ")");
+                    log.info(
+                            "Content hash duplicate detected: jobId={}, matchesJob={}",
+                            jobId,
+                            dup.getId());
+                    return;
+                }
+            }
+            int chunkCount = processChunks(extracted, url, tenantId, jobId);
             if (chunkCount == 0) {
                 updateJobStatus(
                         jobId, IngestionStatus.FAILED, null, "No chunks produced after splitting");
@@ -179,7 +356,31 @@ public class DocumentIngestionService {
                 updateJobStatus(jobId, IngestionStatus.FLAGGED_INJECTION_RISK, null, null);
                 return;
             }
-            int chunkCount = processChunks(extracted, filename, tenantId);
+            String contentHash = computeContentHash(extracted.text());
+            if (contentHash != null) {
+                updateJobContentHash(jobId, contentHash);
+                Optional<IngestionJob> hashDuplicate =
+                        jobRepository.findCompletedByContentHashAndTenant(
+                                contentHash, tenantId, IngestionStatus.COMPLETED, jobId);
+                if (hashDuplicate.isPresent()) {
+                    IngestionJob dup = hashDuplicate.get();
+                    updateJobStatus(
+                            jobId,
+                            IngestionStatus.COMPLETED,
+                            0,
+                            "Duplicate content (matches job "
+                                    + dup.getId()
+                                    + ", source: "
+                                    + dup.getSourceRef()
+                                    + ")");
+                    log.info(
+                            "Content hash duplicate detected: jobId={}, matchesJob={}",
+                            jobId,
+                            dup.getId());
+                    return;
+                }
+            }
+            int chunkCount = processChunks(extracted, filename, tenantId, jobId);
             if (chunkCount == 0) {
                 updateJobStatus(
                         jobId, IngestionStatus.FAILED, null, "No chunks produced after splitting");
@@ -202,7 +403,8 @@ public class DocumentIngestionService {
         }
     }
 
-    private int processChunks(ExtractedContent extracted, String sourceRef, UUID tenantId) {
+    private int processChunks(
+            ExtractedContent extracted, String sourceRef, UUID tenantId, UUID jobId) {
         List<String> chunks = chunker.chunk(extracted.text());
         Map<String, String> metadata = new HashMap<>(extracted.metadata());
         metadata.put("totalChunks", String.valueOf(chunks.size()));
@@ -225,7 +427,8 @@ public class DocumentIngestionService {
                                                 sourceRef,
                                                 tenantId,
                                                 chunkIndex,
-                                                immutableMetadata);
+                                                immutableMetadata,
+                                                jobId);
                                     } finally {
                                         semaphore.release();
                                     }
@@ -268,6 +471,37 @@ public class DocumentIngestionService {
         if (chunkCount != null) job.setChunkCount(chunkCount);
         if (errorMessage != null) job.setErrorMessage(errorMessage);
         jobRepository.save(job);
+    }
+
+    private void checkSourceRefDuplicate(String sourceRef, UUID tenantId) {
+        jobRepository
+                .findCompletedBySourceRefAndTenant(sourceRef, tenantId, IngestionStatus.COMPLETED)
+                .ifPresent(
+                        existing -> {
+                            throw new DuplicateSourceException(sourceRef, existing.getId());
+                        });
+    }
+
+    private String computeContentHash(String text) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(text.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (Exception e) {
+            log.warn("Failed to compute content hash: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    @Transactional
+    void updateJobContentHash(UUID jobId, String contentHash) {
+        jobRepository
+                .findById(jobId)
+                .ifPresent(
+                        job -> {
+                            job.setContentHash(contentHash);
+                            jobRepository.save(job);
+                        });
     }
 
     /** RT-009: Scan content for common prompt injection patterns. Case-insensitive. */

@@ -22,6 +22,7 @@ import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.model.ExtractedContent;
 import io.emcip.knowledge.engine.model.ExtractionResult;
+import io.emcip.knowledge.engine.model.IngestionJobDetailDto;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
@@ -78,7 +79,9 @@ class DocumentIngestionServiceTest {
                         extractionService,
                         tikaExtractionService,
                         chunker,
-                        new IngestionProperties(3));
+                        new IngestionProperties(3),
+                        graphRepository,
+                        documentRepository);
 
         httpServer = HttpServer.create(new InetSocketAddress(0), 0);
         httpServer.start();
@@ -110,14 +113,15 @@ class DocumentIngestionServiceTest {
                 .thenReturn(new ExtractionResult(List.of(), List.of()));
 
         realExtractionService.processDocument(
-                chunk, "https://example.com/doc", tenantId, 0, Map.of());
+                chunk, "https://example.com/doc", tenantId, 0, Map.of(), null);
 
         verify(llmClient).extract(eq(chunk), anyList(), anyList());
     }
 
     @Test
     void processDocument_skipsBlankChunk() {
-        realExtractionService.processDocument("   ", "https://example.com/doc", null, 0, Map.of());
+        realExtractionService.processDocument(
+                "   ", "https://example.com/doc", null, 0, Map.of(), null);
         verifyNoInteractions(llmClient, documentRepository);
     }
 
@@ -182,7 +186,12 @@ class DocumentIngestionServiceTest {
                         () ->
                                 verify(extractionService, atLeastOnce())
                                         .processDocument(
-                                                eq(content), eq(testUrl), isNull(), eq(0), any()));
+                                                eq(content),
+                                                eq(testUrl),
+                                                isNull(),
+                                                eq(0),
+                                                any(),
+                                                any()));
     }
 
     @Test
@@ -231,6 +240,7 @@ class DocumentIngestionServiceTest {
                                                 eq(testUrl),
                                                 isNull(),
                                                 anyInt(),
+                                                any(),
                                                 any()));
     }
 
@@ -281,6 +291,147 @@ class DocumentIngestionServiceTest {
                         });
         // Document should NOT be chunked/ingested
         verifyNoInteractions(extractionService);
+    }
+
+    @Test
+    void submitUrlIngestion_throwsDuplicateSourceExceptionWhenAlreadyIngested() {
+        UUID existingJobId = UUID.randomUUID();
+        IngestionJob existingJob = new IngestionJob();
+        existingJob.setId(existingJobId);
+        existingJob.setStatus(IngestionJob.IngestionStatus.COMPLETED);
+        existingJob.setSourceRef("https://example.com/doc.pdf");
+
+        when(jobRepository.findCompletedBySourceRefAndTenant(
+                        eq("https://example.com/doc.pdf"),
+                        isNull(),
+                        eq(IngestionJob.IngestionStatus.COMPLETED)))
+                .thenReturn(Optional.of(existingJob));
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                io.emcip.knowledge.engine.model.DuplicateSourceException.class,
+                () -> service.submitUrlIngestion("https://example.com/doc.pdf", null));
+    }
+
+    @Test
+    void processUrlAsync_marksJobAsDuplicateWhenContentHashMatches() throws Exception {
+        String content = "some unique document content";
+        httpServer.createContext(
+                "/hashdup",
+                exchange -> {
+                    byte[] body = content.getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        String testUrl = "http://localhost:" + httpServer.getAddress().getPort() + "/hashdup";
+
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setStatus(IngestionJob.IngestionStatus.QUEUED);
+
+        UUID existingJobId = UUID.randomUUID();
+        IngestionJob existingJob = new IngestionJob();
+        existingJob.setId(existingJobId);
+        existingJob.setSourceRef("other-file.pdf");
+
+        when(jobRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            IngestionJob j = inv.getArgument(0);
+                            if (j.getId() == null) j.setId(jobId);
+                            return j;
+                        });
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(tikaExtractionService.extract(any(byte[].class)))
+                .thenReturn(new ExtractedContent(content, Map.of()));
+        when(jobRepository.findCompletedByContentHashAndTenant(
+                        anyString(),
+                        isNull(),
+                        eq(IngestionJob.IngestionStatus.COMPLETED),
+                        eq(jobId)))
+                .thenReturn(Optional.of(existingJob));
+
+        service.submitUrlIngestion(testUrl, null);
+
+        await().atMost(5, SECONDS)
+                .untilAsserted(
+                        () -> {
+                            ArgumentCaptor<IngestionJob> captor =
+                                    ArgumentCaptor.forClass(IngestionJob.class);
+                            verify(jobRepository, atLeastOnce()).save(captor.capture());
+                            assertThat(captor.getAllValues())
+                                    .anyMatch(
+                                            j ->
+                                                    j.getStatus()
+                                                                    == IngestionJob.IngestionStatus
+                                                                            .COMPLETED
+                                                            && j.getChunkCount() != null
+                                                            && j.getChunkCount() == 0
+                                                            && j.getErrorMessage() != null
+                                                            && j.getErrorMessage()
+                                                                    .contains("Duplicate content"));
+                        });
+        verifyNoInteractions(extractionService);
+    }
+
+    @Test
+    void deleteJob_cascadeDeletesChunksAndEdgesButNotNodes() {
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setStatus(IngestionJob.IngestionStatus.COMPLETED);
+        job.setChunkCount(2);
+
+        UUID doc1Id = UUID.randomUUID();
+        UUID doc2Id = UUID.randomUUID();
+        KnowledgeDocument doc1 = new KnowledgeDocument();
+        doc1.setId(doc1Id);
+        doc1.setJobId(jobId);
+        KnowledgeDocument doc2 = new KnowledgeDocument();
+        doc2.setId(doc2Id);
+        doc2.setJobId(jobId);
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(documentRepository.findAllByJobId(jobId)).thenReturn(List.of(doc1, doc2));
+
+        service.deleteJob(jobId);
+
+        verify(graphRepository).deleteEdgesBySourceMessageIds(List.of(doc1Id, doc2Id));
+        verify(documentRepository).deleteAllByJobId(jobId);
+        verify(jobRepository).deleteById(jobId);
+    }
+
+    @Test
+    void getJobDetails_returnsChunksAndCounts() {
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setSourceType(IngestionJob.SourceType.URL);
+        job.setSourceRef("https://example.com");
+        job.setStatus(IngestionJob.IngestionStatus.COMPLETED);
+        job.setChunkCount(1);
+        job.setCreatedAt(java.time.OffsetDateTime.now());
+
+        UUID docId = UUID.randomUUID();
+        KnowledgeDocument doc = new KnowledgeDocument();
+        doc.setId(docId);
+        doc.setJobId(jobId);
+        doc.setContent("Test chunk content here");
+        doc.setChunkIndex(0);
+
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(documentRepository.findAllByJobId(jobId)).thenReturn(List.of(doc));
+        when(graphRepository.findEdgesBySourceMessageIds(List.of(docId))).thenReturn(List.of());
+
+        IngestionJobDetailDto detail = service.getJobDetails(jobId);
+
+        assertThat(detail.totalChunks()).isEqualTo(1);
+        assertThat(detail.chunks()).hasSize(1);
+        assertThat(detail.chunks().getFirst().contentPreview())
+                .isEqualTo("Test chunk content here");
+        assertThat(detail.entities()).isEmpty();
     }
 
     @Test
