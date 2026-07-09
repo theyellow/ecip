@@ -10,6 +10,7 @@ import io.emcip.knowledge.engine.model.DuplicateSourceException;
 import io.emcip.knowledge.engine.model.EntitySummaryDto;
 import io.emcip.knowledge.engine.model.ExtractedContent;
 import io.emcip.knowledge.engine.model.GraphEdge;
+import io.emcip.knowledge.engine.model.GraphNode;
 import io.emcip.knowledge.engine.model.IngestionJobDetailDto;
 import io.emcip.knowledge.engine.model.IngestionJobDto;
 import io.emcip.knowledge.engine.repository.GraphRepository;
@@ -197,23 +198,22 @@ public class DocumentIngestionService {
                                 })
                         .toList();
 
-        // Deduplicated entities from edge target nodes
-        Set<UUID> seenNodeIds = new HashSet<>();
-        List<EntitySummaryDto> entities = new ArrayList<>();
-        for (GraphEdge edge : edges) {
-            if (edge.targetNodeId() != null && seenNodeIds.add(edge.targetNodeId())) {
-                // We need node label + conceptType — query from graph
-                graphRepository
-                        .findNodeById(edge.targetNodeId())
-                        .ifPresent(
+        // Deduplicated entities from edge target nodes — resolved in a single batch query
+        List<UUID> uniqueTargetNodeIds =
+                edges.stream()
+                        .map(GraphEdge::targetNodeId)
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .collect(java.util.stream.Collectors.toList());
+
+        List<GraphNode> entityNodes = graphRepository.findNodesByIds(uniqueTargetNodeIds);
+        List<EntitySummaryDto> entities =
+                entityNodes.stream()
+                        .map(
                                 node ->
-                                        entities.add(
-                                                new EntitySummaryDto(
-                                                        node.label(),
-                                                        node.conceptType(),
-                                                        node.id())));
-            }
-        }
+                                        new EntitySummaryDto(
+                                                node.label(), node.conceptType(), node.id()))
+                        .toList();
 
         return new IngestionJobDetailDto(
                 IngestionJobDto.from(job),
@@ -224,6 +224,7 @@ public class DocumentIngestionService {
                 edges.size());
     }
 
+    @Transactional
     public String reingestJob(UUID jobId) {
         IngestionJob oldJob = getJob(jobId);
 
@@ -239,8 +240,15 @@ public class DocumentIngestionService {
             documentRepository.deleteAllByJobId(jobId);
         }
 
-        // Create new job and process
-        return submitUrlIngestion(oldJob.getSourceRef(), oldJob.getTenantId(), jobId);
+        // Create new job and process (async submission happens outside transaction boundary)
+        String newJobId = submitUrlIngestion(oldJob.getSourceRef(), oldJob.getTenantId(), jobId);
+
+        // Mark old job as re-ingested
+        oldJob.setChunkCount(0);
+        oldJob.setErrorMessage("Re-ingested as job " + newJobId);
+        jobRepository.save(oldJob);
+
+        return newJobId;
     }
 
     @PreDestroy

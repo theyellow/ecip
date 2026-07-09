@@ -38,4 +38,7 @@ public interface GraphRepository {
     List<GraphEdge> findEdgesBySourceMessageIds(List<UUID> documentIds);
 
     Optional<GraphNode> findNodeById(UUID nodeId);
+
+    /** Batch-fetch nodes by their IDs in a single query. */
+    List<GraphNode> findNodesByIds(List<UUID> nodeIds);
 }

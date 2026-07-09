@@ -167,6 +167,17 @@ public class AgeGraphRepository implements GraphRepository {
     }
 
     @Override
+    public List<GraphNode> findNodesByIds(List<UUID> nodeIds) {
+        if (nodeIds.isEmpty()) return List.of();
+        String idList =
+                nodeIds.stream()
+                        .map(id -> "'" + id + "'")
+                        .collect(java.util.stream.Collectors.joining(", "));
+        String cypher = String.format("MATCH (n) WHERE n.node_id IN [%s] RETURN n", idList);
+        return queryNodes(cypher);
+    }
+
+    @Override
     public void mergeNodes(UUID candidateNodeId, UUID targetNodeId) {
         // Query outgoing edges: candidate -> n (excluding edges to target itself)
         List<GraphEdge> outgoing =
