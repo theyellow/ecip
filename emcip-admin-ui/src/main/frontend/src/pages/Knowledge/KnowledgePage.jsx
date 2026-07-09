@@ -119,7 +119,7 @@ export function Knowledge() {
       )
       setTotalPages(data?.totalPages ?? 0)
     } catch {
-      setJobs([])
+      // keep stale data visible
     } finally {
       setJobsLoading(false)
     }
