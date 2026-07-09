@@ -60,16 +60,16 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
   const canSubmit =
     warmUpState !== 'loading' &&
     !submitting &&
-    (mode === 'url' ? url.trim() : file) &&
-    tenantId
+    (mode === 'url' ? url.trim() : file)
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true)
     try {
+      const effectiveTenantId = tenantId || null
       if (mode === 'url') {
-        await api.ingestUrl(url, tenantId)
+        await api.ingestUrl(url, effectiveTenantId)
       } else {
-        await api.ingestUpload(file, tenantId)
+        await api.ingestUpload(file, effectiveTenantId)
       }
       const sourceRef = mode === 'url' ? url : file.name
       addToast('info', `Document submitted: ${sourceRef}`)
@@ -115,7 +115,7 @@ export function IngestionModal({ api, tenants, onClose, onJobCreated }) {
           value={tenantId}
           onChange={e => setTenantId(e.target.value)}
         >
-          <option value="">Select tenant...</option>
+          <option value="">Global (all tenants)</option>
           {(tenants ?? []).map(t => (
             <option key={t.id} value={t.id}>
               {t.name}
