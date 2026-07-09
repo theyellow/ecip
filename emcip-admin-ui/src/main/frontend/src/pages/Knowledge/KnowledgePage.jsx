@@ -39,7 +39,7 @@ export function Knowledge() {
   const request = useAuthRequest()
   const { addToast } = useToast()
   const [activeTab, setActiveTab] = useState('search')
-  const prevJobStatuses = useRef({})
+  const prevJobStatuses = useRef(null) // null = first load (seed only, no toasts)
   const toastedTransitions = useRef(new Set())
   const hasActiveJobsRef = useRef(false)
 
@@ -89,18 +89,21 @@ export function Knowledge() {
     try {
       const data = await api.jobs(page, 20)
 
-      // Detect status transitions and fire toasts (deduplicated)
+      // Detect status transitions and fire toasts
+      // First load (prev === null): seed statuses only, don't toast stale results
       const prev = prevJobStatuses.current
-      for (const job of data?.content ?? []) {
-        const oldStatus = prev[job.id]
-        if (oldStatus && oldStatus !== job.status) {
-          const transitionKey = `${job.id}:${job.status}`
-          if (toastedTransitions.current.has(transitionKey)) continue
-          toastedTransitions.current.add(transitionKey)
-          if (job.status === 'COMPLETED') {
-            addToast('success', `Ingestion complete: ${job.sourceRef} — ${job.chunkCount || 0} chunks`)
-          } else if (job.status === 'FAILED') {
-            addToast('error', `Ingestion failed: ${job.sourceRef} — ${job.errorMessage || 'Unknown error'}`)
+      if (prev !== null) {
+        for (const job of data?.content ?? []) {
+          const oldStatus = prev[job.id]
+          if (oldStatus && oldStatus !== job.status) {
+            const transitionKey = `${job.id}:${job.status}`
+            if (toastedTransitions.current.has(transitionKey)) continue
+            toastedTransitions.current.add(transitionKey)
+            if (job.status === 'COMPLETED') {
+              addToast('success', `Ingestion complete: ${job.sourceRef} — ${job.chunkCount || 0} chunks`)
+            } else if (job.status === 'FAILED') {
+              addToast('error', `Ingestion failed: ${job.sourceRef} — ${job.errorMessage || 'Unknown error'}`)
+            }
           }
         }
       }
