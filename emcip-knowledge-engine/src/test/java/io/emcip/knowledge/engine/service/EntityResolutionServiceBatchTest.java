@@ -62,7 +62,9 @@ class EntityResolutionServiceBatchTest {
         assertThat(result).isEqualTo(existingNodeId);
         // Must NOT call llmClient.embed — embedding was precomputed
         verify(llmClient, never()).embed("berlin");
-        // Must store the precomputed embedding
-        verify(nodeEmbeddingRepository).storeEmbedding("berlin", "LOCATION", tenantId, precomputed);
+        // Must store the precomputed embedding with the AGE node ID
+        verify(nodeEmbeddingRepository)
+                .storeEmbeddingWithNodeId(
+                        existingNodeId, "berlin", "LOCATION", tenantId, precomputed);
     }
 }

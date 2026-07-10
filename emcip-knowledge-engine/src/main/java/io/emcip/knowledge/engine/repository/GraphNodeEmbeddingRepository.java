@@ -52,34 +52,74 @@ public class GraphNodeEmbeddingRepository {
     }
 
     public void storeEmbedding(String label, String conceptType, UUID tenantId, float[] embedding) {
+        storeEmbeddingWithNodeId(null, label, conceptType, tenantId, embedding);
+    }
+
+    public void storeEmbeddingWithNodeId(
+            UUID nodeId, String label, String conceptType, UUID tenantId, float[] embedding) {
         String vectorStr = toVectorString(embedding);
+        String nodeIdSql = nodeId != null ? "?" : "gen_random_uuid()";
         try {
             if (tenantId != null) {
-                jdbcTemplate.update(
-                        """
+                if (nodeId != null) {
+                    jdbcTemplate.update(
+                            """
+INSERT INTO ke_graph_node_embeddings (node_id, label, concept_type, tenant_id, embedding)
+VALUES (?, ?, ?, ?, ?::vector)
+ON CONFLICT (label, concept_type, tenant_id)
+  DO UPDATE SET embedding = EXCLUDED.embedding, node_id = EXCLUDED.node_id
+""",
+                            nodeId,
+                            label,
+                            conceptType,
+                            tenantId,
+                            vectorStr);
+                } else {
+                    jdbcTemplate.update(
+                            """
 INSERT INTO ke_graph_node_embeddings (node_id, label, concept_type, tenant_id, embedding)
 VALUES (gen_random_uuid(), ?, ?, ?, ?::vector)
 ON CONFLICT (label, concept_type, tenant_id)
   DO UPDATE SET embedding = EXCLUDED.embedding
 """,
-                        label,
-                        conceptType,
-                        tenantId,
-                        vectorStr);
+                            label,
+                            conceptType,
+                            tenantId,
+                            vectorStr);
+                }
             } else {
-                jdbcTemplate.update(
-                        """
+                if (nodeId != null) {
+                    jdbcTemplate.update(
+                            """
+INSERT INTO ke_graph_node_embeddings (node_id, label, concept_type, embedding)
+VALUES (?, ?, ?, ?::vector)
+ON CONFLICT (label, concept_type, tenant_id)
+  WHERE tenant_id IS NULL
+  DO UPDATE SET embedding = EXCLUDED.embedding, node_id = EXCLUDED.node_id
+""",
+                            nodeId,
+                            label,
+                            conceptType,
+                            vectorStr);
+                } else {
+                    jdbcTemplate.update(
+                            """
 INSERT INTO ke_graph_node_embeddings (node_id, label, concept_type, embedding)
 VALUES (gen_random_uuid(), ?, ?, ?::vector)
 ON CONFLICT (label, concept_type, tenant_id)
   WHERE tenant_id IS NULL
   DO UPDATE SET embedding = EXCLUDED.embedding
 """,
-                        label,
-                        conceptType,
-                        vectorStr);
+                            label,
+                            conceptType,
+                            vectorStr);
+                }
             }
-            log.debug("Stored node embedding: label={}, type={}", label, conceptType);
+            log.debug(
+                    "Stored node embedding: label={}, type={}, nodeId={}",
+                    label,
+                    conceptType,
+                    nodeId);
         } catch (Exception e) {
             log.warn(
                     "Failed to store node embedding: label={}, type={}: {}",

@@ -39,7 +39,7 @@ public class EntityResolutionService {
             String label, String conceptType, UUID tenantId, float[] precomputedEmbedding) {
         String normalized = label.toLowerCase().trim();
 
-        // Level 1: Exact match
+        // Level 1: Exact match in AGE graph
         Optional<GraphNode> exact =
                 graphRepository.findByLabelAndType(normalized, conceptType, tenantId);
         if (exact.isPresent()) {
@@ -65,10 +65,8 @@ public class EntityResolutionService {
             }
         }
 
-        // Level 3: Embedding similarity (using precomputed embedding)
+        // Level 3: Embedding similarity — search BEFORE storing to avoid self-match
         if (precomputedEmbedding.length > 0) {
-            nodeEmbeddingRepository.storeEmbedding(
-                    normalized, conceptType, tenantId, precomputedEmbedding);
             Optional<NodeSimilarityResult> nearest =
                     nodeEmbeddingRepository.findNearestNeighbour(
                             precomputedEmbedding, conceptType, tenantId);
@@ -84,6 +82,8 @@ public class EntityResolutionService {
                 } else if (score >= resolutionProperties.flagThreshold()) {
                     GraphNode newNode =
                             graphRepository.createNode(conceptType, normalized, Map.of(), tenantId);
+                    storeEmbeddingForNode(
+                            newNode.id(), normalized, conceptType, tenantId, precomputedEmbedding);
                     writeFlagSafely(
                             label, newNode.id(), nearest.get(), conceptType, score, tenantId);
                     log.info(
@@ -97,8 +97,12 @@ public class EntityResolutionService {
             }
         }
 
-        // Level 4: Create new node
+        // Level 4: Create new node + store embedding
         GraphNode newNode = graphRepository.createNode(conceptType, normalized, Map.of(), tenantId);
+        if (precomputedEmbedding.length > 0) {
+            storeEmbeddingForNode(
+                    newNode.id(), normalized, conceptType, tenantId, precomputedEmbedding);
+        }
         log.info(
                 "Created new graph node: type={}, label={}, id={}",
                 conceptType,
@@ -107,6 +111,10 @@ public class EntityResolutionService {
         return newNode.id();
     }
 
+    /**
+     * Look up or compute the embedding for a label. Does NOT store it — storage happens after the
+     * AGE node is created so the correct node_id is used.
+     */
     private float[] resolveEmbedding(String label, String conceptType, UUID tenantId) {
         Optional<float[]> existing =
                 nodeEmbeddingRepository.findEmbedding(label, conceptType, tenantId);
@@ -114,11 +122,7 @@ public class EntityResolutionService {
             return existing.get();
         }
         try {
-            float[] embedding = llmClient.embed(label);
-            if (embedding.length > 0) {
-                nodeEmbeddingRepository.storeEmbedding(label, conceptType, tenantId, embedding);
-            }
-            return embedding;
+            return llmClient.embed(label);
         } catch (Exception e) {
             log.warn(
                     "Embedding failed for label={}, skipping similarity: {}",
@@ -126,6 +130,12 @@ public class EntityResolutionService {
                     e.getMessage());
             return new float[0];
         }
+    }
+
+    private void storeEmbeddingForNode(
+            UUID nodeId, String label, String conceptType, UUID tenantId, float[] embedding) {
+        nodeEmbeddingRepository.storeEmbeddingWithNodeId(
+                nodeId, label, conceptType, tenantId, embedding);
     }
 
     private void writeFlagSafely(
