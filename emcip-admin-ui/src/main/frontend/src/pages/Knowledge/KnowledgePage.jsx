@@ -537,6 +537,7 @@ export function Knowledge() {
                   ? `Re-ingest from ${reingestJob.sourceRef}? Old chunks will be replaced.`
                   : `File re-upload required for ${reingestJob.sourceRef}. Continue?`
               }
+              confirmLabel="Re-ingest"
               onConfirm={() => handleReingest(reingestJob)}
               onClose={() => setReingestJob(null)}
             />

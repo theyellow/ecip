@@ -11,15 +11,18 @@ import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
 import io.emcip.knowledge.engine.entity.IngestionJob;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.model.GraphNode;
+import io.emcip.knowledge.engine.model.NodeSimilarityResult;
 import io.emcip.knowledge.engine.model.SearchRequest;
 import io.emcip.knowledge.engine.model.SearchRequest.SearchType;
 import io.emcip.knowledge.engine.model.SearchResponse;
 import io.emcip.knowledge.engine.model.SearchResult;
+import io.emcip.knowledge.engine.repository.GraphNodeEmbeddingRepository;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +35,7 @@ class KnowledgeQueryServiceTest {
 
     @Mock private VectorSearchRepository vectorSearchRepository;
     @Mock private GraphRepository graphRepository;
+    @Mock private GraphNodeEmbeddingRepository graphNodeEmbeddingRepository;
     @Mock private LlmOrchestratorClient llmClient;
     @Mock private IngestionJobRepository ingestionJobRepository;
 
@@ -44,7 +48,11 @@ class KnowledgeQueryServiceTest {
                 .thenReturn(List.of());
         service =
                 new KnowledgeQueryService(
-                        vectorSearchRepository, graphRepository, llmClient, ingestionJobRepository);
+                        vectorSearchRepository,
+                        graphRepository,
+                        graphNodeEmbeddingRepository,
+                        llmClient,
+                        ingestionJobRepository);
     }
 
     @Test
@@ -150,5 +158,49 @@ class KnowledgeQueryServiceTest {
         assertThat(response.documentResults()).hasSize(1);
         assertThat(response.documentResults().getFirst().document().getSourceRef())
                 .isEqualTo("https://trusted.example.com/doc.txt");
+    }
+
+    @Test
+    void hybridMode_withoutConceptTypes_searchesEntitiesByEmbeddingSimilarity() {
+        UUID tenantId = UUID.randomUUID();
+        UUID nodeId = UUID.randomUUID();
+        float[] queryEmb = {0.1f, 0.2f, 0.3f};
+
+        GraphNode node =
+                new GraphNode(
+                        nodeId, "Person", tenantId, "Einstein", null, Instant.now(), Instant.now());
+
+        when(llmClient.embed("Einstein")).thenReturn(queryEmb);
+        when(vectorSearchRepository.search(any(), eq(20), eq(tenantId))).thenReturn(List.of());
+        when(graphNodeEmbeddingRepository.findSimilarNodes(queryEmb, tenantId, 20))
+                .thenReturn(List.of(new NodeSimilarityResult(nodeId, "Einstein", 0.92)));
+        when(graphRepository.findNodeById(nodeId)).thenReturn(Optional.of(node));
+        when(graphRepository.findConnected(nodeId, null, 1)).thenReturn(List.of());
+
+        SearchRequest request =
+                new SearchRequest("Einstein", SearchType.HYBRID, tenantId, null, null, 20);
+        SearchResponse response = service.search(request);
+
+        assertThat(response.graphResults()).hasSize(1);
+        assertThat(response.graphResults().getFirst().node().label()).isEqualTo("Einstein");
+        assertThat(response.graphResults().getFirst().score()).isEqualTo(0.92);
+    }
+
+    @Test
+    void hybridMode_withoutConceptTypes_filtersLowScoreEntities() {
+        UUID tenantId = UUID.randomUUID();
+        float[] queryEmb = {0.1f};
+
+        when(llmClient.embed("random")).thenReturn(queryEmb);
+        when(vectorSearchRepository.search(any(), eq(20), eq(tenantId))).thenReturn(List.of());
+        when(graphNodeEmbeddingRepository.findSimilarNodes(queryEmb, tenantId, 20))
+                .thenReturn(
+                        List.of(new NodeSimilarityResult(UUID.randomUUID(), "unrelated", 0.15)));
+
+        SearchRequest request =
+                new SearchRequest("random", SearchType.HYBRID, tenantId, null, null, 20);
+        SearchResponse response = service.search(request);
+
+        assertThat(response.graphResults()).isEmpty();
     }
 }
