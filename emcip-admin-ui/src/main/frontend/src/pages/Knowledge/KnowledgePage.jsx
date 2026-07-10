@@ -237,17 +237,9 @@ export function Knowledge() {
       {
         key: '_actions',
         label: '',
-        width: '120px',
+        width: '80px',
         render: (_, row) => (
           <span className={styles.actionBtns} onClick={e => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.actionBtn}
-              title="View details"
-              onClick={() => setDetailJobId(row.jobId)}
-            >
-              {'\u25b8'}
-            </button>
             <button
               type="button"
               className={styles.actionBtn}
@@ -479,6 +471,8 @@ export function Knowledge() {
           <DataTable
             columns={jobColumns}
             rows={jobs}
+            rowKey={r => r.jobId}
+            onEdit={row => setDetailJobId(row.jobId)}
             emptyText={jobsLoading ? 'Loading…' : 'No ingestion jobs yet. Submit a URL or file.'}
           />
 
