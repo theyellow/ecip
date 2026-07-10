@@ -48,7 +48,7 @@ public class DocumentIngestionProxyController {
             @Qualifier("knowledgeWebClient") WebClient knowledgeWebClient,
             CircuitBreakerRegistry registry) {
         this.knowledgeWebClient = knowledgeWebClient;
-        this.circuitBreaker = registry.circuitBreaker("knowledge");
+        this.circuitBreaker = registry.circuitBreaker("knowledge-ingest");
     }
 
     @Operation(summary = "Submit a URL for ingestion")

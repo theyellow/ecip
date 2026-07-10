@@ -120,7 +120,9 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 5
         slowCallDurationThreshold: 180s
         slowCallRateThreshold: 90
-      knowledge:
+      knowledge-search:
+        baseConfig: default
+      knowledge-ingest:
         baseConfig: default
       intent-classifier:
         baseConfig: default
@@ -149,7 +151,9 @@ resilience4j:
         baseConfig: default
       orchestrator:
         baseConfig: default
-      knowledge:
+      knowledge-search:
+        baseConfig: default
+      knowledge-ingest:
         baseConfig: default
       intent-classifier:
         baseConfig: default

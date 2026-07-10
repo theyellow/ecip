@@ -40,7 +40,7 @@ public class KnowledgeSearchProxyController {
             @Qualifier("knowledgeWebClient") WebClient knowledgeWebClient,
             CircuitBreakerRegistry registry) {
         this.knowledgeWebClient = knowledgeWebClient;
-        this.circuitBreaker = registry.circuitBreaker("knowledge");
+        this.circuitBreaker = registry.circuitBreaker("knowledge-search");
     }
 
     @Operation(summary = "Search the knowledge base")
