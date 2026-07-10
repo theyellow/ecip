@@ -201,7 +201,7 @@ export function Knowledge() {
 
   async function handleDeleteJob(row) {
     try {
-      await api.deleteJob(row.id)
+      await api.deleteJob(row.jobId)
       addToast('info', `Job deleted: ${row.sourceRef}`)
       loadJobs()
     } catch (e) {
@@ -212,10 +212,10 @@ export function Knowledge() {
 
   async function handleReingest(row) {
     try {
-      const result = await api.reingest(row.id)
+      const result = await api.reingest(row.jobId)
       if (result.error === 'REUPLOAD_REQUIRED') {
         setReingestJob(null)
-        setShowModal({ replaceJobId: row.id, sourceRef: result.sourceRef, tenantId: row.rawTenantId })
+        setShowModal({ replaceJobId: row.jobId, sourceRef: result.sourceRef, tenantId: row.rawTenantId })
         return
       }
       addToast('info', `Re-ingestion started: ${row.sourceRef}`)
@@ -244,7 +244,7 @@ export function Knowledge() {
               type="button"
               className={styles.actionBtn}
               title="View details"
-              onClick={() => setDetailJobId(row.id)}
+              onClick={() => setDetailJobId(row.jobId)}
             >
               {'\u25b8'}
             </button>
