@@ -1,6 +1,7 @@
 package io.emcip.knowledge.engine.repository;
 
 import io.emcip.knowledge.engine.model.NodeSimilarityResult;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -139,6 +140,58 @@ ON CONFLICT (label, concept_type, tenant_id)
         } catch (Exception e) {
             log.warn("Similarity query failed: {}", e.getMessage());
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Find the top-N most similar graph node embeddings to the given query embedding, optionally
+     * filtered by tenant. Returns node IDs, labels, concept types, and scores.
+     */
+    public List<NodeSimilarityResult> findSimilarNodes(
+            float[] embedding, UUID tenantId, int limit) {
+        String vectorStr = toVectorString(embedding);
+        try {
+            if (tenantId != null) {
+                return jdbcTemplate.query(
+                        """
+                        SELECT node_id, label, concept_type,
+                               1 - (embedding <=> ?::vector) AS score
+                        FROM ke_graph_node_embeddings
+                        WHERE tenant_id = ? AND embedding IS NOT NULL
+                        ORDER BY embedding <=> ?::vector
+                        LIMIT ?
+                        """,
+                        (rs, rowNum) ->
+                                new NodeSimilarityResult(
+                                        UUID.fromString(rs.getString("node_id")),
+                                        rs.getString("label"),
+                                        rs.getDouble("score")),
+                        vectorStr,
+                        tenantId,
+                        vectorStr,
+                        limit);
+            } else {
+                return jdbcTemplate.query(
+                        """
+                        SELECT node_id, label, concept_type,
+                               1 - (embedding <=> ?::vector) AS score
+                        FROM ke_graph_node_embeddings
+                        WHERE embedding IS NOT NULL
+                        ORDER BY embedding <=> ?::vector
+                        LIMIT ?
+                        """,
+                        (rs, rowNum) ->
+                                new NodeSimilarityResult(
+                                        UUID.fromString(rs.getString("node_id")),
+                                        rs.getString("label"),
+                                        rs.getDouble("score")),
+                        vectorStr,
+                        vectorStr,
+                        limit);
+            }
+        } catch (Exception e) {
+            log.warn("Entity similarity search failed: {}", e.getMessage());
+            return List.of();
         }
     }
 
