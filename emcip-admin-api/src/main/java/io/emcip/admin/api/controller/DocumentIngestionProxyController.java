@@ -115,7 +115,17 @@ public class DocumentIngestionProxyController {
                                     .bodyToMono(String.class)
                                     .map(body -> ResponseEntity.accepted().<String>body(body))
                                     .onErrorResume(
+                                            org.springframework.web.reactive.function.client
+                                                    .WebClientResponseException.class,
                                             e -> {
+                                                if (e.getStatusCode().value() == 409) {
+                                                    return Mono.just(
+                                                            ResponseEntity.status(
+                                                                            HttpStatus.CONFLICT)
+                                                                    .<String>body(
+                                                                            e
+                                                                                    .getResponseBodyAsString()));
+                                                }
                                                 log.error(
                                                         "Ingest upload proxy error: {}",
                                                         e.getMessage());

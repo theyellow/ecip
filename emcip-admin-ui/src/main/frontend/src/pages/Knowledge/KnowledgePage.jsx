@@ -201,7 +201,7 @@ export function Knowledge() {
 
   async function handleDeleteJob(row) {
     try {
-      await api.deleteJob(row.id)
+      await api.deleteJob(row.jobId)
       addToast('info', `Job deleted: ${row.sourceRef}`)
       loadJobs()
     } catch (e) {
@@ -212,10 +212,10 @@ export function Knowledge() {
 
   async function handleReingest(row) {
     try {
-      const result = await api.reingest(row.id)
+      const result = await api.reingest(row.jobId)
       if (result.error === 'REUPLOAD_REQUIRED') {
         setReingestJob(null)
-        setShowModal({ replaceJobId: row.id, sourceRef: result.sourceRef, tenantId: row.rawTenantId })
+        setShowModal({ replaceJobId: row.jobId, sourceRef: result.sourceRef, tenantId: row.rawTenantId })
         return
       }
       addToast('info', `Re-ingestion started: ${row.sourceRef}`)
@@ -237,17 +237,9 @@ export function Knowledge() {
       {
         key: '_actions',
         label: '',
-        width: '120px',
+        width: '80px',
         render: (_, row) => (
           <span className={styles.actionBtns} onClick={e => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.actionBtn}
-              title="View details"
-              onClick={() => setDetailJobId(row.id)}
-            >
-              {'\u25b8'}
-            </button>
             <button
               type="button"
               className={styles.actionBtn}
@@ -479,6 +471,8 @@ export function Knowledge() {
           <DataTable
             columns={jobColumns}
             rows={jobs}
+            rowKey={r => r.jobId}
+            onEdit={row => setDetailJobId(row.jobId)}
             emptyText={jobsLoading ? 'Loading…' : 'No ingestion jobs yet. Submit a URL or file.'}
           />
 
