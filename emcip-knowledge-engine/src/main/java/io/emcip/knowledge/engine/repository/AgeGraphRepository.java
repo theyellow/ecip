@@ -80,13 +80,14 @@ public class AgeGraphRepository implements GraphRepository {
 
     @Override
     public List<GraphNode> findConnected(UUID nodeId, String relationshipType, int depth) {
+        String relPattern =
+                relationshipType != null
+                        ? String.format("[:%s*1..%d]", sanitizeLabel(relationshipType), depth)
+                        : String.format("[*1..%d]", depth);
         String cypher =
                 String.format(
-                        """
-                        MATCH ({node_id: '%s'})-[:%s*1..%d]->(connected)
-                        RETURN connected
-                        """,
-                        nodeId, sanitizeLabel(relationshipType), depth);
+                        "MATCH ({node_id: '%s'})-" + relPattern + "->(connected) RETURN connected",
+                        nodeId);
 
         return queryNodes(cypher);
     }
@@ -426,6 +427,9 @@ public class AgeGraphRepository implements GraphRepository {
     }
 
     private String sanitizeLabel(String label) {
+        if (label == null) {
+            throw new IllegalArgumentException("Label must not be null");
+        }
         return label.replaceAll("[^a-zA-Z0-9_]", "_");
     }
 
