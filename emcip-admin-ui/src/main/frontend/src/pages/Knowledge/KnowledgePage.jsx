@@ -186,7 +186,7 @@ export function Knowledge() {
       return
     }
     setExpandedNodeId(node.id)
-    setNeighbors([])
+    setNeighbors(null) // null = loading
     try {
       const data = await api.graphNeighbors(node.id, null, 1)
       setNeighbors(Array.isArray(data) ? data : [])
@@ -372,33 +372,58 @@ export function Knowledge() {
                     <p className={styles.emptyCol}>No entity results.</p>
                   )}
                   {graphResults.map(r => (
-                    <div
-                      key={r.node.id}
-                      className={`${styles.entityCard}${expandedNodeId === r.node.id ? ` ${styles.entityCardActive}` : ''}`}
-                      onClick={() => handleEntityClick(r.node)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={e => e.key === 'Enter' && handleEntityClick(r.node)}
-                    >
-                      <div className={styles.cardMeta}>
-                        <span className={styles.conceptBadge}>{r.node.conceptType}</span>
-                        <span
-                          className={`${styles.scoreTag}${r.score >= 0.85 ? ` ${styles.scoreHigh}` : ''}`}
-                        >
-                          {r.score.toFixed(2)}
-                        </span>
+                    <div key={r.node.id}>
+                      <div
+                        className={`${styles.entityCard}${expandedNodeId === r.node.id ? ` ${styles.entityCardActive}` : ''}`}
+                        onClick={() => handleEntityClick(r.node)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={e => e.key === 'Enter' && handleEntityClick(r.node)}
+                      >
+                        <div className={styles.cardMeta}>
+                          <span className={styles.conceptBadge}>{r.node.conceptType}</span>
+                          <span
+                            className={`${styles.scoreTag}${r.score >= 0.85 ? ` ${styles.scoreHigh}` : ''}`}
+                          >
+                            {r.score.toFixed(2)}
+                          </span>
+                        </div>
+                        <div className={styles.entityLabel}>{r.node.label}</div>
+                        {(r.connections?.length ?? 0) > 0 && (
+                          <div className={styles.entityConnections}>
+                            {(r.connections?.slice(0, 3) ?? []).map(c => (
+                              <div key={c.id} className={styles.connectionLine}>
+                                → {c.conceptType} · {c.label}
+                              </div>
+                            ))}
+                            {(r.connections?.length ?? 0) > 3 && (
+                              <div className={styles.connectionLine}>
+                                +{r.connections.length - 3} more
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {expandedNodeId === r.node.id && (
+                          <div className={styles.expandHint}>▾ details below</div>
+                        )}
                       </div>
-                      <div className={styles.entityLabel}>{r.node.label}</div>
-                      {(r.connections?.length ?? 0) > 0 && (
-                        <div className={styles.entityConnections}>
-                          {(r.connections?.slice(0, 3) ?? []).map(c => (
-                            <div key={c.id} className={styles.connectionLine}>
-                              → {c.conceptType} · {c.label}
-                            </div>
-                          ))}
-                          {(r.connections?.length ?? 0) > 3 && (
-                            <div className={styles.connectionLine}>
-                              +{r.connections.length - 3} more
+                      {expandedNodeId === r.node.id && (
+                        <div className={styles.inlineNeighborPanel}>
+                          <div className={styles.neighborLabel}>
+                            — {r.node.label} · NEIGHBORS —
+                          </div>
+                          {neighbors === null ? (
+                            <span className={styles.emptyCol}>Loading...</span>
+                          ) : neighbors.length === 0 ? (
+                            <span className={styles.emptyCol}>No connected entities found.</span>
+                          ) : (
+                            <div className={styles.neighborChips}>
+                              {neighbors.map(n => (
+                                <span key={n.id} className={styles.neighborChip}>
+                                  {n.label}{' '}
+                                  <span className={styles.neighborType}>{n.conceptType}</span>
+                                </span>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -438,28 +463,6 @@ export function Knowledge() {
                 </div>
               </div>
 
-              {/* Neighbor expansion panel */}
-              {expandedNodeId && (
-                <div className={styles.neighborPanel}>
-                  <div className={styles.neighborLabel}>
-                    —{' '}
-                    {graphResults.find(r => r.node.id === expandedNodeId)?.node.label ?? ''} ·
-                    NEIGHBORS —
-                  </div>
-                  {neighbors.length === 0 ? (
-                    <span className={styles.emptyCol}>No neighbors found.</span>
-                  ) : (
-                    <div className={styles.neighborChips}>
-                      {neighbors.map(n => (
-                        <span key={n.id} className={styles.neighborChip}>
-                          {n.label}{' '}
-                          <span className={styles.neighborType}>{n.conceptType}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>

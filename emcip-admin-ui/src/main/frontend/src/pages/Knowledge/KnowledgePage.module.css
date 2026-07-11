@@ -224,6 +224,7 @@
 .entityCardActive {
   border-color: var(--accent);
   background: var(--accent-soft);
+  margin-bottom: 0;
 }
 
 .cardMeta {
@@ -306,13 +307,25 @@
   margin-top: var(--sp-2);
 }
 
-/* ── Neighbor expansion panel ── */
-.neighborPanel {
-  border: 1px solid var(--accent);
-  padding: var(--sp-3) var(--sp-4);
-  background: var(--accent-soft);
-  margin-bottom: var(--sp-4);
+/* ── Expand hint on active card ── */
+.expandHint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent);
+  text-align: center;
+  margin-top: var(--sp-2);
+  letter-spacing: 0.08em;
 }
+
+/* ── Neighbor expansion panel (inline below card) ── */
+.inlineNeighborPanel {
+  border: 1px solid var(--accent);
+  border-top: none;
+  padding: var(--sp-3) var(--sp-3);
+  background: var(--accent-soft);
+  margin-bottom: var(--sp-2);
+}
+
 
 .neighborLabel {
   font-family: var(--font-mono);
