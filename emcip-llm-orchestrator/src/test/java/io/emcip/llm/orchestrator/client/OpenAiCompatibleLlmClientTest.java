@@ -223,6 +223,38 @@ class OpenAiCompatibleLlmClientTest {
     }
 
     @Test
+    void call_extractsJsonFromChainOfThoughtReasoning() throws Exception {
+        mockProvider();
+        // Simulate qwen3 thinking mode: reasoning_content has CoT followed by JSON
+        String reasoning =
+                "Let me analyze this text...\\n"
+                    + "\\n"
+                    + "The text mentions Alice. Alice is a Person.\\n"
+                    + "\\n"
+                    + "{\\\"entities\\\":[{\\\"type\\\":\\\"Person\\\",\\\"label\\\":\\\"Alice\\\"}],"
+                    + "\\\"relationships\\\":[]}";
+        String responseJson =
+                "{\"choices\":[{\"message\":{\"content\":\"\",\"reasoning_content\":\""
+                        + reasoning
+                        + "\"}}],"
+                        + "\"usage\":{\"prompt_tokens\":15,\"completion_tokens\":80},"
+                        + "\"model\":\"qwen3-4b-extract\"}";
+        server.enqueue(
+                new MockResponse.Builder()
+                        .body(responseJson)
+                        .addHeader("Content-Type", "application/json")
+                        .build());
+
+        LlmResponse response =
+                client.call("qwen3-4b-extract", "Extract entities", "Some text", 4096, 0.1);
+
+        // Should extract just the JSON, not the full chain-of-thought
+        assertThat(response.content()).startsWith("{\"entities\":");
+        assertThat(response.content()).contains("\"Alice\"");
+        assertThat(response.content()).doesNotContain("Let me analyze");
+    }
+
+    @Test
     void call_prefersContentOverReasoningContent() throws Exception {
         mockProvider();
         String responseJson =
