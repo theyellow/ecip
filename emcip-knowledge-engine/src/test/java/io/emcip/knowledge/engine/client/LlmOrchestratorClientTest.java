@@ -128,6 +128,34 @@ class LlmOrchestratorClientTest {
     }
 
     @Test
+    void shouldParseResponseWithReasoningBeforeJson() throws Exception {
+        // qwen3 with reasoning_effort:disable puts reasoning text before JSON without think tags
+        String analysis =
+                "We are given a text. Let me analyze...\\n"
+                    + "\\n"
+                    + "{\\\"entities\\\":[{\\\"type\\\":\\\"Person\\\",\\\"label\\\":\\\"Alice\\\"}],"
+                    + "\\\"relationships\\\":[]}";
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setBody(
+                                "{\"success\":true,\"analysis\":\""
+                                        + analysis
+                                        + "\",\"model\":\"qwen3\"}")
+                        .addHeader("Content-Type", "application/json"));
+
+        ConceptType person = new ConceptType();
+        person.setName("Person");
+        person.setDescription("A human");
+        person.setShared(false);
+
+        var result = client.extract("Alice likes dogs", List.of(person), List.of());
+
+        assertThat(result.entities()).hasSize(1);
+        assertThat(result.entities().getFirst().type()).isEqualTo("Person");
+        assertThat(result.entities().getFirst().label()).isEqualTo("Alice");
+    }
+
+    @Test
     void shouldCallEmbedEndpoint() throws Exception {
         String responseJson =
                 """

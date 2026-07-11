@@ -182,7 +182,8 @@ public class OpenAiCompatibleLlmClient {
     /**
      * Extract content from the LLM response message. For models with thinking mode enabled (e.g.
      * qwen3), the actual output may be in the {@code reasoning_content} field instead of {@code
-     * content}. Falls back to reasoning_content when content is empty.
+     * content}. Falls back to reasoning_content when content is empty, extracting just the JSON
+     * portion from the chain-of-thought reasoning.
      */
     private String extractContent(JsonNode root) {
         JsonNode message = root.path("choices").get(0).path("message");
@@ -191,12 +192,39 @@ public class OpenAiCompatibleLlmClient {
             String reasoning = message.path("reasoning_content").asText("");
             if (!reasoning.isBlank()) {
                 log.debug(
-                        "Content field empty, using reasoning_content ({} chars)",
+                        "Content field empty, extracting JSON from reasoning_content ({} chars)",
                         reasoning.length());
-                return reasoning;
+                return extractJsonFromReasoning(reasoning);
             }
         }
         return content;
+    }
+
+    /**
+     * Extract the last JSON object from chain-of-thought reasoning text. Thinking models put their
+     * step-by-step reasoning followed by the final JSON output in reasoning_content.
+     */
+    private String extractJsonFromReasoning(String reasoning) {
+        // Find the last top-level JSON object by scanning for the last '{' that starts valid JSON
+        int lastBrace = reasoning.lastIndexOf('{');
+        while (lastBrace >= 0) {
+            String candidate = reasoning.substring(lastBrace);
+            // Quick check: does it end with '}' (possibly with trailing whitespace)?
+            String trimmed = candidate.trim();
+            if (trimmed.endsWith("}")) {
+                try {
+                    // Validate it's parseable JSON
+                    objectMapper.readTree(trimmed);
+                    return trimmed;
+                } catch (Exception ignored) {
+                    // Not valid JSON from this position, try earlier
+                }
+            }
+            lastBrace = reasoning.lastIndexOf('{', lastBrace - 1);
+        }
+        // No valid JSON found — return the full reasoning as fallback
+        log.warn("No valid JSON found in reasoning_content, returning raw text");
+        return reasoning;
     }
 
     /**
