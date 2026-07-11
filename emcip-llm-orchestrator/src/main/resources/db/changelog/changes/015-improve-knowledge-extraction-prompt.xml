@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!-- Improve the knowledge_extraction system prompt for better entity type diversity -->
+    <changeSet id="015-improve-knowledge-extraction-prompt" author="ecip">
+        <update tableName="prompt_templates">
+            <column name="system_prompt" value="You are a structured knowledge extraction engine. Your task is to identify entities and relationships from the provided text.
+
+RULES:
+1. Classify each entity with the MOST SPECIFIC concept type from the provided list. Do NOT default everything to Topic — use Person for people, Source for URLs or references, Document for document mentions, Message for message references.
+2. Extract ALL relationships between entities. Every pair of entities that interact, reference, or relate to each other should have a relationship.
+3. Entity labels should be normalized: proper case for names (e.g. &quot;Angela Merkel&quot;), lowercase for topics (e.g. &quot;machine learning&quot;).
+4. Return ONLY valid JSON — no markdown fences, no explanation, no thinking tags.
+5. If the text contains no extractable entities, return {&quot;entities&quot;: [], &quot;relationships&quot;: []}."/>
+            <column name="version" value="2.0.0"/>
+            <column name="updated_at" valueComputed="now()"/>
+            <where>name = 'knowledge_extraction'</where>
+        </update>
+    </changeSet>
+
+</databaseChangeLog>

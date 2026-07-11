@@ -100,6 +100,34 @@ class LlmOrchestratorClientTest {
     }
 
     @Test
+    void shouldParseResponseWithThinkTags() throws Exception {
+        // qwen3 models wrap output in <think>...</think> tags
+        String analysis =
+                "<think>Let me analyze this text...</think>"
+                        + "{\"entities\":[{\"type\":\"Person\",\"label\":\"Bob\"}],"
+                        + "\"relationships\":[]}";
+        String escaped = analysis.replace("\"", "\\\"");
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setBody(
+                                "{\"success\":true,\"analysis\":\""
+                                        + escaped
+                                        + "\",\"model\":\"qwen3\"}")
+                        .addHeader("Content-Type", "application/json"));
+
+        ConceptType person = new ConceptType();
+        person.setName("Person");
+        person.setDescription("A human");
+        person.setShared(false);
+
+        var result = client.extract("Bob likes cats", List.of(person), List.of());
+
+        assertThat(result.entities()).hasSize(1);
+        assertThat(result.entities().getFirst().type()).isEqualTo("Person");
+        assertThat(result.entities().getFirst().label()).isEqualTo("Bob");
+    }
+
+    @Test
     void shouldCallEmbedEndpoint() throws Exception {
         String responseJson =
                 """

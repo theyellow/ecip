@@ -364,12 +364,21 @@ public class OrchestratorController {
                         !models.isEmpty()));
     }
 
-    @Operation(summary = "Run an ad-hoc LLM analysis using the flag_analyse template")
+    private static final Map<String, String> TASK_TYPE_TEMPLATES =
+            Map.of(
+                    "EXTRACT", "knowledge_extraction",
+                    "RESOLVE", "knowledge_extraction");
+
+    @Operation(
+            summary =
+                    "Run an ad-hoc LLM analysis — template is selected by taskType"
+                            + " (EXTRACT → knowledge_extraction, default → flag_analyse)")
     @PostMapping("/analyse")
     public ResponseEntity<AnalyseResponse> analyse(@RequestBody AnalyseRequest req) {
-        // Look up the flag_analyse template first
-        Optional<PromptTemplate> templateOpt =
-                orchestratorService.getPromptTemplate("flag_analyse");
+        String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+        String templateName = TASK_TYPE_TEMPLATES.getOrDefault(taskType, "flag_analyse");
+
+        Optional<PromptTemplate> templateOpt = orchestratorService.getPromptTemplate(templateName);
 
         String systemPrompt;
         int maxTokens;
@@ -385,7 +394,6 @@ public class OrchestratorController {
             if (template.getModelConfig() != null) {
                 modelName = template.getModelConfig().getModelName();
             } else {
-                String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
                 Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
                 if (modelOpt.isEmpty()) {
                     return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -398,8 +406,7 @@ public class OrchestratorController {
                 modelName = modelOpt.get().getModelName();
             }
         } else {
-            // Fallback to hardcoded defaults
-            String taskType = req.taskType() != null ? req.taskType() : "GENERAL";
+            // Template not found — select model by taskType, use generic system prompt
             Optional<ModelConfig> modelOpt = orchestratorService.selectModelForTask(taskType);
             if (modelOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -409,9 +416,8 @@ public class OrchestratorController {
             }
             modelName = modelOpt.get().getModelName();
             systemPrompt =
-                    "You are a moderation analyst for the EMCIP platform. Analyse the"
-                            + " provided flag data and explain the moderation decision clearly"
-                            + " and concisely.";
+                    "You are an AI assistant for the EMCIP platform. Follow the user's"
+                            + " instructions carefully and return the requested output format.";
             maxTokens = 8192;
             temperature = null;
         }
