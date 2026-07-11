@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.RestClient;
@@ -103,51 +102,44 @@ public class LlmOrchestratorClient {
     public ExtractionResult extract(
             String text, List<ConceptType> conceptTypes, List<RelationshipType> relationshipTypes) {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("Extract structured knowledge from the text below.\n\n");
+        prompt.append("Extract ALL entities and relationships from the text below.\n\n");
 
-        prompt.append("CONCEPT TYPES:\n");
+        prompt.append("CONCEPT TYPES (use the most specific type for each entity):\n");
         for (ConceptType ct : conceptTypes) {
             prompt.append("- ")
                     .append(ct.getName())
                     .append(": ")
                     .append(ct.getDescription() != null ? ct.getDescription() : "")
                     .append("\n");
-            if (ct.getProperties() != null && !ct.getProperties().isEmpty()) {
-                String propNames =
-                        ct.getProperties().stream()
-                                .map(p -> (String) p.get("key"))
-                                .filter(k -> k != null)
-                                .collect(Collectors.joining(", "));
-                prompt.append("  Properties: ")
-                        .append(propNames.isEmpty() ? "none" : propNames)
-                        .append("\n");
-            }
         }
 
-        prompt.append("\nRELATIONSHIP TYPES:\n");
+        prompt.append("\nRELATIONSHIP TYPES (extract all that apply):\n");
         for (RelationshipType rt : relationshipTypes) {
             prompt.append("- ")
                     .append(rt.getName())
                     .append(": ")
-                    .append(rt.getDescription() != null ? rt.getDescription() : "")
-                    .append("\n");
+                    .append(rt.getDescription() != null ? rt.getDescription() : "");
             String src =
                     rt.getSourceTypes() != null ? String.join(", ", rt.getSourceTypes()) : "any";
             String tgt =
                     rt.getTargetTypes() != null ? String.join(", ", rt.getTargetTypes()) : "any";
-            prompt.append("  Direction: ").append(src).append(" \u2192 ").append(tgt).append("\n");
+            prompt.append(" (").append(src).append(" \u2192 ").append(tgt).append(")\n");
         }
+
+        prompt.append(
+                "\nIMPORTANT: Use Person for people/names, Topic for subjects/themes,"
+                        + " Source for URLs/references. Do NOT classify everything as Topic.\n");
 
         prompt.append("\nTEXT:\n")
                 .append(text)
-                .append("\n\nReturn JSON:\n")
+                .append("\n\nReturn ONLY valid JSON (no markdown, no explanation):\n")
                 .append(
                         "{\n"
-                                + "  \"entities\": [{\"type\": \"<ConceptType name>\","
-                                + " \"label\": \"<text>\", \"properties\": {}}],\n"
-                                + "  \"relationships\": [{\"type\": \"<RelationshipType name>\","
-                                + " \"source\": \"<label>\", \"target\": \"<label>\","
-                                + " \"properties\": {}}]\n"
+                                + "  \"entities\": [{\"type\": \"<ConceptType>\","
+                                + " \"label\": \"<text>\"}],\n"
+                                + "  \"relationships\": [{\"type\": \"<RelationshipType>\","
+                                + " \"source\": \"<entity label>\","
+                                + " \"target\": \"<entity label>\"}]\n"
                                 + "}");
 
         String finalPrompt = prompt.toString();
@@ -258,7 +250,12 @@ Respond with the matching candidate label, or "NEW" if no match.
     @SuppressWarnings("unchecked")
     private ExtractionResult parseExtractionResult(String json) {
         try {
-            String cleaned = json.replaceAll("```json\\s*", "").replaceAll("```\\s*", "").trim();
+            // Strip thinking tags (qwen3 models), markdown fences, and whitespace
+            String cleaned =
+                    json.replaceAll("(?s)<think>.*?</think>", "")
+                            .replaceAll("```json\\s*", "")
+                            .replaceAll("```\\s*", "")
+                            .trim();
             Map<String, Object> parsed = objectMapper.readValue(cleaned, Map.class);
 
             List<ExtractedEntity> entities = new ArrayList<>();

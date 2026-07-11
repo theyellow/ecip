@@ -19,5 +19,6 @@
     <include file="classpath:db/changelog/changes/012-activate-litellm-provider.xml"/>
     <include file="classpath:db/changelog/changes/013-prompt-template-system-and-model-ref.xml"/>
     <include file="classpath:db/changelog/changes/014-seed-system-templates.xml"/>
+    <include file="classpath:db/changelog/changes/015-improve-knowledge-extraction-prompt.xml"/>
 
 </databaseChangeLog>
