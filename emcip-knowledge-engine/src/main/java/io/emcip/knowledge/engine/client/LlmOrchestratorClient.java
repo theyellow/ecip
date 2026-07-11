@@ -256,6 +256,12 @@ Respond with the matching candidate label, or "NEW" if no match.
                             .replaceAll("```json\\s*", "")
                             .replaceAll("```\\s*", "")
                             .trim();
+            // If content still doesn't start with '{', strip everything before the first '{'
+            // (handles models that output reasoning without <think> tags)
+            int braceIdx = cleaned.indexOf('{');
+            if (braceIdx > 0) {
+                cleaned = cleaned.substring(braceIdx);
+            }
             Map<String, Object> parsed = objectMapper.readValue(cleaned, Map.class);
 
             List<ExtractedEntity> entities = new ArrayList<>();
