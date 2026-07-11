@@ -36,7 +36,7 @@ public class LlmClientConfig {
         var httpClient =
                 java.net.http.HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         var factory = new JdkClientHttpRequestFactory(httpClient);
-        factory.setReadTimeout(Duration.ofSeconds(60));
+        factory.setReadTimeout(Duration.ofSeconds(180));
         return factory;
     }
 }
