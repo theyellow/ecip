@@ -179,4 +179,65 @@ class OpenAiCompatibleLlmClientTest {
         assertThat(response.content()).isEqualTo("Response");
         // Verify the request body includes temperature (0.7)
     }
+
+    @Test
+    void call_fallsBackToReasoningContentWhenContentEmpty() throws Exception {
+        mockProvider();
+        String responseJson =
+                """
+{"choices":[{"message":{"content":"","reasoning_content":"{\\"entities\\":[],\\"relationships\\":[]}"}}],\
+"usage":{"prompt_tokens":15,"completion_tokens":20},\
+"model":"qwen3-4b-extract"}""";
+        server.enqueue(
+                new MockResponse.Builder()
+                        .body(responseJson)
+                        .addHeader("Content-Type", "application/json")
+                        .build());
+
+        LlmResponse response =
+                client.call("qwen3-4b-extract", "Extract entities", "Some text", 4096, 0.1);
+
+        assertThat(response.content()).isEqualTo("{\"entities\":[],\"relationships\":[]}");
+        assertThat(response.model()).isEqualTo("qwen3-4b-extract");
+    }
+
+    @Test
+    void chat_fallsBackToReasoningContentWhenContentEmpty() throws Exception {
+        mockProvider();
+        String responseJson =
+                """
+{"choices":[{"message":{"content":"","reasoning_content":"Thinking result here"}}],\
+"usage":{"prompt_tokens":10,"completion_tokens":8},\
+"model":"qwen3-4b"}""";
+        server.enqueue(
+                new MockResponse.Builder()
+                        .body(responseJson)
+                        .addHeader("Content-Type", "application/json")
+                        .build());
+
+        List<Map<String, String>> messages = List.of(Map.of("role", "user", "content", "Hi"));
+
+        LlmResponse response = client.chat("qwen3-4b", messages, 256, null);
+
+        assertThat(response.content()).isEqualTo("Thinking result here");
+    }
+
+    @Test
+    void call_prefersContentOverReasoningContent() throws Exception {
+        mockProvider();
+        String responseJson =
+                """
+{"choices":[{"message":{"content":"Actual content","reasoning_content":"Should be ignored"}}],\
+"usage":{"prompt_tokens":10,"completion_tokens":5},\
+"model":"test-model"}""";
+        server.enqueue(
+                new MockResponse.Builder()
+                        .body(responseJson)
+                        .addHeader("Content-Type", "application/json")
+                        .build());
+
+        LlmResponse response = client.call("test-model", "system", "user", 256, null);
+
+        assertThat(response.content()).isEqualTo("Actual content");
+    }
 }

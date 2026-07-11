@@ -89,7 +89,7 @@ public class OpenAiCompatibleLlmClient {
                             .body(String.class);
 
             JsonNode root = objectMapper.readTree(responseJson);
-            String content = root.path("choices").get(0).path("message").path("content").asText();
+            String content = extractContent(root);
             int inputTokens = root.path("usage").path("prompt_tokens").asInt();
             int outputTokens = root.path("usage").path("completion_tokens").asInt();
             String modelUsed = root.path("model").asText(model);
@@ -159,7 +159,7 @@ public class OpenAiCompatibleLlmClient {
                             .body(String.class);
 
             JsonNode root = objectMapper.readTree(responseJson);
-            String content = root.path("choices").get(0).path("message").path("content").asText();
+            String content = extractContent(root);
             int inputTokens = root.path("usage").path("prompt_tokens").asInt();
             int outputTokens = root.path("usage").path("completion_tokens").asInt();
             String modelUsed = root.path("model").asText(model);
@@ -177,6 +177,26 @@ public class OpenAiCompatibleLlmClient {
                     "LiteLLM API call failed [" + provider.getBaseUrl() + "]: " + e.getMessage(),
                     e);
         }
+    }
+
+    /**
+     * Extract content from the LLM response message. For models with thinking mode enabled (e.g.
+     * qwen3), the actual output may be in the {@code reasoning_content} field instead of {@code
+     * content}. Falls back to reasoning_content when content is empty.
+     */
+    private String extractContent(JsonNode root) {
+        JsonNode message = root.path("choices").get(0).path("message");
+        String content = message.path("content").asText("");
+        if (content.isBlank()) {
+            String reasoning = message.path("reasoning_content").asText("");
+            if (!reasoning.isBlank()) {
+                log.debug(
+                        "Content field empty, using reasoning_content ({} chars)",
+                        reasoning.length());
+                return reasoning;
+            }
+        }
+        return content;
     }
 
     /**
