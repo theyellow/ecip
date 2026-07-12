@@ -340,15 +340,22 @@ public class AgeGraphRepository implements GraphRepository {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private GraphNode parseNodeFromAgtype(Object agtype) {
         if (agtype == null) return null;
         String str = agtype.toString();
         try {
-            Map<String, Object> props = parseAgtypeProperties(str);
+            Map<String, Object> parsed = parseAgtypeProperties(str);
+            // AGE vertex format: {id, label (=vertex type), properties: {node_id, label, ...}}
+            String vertexLabel = (String) parsed.getOrDefault("label", "");
+            Map<String, Object> props =
+                    parsed.containsKey("properties")
+                            ? (Map<String, Object>) parsed.get("properties")
+                            : parsed;
             return new GraphNode(
                     UUID.fromString(
                             (String) props.getOrDefault("node_id", UUID.randomUUID().toString())),
-                    (String) props.getOrDefault("concept_type", ""),
+                    vertexLabel,
                     props.containsKey("tenant_id")
                             ? UUID.fromString((String) props.get("tenant_id"))
                             : null,
