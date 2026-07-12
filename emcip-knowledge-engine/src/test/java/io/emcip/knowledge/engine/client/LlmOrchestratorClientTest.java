@@ -156,6 +156,51 @@ class LlmOrchestratorClientTest {
     }
 
     @Test
+    void shouldParseResponseWithExtensiveCoTContainingJsonExamples() throws Exception {
+        // qwen3 with reasoning_effort:disable may output extensive chain-of-thought
+        // that itself contains JSON examples before the actual extraction result
+        String analysis =
+                "We are given a text. Let me analyze...\\n"
+                    + "We can extract: {\\\"type\\\": \\\"Person\\\", \\\"label\\\":"
+                    + " \\\"wrong\\\"}\\n"
+                    + "But actually, here is the full output:\\n"
+                    + "{\\\"entities\\\":[{\\\"type\\\":\\\"Person\\\",\\\"label\\\":\\\"Josef"
+                    + " Holnburger\\\"},"
+                    + "{\\\"type\\\":\\\"Topic\\\",\\\"label\\\":\\\"libertarismus\\\"}],"
+                    + "\\\"relationships\\\":[{\\\"type\\\":\\\"DISCUSSES\\\",\\\"source\\\":\\\"Josef"
+                    + " Holnburger\\\",\\\"target\\\":\\\"libertarismus\\\"}]}";
+        mockWebServer.enqueue(
+                new MockResponse()
+                        .setBody(
+                                "{\"success\":true,\"analysis\":\""
+                                        + analysis
+                                        + "\",\"model\":\"qwen3\"}")
+                        .addHeader("Content-Type", "application/json"));
+
+        ConceptType person = new ConceptType();
+        person.setName("Person");
+        person.setDescription("A human");
+        person.setShared(false);
+        ConceptType topic = new ConceptType();
+        topic.setName("Topic");
+        topic.setDescription("A subject");
+        topic.setShared(false);
+        RelationshipType discusses = new RelationshipType();
+        discusses.setName("DISCUSSES");
+        discusses.setDescription("Discusses a topic");
+        discusses.setSourceTypes(List.of("Person"));
+        discusses.setTargetTypes(List.of("Topic"));
+
+        var result = client.extract("Some German text", List.of(person, topic), List.of(discusses));
+
+        assertThat(result.entities()).hasSize(2);
+        assertThat(result.entities().get(0).label()).isEqualTo("Josef Holnburger");
+        assertThat(result.entities().get(1).label()).isEqualTo("libertarismus");
+        assertThat(result.relationships()).hasSize(1);
+        assertThat(result.relationships().getFirst().type()).isEqualTo("DISCUSSES");
+    }
+
+    @Test
     void shouldCallEmbedEndpoint() throws Exception {
         String responseJson =
                 """
