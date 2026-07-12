@@ -23,7 +23,7 @@ public class SentenceAwareChunker {
     private final List<Pattern> abbreviationPatterns;
 
     public SentenceAwareChunker(
-            @Value("${knowledge.chunking.target-tokens:300}") int targetTokens,
+            @Value("${knowledge.chunking.target-tokens:600}") int targetTokens,
             @Value("${knowledge.chunking.overlap-sentences:2}") int overlapSentences,
             @Value("${knowledge.chunking.min-sentence-length:20}") int minSentenceLength,
             @Value("${knowledge.chunking.max-chunks:500}") int maxChunks,
