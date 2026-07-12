@@ -36,7 +36,7 @@ spring:
 
 knowledge:
   chunking:
-    target-tokens: 300
+    target-tokens: 600
     overlap-sentences: 2
     min-sentence-length: 20
     max-chunks: 500
