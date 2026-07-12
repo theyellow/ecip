@@ -256,12 +256,10 @@ Respond with the matching candidate label, or "NEW" if no match.
                             .replaceAll("```json\\s*", "")
                             .replaceAll("```\\s*", "")
                             .trim();
-            // If content still doesn't start with '{', strip everything before the first '{'
-            // (handles models that output reasoning without <think> tags)
-            int braceIdx = cleaned.indexOf('{');
-            if (braceIdx > 0) {
-                cleaned = cleaned.substring(braceIdx);
-            }
+            // Find the last valid JSON object containing "entities" — the model may output
+            // extensive chain-of-thought reasoning with embedded JSON examples before the
+            // actual extraction result at the end.
+            cleaned = extractLastValidJson(cleaned);
             Map<String, Object> parsed = objectMapper.readValue(cleaned, Map.class);
 
             List<ExtractedEntity> entities = new ArrayList<>();
@@ -299,6 +297,30 @@ Respond with the matching candidate label, or "NEW" if no match.
             log.error("Failed to parse extraction result: {}", json, e);
             return new ExtractionResult(List.of(), List.of());
         }
+    }
+
+    /**
+     * Extract the last valid JSON object from text that may contain chain-of-thought reasoning.
+     * Scans backwards from the end to find a top-level JSON object with "entities" key.
+     */
+    private String extractLastValidJson(String text) {
+        int lastBrace = text.lastIndexOf('{');
+        while (lastBrace >= 0) {
+            String candidate = text.substring(lastBrace).trim();
+            if (candidate.endsWith("}")) {
+                try {
+                    objectMapper.readTree(candidate);
+                    if (candidate.contains("\"entities\"")) {
+                        return candidate;
+                    }
+                } catch (Exception ignored) {
+                    // Not valid JSON from this position, try earlier
+                }
+            }
+            lastBrace = text.lastIndexOf('{', lastBrace - 1);
+        }
+        // Fallback: return original text (will likely fail parsing, but error is logged)
+        return text;
     }
 
     public TemplateResponse getTemplate(String name) {
