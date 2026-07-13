@@ -244,8 +244,6 @@ public class AgeGraphRepository implements GraphRepository {
                                 + " ag_catalog.agtype)",
                         GRAPH_NAME, cypher);
         try {
-            jdbcTemplate.execute("SET search_path = ag_catalog, \"$user\", public");
-            jdbcTemplate.execute("LOAD 'age'");
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
             List<GraphEdge> edges = new ArrayList<>();
             for (Map<String, Object> row : rows) {
@@ -309,8 +307,6 @@ public class AgeGraphRepository implements GraphRepository {
                                 + " ag_catalog.agtype)",
                         GRAPH_NAME, cypher);
         try {
-            jdbcTemplate.execute("SET search_path = ag_catalog, \"$user\", public");
-            jdbcTemplate.execute("LOAD 'age'");
             jdbcTemplate.queryForList(sql);
         } catch (Exception e) {
             log.error("AGE cypher execution failed: {}", e.getMessage(), e);
@@ -325,8 +321,6 @@ public class AgeGraphRepository implements GraphRepository {
                                 + " ag_catalog.agtype)",
                         GRAPH_NAME, cypher);
         try {
-            jdbcTemplate.execute("SET search_path = ag_catalog, \"$user\", public");
-            jdbcTemplate.execute("LOAD 'age'");
             List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
             List<GraphNode> nodes = new ArrayList<>();
             for (Map<String, Object> row : rows) {

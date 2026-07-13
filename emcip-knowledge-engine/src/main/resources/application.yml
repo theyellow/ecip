@@ -14,6 +14,7 @@ spring:
       minimum-idle: 5
       connection-timeout: 30000
       idle-timeout: 600000
+      connection-init-sql: "LOAD 'age'; SET search_path = ag_catalog, \"$user\", public"
   jpa:
     hibernate:
       ddl-auto: none

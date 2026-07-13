@@ -89,9 +89,9 @@ export function Knowledge() {
     tenantsApi(request).list().then(setTenants).catch(() => {})
   }, [request])
 
-  // Load ingestion jobs
-  const loadJobs = useCallback(async () => {
-    setJobsLoading(true)
+  // Load ingestion jobs (isBackground=true skips the loading indicator to avoid flicker)
+  const loadJobs = useCallback(async (isBackground = false) => {
+    if (!isBackground) setJobsLoading(true)
     try {
       const data = await api.jobs(page, 20)
 
@@ -136,7 +136,7 @@ export function Knowledge() {
     } catch {
       // keep stale data visible
     } finally {
-      setJobsLoading(false)
+      if (!isBackground) setJobsLoading(false)
     }
   }, [page, tenants, api, addToast])
 
@@ -149,7 +149,7 @@ export function Knowledge() {
     if (activeTab !== 'jobs') return
 
     const interval = setInterval(() => {
-      if (hasActiveJobsRef.current) loadJobs()
+      if (hasActiveJobsRef.current) loadJobs(true)
     }, 5000)
     return () => clearInterval(interval)
   }, [activeTab, loadJobs])
