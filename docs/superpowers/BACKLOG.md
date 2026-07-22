@@ -1,9 +1,41 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-01 (Red Team remediation complete)
-> Single source of truth for all open work. Completed items are in §5.
+> Last updated: 2026-07-22 (absorbed 2026-07-18 review + red-team findings)
+> Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
+> Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
+> **Phase** column maps each item to its `ROADMAP.md` phase.
+
+---
+
+## 0. Security Remediation — 2026-07-18 Reviews
+
+> New findings from `REVIEW-2026-07-18.md` + `RED_TEAM_REPORT_2026-07-18.md`. Sequenced in `ROADMAP.md` P1–P2.
+> Verify each still holds against current `main` before implementing (3 findings were already retracted: RT2-001, RT2-010, I1).
+
+| ID | Item | Sev | Phase | Size | Status |
+|----|------|-----|-------|------|--------|
+| RT2-003 | JWT revocation filter returns 401 (not passthrough) + trigger revocation on password/role/user change | CRITICAL | P1.1 | S | ⏳ |
+| RT2-004 | `@PreAuthorize` WRITE perms on TelegramAccount/Tenant/AIProxy controllers (23 endpoints) | CRITICAL | P1.1 | S | ⏳ |
+| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | P1.2 | XS | ⏳ |
+| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | P1.2 | XS | ⏳ |
+| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | P1.2 | S | ⏳ |
+| RT2-008 | `ManualEnrichmentConsumer` explicit Kafka tenant-header validation | HIGH | P1.3 | XS | ⏳ |
+| RT2-009 | `PolicyDecisionConsumer` capture + set tenant UUID | HIGH | P1.3 | XS | ⏳ |
+| RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ⏳ |
+| S-OPEN-2 | Java CodeQL SAST in CI | HIGH | P1.4 | XS | ⏳ |
+| I2 / RT-034 | Pin Docker base images to patch version | MEDIUM | P1.4 | XS | ⏳ |
+| I4 | Checkstyle/PMD `failOnViolation: true` | MEDIUM | P1.4 | XS | ⏳ |
+| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.1 | M | ⏳ |
+| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.2 | M | ⏳ |
+| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.3 | S | ⏳ |
+| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.4 | L | ⏳ |
+| S5 / S-OPEN-1 | Encrypt Telegram `session_string` (open since Round 1) | CRITICAL | P2.5 | M | ⏳ |
+| RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.7 | M | ⏳ |
+| U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.8 | S | ⏳ |
+| RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.8 | XS | ⏳ |
+| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.9 | S | ⏳ |
 
 ---
 
