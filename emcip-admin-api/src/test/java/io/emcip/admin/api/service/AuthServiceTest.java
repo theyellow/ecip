@@ -77,11 +77,12 @@ class AuthServiceTest {
 
         org.mockito.ArgumentCaptor<AdminUser> captor =
                 org.mockito.ArgumentCaptor.forClass(AdminUser.class);
-        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.times(2))
+        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.times(1))
                 .save(captor.capture());
-        // First save sets lastLogin; second save sets currentJti
-        assertThat(captor.getAllValues().get(0).getLastLogin()).isNotNull();
-        assertThat(captor.getAllValues().get(0).getLastLogin()).isAfterOrEqualTo(before);
+        // Single save sets both lastLogin and currentJti
+        assertThat(captor.getValue().getLastLogin()).isNotNull();
+        assertThat(captor.getValue().getLastLogin()).isAfterOrEqualTo(before);
+        assertThat(captor.getValue().getCurrentJti()).isEqualTo("jti-123");
     }
 
     @Test
