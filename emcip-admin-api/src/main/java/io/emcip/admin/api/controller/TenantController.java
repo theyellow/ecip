@@ -43,6 +43,7 @@ public class TenantController {
     @Operation(summary = "Create a new tenant")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('TENANTS_WRITE')")
     public Mono<Tenant> createTenant(@Valid @RequestBody Tenant tenant) {
         return tenantService
                 .create(tenant)
@@ -52,6 +53,7 @@ public class TenantController {
 
     @Operation(summary = "Update a tenant's editable fields")
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('TENANTS_WRITE')")
     public Mono<Tenant> updateTenant(
             @PathVariable("id") UUID id, @Valid @RequestBody TenantUpdateRequest request) {
         return tenantService
@@ -63,6 +65,7 @@ public class TenantController {
     @Operation(summary = "Delete a tenant")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('TENANTS_WRITE')")
     public Mono<Void> deleteTenant(@PathVariable("id") UUID id) {
         return tenantService
                 .delete(id)

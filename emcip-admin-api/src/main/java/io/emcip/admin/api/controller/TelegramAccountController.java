@@ -18,6 +18,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,12 +36,14 @@ import reactor.core.publisher.Mono;
 @Tag(
         name = "Telegram Accounts",
         description = "Manage Telegram account connections, authentication, and group watching")
+@PreAuthorize("hasAuthority('TELEGRAM_READ')")
 public class TelegramAccountController {
 
     private final TelegramAccountService telegramAccountService;
 
     @Operation(summary = "List all Telegram accounts")
     @GetMapping
+    @PreAuthorize("hasAuthority('TELEGRAM_READ')")
     public Mono<List<Map<String, Object>>> listAccounts() {
         return telegramAccountService
                 .findAll()
@@ -51,6 +54,7 @@ public class TelegramAccountController {
     @Operation(summary = "Create and connect a new Telegram account")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Map<String, Object>> createAccount(@Valid @RequestBody CreateAccountRequest req) {
         if ((req.apiId() != null) != (req.apiHash() != null && !req.apiHash().isBlank())) {
             return Mono.error(
@@ -78,12 +82,14 @@ public class TelegramAccountController {
     @Operation(summary = "Delete a Telegram account")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Void> deleteAccount(@PathVariable("id") UUID id) {
         return telegramAccountService.delete(id);
     }
 
     @Operation(summary = "Get connection status of a Telegram account")
     @GetMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('TELEGRAM_READ')")
     public Mono<Map<String, Object>> getStatus(@PathVariable("id") UUID id) {
         return telegramAccountService
                 .getStatus(id)
@@ -100,6 +106,7 @@ public class TelegramAccountController {
     @Operation(summary = "Reconnect a disconnected Telegram account")
     @PostMapping("/{id}/reconnect")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Map<String, Object>> reconnect(@PathVariable("id") UUID id) {
         return telegramAccountService
                 .reconnect(id)
@@ -114,6 +121,7 @@ public class TelegramAccountController {
     @Operation(summary = "Submit authentication code for a Telegram account")
     @PostMapping("/{id}/code")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Void> submitCode(@PathVariable("id") UUID id, @Valid @RequestBody CodeRequest req) {
         return telegramAccountService.submitCode(id, req.code());
     }
@@ -121,6 +129,7 @@ public class TelegramAccountController {
     @Operation(summary = "Submit 2FA password for a Telegram account")
     @PostMapping("/{id}/password")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Void> submitPassword(
             @PathVariable("id") UUID id, @Valid @RequestBody PasswordRequest req) {
         return telegramAccountService.submitPassword(id, req.password());
@@ -129,6 +138,7 @@ public class TelegramAccountController {
     @Operation(summary = "Log out a Telegram account")
     @PostMapping("/{id}/logout")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Void> logout(@PathVariable("id") UUID id) {
         return telegramAccountService.logout(id);
     }
@@ -136,18 +146,21 @@ public class TelegramAccountController {
     @Operation(summary = "Sync watched groups across all accounts")
     @PostMapping("/sync")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Void> syncWatchedGroups() {
         return telegramAccountService.sync();
     }
 
     @Operation(summary = "Discover available Telegram chats for an account")
     @GetMapping("/{id}/chats")
+    @PreAuthorize("hasAuthority('TELEGRAM_READ')")
     public Mono<List<Map<String, Object>>> discoverChats(@PathVariable("id") UUID id) {
         return telegramAccountService.discoverChats(id);
     }
 
     @Operation(summary = "List watched groups for an account")
     @GetMapping("/{id}/watched")
+    @PreAuthorize("hasAuthority('TELEGRAM_READ')")
     public Mono<List<Map<String, Object>>> listWatched(@PathVariable("id") UUID id) {
         return telegramAccountService.findWatchedGroups(id).map(this::toWatchedMap).collectList();
     }
@@ -155,6 +168,7 @@ public class TelegramAccountController {
     @Operation(summary = "Start watching a Telegram group")
     @PostMapping("/{id}/watch")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Map<String, Object>> watchGroup(
             @PathVariable("id") UUID accountId, @Valid @RequestBody WatchRequest req) {
         return telegramAccountService
@@ -165,6 +179,7 @@ public class TelegramAccountController {
     @Operation(summary = "Stop watching a Telegram group")
     @DeleteMapping("/{id}/watch/{chatId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
     public Mono<Void> unwatchGroup(
             @PathVariable("id") UUID accountId, @PathVariable("chatId") Long chatId) {
         return telegramAccountService.unwatchGroup(accountId, chatId);
