@@ -74,7 +74,6 @@
     <maven-surefire.version>3.2.5</maven-surefire.version>
     <maven-failsafe.version>3.2.5</maven-failsafe.version>
     <jacoco.version>0.8.12</jacoco.version>
-    <checkstyle.version>3.4.0</checkstyle.version>
     <pmd.version>3.23.0</pmd.version>
 
     <!-- Code Quality Thresholds -->
@@ -362,34 +361,15 @@
           </executions>
         </plugin>
 
-        <!-- Checkstyle - Static Analysis -->
         <!--
-          NOTE: failOnViolation is currently inert (advisory only), not blocking.
-          google_checks.xml sets <property name="severity" value="warning"/> at the
-          Checker level, so every violation it reports is severity="warning". Without an
-          explicit <violationSeverity> below, the maven-checkstyle-plugin default is
-          "error", so `mvn checkstyle:check` never fails: nothing this ruleset reports
-          reaches that threshold.
-          This also can't be fixed by simply adding <violationSeverity>warning</violationSeverity>:
-          google_checks.xml requires 2-space Indentation, while Spotless formats this repo
-          with googleJavaFormat AOSP style (4-space indent) - the two rulesets directly
-          contradict each other, so doing that today would fail the entire repo on its own
-          formatting style. Making Checkstyle blocking requires a project-owner decision:
-          either <violationSeverity>warning</violationSeverity> plus a large one-time
-          cleanup, or switching configLocation to a ruleset that matches the project's
-          AOSP 4-space style.
+          Checkstyle was removed (2026-07-23). google_checks.xml is overwhelmingly a
+          formatting ruleset, and Spotless (googleJavaFormat AOSP) already owns formatting
+          deterministically and auto-fixes it. The two also directly contradict each other:
+          google_checks mandates 2-space Indentation, Spotless AOSP uses 4-space, so the
+          gate could never be enabled without fighting the project's own formatter.
+          Static analysis is covered by: Spotless (format), PMD (code smells, blocking),
+          CodeQL (security, .github/workflows/codeql.yml).
         -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>${checkstyle.version}</version>
-          <configuration>
-            <configLocation>google_checks.xml</configLocation>
-            <consoleOutput>true</consoleOutput>
-            <failsOnError>false</failsOnError>
-            <failOnViolation>true</failOnViolation>
-          </configuration>
-        </plugin>
 
         <!-- PMD - Static Analysis -->
         <plugin>
