@@ -363,6 +363,22 @@
         </plugin>
 
         <!-- Checkstyle - Static Analysis -->
+        <!--
+          NOTE: failOnViolation is currently inert (advisory only), not blocking.
+          google_checks.xml sets <property name="severity" value="warning"/> at the
+          Checker level, so every violation it reports is severity="warning". Without an
+          explicit <violationSeverity> below, the maven-checkstyle-plugin default is
+          "error", so `mvn checkstyle:check` never fails: nothing this ruleset reports
+          reaches that threshold.
+          This also can't be fixed by simply adding <violationSeverity>warning</violationSeverity>:
+          google_checks.xml requires 2-space Indentation, while Spotless formats this repo
+          with googleJavaFormat AOSP style (4-space indent) - the two rulesets directly
+          contradict each other, so doing that today would fail the entire repo on its own
+          formatting style. Making Checkstyle blocking requires a project-owner decision:
+          either <violationSeverity>warning</violationSeverity> plus a large one-time
+          cleanup, or switching configLocation to a ruleset that matches the project's
+          AOSP 4-space style.
+        -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
