@@ -45,12 +45,14 @@ public class PolicyDecisionConsumer {
                 record.partition(),
                 record.offset());
 
+        UUID tenantId;
         try {
-            TenantAwareKafkaSupport.validateTenantHeader(record);
+            tenantId = TenantAwareKafkaSupport.validateTenantHeader(record);
         } catch (IllegalStateException e) {
             log.error("Rejecting record: {}", e.getMessage());
             return;
         }
+        TenantContext.setTenantId(tenantId.toString());
 
         try {
             var decisionEvent =

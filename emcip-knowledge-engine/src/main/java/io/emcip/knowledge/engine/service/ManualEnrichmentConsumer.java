@@ -1,5 +1,6 @@
 package io.emcip.knowledge.engine.service;
 
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import io.emcip.knowledge.engine.connector.TriggerMode;
 import io.emcip.knowledge.engine.entity.EnrichmentRun;
 import io.emcip.knowledge.engine.entity.EnrichmentSource;
@@ -32,6 +33,14 @@ public class ManualEnrichmentConsumer {
 
     @KafkaListener(topics = "knowledge.enrichment.trigger", groupId = "knowledge-engine")
     public void consume(ConsumerRecord<String, String> record) {
+        UUID tenantId;
+        try {
+            tenantId = TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting enrichment trigger: {}", e.getMessage());
+            return;
+        }
+
         try {
             Map<String, String> payload =
                     objectMapper.readValue(
@@ -45,6 +54,19 @@ public class ManualEnrichmentConsumer {
 
             if (source.isEmpty() || run.isEmpty()) {
                 log.warn("Manual trigger: source {} or run {} not found", sourceId, runId);
+                return;
+            }
+
+            UUID sourceTenantId = source.get().getTenantId();
+            boolean tenantMatches =
+                    sourceTenantId == null
+                            ? tenantId.equals(TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL)
+                            : tenantId.equals(sourceTenantId);
+            if (!tenantMatches) {
+                log.error(
+                        "Tenant mismatch on enrichment trigger: header={} source={}",
+                        tenantId,
+                        sourceTenantId);
                 return;
             }
 
