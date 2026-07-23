@@ -88,7 +88,19 @@ retry-on-failure.
 
 **P1 exit criteria:** no VIEWER can perform writes ✅; revoked/demoted tokens are rejected ✅; both
 Kafka consumers fail-closed on tenant ✅; no service exposes actuator health details ✅; CI has Java
-SAST + blocking quality gates ✅. *(Audit-trail append-only + hash-chained moved to P2.0.)*
+SAST ✅; **PMD** blocking ✅ (Checkstyle turned out to be inert — see I4b). *(Audit-trail append-only +
+hash-chained moved to P2.0.)*
+
+**The final whole-change review caught a Critical regression the three task-scoped reviews all missed.**
+Batch C's new fail-closed tenant check bricked *all* manual enrichment: the sole producer set no
+`tenant_id` header, and every enrichment source is seeded `tenant_id NULL`, so both the header check and
+the mismatch check failed 100% — run rows stuck `RUNNING` forever. Fixed with a
+`GLOBAL_TENANT_SENTINEL` in `emcip-core` (producer always sets the header; consumer matches
+sentinel ⇔ null-tenant), plus the consumer test whose absence let it ship.
+
+**Lesson for P2 onward:** batches cut from the same base cannot see each other, and a fail-closed check
+is only safe if you verify *who actually produces the message*. Always run a combined-integration build
+before merging parallel batches, and never add a consumer-side requirement without reading the producer.
 
 **P1 delivered (2026-07-22):** PR #206 (batch 1.1), PR #207 (batch 1.3), PR #208 (batch 1.4).
 

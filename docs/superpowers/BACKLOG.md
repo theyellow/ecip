@@ -41,7 +41,12 @@
 | RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ✅ PR #208 |
 | S-OPEN-2 | Java CodeQL SAST in CI | HIGH | P1.4 | XS | ✅ PR #208 |
 | I2 / RT-034 | Pin Docker base images to patch version (`21.0.11_10`) | MEDIUM | P1.4 | XS | ✅ PR #208 |
-| I4 | Checkstyle/PMD `failOnViolation: true` | MEDIUM | P1.4 | XS | ✅ PR #208 |
+| I4 | PMD `failOnViolation: true` (genuinely blocking) | MEDIUM | P1.4 | XS | ✅ PR #208 |
+| I4b | **Checkstyle gate is inert** — `failOnViolation: true` but no `<violationSeverity>`, and `google_checks.xml` is all `severity=warning`, so it can never fail. Enabling it needs either `violationSeverity=warning` + a large cleanup, or a ruleset matching the project's Spotless **AOSP 4-space** style (google_checks mandates 2-space, so they directly conflict). Decision needed. | MEDIUM | P3 | M | ⏳ |
+| P1-M1 | No end-to-end test that `@PreAuthorize` is enforced by the live filter chain — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security. `ControllerAuthorizationTest` is reflection-only (now inverted to catch unannotated write methods). Needs a `@WebFluxTest` + `@WithMockUser` suite. | MEDIUM | P3 | S | ⏳ |
+| P1-M2 | JWT revocation is **per-replica** — `JwtRevocationService` uses an in-process `ConcurrentHashMap`. Correct at `replicas: 1` (current Helm default) but silently degrades on scale-out. Bounds the RT2-003 fix. | MEDIUM | P4 | M | ⏳ |
+| P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
+| P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
 | RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.1 | M | ⏳ |
 | RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.2 | M | ⏳ |
 | RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.3 | S | ⏳ |
