@@ -12,7 +12,7 @@
 #   Contains only the JAR and libtdjni.so.
 
 # --- Stage 1: Build TDLib native library ---
-FROM eclipse-temurin:21-jdk AS tdlib-builder
+FROM eclipse-temurin:21.0.11_10-jdk AS tdlib-builder
 RUN apt-get update && apt-get install -y \
     git \
     cmake \
@@ -76,7 +76,7 @@ RUN mkdir -p /td-java /tmp/tdapi-gen && \
     ls -la /td/libtdjni.so
 
 # --- Stage 2: Build Spring Boot application ---
-FROM eclipse-temurin:21-jdk AS app-builder
+FROM eclipse-temurin:21.0.11_10-jdk AS app-builder
 
 # Mirror the multi-module project layout that Maven expects:
 #   /build/pom.xml                    ← root parent POM (relativePath default: ../pom.xml)
@@ -123,7 +123,7 @@ COPY --from=tdlib-builder /td-java/ ./emcip-tdlib-adapter/src/main/java/org/drin
 RUN mvn clean package -DskipTests -q -pl emcip-tdlib-adapter -am
 
 # --- Stage 3: Runtime ---
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21.0.11_10-jre
 
 # Runtime dependencies: curl (health check), shared libs required by libtdjni.so
 RUN apt-get update && apt-get install -y \

@@ -74,7 +74,6 @@
     <maven-surefire.version>3.2.5</maven-surefire.version>
     <maven-failsafe.version>3.2.5</maven-failsafe.version>
     <jacoco.version>0.8.12</jacoco.version>
-    <checkstyle.version>3.4.0</checkstyle.version>
     <pmd.version>3.23.0</pmd.version>
 
     <!-- Code Quality Thresholds -->
@@ -362,18 +361,15 @@
           </executions>
         </plugin>
 
-        <!-- Checkstyle - Static Analysis -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>${checkstyle.version}</version>
-          <configuration>
-            <configLocation>google_checks.xml</configLocation>
-            <consoleOutput>true</consoleOutput>
-            <failsOnError>false</failsOnError>
-            <failOnViolation>false</failOnViolation>
-          </configuration>
-        </plugin>
+        <!--
+          Checkstyle was removed (2026-07-23). google_checks.xml is overwhelmingly a
+          formatting ruleset, and Spotless (googleJavaFormat AOSP) already owns formatting
+          deterministically and auto-fixes it. The two also directly contradict each other:
+          google_checks mandates 2-space Indentation, Spotless AOSP uses 4-space, so the
+          gate could never be enabled without fighting the project's own formatter.
+          Static analysis is covered by: Spotless (format), PMD (code smells, blocking),
+          CodeQL (security, .github/workflows/codeql.yml).
+        -->
 
         <!-- PMD - Static Analysis -->
         <plugin>
@@ -382,7 +378,7 @@
           <version>${pmd.version}</version>
           <configuration>
             <minimumPriority>3</minimumPriority>
-            <failOnViolation>false</failOnViolation>
+            <failOnViolation>true</failOnViolation>
           </configuration>
         </plugin>
       </plugins>

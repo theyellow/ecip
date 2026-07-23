@@ -57,9 +57,6 @@ jobs:
     - name: Run Spotless check
       run: mvn -B spotless:check --file pom.xml
 
-    - name: Run Checkstyle
-      run: mvn -B checkstyle:check --file pom.xml
-
     - name: Run PMD
       run: mvn -B pmd:check --file pom.xml
 
@@ -89,9 +86,6 @@ jobs:
 
     - name: Spotless check
       run: mvn -B spotless:check --file pom.xml
-
-    - name: Checkstyle
-      run: mvn -B checkstyle:check --file pom.xml
 
     - name: PMD
       run: mvn -B pmd:check --file pom.xml

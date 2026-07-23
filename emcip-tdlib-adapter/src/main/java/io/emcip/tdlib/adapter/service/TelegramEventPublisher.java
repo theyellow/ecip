@@ -69,8 +69,7 @@ public class TelegramEventPublisher {
 
         return Mono.fromCallable(
                         () -> {
-                            EventSchemas.TelegramMessageEvent event =
-                                    convertToEvent(message, update);
+                            EventSchemas.TelegramMessageEvent event = convertToEvent(message);
                             String json = serialize(event);
                             org.apache.kafka.clients.producer.ProducerRecord<String, String>
                                     kafkaRecord =
@@ -161,8 +160,7 @@ public class TelegramEventPublisher {
                 .then();
     }
 
-    private EventSchemas.TelegramMessageEvent convertToEvent(
-            TdApi.Message message, TdApi.UpdateNewMessage update) {
+    private EventSchemas.TelegramMessageEvent convertToEvent(TdApi.Message message) {
         String text = "";
         if (message.content instanceof TdApi.MessageText messageText) {
             text = messageText.text.text;

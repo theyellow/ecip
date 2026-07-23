@@ -2,7 +2,7 @@
 # Build context must be the project root (context: .)
 
 # Stage 1: Build
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:21.0.11_10-jdk-alpine AS builder
 WORKDIR /build
 RUN apk add --no-cache maven
 
@@ -29,7 +29,7 @@ COPY emcip-admin-ui/src ./emcip-admin-ui/src
 RUN mvn package -pl emcip-admin-ui -DskipTests -q
 
 # Stage 2: Runtime
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21.0.11_10-jre-alpine
 WORKDIR /app
 
 # Create non-root user

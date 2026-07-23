@@ -135,13 +135,10 @@ public class DocumentIngestionService {
 
     @Transactional
     public void deleteJob(UUID jobId) {
-        IngestionJob job =
-                jobRepository
-                        .findById(jobId)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "Ingestion job not found: " + jobId));
+        jobRepository
+                .findById(jobId)
+                .orElseThrow(
+                        () -> new IllegalArgumentException("Ingestion job not found: " + jobId));
 
         List<KnowledgeDocument> chunks = documentRepository.findAllByJobId(jobId);
         List<UUID> chunkIds = chunks.stream().map(KnowledgeDocument::getId).toList();

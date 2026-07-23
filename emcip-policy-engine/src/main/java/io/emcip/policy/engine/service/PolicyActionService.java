@@ -65,7 +65,7 @@ public class PolicyActionService {
                     executeReview(decision, context);
                     break;
                 case "ALLOW":
-                    executeAllow(decision, context);
+                    executeAllow(decision);
                     break;
                 case "FLAG":
                     executeFlag(decision, context);
@@ -209,7 +209,7 @@ public class PolicyActionService {
     }
 
     /** ALLOW: Log but take no restrictive action. */
-    private void executeAllow(PolicyDecision decision, Map<String, Object> context) {
+    private void executeAllow(PolicyDecision decision) {
         log.info(
                 "ALLOW action for event {} - no restrictions applied. Intent: {}, Confidence: {}",
                 decision.getSourceEventId(),
