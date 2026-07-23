@@ -1,9 +1,61 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-01 (Red Team remediation complete)
-> Single source of truth for all open work. Completed items are in §5.
+> Last updated: 2026-07-22 (absorbed 2026-07-18 review + red-team findings)
+> Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
+> Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
+> **Phase** column maps each item to its `ROADMAP.md` phase.
+
+---
+
+## 0. Security Remediation — 2026-07-18 Reviews
+
+> New findings from `REVIEW-2026-07-18.md` + `RED_TEAM_REPORT_2026-07-18.md`. Sequenced in `ROADMAP.md` P1–P2.
+> Verify each still holds against current `main` before implementing (3 findings were already retracted: RT2-001, RT2-010, I1).
+>
+> **Verified corrections from P1 execution (2026-07-22) — do not re-implement these:**
+> - RT2-003's *"revocation not triggered on password/role/user change"* — **FALSE**. Already implemented at
+>   `UserManagementService.java:143` (role), `:177` (delete), `:242` (password), `AuthController.java:72` (logout).
+>   Only the filter 401 bug was real.
+> - RT2-004's *"`warmUp()` unauthenticated"* — **FALSE**. It inherited class-level `AI_CONFIG_READ`. Raised to
+>   `AI_CONFIG_WRITE` because it triggers LLM work.
+> - RT2-002's *"schedule `verifyChain()`"* follow-up — **ALREADY DONE** (`AuditChainVerificationJob`).
+> - TelegramAccountController has **13** endpoints (9 write + 4 read), not 11.
+> - **RT2-002/RT2-016/B1 moved to P2.0.** Not quick wins: `saveWithChain()` is an unsynchronized
+>   read-modify-write and `KafkaConsumerConfig.java:44` sets `setConcurrency(3)`, so activating the chain
+>   forks it. Removing `.block()` additionally causes silent audit-event loss under `MANUAL_IMMEDIATE`
+>   acks. Must be redesigned as one coupled task — see `ROADMAP.md` P2.0.
+
+| ID | Item | Sev | Phase | Size | Status |
+|----|------|-----|-------|------|--------|
+| RT2-003 | JWT revocation filter returns 401 (not passthrough) | CRITICAL | P1.1 | S | ✅ PR #206 |
+| RT2-004 | `@PreAuthorize` WRITE perms on TelegramAccount/Tenant/AIProxy controllers (22 endpoints) | CRITICAL | P1.1 | S | ✅ PR #206 |
+| RT-F3 | JWT single-parse optimization (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
+| RT-F4 | Combine double save on login (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
+| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | **P2.0** | L | ⏳ **deferred** |
+| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | **P2.0** | L | ⏳ **deferred** |
+| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | **P2.0** | L | ⏳ **deferred** |
+| RT2-008 | `ManualEnrichmentConsumer` explicit Kafka tenant-header validation | HIGH | P1.3 | XS | ✅ PR #207 |
+| RT2-009 | `PolicyDecisionConsumer` capture + set tenant UUID | HIGH | P1.3 | XS | ✅ PR #207 |
+| RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ✅ PR #208 |
+| S-OPEN-2 | Java CodeQL SAST in CI | HIGH | P1.4 | XS | ✅ PR #208 |
+| I2 / RT-034 | Pin Docker base images to patch version (`21.0.11_10`) | MEDIUM | P1.4 | XS | ✅ PR #208 |
+| I4 | PMD `failOnViolation: true` — genuinely blocking | MEDIUM | P1.4 | XS | ✅ PR #208 |
+| I4b | **Checkstyle removed** — google_checks.xml is mostly formatting (Spotless already owns that, and its AOSP 4-space directly contradicts google_checks' 2-space), so the gate was inert and unfixable without fighting the formatter. Plugin + CI steps deleted. Static analysis = Spotless (format) + PMD (smells, blocking) + CodeQL (security). | — | P1.4 | XS | ✅ PR #208 |
+| P1-M1 | No end-to-end test that `@PreAuthorize` is enforced by the live filter chain — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security. `ControllerAuthorizationTest` is reflection-only (now inverted to catch unannotated write methods). Needs a `@WebFluxTest` + `@WithMockUser` suite. | MEDIUM | P3 | S | ⏳ |
+| P1-M2 | JWT revocation is **per-replica** — `JwtRevocationService` uses an in-process `ConcurrentHashMap`. Correct at `replicas: 1` (current Helm default) but silently degrades on scale-out. Bounds the RT2-003 fix. | MEDIUM | P4 | M | ⏳ |
+| P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
+| P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
+| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.1 | M | ⏳ |
+| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.2 | M | ⏳ |
+| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.3 | S | ⏳ |
+| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.4 | L | ⏳ |
+| S5 / S-OPEN-1 | Encrypt Telegram `session_string` (open since Round 1) | CRITICAL | P2.5 | M | ⏳ |
+| RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.7 | M | ⏳ |
+| U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.8 | S | ⏳ |
+| RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.8 | XS | ⏳ |
+| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.9 | S | ⏳ |
 
 ---
 
