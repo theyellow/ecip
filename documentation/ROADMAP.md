@@ -88,7 +88,7 @@ retry-on-failure.
 
 **P1 exit criteria:** no VIEWER can perform writes ✅; revoked/demoted tokens are rejected ✅; both
 Kafka consumers fail-closed on tenant ✅; no service exposes actuator health details ✅; CI has Java
-SAST ✅; **PMD** blocking ✅ (Checkstyle turned out to be inert — see I4b). *(Audit-trail append-only +
+SAST ✅; **PMD** blocking ✅. Checkstyle turned out to be inert and was **removed** — Spotless already owns formatting and their indent rules directly contradict (I4b). *(Audit-trail append-only +
 hash-chained moved to P2.0.)*
 
 **The final whole-change review caught a Critical regression the three task-scoped reviews all missed.**
