@@ -2,7 +2,7 @@
 # Build context must be the project root (context: .)
 
 # Stage 1: Build
-FROM eclipse-temurin:21-jdk AS builder
+FROM eclipse-temurin:21.0.11_10-jdk AS builder
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y maven --no-install-recommends \
@@ -31,7 +31,7 @@ COPY emcip-conversation-context/src ./emcip-conversation-context/src
 RUN mvn clean package -DskipTests -q -pl emcip-conversation-context -am
 
 # Stage 2: Runtime
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21.0.11_10-jre
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y curl --no-install-recommends \

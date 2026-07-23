@@ -371,7 +371,7 @@
             <configLocation>google_checks.xml</configLocation>
             <consoleOutput>true</consoleOutput>
             <failsOnError>false</failsOnError>
-            <failOnViolation>false</failOnViolation>
+            <failOnViolation>true</failOnViolation>
           </configuration>
         </plugin>
 
@@ -382,7 +382,7 @@
           <version>${pmd.version}</version>
           <configuration>
             <minimumPriority>3</minimumPriority>
-            <failOnViolation>false</failOnViolation>
+            <failOnViolation>true</failOnViolation>
           </configuration>
         </plugin>
       </plugins>

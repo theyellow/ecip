@@ -5,7 +5,7 @@
 #   docker compose build llm-orchestrator
 
 # Stage 1: Build the Spring Boot JAR
-FROM eclipse-temurin:21-jdk AS builder
+FROM eclipse-temurin:21.0.11_10-jdk AS builder
 
 WORKDIR /build
 
@@ -39,7 +39,7 @@ COPY emcip-llm-orchestrator/src ./emcip-llm-orchestrator/src
 RUN mvn clean package -DskipTests -q -pl emcip-llm-orchestrator -am
 
 # Stage 2: Minimal JRE runtime
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21.0.11_10-jre
 
 RUN apt-get update && apt-get install -y curl --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*

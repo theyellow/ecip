@@ -97,7 +97,7 @@ public class DeadLetterQueueConsumer {
     public boolean reprocessDlqMessage(
             String dlqTopic, DeadLetterTopicHandler.DeadLetterEvent dlqEvent) {
         String originalTopic = dlqEvent.originalTopic();
-        int reprocessCount = getReprocessCount(dlqEvent);
+        int reprocessCount = getReprocessCount();
 
         if (reprocessCount >= MAX_REPROCESS_ATTEMPTS) {
             log.error("Max reprocess attempts reached for event: {}", dlqEvent.eventId());
@@ -169,7 +169,7 @@ public class DeadLetterQueueConsumer {
         }
     }
 
-    private int getReprocessCount(DeadLetterTopicHandler.DeadLetterEvent event) {
+    private int getReprocessCount() {
         // Count reprocess attempts based on event metadata
         // In a full implementation, this would track in a database
         return 0;

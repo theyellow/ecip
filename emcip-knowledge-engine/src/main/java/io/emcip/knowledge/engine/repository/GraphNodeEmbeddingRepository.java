@@ -58,7 +58,6 @@ public class GraphNodeEmbeddingRepository {
     public void storeEmbeddingWithNodeId(
             UUID nodeId, String label, String conceptType, UUID tenantId, float[] embedding) {
         String vectorStr = toVectorString(embedding);
-        String nodeIdSql = nodeId != null ? "?" : "gen_random_uuid()";
         try {
             if (tenantId != null) {
                 if (nodeId != null) {

@@ -110,7 +110,9 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
         return new SearchResult<>(doc, score);
     }
 
-    @SuppressWarnings("unchecked")
+    // rowNum is required by the RowMapper<T> functional-interface signature (used as
+    // this::mapRow), even though this implementation does not need it.
+    @SuppressWarnings({"unchecked", "PMD.UnusedFormalParameter"})
     private KnowledgeDocument mapRow(ResultSet rs, int rowNum) throws SQLException {
         KnowledgeDocument doc = new KnowledgeDocument();
         doc.setId(UUID.fromString(rs.getString("id")));
