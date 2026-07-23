@@ -69,6 +69,7 @@ public class AIProxyController {
     @Operation(summary = "Create an AI model configuration")
     @PostMapping(value = "/models", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<String> createModel(@RequestBody String body) {
         return orchestratorClient
                 .post()
@@ -92,6 +93,7 @@ public class AIProxyController {
 
     @Operation(summary = "Update an AI model configuration")
     @PutMapping(value = "/models/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<String> updateModel(@PathVariable String id, @RequestBody String body) {
         return orchestratorClient
                 .put()
@@ -116,6 +118,7 @@ public class AIProxyController {
     @Operation(summary = "Delete an AI model configuration")
     @DeleteMapping("/models/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<Void> deleteModel(@PathVariable String id) {
         return orchestratorClient
                 .delete()
@@ -180,6 +183,7 @@ public class AIProxyController {
     @Operation(summary = "Create a prompt template")
     @PostMapping(value = "/templates", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<String> createTemplate(@RequestBody String body) {
         return orchestratorClient
                 .post()
@@ -203,6 +207,7 @@ public class AIProxyController {
 
     @Operation(summary = "Update a prompt template")
     @PutMapping(value = "/templates/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<String> updateTemplate(@PathVariable String id, @RequestBody String body) {
         return orchestratorClient
                 .put()
@@ -227,6 +232,7 @@ public class AIProxyController {
     @Operation(summary = "Delete a prompt template")
     @DeleteMapping("/templates/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<Void> deleteTemplate(@PathVariable String id) {
         return orchestratorClient
                 .delete()
@@ -269,6 +275,7 @@ public class AIProxyController {
 
     @PostMapping(value = "/provider-config", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<String> createProviderConfig(@RequestBody String body) {
         return orchestratorClient
                 .post()
@@ -291,6 +298,7 @@ public class AIProxyController {
     }
 
     @PutMapping(value = "/provider-config/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<String> updateProviderConfig(@PathVariable String id, @RequestBody String body) {
         return orchestratorClient
                 .put()
@@ -314,6 +322,7 @@ public class AIProxyController {
 
     @DeleteMapping("/provider-config/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<Void> deleteProviderConfig(@PathVariable String id) {
         return orchestratorClient
                 .delete()
@@ -337,6 +346,7 @@ public class AIProxyController {
 
     @Operation(summary = "Warm up LLM models (health probe — no circuit breaker)")
     @PostMapping(value = "/warm-up", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @PreAuthorize("hasAuthority('AI_CONFIG_WRITE')")
     public Mono<String> warmUp(@RequestBody String body) {
         return orchestratorClient
                 .post()

@@ -1,10 +1,12 @@
 package io.emcip.admin.api.security;
 
+import io.jsonwebtoken.Claims;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -35,15 +37,18 @@ public class JwtAuthenticationFilter implements WebFilter {
         String token = authHeader.substring(BEARER_PREFIX.length());
 
         try {
-            String jti = jwtService.extractJti(token);
+            Claims claims = jwtService.validateToken(token);
+
+            String jti = claims.getId();
             if (jti != null && revocationService.isRevoked(jti)) {
-                log.debug("JWT revoked: jti={}", jti);
-                return chain.filter(exchange);
+                log.debug("Rejecting revoked JWT: jti={}", jti);
+                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                return exchange.getResponse().setComplete();
             }
-            String username = jwtService.extractUsername(token);
-            String roleStr = jwtService.extractRole(token);
-            Role role = Role.valueOf(roleStr);
-            String tenantId = jwtService.extractTenantId(token);
+
+            String username = claims.getSubject();
+            Role role = Role.valueOf(claims.get("role", String.class));
+            String tenantId = claims.get("tenantId", String.class);
 
             List<SimpleGrantedAuthority> authorities = new ArrayList<>();
             authorities.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
