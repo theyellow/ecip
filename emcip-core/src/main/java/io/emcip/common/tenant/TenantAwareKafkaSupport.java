@@ -7,6 +7,15 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 public final class TenantAwareKafkaSupport {
 
+    /**
+     * Sentinel value for the {@code tenant_id} header on topics whose payload targets a
+     * tenant-agnostic (global) resource, i.e. one persisted with {@code tenant_id IS NULL}. Used
+     * where a real tenant UUID would otherwise be required but none applies, so that consumers can
+     * stay fail-closed (a missing header is always rejected) while still accepting global traffic.
+     */
+    public static final UUID GLOBAL_TENANT_SENTINEL =
+            UUID.fromString("00000000-0000-0000-0000-000000000000");
+
     private TenantAwareKafkaSupport() {}
 
     public static void bindTenantFromRecord(ConsumerRecord<?, ?> record) {
@@ -52,5 +61,19 @@ public final class TenantAwareKafkaSupport {
             record.headers()
                     .add(TenantContext.KAFKA_HEADER, tenantId.getBytes(StandardCharsets.UTF_8));
         }
+    }
+
+    /**
+     * Explicitly sets the {@code tenant_id} header from a caller-supplied tenant id, for producers
+     * that do not run inside a {@link TenantContext}-bound thread (e.g. reactive WebFlux services).
+     * Use {@link #GLOBAL_TENANT_SENTINEL} when {@code tenantId} is {@code null} so fail-closed
+     * consumers can still accept it.
+     */
+    public static void addTenantHeader(ProducerRecord<?, ?> record, UUID tenantId) {
+        UUID effective = tenantId != null ? tenantId : GLOBAL_TENANT_SENTINEL;
+        record.headers()
+                .add(
+                        TenantContext.KAFKA_HEADER,
+                        effective.toString().getBytes(StandardCharsets.UTF_8));
     }
 }

@@ -57,11 +57,16 @@ public class ManualEnrichmentConsumer {
                 return;
             }
 
-            if (!tenantId.equals(source.get().getTenantId())) {
+            UUID sourceTenantId = source.get().getTenantId();
+            boolean tenantMatches =
+                    sourceTenantId == null
+                            ? tenantId.equals(TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL)
+                            : tenantId.equals(sourceTenantId);
+            if (!tenantMatches) {
                 log.error(
                         "Tenant mismatch on enrichment trigger: header={} source={}",
                         tenantId,
-                        source.get().getTenantId());
+                        sourceTenantId);
                 return;
             }
 

@@ -43,12 +43,15 @@ public class EnrichmentSourceService {
                             run.setStartedAt(Instant.now());
                             run.setItemsFetched(0);
                             run.setItemsIngested(0);
-                            return runRepo.save(run);
-                        })
-                .map(
-                        run -> {
-                            triggerPublisher.publish(sourceId, run.getId());
-                            return new TriggerResponse(run.getId());
+                            return runRepo.save(run)
+                                    .map(
+                                            savedRun -> {
+                                                triggerPublisher.publish(
+                                                        sourceId,
+                                                        savedRun.getId(),
+                                                        source.getTenantId());
+                                                return new TriggerResponse(savedRun.getId());
+                                            });
                         });
     }
 
