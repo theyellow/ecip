@@ -12,7 +12,7 @@
   - `RT2-xxx` → `documentation/RED_TEAM_REPORT_2026-07-18.md`
   - `S-NEW-x` / `S-OPEN-x` / `B1` / `KE-x` / `Ix` → `documentation/REVIEW-2026-07-18.md`
   - `INFx` / `RT-Fx` / plain `#` → `docs/superpowers/BACKLOG.md`
-- **Verify-first principle**: the 2026-07-18 reviews already retracted 3 false findings (RT2-001, RT2-010, I1). Before implementing each batch, confirm the finding still holds against current `main` — code moves.
+- **Verify-first principle**: the 2026-07-18 reviews already retracted 3 false findings (RT2-001, RT2-010, I1), and P1 execution corrected **6 more** (see the P1 corrections table). Before implementing each batch, confirm the finding still holds against current `main` — and check the *premises* the plan states about the code, not just the finding itself. P1 batch 1.2 had to be discarded because the plan asserted the audit Kafka listener was single-threaded without ever opening `KafkaConsumerConfig`.
 - Each phase (from P1 on) enters the normal cycle: **brainstorm/spec → writing-plans → implement → verify → PR**. This roadmap is the meta-plan that decides *what batch is next*.
 
 **1.0.0 ships at the end of P3.** P4–P6 are post-release.
@@ -23,8 +23,8 @@
 
 | Phase | Theme | Size | Gate |
 |-------|-------|------|------|
-| **P0** | Reconcile & baseline | XS | — |
-| **P1** | Critical security quick-wins | ~1–2 days | dangerous + cheap |
+| **P0** | Reconcile & baseline | XS | ✅ done (PR #205) |
+| **P1** | Critical security quick-wins | ~1–2 days | ✅ done (#206/#207/#208) |
 | **P2** | Security structural hardening | ~1–2 weeks | — |
 | **P3** | Pre-1.0.0 release-readiness | ~3–5 weeks | **→ 1.0.0** |
 | **P4** | 1.0.0 polish + cheap wins | interleave | — |
@@ -36,9 +36,9 @@
 ## P0 — Reconcile & baseline (this work)
 
 - [x] Write this `ROADMAP.md`.
-- [ ] Sync `BACKLOG.md`: absorb the 17 new 2026-07-18 findings as tracked rows.
-- [ ] Add superseded header to `REMEDIATION_PLAN_2026-07-18.md`.
-- [ ] Commit the three docs together.
+- [x] Sync `BACKLOG.md`: absorb the 2026-07-18 findings as tracked rows (§0).
+- [x] Add superseded header to `REMEDIATION_PLAN_2026-07-18.md`.
+- [x] Commit the docs together — PR #205.
 
 ---
 
@@ -53,12 +53,26 @@ The dangerous-but-cheap batch. Every item here is a live privilege-escalation, t
 - *Fold:* **RT-F3** (parse JWT `Claims` once instead of 4×) and **RT-F4** (single `save()` on login) — same files.
 - Effort: ~½ day.
 
-### PR 1.2 — audit integrity *(HIGH)*
-- **RT2-002** — `AuditEventConsumer` call `saveWithChain()` not `save()`. Activates the hash chain (columns exist, always NULL today).
-- **RT2-016** — add DELETE-prevention Liquibase trigger on `audit_events` (UPDATE trigger already exists).
-- **B1** — remove `.block()` from the Kafka listener; use reactive subscription / async listener.
-- *Optional:* schedule `verifyChain()` as a periodic integrity check.
-- Effort: ~½ day. `emcip-audit-service`.
+### ~~PR 1.2 — audit integrity~~ → **DEFERRED TO P2.0** (2026-07-22)
+
+RT2-002, RT2-016 and B1 turned out **not** to be quick wins. Deferred after implementation was
+attempted, reviewed, and discarded. Reason:
+
+`saveWithChain()` (`AuditService.java:166-177`) is an **unsynchronized read-modify-write** —
+it reads the latest row to compute `prev_hash`, then writes. But
+`KafkaConsumerConfig.java:44` sets `factory.setConcurrency(3)`: the audit listener has
+**always been 3-way concurrent**. Simply swapping `save()` → `saveWithChain()` therefore
+forks the chain — two rows claiming the same predecessor — which would make
+`AuditChainVerificationJob` report tamper evidence on untampered data, the exact opposite
+of RT-027's intent. This is true *with or without* `.block()`.
+
+Removing `.block()` (B1) compounds it: under `AckMode.MANUAL_IMMEDIATE`
+(`KafkaConsumerConfig.java:45`) offsets are committed per record, so if record 5's save fails
+and 6–8 succeed, their acks commit *past* 5 and it is never redelivered — **silent
+audit-event loss**. `.block()` was quietly providing both per-thread serialization and
+retry-on-failure.
+
+**RT2-002 and B1 are in direct conflict** and must be designed together. See P2.0.
 
 ### PR 1.3 — Kafka tenant isolation *(HIGH)*
 - **RT2-008** — `ManualEnrichmentConsumer`: add `TenantAwareKafkaSupport.validateTenantHeader(record)` at consumer boundary. `emcip-knowledge-engine`.
@@ -72,7 +86,22 @@ The dangerous-but-cheap batch. Every item here is a live privilege-escalation, t
 - **I4** — make Checkstyle/PMD `failOnViolation: true` (blocking).
 - Effort: ~2h.
 
-**P1 exit criteria:** no VIEWER can perform writes; revoked/demoted tokens are rejected; audit trail is append-only + hash-chained; both Kafka consumers fail-closed on tenant; CI has Java SAST + blocking quality gates.
+**P1 exit criteria:** no VIEWER can perform writes ✅; revoked/demoted tokens are rejected ✅; both
+Kafka consumers fail-closed on tenant ✅; no service exposes actuator health details ✅; CI has Java
+SAST + blocking quality gates ✅. *(Audit-trail append-only + hash-chained moved to P2.0.)*
+
+**P1 delivered (2026-07-22):** PR #206 (batch 1.1), PR #207 (batch 1.3), PR #208 (batch 1.4).
+
+**Findings corrected during P1** — verified against code, do not re-implement:
+
+| Claim | Reality |
+|-------|---------|
+| RT2-003 "revocation not triggered on password/role/user change" | **FALSE** — already implemented: `UserManagementService.java:143` (role), `:177` (delete), `:242` (password), `AuthController.java:72` (logout). Only the filter 401 bug was real. |
+| RT2-004 "`warmUp()` unauthenticated" | **FALSE** — inherited class-level `AI_CONFIG_READ`. Raised to `AI_CONFIG_WRITE` because it triggers LLM work. |
+| RT2-002 "schedule `verifyChain()`" follow-up | **ALREADY DONE** — `AuditChainVerificationJob` exists. |
+| RT2-004 "TelegramAccountController has 11 endpoints" | **13 endpoints** (9 write + 4 read). |
+| Plan's own claim that the listener is single-threaded | **FALSE** — `setConcurrency(3)`. This is what sank batch 1.2. |
+| Plan's own framing of RT-F4 as "no behaviour change" | Inaccurate — `lastLogin` is no longer persisted if tenant lookup or token generation fails. Net-positive (atomic write), but it *is* a failure-path change. |
 
 ---
 
@@ -82,6 +111,7 @@ Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 
 | Order | Item | ID | Module | Size |
 |-------|------|----|--------|------|
+| 2.0 | **Audit integrity redesign** *(demoted from P1 — see P1 note)*. Must solve three coupled problems together: (a) serialize chain writes so `saveWithChain` cannot fork under `setConcurrency(3)` — options: concurrency 1, a single-subscriber serializing sink, or computing `prev_hash` inside one locking SQL statement; (b) give failed saves a durable landing spot (DLT or error handler) so `MANUAL_IMMEDIATE` acks cannot commit past a lost record; (c) only then add the DELETE-prevention trigger, guarded by a sanctioned-purge session flag (`SET LOCAL emcip.audit_purge='on'`) so `AuditRetentionJob` still works. **Do not split these into separate PRs.** | RT2-002 / RT2-016 / B1 / RT-027 | audit-service | L |
 | 2.1 | **SSRF protection** on `DocumentIngestionService.fetchWithTimeout()` — https/http scheme whitelist, RFC-1918 + loopback + link-local + metadata-IP blocklist, DNS-resolution recheck | RT2-005 / RT-F2 / S-NEW-3 | knowledge-engine | M |
 | 2.2 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options + CSP meta tag in `index.html` | RT2-007 / RT-029 | admin-ui | M |
 | 2.3 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S |
