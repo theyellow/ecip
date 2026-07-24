@@ -3,6 +3,10 @@ spring:
     consumer:
       auto-offset-reset: earliest
 
+emcip:
+  # Test-only key. Base64 of "0123456789abcdef0123456789abcdef" (32 bytes).
+  secret-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+
 knowledge:
   chunking:
     target-tokens: 300

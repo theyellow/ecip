@@ -1,6 +1,7 @@
 package io.emcip.knowledge.engine.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -27,7 +28,8 @@ public class VendorApiKey {
     @Column(name = "tenant_id")
     private UUID tenantId;
 
-    @Column(name = "api_key", nullable = false, length = 512)
+    @Convert(converter = VendorApiKeyCipherConverter.class)
+    @Column(name = "api_key", nullable = false)
     private String apiKey;
 
     @Column(nullable = false)
