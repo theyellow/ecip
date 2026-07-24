@@ -67,6 +67,16 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- Jakarta Persistence API (optional - for EncryptedStringConverter in JPA services).
+         Provided: JPA services already bring Hibernate; R2DBC services must not gain a JPA
+         dependency from emcip-core. -->
+    <dependency>
+      <groupId>jakarta.persistence</groupId>
+      <artifactId>jakarta.persistence-api</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+
     <!-- Reactor Core (optional - for ReactorTenantContext in WebFlux services) -->
     <dependency>
       <groupId>io.projectreactor</groupId>
