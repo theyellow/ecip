@@ -2,6 +2,7 @@ package io.emcip.admin.api.integration;
 
 import io.emcip.admin.api.integration.dto.VendorApiKeyRequest;
 import io.emcip.admin.api.integration.dto.VendorApiKeyResponse;
+import io.emcip.common.crypto.SecretCipher;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -19,24 +20,32 @@ public class VendorApiKeyService {
 
     private final VendorApiKeyRowRepository repo;
 
+    private final SecretCipher cipher;
+
+    private static final String API_KEY_LOCATION = "ke_vendor_api_keys.api_key";
+
+    private VendorApiKeyResponse toResponse(VendorApiKeyRow row) {
+        return VendorApiKeyResponse.from(row, cipher.decrypt(row.getApiKey(), API_KEY_LOCATION));
+    }
+
     public Flux<VendorApiKeyResponse> listGlobal() {
-        return repo.findAllByTenantIdIsNull().map(VendorApiKeyResponse::from);
+        return repo.findAllByTenantIdIsNull().map(this::toResponse);
     }
 
     public Flux<VendorApiKeyResponse> listByTenant(UUID tenantId) {
-        return repo.findAllByTenantId(tenantId).map(VendorApiKeyResponse::from);
+        return repo.findAllByTenantId(tenantId).map(this::toResponse);
     }
 
     public Mono<VendorApiKeyResponse> createGlobal(VendorApiKeyRequest req) {
         VendorApiKeyRow row =
                 VendorApiKeyRow.builder()
                         .vendorId(req.vendorId())
-                        .apiKey(req.apiKey())
+                        .apiKey(cipher.encrypt(req.apiKey()))
                         .enabled(req.enabled())
                         .createdAt(Instant.now())
                         .updatedAt(Instant.now())
                         .build();
-        return repo.save(row).map(VendorApiKeyResponse::from);
+        return repo.save(row).map(this::toResponse);
     }
 
     public Mono<VendorApiKeyResponse> upsertForTenant(
@@ -44,7 +53,7 @@ public class VendorApiKeyService {
         return repo.findByVendorIdAndTenantId(vendorId, tenantId)
                 .flatMap(
                         existing -> {
-                            existing.setApiKey(req.apiKey());
+                            existing.setApiKey(cipher.encrypt(req.apiKey()));
                             existing.setEnabled(req.enabled());
                             existing.setUpdatedAt(Instant.now());
                             return repo.save(existing);
@@ -56,14 +65,14 @@ public class VendorApiKeyService {
                                             VendorApiKeyRow.builder()
                                                     .vendorId(vendorId)
                                                     .tenantId(tenantId)
-                                                    .apiKey(req.apiKey())
+                                                    .apiKey(cipher.encrypt(req.apiKey()))
                                                     .enabled(req.enabled())
                                                     .createdAt(Instant.now())
                                                     .updatedAt(Instant.now())
                                                     .build();
                                     return repo.save(row);
                                 }))
-                .map(VendorApiKeyResponse::from);
+                .map(this::toResponse);
     }
 
     public Mono<VendorApiKeyResponse> update(UUID id, VendorApiKeyRequest req) {
@@ -73,12 +82,12 @@ public class VendorApiKeyService {
                                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Key not found")))
                 .flatMap(
                         row -> {
-                            row.setApiKey(req.apiKey());
+                            row.setApiKey(cipher.encrypt(req.apiKey()));
                             row.setEnabled(req.enabled());
                             row.setUpdatedAt(Instant.now());
                             return repo.save(row);
                         })
-                .map(VendorApiKeyResponse::from);
+                .map(this::toResponse);
     }
 
     public Mono<Void> delete(UUID id) {
