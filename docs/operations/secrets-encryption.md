@@ -43,6 +43,17 @@ loudly.
 2. Deploy the new images. Pods start normally — decryption happens on demand, not at boot — and
    Liquibase widens the columns. **From here until step 4, any feature reading one of the four
    secrets fails with the strict-mode error.** This is the maintenance window.
+
+   > **Cross-service ordering for `ke_vendor_api_keys`:** this table is owned by knowledge-engine
+   > (its schema, including the `api_key` column widening in changeset `021`, is applied by
+   > knowledge-engine's Liquibase at startup) but is written with encrypted values by admin-api.
+   > Ensure knowledge-engine has started and applied its migrations before admin-api accepts a new
+   > vendor-key write — otherwise a very long key's ciphertext could exceed the pre-widening
+   > `VARCHAR(512)`. In a normal all-services deploy this happens automatically; the caution
+   > matters if the two services are started separately. **Local dev note:** in
+   > `docker-compose.yml`, admin-api is in the default profile while knowledge-engine is behind
+   > the `full` profile, so bring up knowledge-engine (or use `--profile full`) before exercising
+   > vendor-key writes.
 3. For each column, read the current plaintext, generate ciphertext, and UPDATE by primary key.
    There is no `psql` on the workstation, so work through the Postgres pod:
 

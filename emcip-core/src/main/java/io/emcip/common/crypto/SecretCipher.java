@@ -96,6 +96,9 @@ public class SecretCipher {
         }
         try {
             byte[] combined = Base64.getDecoder().decode(stored.substring(PREFIX.length()));
+            if (combined.length < IV_LENGTH_BYTES) {
+                throw new IllegalStateException("Corrupt or truncated secret in " + location);
+            }
             byte[] iv = new byte[IV_LENGTH_BYTES];
             System.arraycopy(combined, 0, iv, 0, IV_LENGTH_BYTES);
 

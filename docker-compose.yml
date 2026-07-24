@@ -184,6 +184,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=${LLM_DB_USER:-emcip}
       - SPRING_DATASOURCE_PASSWORD=${LLM_DB_PASS:-emcip}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
+      # Dev-only default (public test key). Production supplies the real key via the emcip-secret-key K8s Secret.
       - EMCIP_SECRET_KEY=${EMCIP_SECRET_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     networks:
       - app-tier
@@ -267,6 +268,7 @@ services:
       - TELEGRAM_API_ID=${TELEGRAM_API_ID}
       - TELEGRAM_API_HASH=${TELEGRAM_API_HASH}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
+      # Dev-only default (public test key). Production supplies the real key via the emcip-secret-key K8s Secret.
       - EMCIP_SECRET_KEY=${EMCIP_SECRET_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     networks:
       - app-tier
@@ -293,6 +295,7 @@ services:
       - LLM_ORCHESTRATOR_URL=http://ecip-llm-orchestrator:9084
       - TDLIB_ADAPTER_URL=http://ecip-tdlib-adapter:9080
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://ecip-tempo:4318
+      # Dev-only default (public test key). Production supplies the real key via the emcip-secret-key K8s Secret.
       - EMCIP_SECRET_KEY=${EMCIP_SECRET_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
     networks:
       - app-tier

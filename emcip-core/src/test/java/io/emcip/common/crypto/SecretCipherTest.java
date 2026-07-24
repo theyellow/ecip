@@ -44,6 +44,17 @@ class SecretCipherTest {
     }
 
     @Test
+    void decrypt_prefixedButTooShortToContainIv_throwsIllegalStateNamingColumn() {
+        // "v1:" + base64 of 4 bytes — shorter than the 12-byte IV.
+        String malformed =
+                "v1:" + java.util.Base64.getEncoder().encodeToString(new byte[] {1, 2, 3, 4});
+
+        assertThatThrownBy(() -> cipher.decrypt(malformed, LOCATION))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(LOCATION);
+    }
+
+    @Test
     void decrypt_tamperedCiphertext_failsWithAeadBadTag() {
         String encrypted = cipher.encrypt("tamper-me");
         byte[] raw = Base64.getDecoder().decode(encrypted.substring(3));
