@@ -42,15 +42,19 @@ found two more items:
 | `api_key` | `ke_vendor_api_keys` | admin-api (R2DBC) writes, knowledge-engine (JPA) reads | yes — RT-013 |
 | `api_key` | `llm_provider_configs` | llm-orchestrator (JPA) | yes — S-NEW-2 |
 | **`api_hash`** | `telegram_accounts` | admin-api (R2DBC) | **no — added** |
-| `api_hash`, `session_string` | **`telegram_config`** | *nobody* | **no — table dropped** |
+| `api_hash`, `session_string` | **`telegram_config`** | *nobody* | **no — already dropped by changelog 007** |
 
 - **`telegram_accounts.api_hash` is in scope.** Together with `api_id` it is the Telegram application
   credential. It sits in the same row we are already rewriting; encrypting the session but not the
   hash beside it is indefensible and costs nothing extra.
-- **`telegram_config` is dropped, not encrypted.** Created in changelog `006`, superseded by
-  `telegram_accounts` in `007`, and referenced by **zero** Java files. Its committed seed row is only
-  `id=1`, so nothing secret is in git — but any environment that once populated it still holds
-  plaintext credentials in a table no code can read. Deleting beats encrypting.
+- **`telegram_config` needs nothing — already gone.** *(Corrected 2026-07-24 during implementation.)*
+  It was created in changelog `006` and this design assumed it lingered as an orphan holding plaintext
+  credentials. On verification, changeset `007-drop-telegram-config`
+  (`changes/007-telegram-accounts.xml`) **already drops it** as the first step of the migration to
+  `telegram_accounts` — so it does not exist in any environment past changelog 007, and there is
+  nothing to encrypt or drop. The originally-planned `DROP TABLE telegram_config` was removed: dropping
+  a nonexistent table fails Liquibase. This is a verify-first miss — the `006` `createTable` was seen
+  during design, but the `007` drop was not checked.
 
 `users.password_hash` (BCrypt) and `refresh_tokens.token_hash` are already one-way hashed and are
 correctly **out of scope**.
@@ -144,7 +148,8 @@ One Liquibase changeset per owning service. **Liquibase only — no Flyway.**
 
 **admin-api:**
 - `telegram_accounts.api_hash`: `VARCHAR(255)` → `TEXT`
-- `DROP TABLE telegram_config` (with a rollback block recreating the empty table)
+- ~~`DROP TABLE telegram_config`~~ — removed; changelog `007` already dropped it (see the scope note
+  above).
 
 **knowledge-engine:**
 - `ke_vendor_api_keys.api_key`: `VARCHAR(512)` → `TEXT`
@@ -323,7 +328,8 @@ Per the project documentation checklist, this change also updates:
 1. No plaintext secret remains in `telegram_accounts.session_string`, `telegram_accounts.api_hash`,
    `ke_vendor_api_keys.api_key` or `llm_provider_configs.api_key` — verified by raw SQL against the
    cluster database after the §4 runbook, every value starting with `v1:`.
-2. `telegram_config` no longer exists.
+2. `telegram_config` no longer exists — already guaranteed by changelog `007`; this change adds no
+   drop.
 3. A vendor key written by admin-api is readable by knowledge-engine, and vice versa.
 4. The Admin UI still shows the last 4 characters of the real key.
 5. All three services fail to start without a valid `EMCIP_SECRET_KEY`; no other service is affected.

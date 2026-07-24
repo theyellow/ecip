@@ -70,7 +70,7 @@ Consequences, which Task 7 depends on:
 | `emcip-llm-orchestrator/.../config/CryptoConfig.java` | Imports `SecretCipherConfig` into llm-orchestrator. |
 | `emcip-llm-orchestrator/.../entity/LlmProviderApiKeyCipherConverter.java` | Binds the converter to `llm_provider_configs.api_key`. |
 | `emcip-admin-api/.../config/CryptoConfig.java` | Imports `SecretCipherConfig` into admin-api. |
-| 3 Liquibase changesets | Column widening + dropping `telegram_config`. |
+| 3 Liquibase changesets | Column widening (the `telegram_config` drop was dropped from scope — changelog `007` already removed that table). |
 | `docs/operations/secrets-encryption.md` | Key generation, the migration runbook, key-loss recovery. |
 
 **Modified:** `emcip-core/pom.xml` (add `jakarta.persistence-api`), `VendorApiKey.java`,
@@ -2014,7 +2014,7 @@ deploying this**, or secret-reading features will fail.
 | # | Criterion | Verified by |
 |---|-----------|-------------|
 | 1 | No plaintext remains in the four columns | Task 8 runbook step 4 (raw SQL, zero rows) |
-| 2 | `telegram_config` no longer exists | Task 7 changeset `017-drop-orphan-telegram-config` |
+| 2 | `telegram_config` no longer exists | Already dropped by changelog `007-drop-telegram-config`; Task 7's redundant drop was removed after review (it would fail Liquibase) |
 | 3 | A key written by admin-api is readable by knowledge-engine | Task 4 `ciphertextWrittenByAnotherService_isReadableHere` |
 | 4 | The Admin UI still shows the last 4 characters of the real key | Task 6 `listGlobal_masksTheDecryptedKeyNotTheCiphertext` |
 | 5 | The three services fail to start without a valid key; no other service is affected | Task 1 `SecretCipherConfigTest`; only 3 services `@Import` `SecretCipherConfig` |
