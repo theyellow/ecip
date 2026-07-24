@@ -13,8 +13,10 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.emcip.common.crypto.SecretCipher;
 import io.emcip.common.tenant.ReactorTenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +50,9 @@ class TelegramAccountServiceTest {
     @Mock private RequestHeadersSpec<?> requestHeadersSpec;
     @Mock private ResponseSpec responseSpec;
 
+    private static final SecretCipher CIPHER =
+            new SecretCipher("0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8));
+
     private TelegramAccountService service;
 
     @BeforeEach
@@ -59,7 +64,8 @@ class TelegramAccountServiceTest {
                         groupProfileRepository,
                         r2dbcEntityTemplate,
                         tdlibClient,
-                        CircuitBreakerRegistry.ofDefaults());
+                        CircuitBreakerRegistry.ofDefaults(),
+                        CIPHER);
         ReflectionTestUtils.setField(service, "telegramApiId", 12345);
         ReflectionTestUtils.setField(service, "telegramApiHash", "test-api-hash");
     }
@@ -112,7 +118,9 @@ class TelegramAccountServiceTest {
                             assertThat(a.getTenantId()).isEqualTo(tenantId);
                             assertThat(a.getCreatedAt()).isNotNull();
                             assertThat(a.getApiId()).isEqualTo(12345);
-                            assertThat(a.getApiHash()).isEqualTo("test-api-hash");
+                            assertThat(a.getApiHash()).isNotEqualTo("test-api-hash");
+                            assertThat(CIPHER.decrypt(a.getApiHash(), "test"))
+                                    .isEqualTo("test-api-hash");
                         })
                 .verifyComplete();
     }
