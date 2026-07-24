@@ -3,6 +3,7 @@ package io.emcip.llm.orchestrator.entity;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -47,7 +48,8 @@ public class LlmProviderConfig {
             description = "API key for the LiteLLM proxy (write-only, never returned in responses)",
             accessMode = Schema.AccessMode.WRITE_ONLY)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Column(length = 512)
+    @Convert(converter = LlmProviderApiKeyCipherConverter.class)
+    @Column
     private String apiKey;
 
     @Schema(description = "Whether this provider is the active one used for LLM calls")

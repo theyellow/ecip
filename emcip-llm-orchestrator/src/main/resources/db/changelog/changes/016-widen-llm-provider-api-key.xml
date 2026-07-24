@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.29.xsd">
+
+    <changeSet id="llm-16" author="secrets-encryption">
+        <comment>
+            P2.0 (S-NEW-2): widen api_key for AES-256-GCM ciphertext.
+            A 512-char key encrypts to roughly 723 chars of v1:-prefixed base64.
+        </comment>
+        <modifyDataType tableName="llm_provider_configs" columnName="api_key" newDataType="TEXT"/>
+        <rollback>
+            <modifyDataType tableName="llm_provider_configs" columnName="api_key" newDataType="VARCHAR(512)"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
