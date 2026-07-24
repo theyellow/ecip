@@ -119,7 +119,7 @@ class TelegramAccountServiceTest {
                             assertThat(a.getCreatedAt()).isNotNull();
                             assertThat(a.getApiId()).isEqualTo(12345);
                             assertThat(a.getApiHash()).isNotEqualTo("test-api-hash");
-                            assertThat(CIPHER.decrypt(a.getApiHash(), "test"))
+                            assertThat(CIPHER.decrypt(a.getApiHash(), "telegram_accounts.api_hash"))
                                     .isEqualTo("test-api-hash");
                         })
                 .verifyComplete();
