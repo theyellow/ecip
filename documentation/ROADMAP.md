@@ -145,6 +145,13 @@ because the key would appear in SQL text and leak into `pg_stat_statements` and 
 deferred to P6. Carry this same approach into the future secrets-management ADR — the `v1:` prefix is
 the hook that lets a KMS/Vault backend swap in behind the cipher without touching stored data.
 
+**P2.0 delivered (2026-07-24):** branch `feat/p2-secrets-encryption-at-rest`. Four columns encrypted
+(`SecretCipher` in `emcip-core`; JPA `@Convert` for knowledge-engine/llm-orchestrator, service-layer for
+admin-api R2DBC), strict fail-closed reads, hand-run migration via `SecretCipherCli` +
+`docs/operations/secrets-encryption.md`. Scope correction during implementation: the planned
+`DROP TABLE telegram_config` was removed — changelog `007` already dropped it. Follow-ups tracked as
+P2.0-M1/M2/F1 in `BACKLOG.md`. **Next: P2.1 — audit integrity redesign.**
+
 ---
 
 ## P3 — Pre-1.0.0 release-readiness
