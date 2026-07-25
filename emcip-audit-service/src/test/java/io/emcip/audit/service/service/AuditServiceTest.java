@@ -246,13 +246,11 @@ class AuditServiceTest {
 
     @Test
     void verifyChain_validChain_returnsValid() {
-        String hash1 = "aaaa";
-        String hash2 = "bbbb";
         // records returned newest-first: record2 then record1
-        AuditEventEntity record2 =
-                AuditEventEntity.builder().id(2L).integrityHash(hash2).prevHash(hash1).build();
-        AuditEventEntity record1 =
-                AuditEventEntity.builder().id(1L).integrityHash(hash1).prevHash(null).build();
+        AuditEventEntity record1 = withId(row("evt-1", null), 1L);
+        record1.setIntegrityHash(AuditService.computeIntegrityHash(record1));
+        AuditEventEntity record2 = withId(row("evt-2", record1.getIntegrityHash()), 2L);
+        record2.setIntegrityHash(AuditService.computeIntegrityHash(record2));
 
         when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.just(record2, record1));
 
@@ -263,14 +261,11 @@ class AuditServiceTest {
 
     @Test
     void verifyChain_brokenChain_returnsBrokenResult() {
-        AuditEventEntity record2 =
-                AuditEventEntity.builder()
-                        .id(2L)
-                        .integrityHash("bbbb")
-                        .prevHash("WRONG_HASH")
-                        .build();
-        AuditEventEntity record1 =
-                AuditEventEntity.builder().id(1L).integrityHash("aaaa").prevHash(null).build();
+        AuditEventEntity record1 = withId(row("evt-1", null), 1L);
+        record1.setIntegrityHash(AuditService.computeIntegrityHash(record1));
+        // record2's own content hash is self-consistent, but it points at the wrong predecessor.
+        AuditEventEntity record2 = withId(row("evt-2", "WRONG_HASH"), 2L);
+        record2.setIntegrityHash(AuditService.computeIntegrityHash(record2));
 
         when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.just(record2, record1));
 
@@ -279,8 +274,91 @@ class AuditServiceTest {
                         r ->
                                 !r.valid()
                                         && r.brokenAtId().equals(2L)
-                                        && "aaaa".equals(r.expectedHash())
+                                        && record1.getIntegrityHash().equals(r.expectedHash())
                                         && "WRONG_HASH".equals(r.actualHash()))
                 .verifyComplete();
+    }
+
+    @Test
+    void computeIntegrityHash_foldsPrevHash_soContentTamperingIsDetectable() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        AuditEventEntity b = row("evt-2", a.getIntegrityHash());
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(r -> assertThat(r.valid()).isTrue())
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_contentTampered_reportsContentTamperedReason() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        AuditEventEntity b = row("evt-2", a.getIntegrityHash());
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+        // Tamper b's content AFTER its hash was stored -> recompute won't match stored hash.
+        b.setResourceId("tampered-resource");
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(
+                        r -> {
+                            assertThat(r.valid()).isFalse();
+                            assertThat(r.reason())
+                                    .isEqualTo(AuditService.ChainFailureReason.CONTENT_TAMPERED);
+                            assertThat(r.brokenAtId()).isEqualTo(2L);
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_brokenLinkage_reportsBrokenLinkageReason() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        // b points at the wrong predecessor hash but its own content hash is self-consistent.
+        AuditEventEntity b =
+                row("evt-2", "0000000000000000000000000000000000000000000000000000000000000000");
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(
+                        r -> {
+                            assertThat(r.valid()).isFalse();
+                            assertThat(r.reason())
+                                    .isEqualTo(AuditService.ChainFailureReason.BROKEN_LINKAGE);
+                        })
+                .verifyComplete();
+    }
+
+    private static AuditEventEntity row(String eventId, String prevHash) {
+        AuditEventEntity e =
+                AuditEventEntity.builder()
+                        .eventId(eventId)
+                        .eventType("TelegramMessage")
+                        .sourceService("emcip-tdlib-adapter")
+                        .action("TelegramMessage")
+                        .actorType("SYSTEM")
+                        .actorId("actor-1")
+                        .resourceType("TelegramMessage")
+                        .resourceId("res-1")
+                        .outcome("PROCESSED")
+                        .createdAt(Instant.parse("2026-07-25T10:00:00Z"))
+                        .build();
+        e.setPrevHash(prevHash);
+        return e;
+    }
+
+    private static AuditEventEntity withId(AuditEventEntity e, long id) {
+        e.setId(id);
+        return e;
     }
 }
