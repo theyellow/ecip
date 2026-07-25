@@ -65,7 +65,10 @@ public class SecretCipher {
             jce.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LENGTH_BITS, iv));
             byte[] ciphertext = jce.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
 
-            byte[] combined = new byte[iv.length + ciphertext.length];
+            // Math.addExact makes the length arithmetic overflow-safe: a wrapped negative size
+            // throws instead of allocating a mis-sized buffer (CodeQL
+            // java/uncontrolled-arithmetic).
+            byte[] combined = new byte[Math.addExact(iv.length, ciphertext.length)];
             System.arraycopy(iv, 0, combined, 0, iv.length);
             System.arraycopy(ciphertext, 0, combined, iv.length, ciphertext.length);
 
