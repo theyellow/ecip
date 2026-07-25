@@ -53,7 +53,7 @@ The dangerous-but-cheap batch. Every item here is a live privilege-escalation, t
 - *Fold:* **RT-F3** (parse JWT `Claims` once instead of 4×) and **RT-F4** (single `save()` on login) — same files.
 - Effort: ~½ day.
 
-### ~~PR 1.2 — audit integrity~~ → **DEFERRED TO P2.0** (2026-07-22)
+### ~~PR 1.2 — audit integrity~~ → **DEFERRED TO P2.1** (2026-07-22)
 
 RT2-002, RT2-016 and B1 turned out **not** to be quick wins. Deferred after implementation was
 attempted, reviewed, and discarded. Reason:
@@ -72,7 +72,7 @@ and 6–8 succeed, their acks commit *past* 5 and it is never redelivered — **
 audit-event loss**. `.block()` was quietly providing both per-thread serialization and
 retry-on-failure.
 
-**RT2-002 and B1 are in direct conflict** and must be designed together. See P2.0.
+**RT2-002 and B1 are in direct conflict** and must be designed together. See P2.1.
 
 ### PR 1.3 — Kafka tenant isolation *(HIGH)*
 - **RT2-008** — `ManualEnrichmentConsumer`: add `TenantAwareKafkaSupport.validateTenantHeader(record)` at consumer boundary. `emcip-knowledge-engine`.
@@ -89,7 +89,7 @@ retry-on-failure.
 **P1 exit criteria:** no VIEWER can perform writes ✅; revoked/demoted tokens are rejected ✅; both
 Kafka consumers fail-closed on tenant ✅; no service exposes actuator health details ✅; CI has Java
 SAST ✅; **PMD** blocking ✅. Checkstyle turned out to be inert and was **removed** — Spotless already owns formatting and their indent rules directly contradict (I4b). *(Audit-trail append-only +
-hash-chained moved to P2.0.)*
+hash-chained moved to P2.1.)*
 
 **The final whole-change review caught a Critical regression the three task-scoped reviews all missed.**
 Batch C's new fail-closed tenant check bricked *all* manual enrichment: the sole producer set no
@@ -121,20 +121,36 @@ before merging parallel batches, and never add a consumer-side requirement witho
 
 Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 
+> **Ordering revised 2026-07-23.** The crypto pair (formerly 2.5 + 2.6) moved to the front and merged
+> into a single item. Reasons: `session_string` was the only **CRITICAL** left in P2 yet sat behind four
+> HIGHs; and the two items are one problem — reversibly encrypting a secret column in a database shared
+> by several services — so splitting them meant deciding the crypto strategy twice, or merging a
+> half-encrypted system. Finding IDs are unchanged; only the **Order** column was renumbered.
+
 | Order | Item | ID | Module | Size |
 |-------|------|----|--------|------|
-| 2.0 | **Audit integrity redesign** *(demoted from P1 — see P1 note)*. Must solve three coupled problems together: (a) serialize chain writes so `saveWithChain` cannot fork under `setConcurrency(3)` — options: concurrency 1, a single-subscriber serializing sink, or computing `prev_hash` inside one locking SQL statement; (b) give failed saves a durable landing spot (DLT or error handler) so `MANUAL_IMMEDIATE` acks cannot commit past a lost record; (c) only then add the DELETE-prevention trigger, guarded by a sanctioned-purge session flag (`SET LOCAL emcip.audit_purge='on'`) so `AuditRetentionJob` still works. **Do not split these into separate PRs.** | RT2-002 / RT2-016 / B1 / RT-027 | audit-service | L |
-| 2.1 | **SSRF protection** on `DocumentIngestionService.fetchWithTimeout()` — https/http scheme whitelist, RFC-1918 + loopback + link-local + metadata-IP blocklist, DNS-resolution recheck | RT2-005 / RT-F2 / S-NEW-3 | knowledge-engine | M |
-| 2.2 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options + CSP meta tag in `index.html` | RT2-007 / RT-029 | admin-ui | M |
-| 2.3 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S |
-| 2.4 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L |
-| 2.5 | **Telegram `session_string` encryption** — pgcrypto or app-level AES-256-GCM (open since Round 1) | S5 / S-OPEN-1 | admin-api | M |
-| 2.6 | **API-key encryption at rest** — `vendor_api_keys.api_key`, `llm_provider_configs.api_key`; decide strategy (app AES / pgcrypto / Vault) first | RT-013 / S-NEW-2 | admin-api + knowledge-engine | M |
-| 2.7 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M |
-| 2.8 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3), `npm audit fix` (RT2-015) | admin-ui | S |
-| 2.9 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S |
+| 2.0 | **Secrets encryption at rest** *(merges the former 2.5 + 2.6)* — AES-256-GCM `SecretCipher` in `emcip-core`, `v1:`-prefixed. Covers `telegram_accounts.session_string`, `telegram_accounts.api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`. **Strict fail-closed reads**; existing rows migrated by hand in the cluster, no backfill code. Spec: `docs/superpowers/specs/2026-07-23-secrets-encryption-at-rest-design.md` | S5 / S-OPEN-1 / RT-013 / S-NEW-2 | emcip-core + admin-api + knowledge-engine + llm-orchestrator | L |
+| 2.1 | **Audit integrity redesign** *(demoted from P1 — see P1 note)*. Must solve three coupled problems together: (a) serialize chain writes so `saveWithChain` cannot fork under `setConcurrency(3)` — options: concurrency 1, a single-subscriber serializing sink, or computing `prev_hash` inside one locking SQL statement; (b) give failed saves a durable landing spot (DLT or error handler) so `MANUAL_IMMEDIATE` acks cannot commit past a lost record — note audit-service defines its **own** `KafkaConsumerConfig` with no error handler and does not use `CommonKafkaConfig`, while `emcip-core` already ships `DeadLetterTopicHandler`; (c) only then add the DELETE-prevention trigger, guarded by a sanctioned-purge session flag (`SET LOCAL emcip.audit_purge='on'`) so `AuditRetentionJob` still works. The UPDATE-prevention trigger already exists (`003-audit-tamper-resistance.xml`); only DELETE is missing. **Do not split these into separate PRs.** | RT2-002 / RT2-016 / B1 / RT-027 | audit-service | L |
+| 2.2 | **SSRF protection** on `DocumentIngestionService.fetchWithTimeout()` — https/http scheme whitelist, RFC-1918 + loopback + link-local + metadata-IP blocklist, DNS-resolution recheck | RT2-005 / RT-F2 / S-NEW-3 | knowledge-engine | M |
+| 2.3 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options + CSP meta tag in `index.html` | RT2-007 / RT-029 | admin-ui | M |
+| 2.4 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S |
+| 2.5 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L |
+| 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M |
+| 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3), `npm audit fix` (RT2-015) | admin-ui | S |
+| 2.8 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S |
 
-**Note (2.6):** needs a one-paragraph strategy decision before implementation — carry the same approach chosen here into a future secrets-management ADR.
+**Note (2.0):** the secrets-management strategy decision that RT-013 was blocked on is now **made** —
+app-level AES-256-GCM with the key from a K8s Secret, key never sent to Postgres. pgcrypto was rejected
+because the key would appear in SQL text and leak into `pg_stat_statements` and query logs; Vault was
+deferred to P6. Carry this same approach into the future secrets-management ADR — the `v1:` prefix is
+the hook that lets a KMS/Vault backend swap in behind the cipher without touching stored data.
+
+**P2.0 delivered (2026-07-24):** branch `feat/p2-secrets-encryption-at-rest`. Four columns encrypted
+(`SecretCipher` in `emcip-core`; JPA `@Convert` for knowledge-engine/llm-orchestrator, service-layer for
+admin-api R2DBC), strict fail-closed reads, hand-run migration via `SecretCipherCli` +
+`docs/operations/secrets-encryption.md`. Scope correction during implementation: the planned
+`DROP TABLE telegram_config` was removed — changelog `007` already dropped it. Follow-ups tracked as
+P2.0-M1/M2/F1 in `BACKLOG.md`. **Next: P2.1 — audit integrity redesign.**
 
 ---
 

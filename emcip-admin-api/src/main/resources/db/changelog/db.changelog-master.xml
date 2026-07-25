@@ -80,5 +80,6 @@
     <include file="db/changelog/changes/014-group-profiles-knowledge-fork.xml"/>
     <include file="db/changelog/015-create-service-roles.xml"/>
     <include file="db/changelog/016-admin-users-add-current-jti.xml"/>
+    <include file="db/changelog/017-secrets-encryption.xml"/>
 
 </databaseChangeLog>

@@ -154,6 +154,7 @@ services:
       # No static API key secret needed here.
     secrets:
       ADMIN_SERVICE_TOKEN: admin-service-token
+      EMCIP_SECRET_KEY: emcip-secret-key
     # Observed cold start: ~55s. Delay set to 70s.
     # TODO: re-measure under stress before tightening further.
     # Budget: 70s + 24×(10+5)s = 430s total.
@@ -256,6 +257,7 @@ services:
       ADMIN_SERVICE_TOKEN: admin-service-token
       TELEGRAM_API_ID: telegram-api-id
       TELEGRAM_API_HASH: telegram-api-hash
+      EMCIP_SECRET_KEY: emcip-secret-key
     # Observed cold start: ~60s (R2DBC+Liquibase, much faster than old JPA image).
     # Delay set to 75s. TODO: re-measure under stress before tightening further.
     # Budget: 75s + 12×(10+5)s = 255s total.
@@ -287,6 +289,7 @@ services:
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=25.0 -XX:+UseG1GC"
     secrets:
       ADMIN_SERVICE_TOKEN: admin-service-token
+      EMCIP_SECRET_KEY: emcip-secret-key
     # No cold-start measurement yet — using conservative estimate matching policy-engine.
     # TODO: measure actual startup time after first deployment.
     startupInitialDelay: 170

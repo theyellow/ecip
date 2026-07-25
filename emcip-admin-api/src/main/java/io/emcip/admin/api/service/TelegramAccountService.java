@@ -7,6 +7,7 @@ import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.emcip.common.crypto.SecretCipher;
 import io.emcip.common.tenant.ReactorTenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -39,6 +40,10 @@ public class TelegramAccountService {
     private final R2dbcEntityTemplate r2dbcEntityTemplate;
     private final WebClient tdlibClient;
     private final CircuitBreaker tdlibCircuitBreaker;
+    private final SecretCipher cipher;
+
+    private static final String API_HASH_LOCATION = "telegram_accounts.api_hash";
+    private static final String SESSION_LOCATION = "telegram_accounts.session_string";
 
     @Value("${telegram.api-id}")
     private int telegramApiId;
@@ -52,13 +57,15 @@ public class TelegramAccountService {
             GroupProfileRepository groupProfileRepository,
             R2dbcEntityTemplate r2dbcEntityTemplate,
             @Qualifier("tdlibWebClient") WebClient tdlibClient,
-            CircuitBreakerRegistry registry) {
+            CircuitBreakerRegistry registry,
+            SecretCipher cipher) {
         this.repository = repository;
         this.watchedGroupRepository = watchedGroupRepository;
         this.groupProfileRepository = groupProfileRepository;
         this.r2dbcEntityTemplate = r2dbcEntityTemplate;
         this.tdlibClient = tdlibClient;
         this.tdlibCircuitBreaker = registry.circuitBreaker("tdlib-adapter");
+        this.cipher = cipher;
     }
 
     public Flux<TelegramAccount> findAll() {
@@ -97,7 +104,9 @@ public class TelegramAccountService {
                                     .id(UUID.randomUUID())
                                     .phoneNumber(phoneNumber)
                                     .apiId(apiId != null ? apiId : telegramApiId)
-                                    .apiHash(apiHash != null ? apiHash : telegramApiHash)
+                                    .apiHash(
+                                            cipher.encrypt(
+                                                    apiHash != null ? apiHash : telegramApiHash))
                                     .displayName(displayName)
                                     .status(TelegramAccountStatus.UNCONFIGURED)
                                     .adapterId("default")
@@ -178,8 +187,12 @@ public class TelegramAccountService {
                             Map<String, Object> payload = new LinkedHashMap<>();
                             payload.put("phoneNumber", account.getPhoneNumber());
                             payload.put("apiId", account.getApiId());
-                            payload.put("apiHash", account.getApiHash());
-                            payload.put("sessionString", account.getSessionString());
+                            payload.put(
+                                    "apiHash",
+                                    cipher.decrypt(account.getApiHash(), API_HASH_LOCATION));
+                            payload.put(
+                                    "sessionString",
+                                    cipher.decrypt(account.getSessionString(), SESSION_LOCATION));
                             if (account.getTenantId() != null) {
                                 payload.put("tenantId", account.getTenantId().toString());
                             }
@@ -408,8 +421,8 @@ public class TelegramAccountService {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("phoneNumber", account.getPhoneNumber());
         payload.put("apiId", account.getApiId());
-        payload.put("apiHash", account.getApiHash());
-        payload.put("sessionString", account.getSessionString());
+        payload.put("apiHash", cipher.decrypt(account.getApiHash(), API_HASH_LOCATION));
+        payload.put("sessionString", cipher.decrypt(account.getSessionString(), SESSION_LOCATION));
         if (account.getTenantId() != null) {
             payload.put("tenantId", account.getTenantId().toString());
         }

@@ -22,10 +22,10 @@
 >   `AI_CONFIG_WRITE` because it triggers LLM work.
 > - RT2-002's *"schedule `verifyChain()`"* follow-up — **ALREADY DONE** (`AuditChainVerificationJob`).
 > - TelegramAccountController has **13** endpoints (9 write + 4 read), not 11.
-> - **RT2-002/RT2-016/B1 moved to P2.0.** Not quick wins: `saveWithChain()` is an unsynchronized
+> - **RT2-002/RT2-016/B1 moved to P2.1.** Not quick wins: `saveWithChain()` is an unsynchronized
 >   read-modify-write and `KafkaConsumerConfig.java:44` sets `setConcurrency(3)`, so activating the chain
 >   forks it. Removing `.block()` additionally causes silent audit-event loss under `MANUAL_IMMEDIATE`
->   acks. Must be redesigned as one coupled task — see `ROADMAP.md` P2.0.
+>   acks. Must be redesigned as one coupled task — see `ROADMAP.md` P2.1.
 
 | ID | Item | Sev | Phase | Size | Status |
 |----|------|-----|-------|------|--------|
@@ -33,9 +33,9 @@
 | RT2-004 | `@PreAuthorize` WRITE perms on TelegramAccount/Tenant/AIProxy controllers (22 endpoints) | CRITICAL | P1.1 | S | ✅ PR #206 |
 | RT-F3 | JWT single-parse optimization (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
 | RT-F4 | Combine double save on login (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
-| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | **P2.0** | L | ⏳ **deferred** |
-| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | **P2.0** | L | ⏳ **deferred** |
-| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | **P2.0** | L | ⏳ **deferred** |
+| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | **P2.1** | L | ⏳ **deferred** |
+| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | **P2.1** | L | ⏳ **deferred** |
+| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | **P2.1** | L | ⏳ **deferred** |
 | RT2-008 | `ManualEnrichmentConsumer` explicit Kafka tenant-header validation | HIGH | P1.3 | XS | ✅ PR #207 |
 | RT2-009 | `PolicyDecisionConsumer` capture + set tenant UUID | HIGH | P1.3 | XS | ✅ PR #207 |
 | RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ✅ PR #208 |
@@ -47,15 +47,18 @@
 | P1-M2 | JWT revocation is **per-replica** — `JwtRevocationService` uses an in-process `ConcurrentHashMap`. Correct at `replicas: 1` (current Helm default) but silently degrades on scale-out. Bounds the RT2-003 fix. | MEDIUM | P4 | M | ⏳ |
 | P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
 | P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
-| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.1 | M | ⏳ |
-| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.2 | M | ⏳ |
-| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.3 | S | ⏳ |
-| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.4 | L | ⏳ |
-| S5 / S-OPEN-1 | Encrypt Telegram `session_string` (open since Round 1) | CRITICAL | P2.5 | M | ⏳ |
-| RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.7 | M | ⏳ |
-| U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.8 | S | ⏳ |
-| RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.8 | XS | ⏳ |
-| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.9 | S | ⏳ |
+| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ⏳ |
+| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.3 | M | ⏳ |
+| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ |
+| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ |
+| S5 / S-OPEN-1 / RT-013 / S-NEW-2 | **Secrets encryption at rest** — `telegram_accounts.session_string` + `api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`; AES-256-GCM `SecretCipher` in `emcip-core`, strict fail-closed reads, rows migrated by hand via `SecretCipherCli` + runbook. Merges the former P2.5 + P2.6. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`; plan: `plans/2026-07-23-secrets-encryption-at-rest.md`; runbook: `docs/operations/secrets-encryption.md` | CRITICAL | P2.0 | L | ✅ done (branch `feat/p2-secrets-encryption-at-rest`) |
+| P2.0-M1 | llm-orchestrator's `LlmProviderApiKeyCipherConverter` Hibernate-injection is not covered by an integration test (only a hand-constructed unit test). KE proves the identical mechanism via Testcontainers; llm-orchestrator has no Testcontainers harness. Fails loud if it regresses (no no-arg ctor). Add a `@DataJpaTest` round-trip. | LOW | P4 | XS | ⏳ |
+| P2.0-M2 | `VendorApiKeyEncryptionIT` asserts the decrypt `rootCause` doesn't leak plaintext, but not that the JPA wrapper messages (`JpaSystemException`/`PersistenceException`) don't — safe today (fixed Hibernate string) but unpinned by a test. | LOW | P4 | XS | ⏳ |
+| P2.0-F1 | Follow-up: flip reads from strict-fail-closed to a stricter startup self-check once every environment reports zero plaintext (the design's planned hardening). Also revisit key rotation (the `v1:` prefix is the hook) with the P6 secrets ADR. | LOW | P3/P4 | S | ⏳ |
+| RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ⏳ |
+| U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.7 | S | ⏳ |
+| RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.7 | XS | ⏳ |
+| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ⏳ |
 
 ---
 
@@ -123,7 +126,7 @@
 | 13 | **GraalVM native — R2DBC services** | XL | 4 services JVM-only (`moderation-service`, `audit-service`, `admin-api`, `intent-classifier`). Blocked on R2DBC + GraalVM reflection hints. Ref: `specs/2026-04-29-graalvm-native-migration-design.md`. |
 | RT-005 | **Kafka SASL authentication + topic ACLs** | M | Red Team finding RT-005 / LC-2. All services connect to Kafka without authentication; any pod in the cluster can produce/consume any topic. Currently acceptable because Kafka runs on a trusted internal network with no external exposure. Revisit when: multi-tenant cluster, external Kafka access, or compliance audit requires transport-level auth. Implementation: enable `SASL_PLAINTEXT` or `SASL_SSL`, per-service credentials, topic ACLs restricting produce/consume to owning services. Ref: `documentation/RED_TEAM_REPORT.md`. |
 | RT-012 | **Kubernetes pod security hardening** | S | Red Team finding RT-012. Pods run without `securityContext` restrictions — no `readOnlyRootFilesystem`, no `runAsNonRoot`, no `allowPrivilegeEscalation: false`, no dropped capabilities. This is infrastructure-level hardening (not application code). Implementation: add `securityContext` to all Deployment templates in `helm/emcip/templates/apps/standard-deployments.yaml` and the StatefulSet. Ref: `documentation/RED_TEAM_REPORT.md`. |
-| RT-013 | **Encrypt API keys at rest in database** | M | Red Team finding RT-013. `vendor_api_keys.api_key` and `llm_provider_configs.api_key` are stored as plaintext `VARCHAR` in PostgreSQL. Deferred until a secrets management strategy is decided (options: application-level AES-256-GCM encryption with key from env/Vault, or PostgreSQL `pgcrypto` column encryption, or external secrets manager like HashiCorp Vault / K8s External Secrets Operator). Ref: `documentation/RED_TEAM_REPORT.md`. |
+| RT-013 | **Encrypt API keys at rest in database** — *no longer deferred; promoted to §0 as part of **P2.0**.* | — | Strategy decided 2026-07-23: application-level AES-256-GCM, key from a K8s Secret, never sent to Postgres. `pgcrypto` rejected (key would appear in SQL text and leak into `pg_stat_statements`/query logs); Vault deferred to P6, to swap in behind the same cipher boundary. Tracked in §0 with S5 / S-OPEN-1 / S-NEW-2. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`. |
 
 ---
 

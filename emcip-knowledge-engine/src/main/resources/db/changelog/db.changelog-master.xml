@@ -25,5 +25,6 @@
     <include file="changes/018-ingestion-status-length.xml" relativeToChangelogFile="true"/>
     <include file="changes/019-fix-embedding-dimensions.xml" relativeToChangelogFile="true"/>
     <include file="changes/020-job-dedup-columns.xml" relativeToChangelogFile="true"/>
+    <include file="changes/021-widen-vendor-api-key.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
