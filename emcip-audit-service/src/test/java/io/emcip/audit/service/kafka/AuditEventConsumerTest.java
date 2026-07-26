@@ -1,9 +1,11 @@
 package io.emcip.audit.service.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -139,6 +141,19 @@ class AuditEventConsumerTest {
                 .isInstanceOf(RuntimeException.class);
 
         verify(acknowledgment, never()).acknowledge();
+    }
+
+    @Test
+    void handleTelegramMessage_missingTenantHeader_acksAndSkips() {
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "key", "irrelevant-body");
+        // Deliberately no addTenantHeader(record) call — exercises the rejection branch.
+
+        assertThatCode(() -> consumer.handleTelegramMessage(record, acknowledgment))
+                .doesNotThrowAnyException();
+
+        verify(acknowledgment, times(1)).acknowledge();
+        verify(auditService, never()).saveWithChain(any());
     }
 
     // --- handleIntentClassified ---
