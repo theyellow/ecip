@@ -81,24 +81,26 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
-        when(auditService.save(any(AuditEventEntity.class)))
+        when(auditService.saveWithChain(any(AuditEventEntity.class)))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(1L).build()));
 
         consumer.handleTelegramMessage(record, acknowledgment);
 
-        verify(auditService).save(any(AuditEventEntity.class));
+        verify(auditService).saveWithChain(any(AuditEventEntity.class));
         verify(acknowledgment).acknowledge();
     }
 
     @Test
-    void handleTelegramMessage_malformedJson_skipsAndAcknowledges() {
+    void malformedRecord_propagatesForErrorHandler_notAcked() {
         ConsumerRecord<String, String> record =
-                new ConsumerRecord<>("telegram.messages", 0, 1L, "key", "{ not valid json %%% }");
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "k", "{ not json");
+        addTenantHeader(record);
 
-        consumer.handleTelegramMessage(record, acknowledgment);
+        assertThatThrownBy(() -> consumer.handleTelegramMessage(record, acknowledgment))
+                .isInstanceOf(tools.jackson.core.JacksonException.class);
 
-        verify(auditService, never()).save(any());
-        verify(acknowledgment).acknowledge();
+        verify(acknowledgment, never()).acknowledge();
+        verify(auditService, never()).saveWithChain(any());
     }
 
     @Test
@@ -130,7 +132,7 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
-        when(auditService.save(any(AuditEventEntity.class)))
+        when(auditService.saveWithChain(any(AuditEventEntity.class)))
                 .thenReturn(Mono.error(new RuntimeException("DB unavailable")));
 
         assertThatThrownBy(() -> consumer.handleTelegramMessage(record, acknowledgment))
@@ -161,7 +163,7 @@ class AuditEventConsumerTest {
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(3L).build()));
 
         consumer.handleIntentClassified(record, acknowledgment);
@@ -204,7 +206,7 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(1L).build()));
 
         consumer.handleTelegramMessage(record, acknowledgment);
@@ -231,7 +233,7 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(2L).build()));
 
         consumer.handleIntentClassified(record, acknowledgment);
@@ -261,12 +263,12 @@ class AuditEventConsumerTest {
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(2L).build()));
 
         consumer.handleModerationFlag(record, acknowledgment);
 
-        verify(auditService).save(any(AuditEventEntity.class));
+        verify(auditService).saveWithChain(any(AuditEventEntity.class));
         assertThat(captor.getValue().getSourceService()).isEqualTo("emcip-moderation-service");
         assertThat(captor.getValue().getEventId()).isEqualTo("flag-001");
         verify(acknowledgment).acknowledge();
