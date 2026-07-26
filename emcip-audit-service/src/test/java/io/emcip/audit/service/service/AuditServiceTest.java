@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.r2dbc.core.DatabaseClient;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -22,13 +24,16 @@ import tools.jackson.databind.ObjectMapper;
 class AuditServiceTest {
 
     @Mock private AuditEventRepository repository;
+    @Mock private DatabaseClient databaseClient;
+    @Mock private TransactionalOperator transactionalOperator;
 
     private AuditService auditService;
 
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        auditService = new AuditService(repository, objectMapper);
+        auditService =
+                new AuditService(repository, objectMapper, databaseClient, transactionalOperator);
     }
 
     @Test
@@ -153,59 +158,12 @@ class AuditServiceTest {
     }
 
     // --- hash chaining ---
-
-    @Test
-    void saveWithChain_firstRecord_setsNullPrevHashAndComputesIntegrityHash() {
-        AuditEventEntity entity =
-                AuditEventEntity.builder()
-                        .eventId("evt-chain-001")
-                        .eventType("AUTH")
-                        .actorId("user-1")
-                        .resourceType("SESSION")
-                        .resourceId("sess-1")
-                        .createdAt(Instant.parse("2026-01-01T00:00:00Z"))
-                        .build();
-        AuditEventEntity saved = AuditEventEntity.builder().id(1L).eventId("evt-chain-001").build();
-
-        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.empty());
-        when(repository.save(any(AuditEventEntity.class))).thenReturn(Mono.just(saved));
-
-        StepVerifier.create(auditService.saveWithChain(entity))
-                .expectNextMatches(r -> r.getId().equals(1L))
-                .verifyComplete();
-
-        // entity should have had prevHash=null and integrityHash set
-        assertThat(entity.getPrevHash()).isNull();
-        assertThat(entity.getIntegrityHash()).isNotNull().hasSize(64);
-    }
-
-    @Test
-    void saveWithChain_subsequentRecord_linksPrevHash() {
-        AuditEventEntity previous =
-                AuditEventEntity.builder()
-                        .id(1L)
-                        .integrityHash(
-                                "aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011")
-                        .build();
-        AuditEventEntity entity =
-                AuditEventEntity.builder()
-                        .eventId("evt-chain-002")
-                        .eventType("AUTH")
-                        .createdAt(Instant.parse("2026-01-01T00:01:00Z"))
-                        .build();
-        AuditEventEntity saved = AuditEventEntity.builder().id(2L).eventId("evt-chain-002").build();
-
-        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.just(previous));
-        when(repository.save(any(AuditEventEntity.class))).thenReturn(Mono.just(saved));
-
-        StepVerifier.create(auditService.saveWithChain(entity))
-                .expectNextMatches(r -> r.getId().equals(2L))
-                .verifyComplete();
-
-        assertThat(entity.getPrevHash())
-                .isEqualTo("aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011");
-        assertThat(entity.getIntegrityHash()).isNotNull().hasSize(64);
-    }
+    //
+    // saveWithChain is no longer unit-tested here: it now runs the read-tail -> compute -> insert
+    // sequence inside a single TransactionalOperator transaction guarded by a Postgres advisory
+    // lock (pg_advisory_xact_lock), which requires a real database connection to exercise
+    // meaningfully. See AuditChainConcurrencyIT for behavioral coverage (linear chain, no forks
+    // under concurrency).
 
     @Test
     void deleteRecordsOlderThan_noRecords_returnsZero() {

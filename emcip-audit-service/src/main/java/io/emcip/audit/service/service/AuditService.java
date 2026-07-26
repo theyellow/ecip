@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import tools.jackson.core.JacksonException;
@@ -28,6 +30,11 @@ public class AuditService {
 
     private final AuditEventRepository repository;
     private final ObjectMapper objectMapper;
+    private final DatabaseClient databaseClient;
+    private final TransactionalOperator transactionalOperator;
+
+    /** Stable advisory-lock key for the audit chain: ASCII "emcipaud". */
+    private static final long AUDIT_CHAIN_LOCK_KEY = 0x656D636970617564L;
 
     public Mono<AuditEventEntity> save(AuditEventEntity entity) {
         return repository
@@ -162,18 +169,31 @@ public class AuditService {
     /**
      * Save an audit event with hash chaining. Fetches the last record's integrity_hash to use as
      * prev_hash, computes the new record's integrity_hash, then persists.
+     *
+     * <p>The read-tail -> compute -> insert sequence is serialized across concurrent callers by a
+     * Postgres transaction-scoped advisory lock ({@code pg_advisory_xact_lock}), so parallel
+     * callers cannot read the same tail and fork the chain.
      */
     public Mono<AuditEventEntity> saveWithChain(AuditEventEntity entity) {
-        return repository
-                .findTopByOrderByIdDesc()
-                .map(AuditEventEntity::getIntegrityHash)
-                .defaultIfEmpty("")
-                .flatMap(
-                        prevHash -> {
-                            entity.setPrevHash(prevHash.isEmpty() ? null : prevHash);
-                            entity.setIntegrityHash(computeIntegrityHash(entity));
-                            return repository.save(entity);
-                        });
+        Mono<AuditEventEntity> op =
+                databaseClient
+                        .sql("SELECT pg_advisory_xact_lock(:key)")
+                        .bind("key", AUDIT_CHAIN_LOCK_KEY)
+                        .fetch()
+                        .first() // acquire the lock before reading the tail
+                        .then(
+                                repository
+                                        .findTopByOrderByIdDesc()
+                                        .map(AuditEventEntity::getIntegrityHash)
+                                        .defaultIfEmpty(""))
+                        .flatMap(
+                                prevHash -> {
+                                    entity.setPrevHash(prevHash.isEmpty() ? null : prevHash);
+                                    entity.setIntegrityHash(computeIntegrityHash(entity));
+                                    return repository.save(entity);
+                                });
+        // Lock is transaction-scoped: it releases automatically on commit/rollback.
+        return transactionalOperator.transactional(op);
     }
 
     /**
