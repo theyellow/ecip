@@ -1,7 +1,6 @@
 package io.emcip.audit.service;
 
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.KafkaContainer;
@@ -17,7 +16,6 @@ import org.testcontainers.utility.DockerImageName;
  * Spring context for subsequent test classes.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(TestKafkaProducerConfig.class)
 public abstract class AbstractAuditIntegrationTest {
 
     static final PostgreSQLContainer<?> POSTGRES;
