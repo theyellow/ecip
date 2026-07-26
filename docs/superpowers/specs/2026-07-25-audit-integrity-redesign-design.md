@@ -1,10 +1,29 @@
 # P2.1 — Audit Integrity Redesign
 
-> Status: design (awaiting user review)
+> Status: in implementation
 > Date: 2026-07-25
 > Phase: P2.1 (`documentation/ROADMAP.md`)
 > Closes: RT2-002, RT2-016, B1; fulfils RT-027's tamper-evident intent
-> Module: `emcip-audit-service` (+ one new dependency)
+> Module: `emcip-audit-service`
+
+> **Decision revision (2026-07-26): consumer stays synchronous `@KafkaListener`, not reactive.**
+> The original design (below, §3.2) called for a `ReactiveKafkaConsumerTemplate` rewrite to remove
+> `.block()`. During implementation this was found unbuildable: **`ReactiveKafkaConsumerTemplate`
+> was removed from spring-kafka 4.x**, and the library it wrapped — **Reactor Kafka — is
+> discontinued** (last release Feb 2024, project EOL May 2025). The only way to keep a fully reactive
+> consumer would be to depend directly on the EOL `reactor-kafka`, which violates the "no deprecated
+> libraries" bar for a 1.0.0 security-critical path. Verified: `ReactiveKafkaConsumerTemplate` is
+> absent from `spring-kafka-4.0.4.jar`; every EMCIP Kafka consumer (11 classes, including the reactive
+> R2DBC `moderation-service`) already uses synchronous `@KafkaListener`.
+>
+> **Adopted (Option C):** keep `@KafkaListener` (supported, matches the whole codebase), switch it to
+> `saveWithChain` (activating the chain), and add `DefaultErrorHandler` (exponential backoff) +
+> `DeadLetterTopicHandler` for no-silent-loss — the pattern already in `CommonKafkaConfig`. The
+> persistence layer stays fully reactive (`saveWithChain` `Mono` + R2DBC + advisory lock); a single
+> `.block()` bridges at the Kafka consumer thread (a dedicated thread pool, not a WebFlux event loop —
+> legitimate). All three coupled goals still hold: **no fork** (advisory lock, §3.1), **no silent
+> loss** (error handler + DLQ), **tamper-evident** (§3.3). The `reactor-kafka` dependency is removed.
+> §3.2 below is retained for history; read it through the lens of this revision.
 
 ## 1. Context
 

@@ -2,11 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Activate the `audit_events` hash chain safely under concurrency and make it genuinely tamper-evident, replace the blocking Kafka listener with a reactive consumer that cannot silently lose records, and add a DELETE-prevention trigger that still permits the sanctioned retention purge — all in one PR.
+**Goal:** Activate the `audit_events` hash chain safely under concurrency and make it genuinely tamper-evident, harden the Kafka consumer so a failed save cannot be silently lost (retry→DLQ), and add a DELETE-prevention trigger that still permits the sanctioned retention purge — all in one PR.
 
 **Architecture:** `AuditService.saveWithChain` serialises read-tail→compute→insert with a Postgres advisory transaction lock inside a `TransactionalOperator`. The five `@KafkaListener` methods become one `ReactiveKafkaConsumerTemplate` pipeline (`concatMap` for in-instance ordering, advisory lock for cross-replica) with retry→DLQ via the existing `DeadLetterTopicHandler`. `integrity_hash` folds in `prev_hash`; `verifyChain` recomputes it. A `BEFORE DELETE` trigger blocks deletes unless a `SET LOCAL emcip.audit_purge='on'` flag is set by the retention path.
 
-**Tech Stack:** Java 21, Spring Boot 4.0.5, Spring WebFlux + Spring Data R2DBC (reactive), spring-kafka + reactor-kafka (`ReactiveKafkaConsumerTemplate`), Liquibase, PostgreSQL 16, Testcontainers (Kafka + Postgres), JUnit 5 + Mockito + reactor-test + AssertJ + Awaitility.
+**Tech Stack:** Java 21, Spring Boot 4.0.5, Spring WebFlux + Spring Data R2DBC (reactive persistence), spring-kafka (synchronous `@KafkaListener`), Liquibase, PostgreSQL 16, Testcontainers (Kafka + Postgres), JUnit 5 + Mockito + reactor-test + AssertJ + Awaitility.
+
+> **REVISION 2026-07-26 — Option C (consumer stays synchronous).** Tasks 5–7 below were originally
+> written for a reactive `ReactiveKafkaConsumerTemplate` rewrite. That class was **removed in
+> spring-kafka 4.x** and its underlying library (**reactor-kafka**) is **discontinued (EOL May
+> 2025)**, so the reactive path would require a deprecated dependency. **Tasks 5–7 are superseded by
+> the Option C versions in this document** (they replace the original 5–7). Task 1's reactor-kafka
+> dependency is **reverted** (removed from the pom by the controller during the revision). Tasks 1–4's
+> delivered code (hash, advisory-lock `saveWithChain`, DELETE trigger) is unaffected. Rationale is in
+> the spec's "Decision revision" banner.
 
 ## Global Constraints
 
@@ -19,7 +28,7 @@
 - **Tenant fail-closed:** every Kafka record must carry a `tenant_id` header; `TenantAwareKafkaSupport.validateTenantHeader` throws on a missing/invalid header. Test producers **must** set the header (real UUID or `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`). Header key constant: `TenantContext.KAFKA_HEADER` = `"tenant_id"`.
 - **Do not split into multiple PRs.** Multiple commits on one branch (`feat/p2-audit-integrity`) is the intended shape.
 - **Advisory lock key:** `private static final long AUDIT_CHAIN_LOCK_KEY = 0x656D636970617564L;` (ASCII `"emcipaud"`, a stable, documented constant).
-- **Test class naming:** unit tests `*Test` (Surefire), integration tests `*IT` (Failsafe, `mvn verify`). Integration tests extend `AbstractAuditIntegrationTest`.
+- **Test class naming:** unit tests `*Test` (Surefire), integration tests `*IT`. Integration tests extend `AbstractAuditIntegrationTest`. **NOTE:** maven-failsafe is NOT activated in `emcip-audit-service`, so `mvn verify` runs NO integration tests — run an IT by naming its class under Surefire: `mvn -pl emcip-audit-service test -Dtest=<ITName>` (naming the class overrides Surefire's `**/*IT.java` exclude). Whether to wire failsafe into CI is an open decision for the finishing stage.
 
 ---
 
@@ -705,22 +714,22 @@ git commit -m "feat(audit): DELETE-prevention trigger guarded by purge flag (RT2
 
 ---
 
-### Task 5: Reactive Kafka infrastructure (producer + DLQ handler + reactive template)
+### Task 5: Kafka error-handling + DLQ + producer wiring (Option C)
 
-audit-service is consumer-only today with no `KafkaTemplate`, and `DeadLetterTopicHandler` is not scanned. This task adds the producer/DLQ beans and the reactive consumer template **without** subscribing yet (the old `@KafkaListener` consumer stays active), so behaviour is unchanged and tests stay green. It also removes the duplicate test `KafkaTemplate` so the main one is used everywhere.
+audit-service is consumer-only today with no `KafkaTemplate`, `DeadLetterTopicHandler` is not scanned, and its `KafkaConsumerConfig` has no error handler — so a failed save under `MANUAL_IMMEDIATE` can be silently lost. This task adds the producer + DLQ handler and a `DefaultErrorHandler` (exponential backoff → DLQ recoverer) to the existing container factory, mirroring `emcip-core`'s `CommonKafkaConfig`. The consumer still calls `save()` this task (the switch to `saveWithChain` + letting exceptions reach the handler is Task 6), so behaviour is unchanged except that failures now retry→DLQ instead of looping.
 
 **Files:**
-- Create: `emcip-audit-service/src/main/java/io/emcip/audit/service/config/AuditKafkaConfig.java`
+- Modify: `emcip-audit-service/src/main/java/io/emcip/audit/service/config/KafkaConsumerConfig.java`
 - Delete: `emcip-audit-service/src/test/java/io/emcip/audit/service/TestKafkaProducerConfig.java`
 - Modify: `emcip-audit-service/src/test/java/io/emcip/audit/service/AbstractAuditIntegrationTest.java` (drop the `@Import`)
 
 **Interfaces:**
-- Produces: `@Bean KafkaTemplate<String,String> kafkaTemplate`; `@Bean DeadLetterTopicHandler deadLetterTopicHandler`; `@Bean ReactiveKafkaConsumerTemplate<String,String> reactiveAuditConsumerTemplate` (subscribed to the five audit topics); `@Bean KafkaMetricsConfig` (imported).
-- Consumes: `io.emcip.common.kafka.DeadLetterTopicHandler`, `io.emcip.common.kafka.KafkaMetricsConfig` (from emcip-core), the audit `ObjectMapper` bean.
+- Produces: `@Bean KafkaTemplate<String,String> kafkaTemplate`; `@Bean DeadLetterTopicHandler deadLetterTopicHandler`; the container factory now carries a `DefaultErrorHandler` that recovers to `<topic>.dlq` via `DeadLetterTopicHandler.sendToDeadLetterQueue(...)`, with `JacksonException` classified non-retryable.
+- Consumes: `io.emcip.common.kafka.DeadLetterTopicHandler`, `io.emcip.common.kafka.KafkaMetricsConfig` (from emcip-core), the audit `ObjectMapper` bean (`LiquibaseConfig.objectMapper()`).
 
-- [ ] **Step 1: Create the Kafka config**
+- [ ] **Step 1: Rewrite KafkaConsumerConfig with producer + DLQ + error handler**
 
-Create `AuditKafkaConfig.java`:
+Replace the body of `KafkaConsumerConfig.java` with:
 
 ```java
 package io.emcip.audit.service.config;
@@ -728,9 +737,9 @@ package io.emcip.audit.service.config;
 import io.emcip.common.kafka.DeadLetterTopicHandler;
 import io.emcip.common.kafka.KafkaMetricsConfig;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -738,32 +747,46 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.kafka.annotation.EnableKafka;
+import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.core.ConsumerFactory;
+import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate;
-import reactor.kafka.receiver.ReceiverOptions;
+import org.springframework.kafka.listener.ContainerProperties;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.util.backoff.ExponentialBackOff;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
-/** Reactive Kafka consumer + producer (for DLQ) wiring for the audit service. */
+@EnableKafka
 @Configuration
 @Import(KafkaMetricsConfig.class)
-public class AuditKafkaConfig {
-
-    static final List<String> AUDIT_TOPICS =
-            List.of(
-                    "telegram.raw.messages",
-                    "messages.classified",
-                    "policies.decisions",
-                    "responses.generated",
-                    "moderation.flags");
-
-    static final String GROUP_ID = "emcip-audit-service";
+public class KafkaConsumerConfig {
 
     @Value("${spring.kafka.bootstrap-servers:localhost:14003}")
     private String bootstrapServers;
 
-    // --- Producer side: needed by DeadLetterTopicHandler to publish to <topic>.dlq ---
+    @Value("${spring.kafka.consumer.group-id:emcip-audit-service}")
+    private String groupId;
+
+    // --- Consumer ---
+
+    @Bean
+    public ConsumerFactory<String, String> consumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    // --- Producer (used only for DLQ publishing) ---
 
     @Bean
     public ProducerFactory<String, String> producerFactory() {
@@ -789,451 +812,178 @@ public class AuditKafkaConfig {
         return new DeadLetterTopicHandler(kafkaTemplate, objectMapper, metricsConfig);
     }
 
-    // --- Reactive consumer side ---
+    // --- Listener container factory: manual ack + retry(backoff) -> DLQ ---
 
     @Bean
-    public ReactiveKafkaConsumerTemplate<String, String> reactiveAuditConsumerTemplate() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
+    public ConcurrentKafkaListenerContainerFactory<String, String> kafkaListenerContainerFactory(
+            DeadLetterTopicHandler dlqHandler) {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(3);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(errorHandler(dlqHandler));
+        return factory;
+    }
 
-        ReceiverOptions<String, String> receiverOptions =
-                ReceiverOptions.<String, String>create(props).subscription(AUDIT_TOPICS);
-        return new ReactiveKafkaConsumerTemplate<>(receiverOptions);
+    private DefaultErrorHandler errorHandler(DeadLetterTopicHandler dlqHandler) {
+        // 1s, 2s, 4s ... capped at 30s, give up after ~1 min -> recover to DLQ.
+        ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);
+        backOff.setMaxInterval(30_000L);
+        backOff.setMaxElapsedTime(60_000L);
+
+        DefaultErrorHandler handler =
+                new DefaultErrorHandler(
+                        (record, exception) -> {
+                            @SuppressWarnings("unchecked")
+                            ConsumerRecord<String, String> rec =
+                                    (ConsumerRecord<String, String>) record;
+                            // On retries-exhausted (or a non-retryable exception), park the record
+                            // on <topic>.dlq so MANUAL_IMMEDIATE never commits past a lost record.
+                            dlqHandler.sendToDeadLetterQueue(rec, exception.getMessage(), 0, groupId);
+                        },
+                        backOff);
+        // Malformed payloads are permanent: recover (DLQ) immediately, don't waste retries.
+        handler.addNotRetryableExceptions(JacksonException.class);
+        return handler;
     }
 }
 ```
 
 - [ ] **Step 2: Remove the duplicate test producer config**
 
-The main `kafkaTemplate` bean now serves tests too. Delete `TestKafkaProducerConfig.java` and drop its import from the base test class.
-
-In `AbstractAuditIntegrationTest`, remove the `@Import(TestKafkaProducerConfig.class)` annotation and its import line.
+The main `kafkaTemplate` bean now serves tests too. Delete `TestKafkaProducerConfig.java` and drop its `@Import(TestKafkaProducerConfig.class)` (and the import line) from `AbstractAuditIntegrationTest`.
 
 ```bash
 git rm emcip-audit-service/src/test/java/io/emcip/audit/service/TestKafkaProducerConfig.java
 ```
 
-- [ ] **Step 3: Verify the context still loads and existing ITs pass**
+- [ ] **Step 3: Verify the context loads and the green ITs stay green**
 
-Run: `mvn -q -pl emcip-audit-service verify -Dit.test=AuditEventPersistenceIT,AuditChainConcurrencyIT,AuditDeletePreventionIT -DfailIfNoTests=false`
-Expected: PASS — the old `@KafkaListener` consumer still handles `AuditEventPersistenceIT`; the new beans load; tests autowire the main `KafkaTemplate`.
+maven-failsafe is NOT active in this module, so run ITs by naming the class under Surefire:
+Run: `mvn -q -pl emcip-audit-service test -Dtest=AuditChainConcurrencyIT,AuditDeletePreventionIT`
+Expected: PASS — the full Spring context boots with the new producer/DLQ/error-handler beans, and both ITs (which use the main `KafkaTemplate` after `TestKafkaProducerConfig` removal) stay green.
 
-> If the context fails with "no qualifying bean of type MeterRegistry" for `KafkaMetricsConfig`, confirm actuator/micrometer are on the classpath (they are). If `KafkaMetricsConfig` needs a `MeterRegistry` not present in the slice, it is provided by `spring-boot-starter-actuator` in the full `@SpringBootTest` context — no action needed.
+> `AuditEventPersistenceIT` is still expected-RED here (its tenant-header fix lands in Task 6) — do not rely on it for this task. If the context fails to load (e.g. a missing `MeterRegistry` for `KafkaMetricsConfig`), report the exact error — do not hack around it.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 mvn -pl emcip-audit-service spotless:apply
-git add emcip-audit-service/src/main/java/io/emcip/audit/service/config/AuditKafkaConfig.java \
+git add emcip-audit-service/src/main/java/io/emcip/audit/service/config/KafkaConsumerConfig.java \
         emcip-audit-service/src/test/java/io/emcip/audit/service/AbstractAuditIntegrationTest.java
-git commit -m "feat(audit): reactive Kafka + DLQ producer wiring (inert until Task 6)"
+git commit -m "feat(audit): DLQ error handler + producer wiring on audit consumer (B1)"
 ```
 
 ---
 
-### Task 6: Topic→mapper registry + reactive consumer; activate the chain
+### Task 6: Activate the chain in the consumer + no-silent-loss wiring (Option C)
 
-Replace the five `@KafkaListener` methods and `KafkaConsumerConfig` with the reactive pipeline that calls `saveWithChain` (activating the chain), commits per record after persist, and routes failures to the DLQ. The per-topic mapping data moves into a registry.
+Switch the existing `@KafkaListener` consumer from `save()` to `saveWithChain()` (activating the chain), and let parse/save exceptions propagate to the container's `DefaultErrorHandler` (Task 5) instead of being silently swallowed — malformed JSON → immediate DLQ, transient save failure → retry → DLQ. Tenant-rejected records are still logged and skipped (consistent with `moderation-service`). The `.block()` stays: it runs on the dedicated Kafka listener thread (not a WebFlux event loop), and it is what lets a save failure surface as a thrown exception the error handler can route.
 
 **Files:**
-- Create: `emcip-audit-service/src/main/java/io/emcip/audit/service/kafka/AuditTopicMapping.java`
-- Create: `emcip-audit-service/src/main/java/io/emcip/audit/service/kafka/AuditTopicMappings.java`
-- Create: `emcip-audit-service/src/main/java/io/emcip/audit/service/kafka/ReactiveAuditEventConsumer.java`
-- Delete: `emcip-audit-service/src/main/java/io/emcip/audit/service/kafka/AuditEventConsumer.java`
-- Delete: `emcip-audit-service/src/main/java/io/emcip/audit/service/config/KafkaConsumerConfig.java`
-- Replace: `emcip-audit-service/src/test/java/io/emcip/audit/service/kafka/AuditEventConsumerTest.java` → `ReactiveAuditEventConsumerTest.java`
+- Modify: `emcip-audit-service/src/main/java/io/emcip/audit/service/kafka/AuditEventConsumer.java`
+- Modify: `emcip-audit-service/src/test/java/io/emcip/audit/service/kafka/AuditEventConsumerTest.java`
 - Modify: `emcip-audit-service/src/test/java/io/emcip/audit/service/AuditEventPersistenceIT.java` (send tenant header; assert `integrity_hash` populated)
 
 **Interfaces:**
-- Produces: `AuditTopicMapping<T extends EventSchemas.Event>` (record); `AuditTopicMappings.forTopic(String) : AuditTopicMapping<?>`; `ReactiveAuditEventConsumer.buildEntity(String json, AuditTopicMapping<T>, UUID tenant) : AuditEventEntity` (package-private, unit-testable).
-- Consumes: `ReactiveKafkaConsumerTemplate` + `DeadLetterTopicHandler` (Task 5), `AuditService.saveWithChain` + `serializeDetails` (Tasks 2–3), `TenantAwareKafkaSupport.validateTenantHeader`.
+- Consumes: `AuditService.saveWithChain` (Task 3), `DefaultErrorHandler`/DLQ from the container factory (Task 5), `TenantAwareKafkaSupport.validateTenantHeader`.
 
-- [ ] **Step 1: Create the mapping record**
+- [ ] **Step 1: Switch the consumer to saveWithChain and let exceptions propagate**
 
-Create `AuditTopicMapping.java`:
+In `AuditEventConsumer.processAuditEvent(...)`, make three changes (keep the five thin `@KafkaListener` methods and the generic `processAuditEvent` signature exactly as they are):
+
+1. Change the persistence call from `auditService.save(entity).block();` to `auditService.saveWithChain(entity).block();`.
+2. Remove the `try/catch` that swallows `JacksonException` (currently acks+skips a malformed record) and the outer `catch (Exception e) { ... throw new RuntimeException(e); }` wrapper. Let `objectMapper.readValue(...)` throw its `JacksonException` (non-retryable → DLQ) and `saveWithChain(...).block()` throw its failure (retryable → DLQ) straight to the container's error handler.
+3. Keep the tenant-rejection branch (`validateTenantHeader` throws `IllegalStateException` → log + `acknowledgment.acknowledge()` + `return`). Drop the `TenantContext.setTenantId(...)`/`TenantContext.clear()` calls: this is a reactive service and the ThreadLocal does not propagate into the reactive `saveWithChain` chain; the tenant is carried on the entity via `.tenantId(tenantUuid)`.
+
+Resulting shape of `processAuditEvent`:
 
 ```java
-package io.emcip.audit.service.kafka;
-
-import io.emcip.common.events.EventSchemas;
-import java.util.Map;
-import java.util.function.Function;
-
-/** Immutable per-topic description of how to turn an event into an audit record. */
-public record AuditTopicMapping<T extends EventSchemas.Event>(
-        String topic,
+private <T extends EventSchemas.Event> void processAuditEvent(
+        ConsumerRecord<String, String> record,
+        Acknowledgment acknowledgment,
         Class<T> eventClass,
         String sourceService,
         String resourceType,
         Function<T, String> resourceIdFn,
         Function<T, String> actorIdFn,
         Function<T, String> correlationIdFn,
-        Function<T, Map<String, Object>> detailsFn) {}
-```
+        Function<T, Map<String, Object>> detailsFn) {
 
-- [ ] **Step 2: Create the registry (the five current listener mappings as data)**
-
-Create `AuditTopicMappings.java`:
-
-```java
-package io.emcip.audit.service.kafka;
-
-import io.emcip.common.events.EventSchemas;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import org.springframework.stereotype.Component;
-
-/** Registry of the five audit topic mappings, keyed by topic name. */
-@Component
-public class AuditTopicMappings {
-
-    private final Map<String, AuditTopicMapping<?>> byTopic = new LinkedHashMap<>();
-
-    public AuditTopicMappings() {
-        register(
-                new AuditTopicMapping<>(
-                        "telegram.raw.messages",
-                        EventSchemas.TelegramMessageEvent.class,
-                        "emcip-tdlib-adapter",
-                        "TelegramMessage",
-                        e -> e.telegramMessageId() != null ? e.telegramMessageId().toString() : null,
-                        EventSchemas.TelegramMessageEvent::senderId,
-                        EventSchemas.TelegramMessageEvent::eventId,
-                        e -> {
-                            Map<String, Object> d = new LinkedHashMap<>();
-                            d.put("telegramMessageId", e.telegramMessageId());
-                            d.put("chatId", e.chatId());
-                            d.put("senderId", e.senderId());
-                            d.put("senderType", e.senderType());
-                            return d;
-                        }));
-        register(
-                new AuditTopicMapping<>(
-                        "messages.classified",
-                        EventSchemas.IntentClassifiedEvent.class,
-                        "emcip-intent-classifier",
-                        "Intent",
-                        EventSchemas.IntentClassifiedEvent::sourceEventId,
-                        e -> null,
-                        EventSchemas.IntentClassifiedEvent::sourceEventId,
-                        e -> {
-                            Map<String, Object> d = new LinkedHashMap<>();
-                            d.put("sourceEventId", e.sourceEventId());
-                            d.put("intent", e.intent());
-                            d.put("confidence", e.confidence());
-                            d.put("matchedRules", e.matchedRules());
-                            return d;
-                        }));
-        register(
-                new AuditTopicMapping<>(
-                        "policies.decisions",
-                        EventSchemas.PolicyDecisionEvent.class,
-                        "emcip-policy-engine",
-                        "Policy",
-                        EventSchemas.PolicyDecisionEvent::policyId,
-                        e -> null,
-                        EventSchemas.PolicyDecisionEvent::sourceEventId,
-                        e -> {
-                            Map<String, Object> d = new LinkedHashMap<>();
-                            d.put("sourceEventId", e.sourceEventId());
-                            d.put("policyId", e.policyId());
-                            d.put("decision", e.decision());
-                            d.put("reason", e.reason());
-                            d.put("actions", e.actions());
-                            return d;
-                        }));
-        register(
-                new AuditTopicMapping<>(
-                        "responses.generated",
-                        EventSchemas.ResponseGeneratedEvent.class,
-                        "emcip-llm-orchestrator",
-                        "LlmResponse",
-                        EventSchemas.ResponseGeneratedEvent::sourceEventId,
-                        e -> null,
-                        EventSchemas.ResponseGeneratedEvent::sourceEventId,
-                        e -> {
-                            Map<String, Object> d = new LinkedHashMap<>();
-                            d.put("sourceEventId", e.sourceEventId());
-                            d.put("modelUsed", e.modelUsed());
-                            d.put("tokenCount", e.tokenCount());
-                            return d;
-                        }));
-        register(
-                new AuditTopicMapping<>(
-                        "moderation.flags",
-                        EventSchemas.ModerationFlagEvent.class,
-                        "emcip-moderation-service",
-                        "ModerationFlag",
-                        EventSchemas.ModerationFlagEvent::sourceEventId,
-                        e -> null,
-                        EventSchemas.ModerationFlagEvent::sourceEventId,
-                        e -> {
-                            Map<String, Object> d = new LinkedHashMap<>();
-                            d.put("sourceEventId", e.sourceEventId());
-                            d.put("flagType", e.flagType());
-                            d.put("severity", e.severity());
-                            d.put("reason", e.reason());
-                            return d;
-                        }));
+    UUID tenantUuid;
+    try {
+        tenantUuid = TenantAwareKafkaSupport.validateTenantHeader(record);
+    } catch (IllegalStateException e) {
+        log.error("Rejecting record: {}", e.getMessage());
+        acknowledgment.acknowledge();
+        return;
     }
 
-    private void register(AuditTopicMapping<?> mapping) {
-        byTopic.put(mapping.topic(), mapping);
-    }
+    // Parse (JacksonException -> non-retryable -> DLQ) and persist with the hash chain
+    // (failure -> retry(backoff) -> DLQ). Both propagate to the container's DefaultErrorHandler;
+    // MANUAL_IMMEDIATE only commits on the success path below.
+    T event = objectMapper.readValue(record.value(), eventClass);
 
-    public AuditTopicMapping<?> forTopic(String topic) {
-        return byTopic.get(topic);
-    }
+    AuditEventEntity entity =
+            AuditEventEntity.builder()
+                    .eventId(event.eventId())
+                    .eventType(event.eventType())
+                    .correlationId(correlationIdFn.apply(event))
+                    .sourceService(sourceService)
+                    .action(event.eventType())
+                    .actorType("SYSTEM")
+                    .actorId(actorIdFn.apply(event))
+                    .resourceType(resourceType)
+                    .resourceId(resourceIdFn.apply(event))
+                    .outcome("PROCESSED")
+                    .details(auditService.serializeDetails(detailsFn.apply(event)))
+                    .tenantId(tenantUuid)
+                    .createdAt(Instant.now())
+                    .build();
+
+    auditService.saveWithChain(entity).block();
+    acknowledgment.acknowledge();
 }
 ```
 
-- [ ] **Step 3: Write the failing unit test for entity building + tenant handling**
+Remove the now-unused imports (`TenantContext`, `JacksonException`) if they are no longer referenced.
 
-Create `ReactiveAuditEventConsumerTest.java` (same package, so it can call the package-private `buildEntity`):
+- [ ] **Step 2: Update the consumer unit test**
+
+In `AuditEventConsumerTest`, update expectations to the new behaviour (the class mocks `AuditService` + `Acknowledgment` and builds `ConsumerRecord`s with a `tenant_id` header via its `addTenantHeader` helper):
+- Where tests stub the persistence call, change `when(auditService.save(any())).thenReturn(Mono.just(...))` to `when(auditService.saveWithChain(any())).thenReturn(Mono.just(...))`, and change `verify(auditService).save(...)` to `verify(auditService).saveWithChain(...)`.
+- The malformed-JSON test previously asserted the record was acked+skipped. Change it to assert the listener now **throws** (so the container's error handler would DLQ it): e.g.
 
 ```java
-package io.emcip.audit.service.kafka;
+@Test
+void malformedRecord_propagatesForErrorHandler_notAcked() {
+    ConsumerRecord<String, String> record =
+            new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "k", "{ not json");
+    addTenantHeader(record);
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+    assertThatThrownBy(() -> consumer.handleTelegramMessage(record, acknowledgment))
+            .isInstanceOf(tools.jackson.core.JacksonException.class);
 
-import io.emcip.audit.service.service.AuditService;
-import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
-import java.util.Map;
-import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import tools.jackson.databind.ObjectMapper;
-
-class ReactiveAuditEventConsumerTest {
-
-    private ReactiveAuditEventConsumer consumer;
-    private final ObjectMapper objectMapper = new ObjectMapper();
-    private final AuditTopicMappings mappings = new AuditTopicMappings();
-
-    @BeforeEach
-    void setUp() {
-        AuditService auditService = Mockito.mock(AuditService.class);
-        consumer =
-                new ReactiveAuditEventConsumer(
-                        Mockito.mock(
-                                org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate
-                                        .class),
-                        auditService,
-                        objectMapper,
-                        mappings,
-                        Mockito.mock(io.emcip.common.kafka.DeadLetterTopicHandler.class));
-    }
-
-    @Test
-    void buildEntity_mapsTelegramMessageEvent_withTenantAndFields() throws Exception {
-        TelegramMessageEvent event =
-                new TelegramMessageEvent(
-                        "evt-1", "2026-07-25T10:00:00Z", null, null, 300L, 400L,
-                        "user-1", "USER", "hello", 0, null, false, null, null,
-                        Map.of(), null, null, null, null);
-        String json = objectMapper.writeValueAsString(event);
-        UUID tenant = UUID.fromString("00000000-0000-0000-0000-000000000001");
-
-        var entity = consumer.buildEntity(json, mappings.forTopic("telegram.raw.messages"), tenant);
-
-        assertThat(entity.getEventId()).isEqualTo("evt-1");
-        assertThat(entity.getEventType()).isEqualTo("TelegramMessage");
-        assertThat(entity.getSourceService()).isEqualTo("emcip-tdlib-adapter");
-        assertThat(entity.getResourceType()).isEqualTo("TelegramMessage");
-        assertThat(entity.getTenantId()).isEqualTo(tenant);
-        assertThat(entity.getOutcome()).isEqualTo("PROCESSED");
-    }
-
-    @Test
-    void buildEntity_malformedJson_throws() {
-        assertThatThrownBy(
-                        () ->
-                                consumer.buildEntity(
-                                        "{ not valid json",
-                                        mappings.forTopic("telegram.raw.messages"),
-                                        UUID.randomUUID()))
-                .isInstanceOf(Exception.class);
-    }
+    verify(acknowledgment, never()).acknowledge();
+    verify(auditService, never()).saveWithChain(any());
 }
 ```
 
-- [ ] **Step 4: Run it to verify it fails**
+- Keep the tenant-rejection test asserting `acknowledge()` is called and `saveWithChain` is never invoked.
 
-Run: `mvn -q -pl emcip-audit-service test -Dtest=ReactiveAuditEventConsumerTest`
-Expected: FAIL — `ReactiveAuditEventConsumer` does not exist yet.
+- [ ] **Step 3: Run the unit test to confirm the new behaviour**
 
-- [ ] **Step 5: Implement the reactive consumer**
+Run: `mvn -q -pl emcip-audit-service test -Dtest=AuditEventConsumerTest`
+Expected: PASS — persistence goes through `saveWithChain`, malformed records throw (not acked), tenant-rejected records are acked+skipped.
 
-Create `ReactiveAuditEventConsumer.java`:
+- [ ] **Step 4: Update the end-to-end IT to send a tenant header and assert the chain is active**
 
-```java
-package io.emcip.audit.service.kafka;
-
-import io.emcip.audit.service.config.AuditKafkaConfig;
-import io.emcip.audit.service.entity.AuditEventEntity;
-import io.emcip.audit.service.service.AuditService;
-import io.emcip.common.events.EventSchemas;
-import io.emcip.common.kafka.DeadLetterTopicHandler;
-import io.emcip.common.tenant.TenantAwareKafkaSupport;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.reactive.ReactiveKafkaConsumerTemplate;
-import org.springframework.stereotype.Component;
-import reactor.core.Disposable;
-import reactor.core.publisher.Mono;
-import reactor.kafka.receiver.ReceiverOffset;
-import reactor.kafka.receiver.ReceiverRecord;
-import reactor.util.retry.Retry;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
-
-/**
- * Reactive consumer for all audit source topics. `concatMap` serialises processing within this
- * instance; {@code AuditService.saveWithChain}'s advisory lock serialises across replicas. Offsets
- * are committed only after a successful persist or after the record is durably placed on the DLQ, so
- * no record is silently lost.
- */
-@Component
-@Slf4j
-public class ReactiveAuditEventConsumer {
-
-    private final ReactiveKafkaConsumerTemplate<String, String> template;
-    private final AuditService auditService;
-    private final ObjectMapper objectMapper;
-    private final AuditTopicMappings mappings;
-    private final DeadLetterTopicHandler dlqHandler;
-
-    private Disposable subscription;
-
-    public ReactiveAuditEventConsumer(
-            ReactiveKafkaConsumerTemplate<String, String> template,
-            AuditService auditService,
-            ObjectMapper objectMapper,
-            AuditTopicMappings mappings,
-            DeadLetterTopicHandler dlqHandler) {
-        this.template = template;
-        this.auditService = auditService;
-        this.objectMapper = objectMapper;
-        this.mappings = mappings;
-        this.dlqHandler = dlqHandler;
-    }
-
-    @PostConstruct
-    void start() {
-        subscription =
-                template.receive()
-                        .concatMap(this::handleRecord) // one record at a time
-                        .subscribe(
-                                v -> {},
-                                err -> log.error("Audit consumer stream terminated", err));
-    }
-
-    @PreDestroy
-    void stop() {
-        if (subscription != null && !subscription.isDisposed()) {
-            subscription.dispose();
-        }
-    }
-
-    Mono<Void> handleRecord(ReceiverRecord<String, String> record) {
-        ReceiverOffset offset = record.receiverOffset();
-
-        UUID tenant;
-        try {
-            tenant = TenantAwareKafkaSupport.validateTenantHeader(record);
-        } catch (IllegalStateException e) {
-            log.error("Rejecting record: {}", e.getMessage());
-            return offset.commit();
-        }
-
-        AuditTopicMapping<?> mapping = mappings.forTopic(record.topic());
-        if (mapping == null) {
-            log.error("No audit mapping for topic {}, skipping offset {}", record.topic(),
-                    record.offset());
-            return offset.commit();
-        }
-
-        return persist(record, mapping, tenant)
-                .retryWhen(
-                        Retry.backoff(3, Duration.ofSeconds(1))
-                                .filter(this::isTransient)) // malformed JSON is not retried
-                .then(offset.commit())
-                .onErrorResume(
-                        e -> {
-                            log.error(
-                                    "Routing {} offset {} to DLQ after failure: {}",
-                                    record.topic(),
-                                    record.offset(),
-                                    e.getMessage());
-                            // String-message overload: onErrorResume yields Throwable, not Exception.
-                            dlqHandler.sendToDeadLetterQueue(
-                                    record, e.getMessage(), 3, AuditKafkaConfig.GROUP_ID);
-                            return offset.commit();
-                        });
-    }
-
-    private <T extends EventSchemas.Event> Mono<AuditEventEntity> persist(
-            ReceiverRecord<String, String> record, AuditTopicMapping<T> mapping, UUID tenant) {
-        return Mono.fromCallable(() -> buildEntity(record.value(), mapping, tenant))
-                .flatMap(auditService::saveWithChain);
-    }
-
-    /** Parse the JSON payload and map it to an audit entity. Package-private for unit tests. */
-    <T extends EventSchemas.Event> AuditEventEntity buildEntity(
-            String json, AuditTopicMapping<T> mapping, UUID tenant) {
-        T event = objectMapper.readValue(json, mapping.eventClass());
-        return AuditEventEntity.builder()
-                .eventId(event.eventId())
-                .eventType(event.eventType())
-                .correlationId(mapping.correlationIdFn().apply(event))
-                .sourceService(mapping.sourceService())
-                .action(event.eventType())
-                .actorType("SYSTEM")
-                .actorId(mapping.actorIdFn().apply(event))
-                .resourceType(mapping.resourceType())
-                .resourceId(mapping.resourceIdFn().apply(event))
-                .outcome("PROCESSED")
-                .details(auditService.serializeDetails(mapping.detailsFn().apply(event)))
-                .tenantId(tenant)
-                .createdAt(Instant.now())
-                .build();
-    }
-
-    /** Malformed payloads are permanent — do not retry them, send straight to the DLQ. */
-    private boolean isTransient(Throwable t) {
-        return !(t instanceof JacksonException);
-    }
-}
-```
-
-- [ ] **Step 6: Delete the old consumer and its config**
-
-```bash
-git rm emcip-audit-service/src/main/java/io/emcip/audit/service/kafka/AuditEventConsumer.java
-git rm emcip-audit-service/src/main/java/io/emcip/audit/service/config/KafkaConsumerConfig.java
-git rm emcip-audit-service/src/test/java/io/emcip/audit/service/kafka/AuditEventConsumerTest.java
-```
-
-- [ ] **Step 7: Update the end-to-end IT to send a tenant header and assert the chain is active**
-
-In `AuditEventPersistenceIT`, change the send to include the `tenant_id` header and assert `integrity_hash` is now populated. Replace the send + await block:
+In `AuditEventPersistenceIT`, change the send to include the `tenant_id` header (fixes the pre-existing red) and assert `integrity_hash` is now populated:
 
 ```java
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import java.nio.charset.StandardCharsets;
 // ...
 
@@ -1258,34 +1008,34 @@ await().atMost(Duration.ofSeconds(20))
                 });
 ```
 
-- [ ] **Step 8: Run unit + integration to verify green**
+- [ ] **Step 5: Run unit + IT to verify green**
 
-Run: `mvn -q -pl emcip-audit-service test -Dtest=ReactiveAuditEventConsumerTest`
+Run: `mvn -q -pl emcip-audit-service test -Dtest=AuditEventConsumerTest`
 Expected: PASS.
-Run: `mvn -q -pl emcip-audit-service verify -Dit.test=AuditEventPersistenceIT,AuditChainConcurrencyIT,AuditDeletePreventionIT -DfailIfNoTests=false`
-Expected: PASS — record persisted end-to-end with `integrity_hash` populated by the reactive consumer.
+Run: `mvn -q -pl emcip-audit-service test -Dtest=AuditEventPersistenceIT,AuditChainConcurrencyIT,AuditDeletePreventionIT`
+Expected: PASS — record persisted end-to-end with `integrity_hash` populated; `AuditEventPersistenceIT` is now green (tenant header present).
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 mvn -pl emcip-audit-service spotless:apply
-git add -A emcip-audit-service/src/main/java/io/emcip/audit/service/kafka \
-        emcip-audit-service/src/main/java/io/emcip/audit/service/config \
-        emcip-audit-service/src/test/java/io/emcip/audit/service
-git commit -m "feat(audit): reactive consumer replaces @KafkaListener; activates hash chain (B1/RT2-002)"
+git add emcip-audit-service/src/main/java/io/emcip/audit/service/kafka/AuditEventConsumer.java \
+        emcip-audit-service/src/test/java/io/emcip/audit/service/kafka/AuditEventConsumerTest.java \
+        emcip-audit-service/src/test/java/io/emcip/audit/service/AuditEventPersistenceIT.java
+git commit -m "feat(audit): activate hash chain in consumer; failures reach DLQ (RT2-002/B1)"
 ```
 
 ---
 
-### Task 7: No-silent-loss — malformed record lands on the DLQ
+### Task 7: No-silent-loss — malformed record lands on the DLQ (Option C)
 
-Prove the failure path: a malformed payload (with a valid tenant header) is not persisted, is published to `<topic>.dlq`, the offset advances, and a subsequent good record is still processed.
+Prove the failure path end-to-end: a malformed payload (with a valid tenant header) is not persisted, is published to `<topic>.dlq`, the offset advances, and a subsequent good record is still processed.
 
 **Files:**
 - Test: `emcip-audit-service/src/test/java/io/emcip/audit/service/AuditDlqIT.java`
 
 **Interfaces:**
-- Consumes: main `KafkaTemplate` (Task 5), `ReactiveAuditEventConsumer` (Task 6).
+- Consumes: the main `KafkaTemplate` + DLQ error handler (Task 5), the `saveWithChain` consumer (Task 6).
 
 - [ ] **Step 1: Write the failing DLQ integration test**
 
@@ -1335,7 +1085,7 @@ class AuditDlqIT extends AbstractAuditIntegrationTest {
 
     @Test
     void malformedRecord_goesToDlq_andGoodRecordStillProcessed() throws Exception {
-        // Malformed JSON with a valid tenant header -> permanent failure -> DLQ.
+        // Malformed JSON with a valid tenant header -> non-retryable -> DLQ.
         send(TOPIC, "bad-1", "{ not json", TENANT);
 
         // A good record after it must still be processed (offset advanced past the bad one).
@@ -1388,10 +1138,10 @@ class AuditDlqIT extends AbstractAuditIntegrationTest {
 
 - [ ] **Step 2: Run it**
 
-Run: `mvn -q -pl emcip-audit-service verify -Dit.test=AuditDlqIT -DfailIfNoTests=false`
+Run: `mvn -q -pl emcip-audit-service test -Dtest=AuditDlqIT`
 Expected: PASS — bad record on DLQ, good record persisted, count == 1.
 
-> If the good record is not persisted, the offset did not advance past the bad one — verify `handleRecord` commits in the `onErrorResume` branch.
+> If the good record is not persisted, the offset did not advance past the bad one — verify the `DefaultErrorHandler` recoverer (Task 5) commits after DLQ publish. If the malformed record is retried instead of DLQ'd immediately, verify `addNotRetryableExceptions(JacksonException.class)` matches the thrown exception (the consumer must let the raw `JacksonException` propagate, not wrap it).
 
 - [ ] **Step 3: Commit**
 
@@ -1418,15 +1168,15 @@ Per the `documentation-checklist` skill (which now also covers `BACKLOG.md` and 
 
 - [ ] **Step 1: Update the audit dataflow + error-handling diagrams**
 
-In `dataflow-audit-trail.puml`, add: the reactive consumer, `saveWithChain` with the advisory lock, and the `<topic>.dlq` branch on failure. In `sequence-error-handling.puml`, add the audit consumer's retry(3, backoff)→DLQ path and per-record commit-after-persist.
+In `dataflow-audit-trail.puml`, add: `saveWithChain` with the advisory lock, and the `<topic>.dlq` branch on failure. In `sequence-error-handling.puml`, add the audit consumer's `DefaultErrorHandler` retry(backoff)→DLQ recovery path.
 
 - [ ] **Step 2: Update architecture + operations guides**
 
-In `architecture-guide.adoc`, add an audit-integrity subsection: append-only hash chain (folds `prev_hash`), advisory-lock serialisation, DELETE trigger + `emcip.audit_purge` flag, reactive consumer with DLQ. In `operations-guide.adoc`, add an operator note: what `AuditChainVerificationJob`'s CRITICAL log means (with `reason`), that retention purge uses the flag, and that manual DB deletes are blocked by design.
+In `architecture-guide.adoc`, add an audit-integrity subsection: append-only hash chain (folds `prev_hash`), advisory-lock serialisation, DELETE trigger + `emcip.audit_purge` flag, `@KafkaListener` consumer with `DefaultErrorHandler`→DLQ. In `operations-guide.adoc`, add an operator note: what `AuditChainVerificationJob`'s CRITICAL log means (with `reason`), that retention purge uses the flag, and that manual DB deletes are blocked by design.
 
 - [ ] **Step 3: Flip backlog + roadmap status**
 
-In `docs/superpowers/BACKLOG.md` §0, change the Status of RT2-002, RT2-016, and B1 from `⏳ deferred` to `✅` (branch `feat/p2-audit-integrity`), and remove the "deferred" note lines at the top of §0 that describe them as unresolved. In `documentation/ROADMAP.md`, add a P2.1 delivery note under the P2 section mirroring the P2.0 note style (branch, date `2026-07-25`, scope: advisory-lock chain activation + strengthened hash + reactive consumer/DLQ + DELETE trigger; note the new `reactor-kafka` dependency), and set "Next: P2.2 — SSRF protection".
+In `docs/superpowers/BACKLOG.md` §0, change the Status of RT2-002, RT2-016, and B1 from `⏳ deferred` to `✅` (branch `feat/p2-audit-integrity`), and remove the "deferred" note lines at the top of §0 that describe them as unresolved. In `documentation/ROADMAP.md`, add a P2.1 delivery note under the P2 section mirroring the P2.0 note style (branch, date `2026-07-26`, scope: advisory-lock chain activation + strengthened hash + `@KafkaListener` + `DefaultErrorHandler`→DLQ + DELETE trigger; **note the design revision: the planned reactive consumer was dropped because `ReactiveKafkaConsumerTemplate`/reactor-kafka are discontinued in the Spring Boot 4 line — see the spec's "Decision revision"**), and set "Next: P2.2 — SSRF protection".
 
 - [ ] **Step 4: Verify the whole module builds and all tests pass together**
 
@@ -1450,7 +1200,7 @@ git commit -m "docs(audit): P2.1 delivery — audit integrity redesign; backlog/
 
 ## Notes for the implementer
 
-- **reactor-kafka version:** `1.3.23` is the assumed compatible `1.3.x` release for Spring Boot 4 / Reactor 3.x. If it fails to resolve, use the newest `1.3.x` on Maven Central.
+- **No reactor-kafka (revision 2026-07-26):** the reactive-consumer approach was dropped because `ReactiveKafkaConsumerTemplate` is gone from spring-kafka 4.x and reactor-kafka is EOL. The consumer is a synchronous `@KafkaListener` with a `DefaultErrorHandler`→DLQ, matching every other EMCIP service and `CommonKafkaConfig`.
 - **`ReactiveKafkaConsumerTemplate` offset control:** `enable.auto.commit=false` plus explicit `receiverOffset().commit()` after persist/DLQ gives at-least-once with no silent loss. `concatMap` guarantees ordered, one-at-a-time processing; the advisory lock covers the multi-replica case.
 - **TRUNCATE vs DELETE in tests:** the DELETE trigger (Task 4) blocks row deletes, so test cleanup uses `TRUNCATE audit_events`, which does not fire `FOR EACH ROW` DELETE triggers. Production retention uses selective DELETE with the purge flag.
 - **Do not change the job crons** (Rule 6 — they already carry offset seconds).
