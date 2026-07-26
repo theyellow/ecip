@@ -156,6 +156,47 @@ class AuditEventConsumerTest {
         verify(auditService, never()).saveWithChain(any());
     }
 
+    @Test
+    void handleTelegramMessage_duplicateEventId_acksAndSkipsWithoutThrowing() throws Exception {
+        TelegramMessageEvent event =
+                new TelegramMessageEvent(
+                        "evt-dup",
+                        "2026-04-21T10:00:00Z",
+                        null,
+                        null,
+                        12345L,
+                        67890L,
+                        "user-1",
+                        "USER",
+                        "hello world",
+                        0,
+                        null,
+                        false,
+                        null,
+                        null,
+                        Map.of(),
+                        "",
+                        null,
+                        null,
+                        null);
+        String json = objectMapper.writeValueAsString(event);
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "key", json);
+        addTenantHeader(record);
+
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
+        when(auditService.saveWithChain(any(AuditEventEntity.class)))
+                .thenReturn(
+                        Mono.error(
+                                new org.springframework.dao.DataIntegrityViolationException(
+                                        "dup")));
+
+        assertThatCode(() -> consumer.handleTelegramMessage(record, acknowledgment))
+                .doesNotThrowAnyException();
+
+        verify(acknowledgment).acknowledge();
+    }
+
     // --- handleIntentClassified ---
 
     @Test

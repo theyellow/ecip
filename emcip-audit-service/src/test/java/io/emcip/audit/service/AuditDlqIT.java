@@ -13,6 +13,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -36,6 +37,7 @@ class AuditDlqIT extends AbstractAuditIntegrationTest {
 
     @BeforeEach
     void clean() {
+        // TRUNCATE bypasses the row-level DELETE trigger (audit_no_delete).
         databaseClient.sql("TRUNCATE audit_events").fetch().rowsUpdated().block();
     }
 
@@ -77,8 +79,8 @@ class AuditDlqIT extends AbstractAuditIntegrationTest {
 
         // The bad record was never persisted...
         assertThat(repository.count().block()).isEqualTo(1L);
-        // ...and it landed on the DLQ.
-        assertThat(dlqHasRecord(TOPIC + ".dlq")).isTrue();
+        // ...and it landed on the DLQ, specifically the malformed record (not just any record).
+        assertThat(dlqHasRecord(TOPIC + ".dlq", "bad-1")).isTrue();
     }
 
     private void send(String topic, String key, String value, String tenant) throws Exception {
@@ -87,7 +89,11 @@ class AuditDlqIT extends AbstractAuditIntegrationTest {
         kafkaTemplate.send(pr).get();
     }
 
-    private boolean dlqHasRecord(String dlqTopic) {
+    /**
+     * Polls {@code dlqTopic} and returns true only when a record with key {@code expectedKey} is
+     * found — asserts on the specific malformed record, not just any record landing on the DLQ.
+     */
+    private boolean dlqHasRecord(String dlqTopic, String expectedKey) {
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA.getBootstrapServers());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "dlq-verify-" + System.nanoTime());
@@ -99,8 +105,10 @@ class AuditDlqIT extends AbstractAuditIntegrationTest {
             long deadline = System.currentTimeMillis() + 10_000;
             while (System.currentTimeMillis() < deadline) {
                 ConsumerRecords<String, String> recs = c.poll(Duration.ofMillis(500));
-                if (!recs.isEmpty()) {
-                    return true;
+                for (ConsumerRecord<String, String> rec : recs) {
+                    if (expectedKey.equals(rec.key())) {
+                        return true;
+                    }
                 }
             }
             return false;

@@ -769,6 +769,8 @@ Either CRITICAL log is a genuine incident and should be investigated immediately
 
 Manual `DELETE` statements against `audit_events` are blocked by a database trigger (`audit_no_delete`) — this is intentional, not a bug. The only sanctioned deletion path is the retention job (`AuditService.deleteRecordsOlderThan`), which sets `SET LOCAL emcip.audit_purge = 'on'` inside its own transaction before deleting; the flag is transaction-scoped and does not persist. If an operator genuinely needs to remove rows outside retention, do not attempt to disable or work around the trigger — escalate, since any such deletion invalidates the hash chain for every later row.
 
+NOTE: **Retention boundary is a legitimate `BROKEN_LINKAGE` source.** After a retention purge, the oldest surviving row's `prev_hash` still points at a now-deleted row's `integrity_hash`. If a `verifyChain` window straddles that purge boundary (i.e. it includes the new oldest row), it will legitimately report `BROKEN_LINKAGE` for that row — this is expected at the retention boundary, not tampering. Correlate the `CRITICAL` log's `brokenAtId` against recent `AuditRetentionJob` purge runs before escalating.
+
 === Knowledge Enrichment Configuration
 
 `emcip-llm-orchestrator` can optionally query the knowledge engine before each LLM call and prepend relevant passages to the user prompt. Enrichment is **disabled by default** — enable it per-deployment via environment variables.

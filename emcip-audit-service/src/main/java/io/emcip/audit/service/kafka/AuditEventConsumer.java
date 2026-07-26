@@ -197,7 +197,16 @@ public class AuditEventConsumer {
                         .createdAt(Instant.now())
                         .build();
 
-        auditService.saveWithChain(entity).block();
+        try {
+            auditService.saveWithChain(entity).block();
+        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+            // Redelivered record (e.g. after a rebalance) whose event_id is already persisted —
+            // it is already safely audited. Ack + skip so it is not retried/DLQ'd as if it were a
+            // genuine failure.
+            log.warn("Audit event {} already persisted; skipping duplicate", event.eventId());
+            acknowledgment.acknowledge();
+            return;
+        }
         acknowledgment.acknowledge();
     }
 }

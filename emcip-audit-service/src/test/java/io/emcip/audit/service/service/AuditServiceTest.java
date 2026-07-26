@@ -162,11 +162,53 @@ class AuditServiceTest {
 
     // --- hash chaining ---
     //
-    // saveWithChain is no longer unit-tested here: it now runs the read-tail -> compute -> insert
-    // sequence inside a single TransactionalOperator transaction guarded by a Postgres advisory
-    // lock (pg_advisory_xact_lock), which requires a real database connection to exercise
-    // meaningfully. See AuditChainConcurrencyIT for behavioral coverage (linear chain, no forks
-    // under concurrency).
+    // saveWithChain's read-tail -> compute -> insert sequence normally requires a real database
+    // connection (advisory lock + transaction) to exercise meaningfully — see
+    // AuditChainConcurrencyIT for behavioral coverage (linear chain, no forks under concurrency).
+    // The test below stubs the DatabaseClient fluent API + TransactionalOperator as pass-through
+    // to additionally pin the prevHash/integrityHash wiring as a fast unit test.
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void saveWithChain_computesPrevHashAndIntegrityHashFromPriorRow() {
+        DatabaseClient.GenericExecuteSpec executeSpec =
+                mock(DatabaseClient.GenericExecuteSpec.class);
+        FetchSpec<Map<String, Object>> fetchSpec = mock(FetchSpec.class);
+        when(databaseClient.sql("SELECT pg_advisory_xact_lock(:key)")).thenReturn(executeSpec);
+        when(executeSpec.bind("key", 0x656D636970617564L)).thenReturn(executeSpec);
+        when(executeSpec.fetch()).thenReturn(fetchSpec);
+        when(fetchSpec.first()).thenReturn(Mono.empty());
+        when(transactionalOperator.transactional(any(Mono.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuditEventEntity prior =
+                AuditEventEntity.builder().id(1L).integrityHash("prior-hash").build();
+        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.just(prior));
+        when(repository.save(any(AuditEventEntity.class)))
+                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+        AuditEventEntity entity =
+                AuditEventEntity.builder()
+                        .eventId("evt-chain-1")
+                        .eventType("TelegramMessage")
+                        .sourceService("emcip-tdlib-adapter")
+                        .action("TelegramMessage")
+                        .actorType("SYSTEM")
+                        .resourceType("TelegramMessage")
+                        .resourceId("res-1")
+                        .outcome("PROCESSED")
+                        .createdAt(Instant.parse("2026-07-25T10:00:00Z"))
+                        .build();
+
+        StepVerifier.create(auditService.saveWithChain(entity))
+                .assertNext(
+                        saved -> {
+                            assertThat(saved.getPrevHash()).isEqualTo("prior-hash");
+                            assertThat(saved.getIntegrityHash())
+                                    .isEqualTo(AuditService.computeIntegrityHash(saved));
+                        })
+                .verifyComplete();
+    }
 
     @Test
     void deleteRecordsOlderThan_noRecords_returnsZero() {
@@ -283,6 +325,29 @@ class AuditServiceTest {
         b.setIntegrityHash(AuditService.computeIntegrityHash(b));
         // Tamper b's content AFTER its hash was stored -> recompute won't match stored hash.
         b.setResourceId("tampered-resource");
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(
+                        r -> {
+                            assertThat(r.valid()).isFalse();
+                            assertThat(r.reason())
+                                    .isEqualTo(AuditService.ChainFailureReason.CONTENT_TAMPERED);
+                            assertThat(r.brokenAtId()).isEqualTo(2L);
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_contentTampered_detectsPayloadTampering() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        AuditEventEntity b = row("evt-2", a.getIntegrityHash());
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+        // Tamper b's payload (details) AFTER its hash was stored -> recompute won't match.
+        b.setDetails(io.r2dbc.postgresql.codec.Json.of("{\"x\":\"tampered\"}"));
 
         when(repository.findTopNByOrderByIdDesc(10))
                 .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));

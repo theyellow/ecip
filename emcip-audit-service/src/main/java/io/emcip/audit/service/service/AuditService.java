@@ -291,7 +291,9 @@ public class AuditService {
 
     /**
      * Content hash of a row folded with its predecessor's hash, so altering any earlier row
-     * cascades into every later integrity_hash. Save and verify MUST use this identical formula.
+     * cascades into every later integrity_hash. Digests ALL immutable content columns (not just
+     * identity fields) so tampering with any of them is detectable. Save and verify MUST use this
+     * identical formula.
      */
     static String computeIntegrityHash(AuditEventEntity entity) {
         String input =
@@ -301,11 +303,25 @@ public class AuditService {
                         + "|"
                         + entity.getEventType()
                         + "|"
+                        + entity.getActorType()
+                        + "|"
                         + entity.getActorId()
                         + "|"
                         + entity.getResourceType()
                         + "|"
                         + entity.getResourceId()
+                        + "|"
+                        + entity.getAction()
+                        + "|"
+                        + entity.getSourceService()
+                        + "|"
+                        + entity.getCorrelationId()
+                        + "|"
+                        + (entity.getTenantId() == null ? "" : entity.getTenantId())
+                        + "|"
+                        + entity.getOutcome()
+                        + "|"
+                        + (entity.getDetails() == null ? "" : entity.getDetails().asString())
                         + "|"
                         + (entity.getPrevHash() == null ? "" : entity.getPrevHash());
         return sha256Hex(input);

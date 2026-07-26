@@ -56,7 +56,8 @@ independently (see `ROADMAP.md` P1 note, 2026-07-22):
 **Goals**
 1. Activate the chain such that concurrent appends across all five topics — and any future replica —
    produce a single linear chain (no forks, no gaps).
-2. Remove `.block()`: a fully reactive consumer with explicit retry → DLQ and no silent loss.
+2. Remove `.block()`: a fully reactive consumer with explicit retry → DLQ so failures are not
+   dropped on the normal path.
 3. Make the chain genuinely tamper-evident (detect content tampering, not just broken pointers).
 4. Add a DELETE-prevention trigger that still permits the sanctioned retention purge.
 
@@ -193,8 +194,11 @@ sanctioned purge is the only path that can delete. The anchor-hash logging stays
 1. **No-fork under concurrency** — publish N events across multiple topics concurrently; assert the
    chain is linear: every non-genesis `prev_hash` equals exactly one predecessor's `integrity_hash`,
    no two rows share a `prev_hash`, no gaps. (The regression that sank batch 1.2.)
-2. **No silent loss** — force a save failure (e.g. transient DB error, then a permanent one); assert
-   the record lands in `<topic>.dlq` and the offset advances; nothing is dropped.
+2. **Failures routed to DLQ, not dropped** — force a save failure (e.g. transient DB error, then a
+   permanent one); assert the record lands in `<topic>.dlq` and the offset advances. (Residual
+   window: the shared `DeadLetterTopicHandler` send is fire-and-forget and swallows exceptions, so a
+   hard broker outage during the DLQ publish itself could still lose the record after the offset
+   commits — tracked as backlog `P2.1-F1`, out of scope for this PR.)
 3. **Tamper — content** — mutate a row's content (via the purge flag / superuser, bypassing the
    UPDATE trigger in-test); `verifyChain` reports a content-hash mismatch at that row.
 4. **Tamper — linkage** — delete a middle row via the sanctioned path, then `verifyChain` reports
