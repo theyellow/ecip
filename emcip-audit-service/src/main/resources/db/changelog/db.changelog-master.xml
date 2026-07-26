@@ -81,5 +81,6 @@
     <include file="changes/001-add-performance-indexes.xml" relativeToChangelogFile="true"/>
     <include file="changes/002-add-tenant-id.xml" relativeToChangelogFile="true"/>
     <include file="003-audit-tamper-resistance.xml" relativeToChangelogFile="true"/>
+    <include file="004-audit-delete-prevention.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

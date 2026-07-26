@@ -40,7 +40,11 @@ class AuditChainVerificationJobTest {
                 .thenReturn(
                         Mono.just(
                                 ChainVerificationResult.broken(
-                                        50, 42L, "expectedHash", "actualHash")));
+                                        50,
+                                        42L,
+                                        "expectedHash",
+                                        "actualHash",
+                                        AuditService.ChainFailureReason.BROKEN_LINKAGE)));
 
         // Should not propagate — fire-and-forget with .subscribe()
         job.verifyRecentChain();

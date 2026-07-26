@@ -6,13 +6,17 @@ import static org.awaitility.Awaitility.await;
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.repository.AuditEventRepository;
 import io.emcip.common.events.EventSchemas.TelegramMessageEvent;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.r2dbc.core.DatabaseClient;
 import tools.jackson.databind.ObjectMapper;
 
 class AuditEventPersistenceIT extends AbstractAuditIntegrationTest {
@@ -21,10 +25,12 @@ class AuditEventPersistenceIT extends AbstractAuditIntegrationTest {
 
     @Autowired private AuditEventRepository auditEventRepository;
 
+    @Autowired private DatabaseClient databaseClient;
+
     @BeforeEach
     void cleanUp() {
-        // Verify table is accessible from test thread and clear prior test data
-        auditEventRepository.deleteAll().block();
+        // TRUNCATE bypasses the row-level DELETE trigger (added in Task 4).
+        databaseClient.sql("TRUNCATE audit_events").fetch().rowsUpdated().block();
     }
 
     @Test
@@ -52,9 +58,13 @@ class AuditEventPersistenceIT extends AbstractAuditIntegrationTest {
                         null);
         String json = new ObjectMapper().writeValueAsString(event);
 
-        kafkaTemplate.send("telegram.raw.messages", "audit-persist-001", json).get();
+        String tenant = "00000000-0000-0000-0000-000000000001";
+        ProducerRecord<String, String> pr =
+                new ProducerRecord<>("telegram.raw.messages", "audit-persist-001", json);
+        pr.headers().add(new RecordHeader("tenant_id", tenant.getBytes(StandardCharsets.UTF_8)));
+        kafkaTemplate.send(pr).get();
 
-        await().atMost(Duration.ofSeconds(15))
+        await().atMost(Duration.ofSeconds(20))
                 .untilAsserted(
                         () -> {
                             AuditEventEntity saved =
@@ -63,6 +73,9 @@ class AuditEventPersistenceIT extends AbstractAuditIntegrationTest {
                             assertThat(saved.getEventType()).isEqualTo("TelegramMessage");
                             assertThat(saved.getSourceService()).isEqualTo("emcip-tdlib-adapter");
                             assertThat(saved.getOutcome()).isEqualTo("PROCESSED");
+                            // Chain is now active: genesis row has a hash and a null predecessor.
+                            assertThat(saved.getIntegrityHash()).isNotBlank();
+                            assertThat(saved.getPrevHash()).isNull();
                         });
     }
 }

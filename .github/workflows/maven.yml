@@ -45,6 +45,9 @@ jobs:
     - name: Run tests
       run: mvn -B test --file pom.xml
 
+    - name: Audit integrity integration tests
+      run: mvn -B test -pl emcip-audit-service -Dtest=AuditChainConcurrencyIT,AuditDeletePreventionIT,AuditEventPersistenceIT,AuditDlqIT -DfailIfNoTests=false
+
     - name: Generate JaCoCo coverage report
       run: mvn -B jacoco:report --file pom.xml
 

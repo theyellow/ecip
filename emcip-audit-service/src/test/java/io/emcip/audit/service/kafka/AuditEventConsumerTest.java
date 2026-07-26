@@ -1,9 +1,11 @@
 package io.emcip.audit.service.kafka;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -81,24 +83,26 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
-        when(auditService.save(any(AuditEventEntity.class)))
+        when(auditService.saveWithChain(any(AuditEventEntity.class)))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(1L).build()));
 
         consumer.handleTelegramMessage(record, acknowledgment);
 
-        verify(auditService).save(any(AuditEventEntity.class));
+        verify(auditService).saveWithChain(any(AuditEventEntity.class));
         verify(acknowledgment).acknowledge();
     }
 
     @Test
-    void handleTelegramMessage_malformedJson_skipsAndAcknowledges() {
+    void malformedRecord_propagatesForErrorHandler_notAcked() {
         ConsumerRecord<String, String> record =
-                new ConsumerRecord<>("telegram.messages", 0, 1L, "key", "{ not valid json %%% }");
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "k", "{ not json");
+        addTenantHeader(record);
 
-        consumer.handleTelegramMessage(record, acknowledgment);
+        assertThatThrownBy(() -> consumer.handleTelegramMessage(record, acknowledgment))
+                .isInstanceOf(tools.jackson.core.JacksonException.class);
 
-        verify(auditService, never()).save(any());
-        verify(acknowledgment).acknowledge();
+        verify(acknowledgment, never()).acknowledge();
+        verify(auditService, never()).saveWithChain(any());
     }
 
     @Test
@@ -130,13 +134,67 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
-        when(auditService.save(any(AuditEventEntity.class)))
+        when(auditService.saveWithChain(any(AuditEventEntity.class)))
                 .thenReturn(Mono.error(new RuntimeException("DB unavailable")));
 
         assertThatThrownBy(() -> consumer.handleTelegramMessage(record, acknowledgment))
                 .isInstanceOf(RuntimeException.class);
 
         verify(acknowledgment, never()).acknowledge();
+    }
+
+    @Test
+    void handleTelegramMessage_missingTenantHeader_acksAndSkips() {
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "key", "irrelevant-body");
+        // Deliberately no addTenantHeader(record) call — exercises the rejection branch.
+
+        assertThatCode(() -> consumer.handleTelegramMessage(record, acknowledgment))
+                .doesNotThrowAnyException();
+
+        verify(acknowledgment, times(1)).acknowledge();
+        verify(auditService, never()).saveWithChain(any());
+    }
+
+    @Test
+    void handleTelegramMessage_duplicateEventId_acksAndSkipsWithoutThrowing() throws Exception {
+        TelegramMessageEvent event =
+                new TelegramMessageEvent(
+                        "evt-dup",
+                        "2026-04-21T10:00:00Z",
+                        null,
+                        null,
+                        12345L,
+                        67890L,
+                        "user-1",
+                        "USER",
+                        "hello world",
+                        0,
+                        null,
+                        false,
+                        null,
+                        null,
+                        Map.of(),
+                        "",
+                        null,
+                        null,
+                        null);
+        String json = objectMapper.writeValueAsString(event);
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "key", json);
+        addTenantHeader(record);
+
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
+        when(auditService.saveWithChain(any(AuditEventEntity.class)))
+                .thenReturn(
+                        Mono.error(
+                                new org.springframework.dao.DataIntegrityViolationException(
+                                        "dup")));
+
+        assertThatCode(() -> consumer.handleTelegramMessage(record, acknowledgment))
+                .doesNotThrowAnyException();
+
+        verify(acknowledgment).acknowledge();
     }
 
     // --- handleIntentClassified ---
@@ -161,7 +219,7 @@ class AuditEventConsumerTest {
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(3L).build()));
 
         consumer.handleIntentClassified(record, acknowledgment);
@@ -204,7 +262,7 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(1L).build()));
 
         consumer.handleTelegramMessage(record, acknowledgment);
@@ -231,7 +289,7 @@ class AuditEventConsumerTest {
         addTenantHeader(record);
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(2L).build()));
 
         consumer.handleIntentClassified(record, acknowledgment);
@@ -261,12 +319,12 @@ class AuditEventConsumerTest {
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         ArgumentCaptor<AuditEventEntity> captor = ArgumentCaptor.forClass(AuditEventEntity.class);
-        when(auditService.save(captor.capture()))
+        when(auditService.saveWithChain(captor.capture()))
                 .thenReturn(Mono.just(AuditEventEntity.builder().id(2L).build()));
 
         consumer.handleModerationFlag(record, acknowledgment);
 
-        verify(auditService).save(any(AuditEventEntity.class));
+        verify(auditService).saveWithChain(any(AuditEventEntity.class));
         assertThat(captor.getValue().getSourceService()).isEqualTo("emcip-moderation-service");
         assertThat(captor.getValue().getEventId()).isEqualTo("flag-001");
         verify(acknowledgment).acknowledge();

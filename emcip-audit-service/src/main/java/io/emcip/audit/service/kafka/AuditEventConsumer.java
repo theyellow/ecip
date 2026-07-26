@@ -4,7 +4,6 @@ import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.service.AuditService;
 import io.emcip.common.events.EventSchemas;
 import io.emcip.common.tenant.TenantAwareKafkaSupport;
-import io.emcip.common.tenant.TenantContext;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -16,7 +15,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -166,56 +164,49 @@ public class AuditEventConsumer {
             Function<T, String> actorIdFn,
             Function<T, String> correlationIdFn,
             Function<T, Map<String, Object>> detailsFn) {
+
+        UUID tenantUuid;
         try {
-            UUID tenantUuid;
-            try {
-                tenantUuid = TenantAwareKafkaSupport.validateTenantHeader(record);
-                TenantContext.setTenantId(tenantUuid.toString());
-            } catch (IllegalStateException e) {
-                log.error("Rejecting record: {}", e.getMessage());
-                acknowledgment.acknowledge();
-                return;
-            }
-
-            T event = objectMapper.readValue(record.value(), eventClass);
-
-            AuditEventEntity entity =
-                    AuditEventEntity.builder()
-                            .eventId(event.eventId())
-                            .eventType(event.eventType())
-                            .correlationId(correlationIdFn.apply(event))
-                            .sourceService(sourceService)
-                            .action(event.eventType())
-                            .actorType("SYSTEM")
-                            .actorId(actorIdFn.apply(event))
-                            .resourceType(resourceType)
-                            .resourceId(resourceIdFn.apply(event))
-                            .outcome("PROCESSED")
-                            .details(auditService.serializeDetails(detailsFn.apply(event)))
-                            .tenantId(tenantUuid)
-                            .createdAt(Instant.now())
-                            .build();
-
-            auditService.save(entity).block();
+            tenantUuid = TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting record: {}", e.getMessage());
             acknowledgment.acknowledge();
-
-        } catch (JacksonException e) {
-            log.error(
-                    "Permanently malformed {} record at offset {}, skipping: {}",
-                    record.topic(),
-                    record.offset(),
-                    e.getMessage());
-            acknowledgment.acknowledge();
-        } catch (Exception e) {
-            log.error(
-                    "Failed to persist audit event for {} offset {}: {}",
-                    record.topic(),
-                    record.offset(),
-                    e.getMessage(),
-                    e);
-            throw new RuntimeException(e);
-        } finally {
-            TenantContext.clear();
+            return;
         }
+
+        // Parse (JacksonException -> non-retryable -> DLQ) and persist with the hash chain
+        // (failure -> retry(backoff) -> DLQ). Both propagate to the container's
+        // DefaultErrorHandler;
+        // MANUAL_IMMEDIATE only commits on the success path below.
+        T event = objectMapper.readValue(record.value(), eventClass);
+
+        AuditEventEntity entity =
+                AuditEventEntity.builder()
+                        .eventId(event.eventId())
+                        .eventType(event.eventType())
+                        .correlationId(correlationIdFn.apply(event))
+                        .sourceService(sourceService)
+                        .action(event.eventType())
+                        .actorType("SYSTEM")
+                        .actorId(actorIdFn.apply(event))
+                        .resourceType(resourceType)
+                        .resourceId(resourceIdFn.apply(event))
+                        .outcome("PROCESSED")
+                        .details(auditService.serializeDetails(detailsFn.apply(event)))
+                        .tenantId(tenantUuid)
+                        .createdAt(Instant.now())
+                        .build();
+
+        try {
+            auditService.saveWithChain(entity).block();
+        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+            // Redelivered record (e.g. after a rebalance) whose event_id is already persisted —
+            // it is already safely audited. Ack + skip so it is not retried/DLQ'd as if it were a
+            // genuine failure.
+            log.warn("Audit event {} already persisted; skipping duplicate", event.eventId());
+            acknowledgment.acknowledge();
+            return;
+        }
+        acknowledgment.acknowledge();
     }
 }

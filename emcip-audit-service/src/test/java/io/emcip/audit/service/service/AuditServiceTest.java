@@ -2,17 +2,22 @@ package io.emcip.audit.service.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.repository.AuditEventRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.r2dbc.core.DatabaseClient;
+import org.springframework.r2dbc.core.FetchSpec;
+import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -22,13 +27,16 @@ import tools.jackson.databind.ObjectMapper;
 class AuditServiceTest {
 
     @Mock private AuditEventRepository repository;
+    @Mock private DatabaseClient databaseClient;
+    @Mock private TransactionalOperator transactionalOperator;
 
     private AuditService auditService;
 
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
-        auditService = new AuditService(repository, objectMapper);
+        auditService =
+                new AuditService(repository, objectMapper, databaseClient, transactionalOperator);
     }
 
     @Test
@@ -153,62 +161,58 @@ class AuditServiceTest {
     }
 
     // --- hash chaining ---
+    //
+    // saveWithChain's read-tail -> compute -> insert sequence normally requires a real database
+    // connection (advisory lock + transaction) to exercise meaningfully — see
+    // AuditChainConcurrencyIT for behavioral coverage (linear chain, no forks under concurrency).
+    // The test below stubs the DatabaseClient fluent API + TransactionalOperator as pass-through
+    // to additionally pin the prevHash/integrityHash wiring as a fast unit test.
 
+    @SuppressWarnings("unchecked")
     @Test
-    void saveWithChain_firstRecord_setsNullPrevHashAndComputesIntegrityHash() {
+    void saveWithChain_computesPrevHashAndIntegrityHashFromPriorRow() {
+        DatabaseClient.GenericExecuteSpec executeSpec =
+                mock(DatabaseClient.GenericExecuteSpec.class);
+        FetchSpec<Map<String, Object>> fetchSpec = mock(FetchSpec.class);
+        when(databaseClient.sql("SELECT pg_advisory_xact_lock(:key)")).thenReturn(executeSpec);
+        when(executeSpec.bind("key", 0x656D636970617564L)).thenReturn(executeSpec);
+        when(executeSpec.fetch()).thenReturn(fetchSpec);
+        when(fetchSpec.first()).thenReturn(Mono.empty());
+        when(transactionalOperator.transactional(any(Mono.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        AuditEventEntity prior =
+                AuditEventEntity.builder().id(1L).integrityHash("prior-hash").build();
+        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.just(prior));
+        when(repository.save(any(AuditEventEntity.class)))
+                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
         AuditEventEntity entity =
                 AuditEventEntity.builder()
-                        .eventId("evt-chain-001")
-                        .eventType("AUTH")
-                        .actorId("user-1")
-                        .resourceType("SESSION")
-                        .resourceId("sess-1")
-                        .createdAt(Instant.parse("2026-01-01T00:00:00Z"))
+                        .eventId("evt-chain-1")
+                        .eventType("TelegramMessage")
+                        .sourceService("emcip-tdlib-adapter")
+                        .action("TelegramMessage")
+                        .actorType("SYSTEM")
+                        .resourceType("TelegramMessage")
+                        .resourceId("res-1")
+                        .outcome("PROCESSED")
+                        .createdAt(Instant.parse("2026-07-25T10:00:00Z"))
                         .build();
-        AuditEventEntity saved = AuditEventEntity.builder().id(1L).eventId("evt-chain-001").build();
-
-        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.empty());
-        when(repository.save(any(AuditEventEntity.class))).thenReturn(Mono.just(saved));
 
         StepVerifier.create(auditService.saveWithChain(entity))
-                .expectNextMatches(r -> r.getId().equals(1L))
+                .assertNext(
+                        saved -> {
+                            assertThat(saved.getPrevHash()).isEqualTo("prior-hash");
+                            assertThat(saved.getIntegrityHash())
+                                    .isEqualTo(AuditService.computeIntegrityHash(saved));
+                        })
                 .verifyComplete();
-
-        // entity should have had prevHash=null and integrityHash set
-        assertThat(entity.getPrevHash()).isNull();
-        assertThat(entity.getIntegrityHash()).isNotNull().hasSize(64);
-    }
-
-    @Test
-    void saveWithChain_subsequentRecord_linksPrevHash() {
-        AuditEventEntity previous =
-                AuditEventEntity.builder()
-                        .id(1L)
-                        .integrityHash(
-                                "aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011")
-                        .build();
-        AuditEventEntity entity =
-                AuditEventEntity.builder()
-                        .eventId("evt-chain-002")
-                        .eventType("AUTH")
-                        .createdAt(Instant.parse("2026-01-01T00:01:00Z"))
-                        .build();
-        AuditEventEntity saved = AuditEventEntity.builder().id(2L).eventId("evt-chain-002").build();
-
-        when(repository.findTopByOrderByIdDesc()).thenReturn(Mono.just(previous));
-        when(repository.save(any(AuditEventEntity.class))).thenReturn(Mono.just(saved));
-
-        StepVerifier.create(auditService.saveWithChain(entity))
-                .expectNextMatches(r -> r.getId().equals(2L))
-                .verifyComplete();
-
-        assertThat(entity.getPrevHash())
-                .isEqualTo("aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011aabbccddeeff0011");
-        assertThat(entity.getIntegrityHash()).isNotNull().hasSize(64);
     }
 
     @Test
     void deleteRecordsOlderThan_noRecords_returnsZero() {
+        stubPurgeFlagAndPassThroughTransaction();
         Instant cutoff = Instant.now().minus(3650, ChronoUnit.DAYS);
         when(repository.findOldestBeforeCutoff(cutoff)).thenReturn(Mono.empty());
 
@@ -219,6 +223,7 @@ class AuditServiceTest {
 
     @Test
     void deleteRecordsOlderThan_withRecords_deletesAndReturnsCount() {
+        stubPurgeFlagAndPassThroughTransaction();
         Instant cutoff = Instant.now().minus(3650, ChronoUnit.DAYS);
         AuditEventEntity oldest =
                 AuditEventEntity.builder()
@@ -235,6 +240,24 @@ class AuditServiceTest {
                 .verifyComplete();
     }
 
+    /**
+     * {@code deleteRecordsOlderThan} sets the {@code emcip.audit_purge} session flag and wraps the
+     * delete in {@link TransactionalOperator#transactional(Mono)} so the DELETE-prevention trigger
+     * (see {@code AuditDeletePreventionIT}) permits the purge. Unit tests stub both as pass-through
+     * so the retention logic itself can be verified without a real database connection.
+     */
+    @SuppressWarnings("unchecked")
+    private void stubPurgeFlagAndPassThroughTransaction() {
+        DatabaseClient.GenericExecuteSpec executeSpec =
+                mock(DatabaseClient.GenericExecuteSpec.class);
+        FetchSpec<Map<String, Object>> fetchSpec = mock(FetchSpec.class);
+        when(databaseClient.sql("SET LOCAL emcip.audit_purge = 'on'")).thenReturn(executeSpec);
+        when(executeSpec.fetch()).thenReturn(fetchSpec);
+        when(fetchSpec.rowsUpdated()).thenReturn(Mono.just(0L));
+        when(transactionalOperator.transactional(any(Mono.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+    }
+
     @Test
     void verifyChain_emptyDatabase_returnsValidWithZeroRecords() {
         when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.empty());
@@ -246,13 +269,11 @@ class AuditServiceTest {
 
     @Test
     void verifyChain_validChain_returnsValid() {
-        String hash1 = "aaaa";
-        String hash2 = "bbbb";
         // records returned newest-first: record2 then record1
-        AuditEventEntity record2 =
-                AuditEventEntity.builder().id(2L).integrityHash(hash2).prevHash(hash1).build();
-        AuditEventEntity record1 =
-                AuditEventEntity.builder().id(1L).integrityHash(hash1).prevHash(null).build();
+        AuditEventEntity record1 = withId(row("evt-1", null), 1L);
+        record1.setIntegrityHash(AuditService.computeIntegrityHash(record1));
+        AuditEventEntity record2 = withId(row("evt-2", record1.getIntegrityHash()), 2L);
+        record2.setIntegrityHash(AuditService.computeIntegrityHash(record2));
 
         when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.just(record2, record1));
 
@@ -263,14 +284,11 @@ class AuditServiceTest {
 
     @Test
     void verifyChain_brokenChain_returnsBrokenResult() {
-        AuditEventEntity record2 =
-                AuditEventEntity.builder()
-                        .id(2L)
-                        .integrityHash("bbbb")
-                        .prevHash("WRONG_HASH")
-                        .build();
-        AuditEventEntity record1 =
-                AuditEventEntity.builder().id(1L).integrityHash("aaaa").prevHash(null).build();
+        AuditEventEntity record1 = withId(row("evt-1", null), 1L);
+        record1.setIntegrityHash(AuditService.computeIntegrityHash(record1));
+        // record2's own content hash is self-consistent, but it points at the wrong predecessor.
+        AuditEventEntity record2 = withId(row("evt-2", "WRONG_HASH"), 2L);
+        record2.setIntegrityHash(AuditService.computeIntegrityHash(record2));
 
         when(repository.findTopNByOrderByIdDesc(100)).thenReturn(Flux.just(record2, record1));
 
@@ -279,8 +297,114 @@ class AuditServiceTest {
                         r ->
                                 !r.valid()
                                         && r.brokenAtId().equals(2L)
-                                        && "aaaa".equals(r.expectedHash())
+                                        && record1.getIntegrityHash().equals(r.expectedHash())
                                         && "WRONG_HASH".equals(r.actualHash()))
                 .verifyComplete();
+    }
+
+    @Test
+    void computeIntegrityHash_foldsPrevHash_soContentTamperingIsDetectable() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        AuditEventEntity b = row("evt-2", a.getIntegrityHash());
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(r -> assertThat(r.valid()).isTrue())
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_contentTampered_reportsContentTamperedReason() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        AuditEventEntity b = row("evt-2", a.getIntegrityHash());
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+        // Tamper b's content AFTER its hash was stored -> recompute won't match stored hash.
+        b.setResourceId("tampered-resource");
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(
+                        r -> {
+                            assertThat(r.valid()).isFalse();
+                            assertThat(r.reason())
+                                    .isEqualTo(AuditService.ChainFailureReason.CONTENT_TAMPERED);
+                            assertThat(r.brokenAtId()).isEqualTo(2L);
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_contentTampered_detectsPayloadTampering() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        AuditEventEntity b = row("evt-2", a.getIntegrityHash());
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+        // Tamper b's payload (details) AFTER its hash was stored -> recompute won't match.
+        b.setDetails(io.r2dbc.postgresql.codec.Json.of("{\"x\":\"tampered\"}"));
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(
+                        r -> {
+                            assertThat(r.valid()).isFalse();
+                            assertThat(r.reason())
+                                    .isEqualTo(AuditService.ChainFailureReason.CONTENT_TAMPERED);
+                            assertThat(r.brokenAtId()).isEqualTo(2L);
+                        })
+                .verifyComplete();
+    }
+
+    @Test
+    void verifyChain_brokenLinkage_reportsBrokenLinkageReason() {
+        AuditEventEntity a = row("evt-1", null);
+        a.setIntegrityHash(AuditService.computeIntegrityHash(a));
+        // b points at the wrong predecessor hash but its own content hash is self-consistent.
+        AuditEventEntity b =
+                row("evt-2", "0000000000000000000000000000000000000000000000000000000000000000");
+        b.setIntegrityHash(AuditService.computeIntegrityHash(b));
+
+        when(repository.findTopNByOrderByIdDesc(10))
+                .thenReturn(Flux.just(withId(b, 2L), withId(a, 1L)));
+
+        StepVerifier.create(auditService.verifyChain(10))
+                .assertNext(
+                        r -> {
+                            assertThat(r.valid()).isFalse();
+                            assertThat(r.reason())
+                                    .isEqualTo(AuditService.ChainFailureReason.BROKEN_LINKAGE);
+                        })
+                .verifyComplete();
+    }
+
+    private static AuditEventEntity row(String eventId, String prevHash) {
+        AuditEventEntity e =
+                AuditEventEntity.builder()
+                        .eventId(eventId)
+                        .eventType("TelegramMessage")
+                        .sourceService("emcip-tdlib-adapter")
+                        .action("TelegramMessage")
+                        .actorType("SYSTEM")
+                        .actorId("actor-1")
+                        .resourceType("TelegramMessage")
+                        .resourceId("res-1")
+                        .outcome("PROCESSED")
+                        .createdAt(Instant.parse("2026-07-25T10:00:00Z"))
+                        .build();
+        e.setPrevHash(prevHash);
+        return e;
+    }
+
+    private static AuditEventEntity withId(AuditEventEntity e, long id) {
+        e.setId(id);
+        return e;
     }
 }

@@ -30,8 +30,9 @@ public class AuditChainVerificationJob {
                                         result.recordsChecked());
                             } else {
                                 log.error(
-                                        "CRITICAL: Audit chain integrity violation detected at"
-                                                + " record {}! Expected prevHash={}, found={}",
+                                        "CRITICAL: Audit chain integrity violation ({}) at record"
+                                                + " {}! expected={}, found={}",
+                                        result.reason(),
                                         result.brokenAtId(),
                                         result.expectedHash(),
                                         result.actualHash());

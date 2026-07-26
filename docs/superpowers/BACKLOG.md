@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-22 (absorbed 2026-07-18 review + red-team findings)
+> Last updated: 2026-07-26 (P2.1 audit integrity redesign delivered)
 > Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
 > Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
@@ -22,10 +22,12 @@
 >   `AI_CONFIG_WRITE` because it triggers LLM work.
 > - RT2-002's *"schedule `verifyChain()`"* follow-up — **ALREADY DONE** (`AuditChainVerificationJob`).
 > - TelegramAccountController has **13** endpoints (9 write + 4 read), not 11.
-> - **RT2-002/RT2-016/B1 moved to P2.1.** Not quick wins: `saveWithChain()` is an unsynchronized
->   read-modify-write and `KafkaConsumerConfig.java:44` sets `setConcurrency(3)`, so activating the chain
->   forks it. Removing `.block()` additionally causes silent audit-event loss under `MANUAL_IMMEDIATE`
->   acks. Must be redesigned as one coupled task — see `ROADMAP.md` P2.1.
+> - **RT2-002/RT2-016/B1 delivered in P2.1** (branch `feat/p2-audit-integrity`, 2026-07-26): the chain is
+>   now serialized by a Postgres advisory lock (`pg_advisory_xact_lock`) so `saveWithChain()` cannot fork
+>   under concurrency, the consumer stays a synchronous `@KafkaListener` hardened with
+>   `DefaultErrorHandler` (backoff) → DLQ instead of a bare `.block()`, and a DELETE-prevention trigger
+>   guards `audit_events` behind the `emcip.audit_purge` session flag. See `ROADMAP.md` P2.1 and
+>   `docs/superpowers/specs/2026-07-25-audit-integrity-redesign-design.md`.
 
 | ID | Item | Sev | Phase | Size | Status |
 |----|------|-----|-------|------|--------|
@@ -33,9 +35,11 @@
 | RT2-004 | `@PreAuthorize` WRITE perms on TelegramAccount/Tenant/AIProxy controllers (22 endpoints) | CRITICAL | P1.1 | S | ✅ PR #206 |
 | RT-F3 | JWT single-parse optimization (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
 | RT-F4 | Combine double save on login (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
-| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | **P2.1** | L | ⏳ **deferred** |
-| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | **P2.1** | L | ⏳ **deferred** |
-| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | **P2.1** | L | ⏳ **deferred** |
+| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | **P2.1** | L | ✅ done (branch `feat/p2-audit-integrity`) |
+| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | **P2.1** | L | ✅ done (branch `feat/p2-audit-integrity`) |
+| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | **P2.1** | L | ✅ done (branch `feat/p2-audit-integrity`) — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
+| P2.1-F1 | DLQ publish in the shared `DeadLetterTopicHandler` is fire-and-forget and swallows exceptions on send — a hard broker outage past `delivery.timeout.ms` can lose a DLQ-routed record after the consumer offset has already committed. Harden by awaiting the send result (or a transactional outbox). Affects all EMCIP consumers, not just audit. | LOW | P4 | S | ⏳ |
+| INF-CI-IT | Integration tests (`*IT`) run in CI repo-wide. Today CI runs `mvn test` (Surefire only) and no module activates `maven-failsafe`, so all `*IT` classes across the repo are CI-invisible except the four audit ITs P2.1 wired in directly. Generalize: activate failsafe + `mvn verify` repo-wide, and audit the latent failures this surfaces (e.g. `AuditEventPersistenceIT` was silently red on `main` before P2.1). | MEDIUM | P3 | M | ⏳ |
 | RT2-008 | `ManualEnrichmentConsumer` explicit Kafka tenant-header validation | HIGH | P1.3 | XS | ✅ PR #207 |
 | RT2-009 | `PolicyDecisionConsumer` capture + set tenant UUID | HIGH | P1.3 | XS | ✅ PR #207 |
 | RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ✅ PR #208 |
