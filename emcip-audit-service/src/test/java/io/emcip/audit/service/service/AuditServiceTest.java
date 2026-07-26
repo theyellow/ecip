@@ -2,18 +2,21 @@ package io.emcip.audit.service.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.emcip.audit.service.entity.AuditEventEntity;
 import io.emcip.audit.service.repository.AuditEventRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.r2dbc.core.DatabaseClient;
+import org.springframework.r2dbc.core.FetchSpec;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -167,6 +170,7 @@ class AuditServiceTest {
 
     @Test
     void deleteRecordsOlderThan_noRecords_returnsZero() {
+        stubPurgeFlagAndPassThroughTransaction();
         Instant cutoff = Instant.now().minus(3650, ChronoUnit.DAYS);
         when(repository.findOldestBeforeCutoff(cutoff)).thenReturn(Mono.empty());
 
@@ -177,6 +181,7 @@ class AuditServiceTest {
 
     @Test
     void deleteRecordsOlderThan_withRecords_deletesAndReturnsCount() {
+        stubPurgeFlagAndPassThroughTransaction();
         Instant cutoff = Instant.now().minus(3650, ChronoUnit.DAYS);
         AuditEventEntity oldest =
                 AuditEventEntity.builder()
@@ -191,6 +196,24 @@ class AuditServiceTest {
         StepVerifier.create(auditService.deleteRecordsOlderThan(cutoff))
                 .expectNext(42L)
                 .verifyComplete();
+    }
+
+    /**
+     * {@code deleteRecordsOlderThan} sets the {@code emcip.audit_purge} session flag and wraps the
+     * delete in {@link TransactionalOperator#transactional(Mono)} so the DELETE-prevention trigger
+     * (see {@code AuditDeletePreventionIT}) permits the purge. Unit tests stub both as pass-through
+     * so the retention logic itself can be verified without a real database connection.
+     */
+    @SuppressWarnings("unchecked")
+    private void stubPurgeFlagAndPassThroughTransaction() {
+        DatabaseClient.GenericExecuteSpec executeSpec =
+                mock(DatabaseClient.GenericExecuteSpec.class);
+        FetchSpec<Map<String, Object>> fetchSpec = mock(FetchSpec.class);
+        when(databaseClient.sql("SET LOCAL emcip.audit_purge = 'on'")).thenReturn(executeSpec);
+        when(executeSpec.fetch()).thenReturn(fetchSpec);
+        when(fetchSpec.rowsUpdated()).thenReturn(Mono.just(0L));
+        when(transactionalOperator.transactional(any(Mono.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="004-audit-prevent-delete-trigger" author="p2.1-audit-integrity">
+        <comment>RT2-016: Prevent DELETE on audit_events unless the sanctioned purge flag is set</comment>
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION prevent_audit_delete() RETURNS trigger AS $$
+            BEGIN
+                IF current_setting('emcip.audit_purge', true) IS DISTINCT FROM 'on' THEN
+                    RAISE EXCEPTION 'audit_events rows cannot be deleted';
+                END IF;
+                RETURN OLD;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER audit_no_delete
+                BEFORE DELETE ON audit_events
+                FOR EACH ROW
+                EXECUTE FUNCTION prevent_audit_delete();
+        </sql>
+        <rollback>
+            DROP TRIGGER IF EXISTS audit_no_delete ON audit_events;
+            DROP FUNCTION IF EXISTS prevent_audit_delete();
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

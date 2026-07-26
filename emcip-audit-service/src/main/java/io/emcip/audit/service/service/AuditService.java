@@ -201,25 +201,36 @@ public class AuditService {
      * record before purging.
      */
     public Mono<Long> deleteRecordsOlderThan(Instant cutoff) {
-        return repository
-                .findOldestBeforeCutoff(cutoff)
-                .flatMap(
-                        oldest -> {
-                            String anchorHash = oldest.getIntegrityHash();
-                            return repository
-                                    .deleteByCreatedAtBefore(cutoff)
-                                    .doOnSuccess(
-                                            count -> {
-                                                if (count > 0) {
-                                                    log.info(
-                                                            "Purged {} audit records, anchor"
-                                                                    + " hash: {}",
-                                                            count,
-                                                            anchorHash);
-                                                }
-                                            });
-                        })
-                .defaultIfEmpty(0L);
+        Mono<Long> op =
+                databaseClient
+                        .sql("SET LOCAL emcip.audit_purge = 'on'")
+                        .fetch()
+                        .rowsUpdated()
+                        .then(
+                                repository
+                                        .findOldestBeforeCutoff(cutoff)
+                                        .flatMap(
+                                                oldest -> {
+                                                    String anchorHash = oldest.getIntegrityHash();
+                                                    return repository
+                                                            .deleteByCreatedAtBefore(cutoff)
+                                                            .doOnSuccess(
+                                                                    count -> {
+                                                                        if (count > 0) {
+                                                                            log.info(
+                                                                                    "Purged {}"
+                                                                                        + " audit"
+                                                                                        + " records,"
+                                                                                        + " anchor"
+                                                                                        + " hash:"
+                                                                                        + " {}",
+                                                                                    count,
+                                                                                    anchorHash);
+                                                                        }
+                                                                    });
+                                                })
+                                        .defaultIfEmpty(0L));
+        return transactionalOperator.transactional(op);
     }
 
     /**

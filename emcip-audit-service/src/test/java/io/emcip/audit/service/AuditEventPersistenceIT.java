@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.r2dbc.core.DatabaseClient;
 import tools.jackson.databind.ObjectMapper;
 
 class AuditEventPersistenceIT extends AbstractAuditIntegrationTest {
@@ -21,10 +22,12 @@ class AuditEventPersistenceIT extends AbstractAuditIntegrationTest {
 
     @Autowired private AuditEventRepository auditEventRepository;
 
+    @Autowired private DatabaseClient databaseClient;
+
     @BeforeEach
     void cleanUp() {
-        // Verify table is accessible from test thread and clear prior test data
-        auditEventRepository.deleteAll().block();
+        // TRUNCATE bypasses the row-level DELETE trigger (added in Task 4).
+        databaseClient.sql("TRUNCATE audit_events").fetch().rowsUpdated().block();
     }
 
     @Test
