@@ -13,4 +13,12 @@ public class LlmProviderApiKeyCipherConverter extends EncryptedStringConverter {
     public LlmProviderApiKeyCipherConverter(SecretCipher cipher) {
         super(cipher, "llm_provider_configs.api_key");
     }
+
+    /**
+     * Build-time constructor for the Spring Data JPA AOT metamodel; see {@link
+     * EncryptedStringConverter}.
+     */
+    public LlmProviderApiKeyCipherConverter() {
+        super("llm_provider_configs.api_key");
+    }
 }
