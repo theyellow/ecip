@@ -758,6 +758,17 @@ For Docker Compose DLQ monitoring, see the _Docker Compose Guide_.
 
 The `DeadLetterQueueConsumer` in `emcip-audit-service` writes a DLQ event to the audit log with the original payload and failure reason.
 
+=== Audit Chain Integrity
+
+`emcip-audit-service` maintains a tamper-evident hash chain over `audit_events`. `AuditChainVerificationJob` runs on `0 17 3 * * *` and logs at `INFO` when the chain verifies clean. A log line starting `CRITICAL: Audit chain integrity violation` means verification failed, and the `reason` field tells you which of two things happened:
+
+* `CONTENT_TAMPERED` — a row's stored `integrity_hash` no longer matches the hash recomputed from that row's own content and `prev_hash`. Something changed the row's data in place (e.g. a superuser `UPDATE` bypassing the application).
+* `BROKEN_LINKAGE` — a row's `prev_hash` no longer matches its predecessor's `integrity_hash`. A row was deleted or reordered outside the sanctioned purge path.
+
+Either CRITICAL log is a genuine incident and should be investigated immediately (correlate with `brokenAtId`, `expectedHash`, `actualHash` in the log). Pre-activation rows (`integrity_hash IS NULL`) are skipped by design and are not evidence of tampering.
+
+Manual `DELETE` statements against `audit_events` are blocked by a database trigger (`audit_no_delete`) — this is intentional, not a bug. The only sanctioned deletion path is the retention job (`AuditService.deleteRecordsOlderThan`), which sets `SET LOCAL emcip.audit_purge = 'on'` inside its own transaction before deleting; the flag is transaction-scoped and does not persist. If an operator genuinely needs to remove rows outside retention, do not attempt to disable or work around the trigger — escalate, since any such deletion invalidates the hash chain for every later row.
+
 === Knowledge Enrichment Configuration
 
 `emcip-llm-orchestrator` can optionally query the knowledge engine before each LLM call and prepend relevant passages to the user prompt. Enrichment is **disabled by default** — enable it per-deployment via environment variables.

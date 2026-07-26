@@ -455,6 +455,18 @@ Secret columns are encrypted with AES-256-GCM before storage: `telegram_accounts
 
 JPA services (knowledge-engine, llm-orchestrator) apply encryption transparently via a per-column `EncryptedStringConverter` (`@Convert`); admin-api's reactive R2DBC path encrypts and decrypts explicitly in the service layer. Reads are *fail-closed*: a stored value lacking the `v1:` prefix throws rather than being used as plaintext, so a missed migration surfaces loudly and names the offending column. There is no automatic backfill — pre-existing rows are migrated once, by hand, per `docs/operations/secrets-encryption.md`.
 
+=== Audit Integrity (Hash Chain)
+
+`audit_events` rows form an append-only, tamper-evident hash chain: `AuditService.saveWithChain()` computes `integrity_hash = sha256(eventId|createdAt|eventType|actorId|resourceType|resourceId|prev_hash)`, folding each row's predecessor hash into its own digest so altering any earlier row cascades into every later `integrity_hash`. The genesis row (first post-activation write) has `prev_hash = null`; pre-activation rows keep a `NULL` `integrity_hash` and are skipped by verification.
+
+The read-tail → compute → insert sequence is an unsynchronized read-modify-write, and the audit consumer runs with `setConcurrency(3)`, so it is serialized by a cluster-wide Postgres advisory lock (`pg_advisory_xact_lock`, a fixed key constant in `AuditService`) held for the duration of an R2DBC `TransactionalOperator` transaction — released automatically on commit/rollback, so it cannot leak even on failure. This makes the chain correct across concurrent listener threads and future replicas alike. `AuditChainVerificationJob` (cron `0 17 3 * * *`) recomputes the stored hash from each row's content and prior hash — detecting content tampering — and separately checks `newer.prev_hash == older.integrity_hash` — detecting deletion/reordering — reporting which via a `CONTENT_TAMPERED` / `BROKEN_LINKAGE` discriminator.
+
+A DELETE-prevention trigger (`audit_no_delete`, migration `004`) fails closed on any `DELETE` against `audit_events` unless the transaction has `SET LOCAL emcip.audit_purge = 'on'`. `AuditService.deleteRecordsOlderThan()` (the retention job's purge path) sets this flag inside its own transaction before deleting, so the sanctioned purge still works while ad-hoc or manual deletes are rejected by the database itself.
+
+The consumer (`AuditEventConsumer`) is a synchronous `@KafkaListener` (five listener methods, one per source topic) calling `saveWithChain()`, hardened by a `DefaultErrorHandler` (exponential backoff: 1s/2s/4s… capped at 30s, gives up after ~60s elapsed) that recovers exhausted or non-retryable failures to `<topic>.dlq` via `DeadLetterTopicHandler`; `JacksonException` (malformed payloads) is classified non-retryable and routed to the DLQ immediately. `AckMode.MANUAL_IMMEDIATE` means the offset commits only after a successful save or after the record durably lands on the DLQ — never a silent loss. Persistence stays fully reactive (`saveWithChain` returns a `Mono`, backed by R2DBC); a single `.block()` bridges at the Kafka consumer thread, which runs on a dedicated listener container thread pool, not a WebFlux event loop.
+
+NOTE: An earlier design considered rewriting the consumer with `ReactiveKafkaConsumerTemplate` to remove the `.block()`. This was dropped: the class was removed from spring-kafka 4.x, and reactor-kafka (the library it wrapped) is discontinued. See `docs/superpowers/specs/2026-07-25-audit-integrity-redesign-design.md` ("Decision revision") for the full rationale.
+
 NOTE: For deployment configuration and port assignments, see the _Operations Guide_.
 
 [appendix]

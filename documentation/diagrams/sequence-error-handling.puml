@@ -22,6 +22,7 @@ database "PostgreSQL" as DB
 participant "Alerting\nService" as Alerts
 participant "Admin\nDashboard" as Admin
 participant "Audit\nService" as Audit
+participant "Audit Event\nConsumer" as AuditConsumer
 
 ' Normal Processing with Error
 == Error Scenario 1: Retryable Error ==
@@ -124,6 +125,40 @@ alt Schema validation failure
 end
 
 deactivate RetryConsumer
+
+' Audit-service consumer (P2.1): synchronous @KafkaListener + DefaultErrorHandler -> DLQ
+== Error Scenario 3: Audit Consumer (@KafkaListener + DefaultErrorHandler) ==
+Topic -> AuditConsumer: ConsumerRecord (5 topics, MANUAL_IMMEDIATE ack)
+activate AuditConsumer
+AuditConsumer -> AuditConsumer: saveWithChain() (advisory-lock tx)
+
+alt Transient failure (e.g. DB error)
+    note right
+      DefaultErrorHandler backoff:
+      1s, 2s, 4s ... capped 30s,
+      gives up after ~60s elapsed
+    end note
+    loop until backoff exhausted
+        AuditConsumer -> AuditConsumer: Container redelivers record
+    end
+    AuditConsumer -> DLQProducer: Retries exhausted -> DeadLetterTopicHandler
+    activate DLQProducer
+    DLQProducer -> DLQ: Publish to <topic>.dlq
+    DLQProducer --> AuditConsumer: Sent
+    deactivate DLQProducer
+    AuditConsumer -> AuditConsumer: Commit offset (MANUAL_IMMEDIATE)\nonly after record lands on DLQ
+else Permanent failure (malformed JSON / JacksonException)
+    note right: handler.addNotRetryableExceptions(\nJacksonException.class) — no retries wasted
+    AuditConsumer -> DLQProducer: Send to DLQ immediately
+    activate DLQProducer
+    DLQProducer -> DLQ: Publish to <topic>.dlq
+    DLQProducer --> AuditConsumer: Sent
+    deactivate DLQProducer
+    AuditConsumer -> AuditConsumer: Commit offset
+else Success
+    AuditConsumer -> AuditConsumer: Commit offset (MANUAL_IMMEDIATE)
+end
+deactivate AuditConsumer
 
 ' DLQ Processing
 == DLQ Processing and Recovery ==

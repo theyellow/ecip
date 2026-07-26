@@ -150,7 +150,21 @@ the hook that lets a KMS/Vault backend swap in behind the cipher without touchin
 admin-api R2DBC), strict fail-closed reads, hand-run migration via `SecretCipherCli` +
 `docs/operations/secrets-encryption.md`. Scope correction during implementation: the planned
 `DROP TABLE telegram_config` was removed — changelog `007` already dropped it. Follow-ups tracked as
-P2.0-M1/M2/F1 in `BACKLOG.md`. **Next: P2.1 — audit integrity redesign.**
+P2.0-M1/M2/F1 in `BACKLOG.md`.
+
+**P2.1 delivered (2026-07-26):** branch `feat/p2-audit-integrity`. Activated the hash chain by switching
+the consumer to `saveWithChain()`, serialized against concurrent listener threads/replicas by a Postgres
+advisory lock (`pg_advisory_xact_lock`) held for the transaction; strengthened the tamper-evident hash to
+fold `prev_hash` into `integrity_hash` so `verifyChain` recomputes content hash *and* checks linkage,
+reporting `CONTENT_TAMPERED` vs `BROKEN_LINKAGE`; added the DELETE-prevention trigger (`audit_no_delete`,
+migration `004`), guarded by the `emcip.audit_purge` session flag so the retention job's sanctioned purge
+still works. **Design revision:** the plan's own §3.2 (`ReactiveKafkaConsumerTemplate` rewrite to drop
+`.block()`) was dropped during implementation — `ReactiveKafkaConsumerTemplate` was removed from
+spring-kafka 4.x and reactor-kafka (the library it wrapped) is discontinued (EOL). The delivered
+consumer stays a synchronous `@KafkaListener`, hardened with a `DefaultErrorHandler` (exponential
+backoff) → `DeadLetterTopicHandler` DLQ and `JacksonException` classified non-retryable — matching every
+other EMCIP Kafka consumer. See the spec's "Decision revision" banner:
+`docs/superpowers/specs/2026-07-25-audit-integrity-redesign-design.md`. **Next: P2.2 — SSRF protection.**
 
 ---
 

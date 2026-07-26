@@ -21,6 +21,7 @@ box "Kafka Topics" #LightYellow
   participant "responses.\ngenerated" as ResponseTopic
   participant "moderation.\nflags" as ModerationTopic
   participant "audit.events" as AuditTopic #Red
+  queue "<topic>.dlq" as AuditDLQ #Pink
 end box
 
 box "Audit Service (Port 9086)" #LightGray
@@ -85,8 +86,21 @@ Formatter ->> AuditConsumer : FormattedLog
 '
 ' deactivate Formatter
 
-AuditConsumer ->> EventTable : INSERT audit event
-AuditConsumer ->> LogTable : INSERT formatted log
+' === TAMPER-EVIDENT HASH CHAIN PERSISTENCE (P2.1) ===
+note right of AuditConsumer
+  saveWithChain(): pg_advisory_xact_lock(AUDIT_CHAIN_LOCK_KEY) serializes
+  read-tail -> compute -> insert across concurrent listener threads/replicas,
+  so the chain cannot fork. integrity_hash =
+  sha256(eventId|createdAt|eventType|actorId|resourceType|resourceId|prev_hash)
+end note
+
+alt saveWithChain succeeds
+    AuditConsumer ->> EventTable : saveWithChain(): advisory-lock tx,\nread prev integrity_hash, INSERT chained row
+    AuditConsumer ->> LogTable : INSERT formatted log
+else Save fails (transient, retries exhausted; or permanent e.g. malformed JSON)
+    AuditConsumer ->> AuditDLQ : DefaultErrorHandler: retry(backoff) -> DeadLetterTopicHandler
+    note right: Offset commits only after\nthe record lands on <topic>.dlq
+end
 
 ' Cost tracking
 alt Event contains cost data

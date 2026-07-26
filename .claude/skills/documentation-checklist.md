@@ -63,6 +63,17 @@ Update when you change:
 - Secrets → §2.3 Secrets
 - Monitoring or alerting → monitoring sections
 
+### Planning & tracking docs (`docs/superpowers/BACKLOG.md`, `documentation/ROADMAP.md`)
+**Scope:** Work status and sequencing — the single source of truth for what is done, in progress, and next.
+
+Update when you:
+- Complete, start, or defer any backlog/roadmap item → flip its **Status** in `BACKLOG.md` (§0 table and/or §5 Completed) and the matching phase note in `ROADMAP.md`
+- Change scope, split, or merge an item → reflect the new scope in both files (IDs stay stable; note the change inline as prior entries do)
+- Discover a follow-up or a correction to a stated assumption → add it to `BACKLOG.md` (as a follow-up row, e.g. `Px-Mn`/`Px-Fn`) and, if it affects sequencing, `ROADMAP.md`
+- Finish a phase → record the delivery note (branch/PR + date + scope corrections) in the relevant `ROADMAP.md` phase section
+
+**Rule of thumb:** if a code change advances or alters a tracked item, the tracking docs are updated in the *same* change — never left for "later." These are the first place another developer (or a future session) looks to know the state of the work.
+
 ### PlantUML Diagrams (`documentation/diagrams/`)
 
 | Diagram | Update when... |
