@@ -13,9 +13,17 @@ public class TestcontainersInitializer
 
     private static final Logger log = LoggerFactory.getLogger(TestcontainersInitializer.class);
 
+    // Our own image (postgres:16 + pgvector + Apache AGE), built from
+    // docker/postgres-knowledge/Dockerfile and published to GHCR. Using it gives the
+    // integration tests the same graph engine as production instead of an AGE-less stand-in.
     private static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>(DockerImageName.parse("pgvector/pgvector:pg16"))
-                    .withDatabaseName("emcip_test")
+            new PostgreSQLContainer<>(
+                            DockerImageName.parse("ghcr.io/theyellow/ecip/postgres:16")
+                                    .asCompatibleSubstituteFor("postgres"))
+                    // Match the production database name. This also stays compatible with the
+                    // currently-published image whose init script hardcoded `ALTER DATABASE emcip`
+                    // (the Dockerfile now derives the name from current_database() instead).
+                    .withDatabaseName("emcip")
                     .withUsername("emcip")
                     .withPassword("emcip");
 
@@ -46,7 +54,10 @@ public class TestcontainersInitializer
                         "spring.liquibase.default-schema=public",
                         "spring.liquibase.liquibase-schema=public",
                         "spring.kafka.bootstrap-servers=localhost:14003",
-                        "spring.datasource.hikari.connection-init-sql=")
+                        // AGE is now present in the container, so load it per connection
+                        // (matches application.yml) instead of blanking the init SQL.
+                        "spring.datasource.hikari.connection-init-sql=LOAD 'age'; SET search_path"
+                                + " = ag_catalog, \"$user\", public")
                 .applyTo(applicationContext.getEnvironment());
     }
 }

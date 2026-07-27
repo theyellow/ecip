@@ -9,12 +9,9 @@ import io.emcip.knowledge.engine.entity.ConceptType;
 import io.emcip.knowledge.engine.entity.KnowledgeDocument;
 import io.emcip.knowledge.engine.model.ExtractionResult;
 import io.emcip.knowledge.engine.model.ExtractionResult.ExtractedEntity;
-import io.emcip.knowledge.engine.model.GraphNode;
 import io.emcip.knowledge.engine.repository.ConceptTypeRepository;
-import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.KnowledgeDocumentRepository;
 import io.emcip.knowledge.engine.service.KnowledgeExtractionService;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,9 +29,6 @@ class KnowledgeExtractionIntegrationTest {
 
     @MockitoBean private LlmOrchestratorClient llmClient;
 
-    // AgeGraphRepository requires Apache AGE extension not present in pgvector/pgvector:pg16
-    @MockitoBean private GraphRepository graphRepository;
-
     @BeforeEach
     void clean() {
         documentRepository.deleteAll();
@@ -49,19 +43,8 @@ class KnowledgeExtractionIntegrationTest {
         person.setShared(false);
         conceptTypeRepository.save(person);
 
-        // graphRepository is mocked — stub createNode so EntityResolutionService.resolve()
-        // doesn't NPE when it falls through to node creation (AGE not in test container image)
-        when(graphRepository.createNode(any(), any(), any(), any()))
-                .thenAnswer(
-                        inv ->
-                                new GraphNode(
-                                        UUID.randomUUID(),
-                                        inv.getArgument(0),
-                                        inv.getArgument(3),
-                                        inv.getArgument(1),
-                                        Map.of(),
-                                        Instant.now(),
-                                        Instant.now()));
+        // EntityResolutionService.resolve() now creates nodes in the real Apache AGE graph
+        // provided by the container image.
 
         // Return empty float[] so storeEmbedding is skipped (vector(1024) constraint in DB)
         when(llmClient.embed(any())).thenReturn(new float[0]);
