@@ -26,6 +26,10 @@ import jakarta.persistence.AttributeConverter;
  * Each concrete subclass must therefore also expose a public no-arg constructor that calls {@link
  * #EncryptedStringConverter(String)}. Such a cipher-less instance is never used for a real
  * conversion; the guard in {@link #cipher()} makes any accidental use fail loudly instead of NPE.
+ *
+ * <p>Because a subclass then has two constructors, it must annotate the {@link SecretCipher}
+ * constructor with {@code @Autowired}; otherwise Spring silently picks the no-arg constructor when
+ * creating the bean and the runtime cipher is never injected.
  */
 public abstract class EncryptedStringConverter implements AttributeConverter<String, String> {
 
