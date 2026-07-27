@@ -17,8 +17,19 @@ import jakarta.persistence.AttributeConverter;
  * }
  * </pre>
  *
- * <p>Hibernate instantiates converters through Spring's bean container, which Spring Boot
- * configures automatically, so constructor injection of {@link SecretCipher} works.
+ * <p>At runtime Hibernate instantiates converters through Spring's bean container, which Spring
+ * Boot configures automatically, so constructor injection of {@link SecretCipher} works.
+ *
+ * <p>The build-time Spring Data JPA AOT metamodel (native image {@code process-aot}) is different:
+ * it boots a standalone Hibernate with no Spring bean container and instantiates converters
+ * reflectively through their <em>no-arg</em> constructor, purely to resolve the converted type.
+ * Each concrete subclass must therefore also expose a public no-arg constructor that calls {@link
+ * #EncryptedStringConverter(String)}. Such a cipher-less instance is never used for a real
+ * conversion; the guard in {@link #cipher()} makes any accidental use fail loudly instead of NPE.
+ *
+ * <p>Because a subclass then has two constructors, it must annotate the {@link SecretCipher}
+ * constructor with {@code @Autowired}; otherwise Spring silently picks the no-arg constructor when
+ * creating the bean and the runtime cipher is never injected.
  */
 public abstract class EncryptedStringConverter implements AttributeConverter<String, String> {
 
@@ -26,6 +37,8 @@ public abstract class EncryptedStringConverter implements AttributeConverter<Str
     private final String location;
 
     /**
+     * Runtime constructor, invoked by Spring's Hibernate bean container.
+     *
      * @param cipher shared cipher bean
      * @param location {@code table.column}, used only in error messages
      */
@@ -34,13 +47,37 @@ public abstract class EncryptedStringConverter implements AttributeConverter<Str
         this.location = location;
     }
 
+    /**
+     * Build-time constructor for the Spring Data JPA AOT metamodel, which instantiates converters
+     * without a cipher. The resulting instance can only resolve the converted type; calling a
+     * conversion method throws (see {@link #cipher()}).
+     *
+     * @param location {@code table.column}, used only in error messages
+     */
+    protected EncryptedStringConverter(String location) {
+        this.cipher = null;
+        this.location = location;
+    }
+
     @Override
     public String convertToDatabaseColumn(String attribute) {
-        return cipher.encrypt(attribute);
+        return cipher().encrypt(attribute);
     }
 
     @Override
     public String convertToEntityAttribute(String dbData) {
-        return cipher.decrypt(dbData, location);
+        return cipher().decrypt(dbData, location);
+    }
+
+    private SecretCipher cipher() {
+        if (cipher == null) {
+            throw new IllegalStateException(
+                    "EncryptedStringConverter for "
+                            + location
+                            + " has no cipher: this is the build-time AOT metamodel instance and"
+                            + " must not perform conversions. The runtime instance is created by"
+                            + " Spring with constructor injection.");
+        }
+        return cipher;
     }
 }

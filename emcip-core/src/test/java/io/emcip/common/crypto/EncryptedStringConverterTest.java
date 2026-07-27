@@ -16,6 +16,11 @@ class EncryptedStringConverterTest {
         TestConverter(SecretCipher cipher) {
             super(cipher, "some_table.some_column");
         }
+
+        /** Mirrors the no-arg constructor Hibernate's AOT metamodel instantiates reflectively. */
+        TestConverter() {
+            super("some_table.some_column");
+        }
     }
 
     private final TestConverter converter = new TestConverter(new SecretCipher(KEY));
@@ -41,5 +46,22 @@ class EncryptedStringConverterTest {
     void nullValues_passThroughBothDirections() {
         assertThat(converter.convertToDatabaseColumn(null)).isNull();
         assertThat(converter.convertToEntityAttribute(null)).isNull();
+    }
+
+    @Test
+    void aotMetamodelInstance_hasNoCipherAndRefusesToConvert() {
+        // Hibernate's build-time AOT metamodel instantiates converters via the no-arg constructor,
+        // with no Spring bean container to inject the cipher. Such an instance must never encrypt
+        // or
+        // decrypt real data — it exists only to resolve the converted type.
+        TestConverter aotInstance = new TestConverter();
+
+        assertThatThrownBy(() -> aotInstance.convertToDatabaseColumn("sk-secret"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("some_table.some_column")
+                .hasMessageNotContaining("sk-secret");
+        assertThatThrownBy(() -> aotInstance.convertToEntityAttribute("v1:whatever"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("some_table.some_column");
     }
 }

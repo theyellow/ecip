@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.emcip.common.crypto.SecretCipher;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 class LlmProviderApiKeyCipherConverterTest {
 
@@ -37,5 +38,26 @@ class LlmProviderApiKeyCipherConverterTest {
         // api_key is nullable on this table.
         assertThat(converter.convertToDatabaseColumn(null)).isNull();
         assertThat(converter.convertToEntityAttribute(null)).isNull();
+    }
+
+    @Test
+    void springCreatesTheBeanWithTheCipherConstructor_notTheNoArgAotConstructor() {
+        // At runtime Hibernate's SpringBeanContainer instantiates converters through the
+        // application
+        // context's autowire-capable bean factory, the same path used here. Because this class also
+        // has a no-arg constructor (for the build-time AOT metamodel), Spring must be told to use
+        // the SecretCipher constructor via @Autowired; otherwise it silently picks the no-arg one
+        // and the resulting bean cannot decrypt. Reproduces that path without a database.
+        try (AnnotationConfigApplicationContext ctx = new AnnotationConfigApplicationContext()) {
+            ctx.registerBean(SecretCipher.class, () -> new SecretCipher(KEY));
+            ctx.refresh();
+
+            LlmProviderApiKeyCipherConverter created =
+                    ctx.getAutowireCapableBeanFactory()
+                            .createBean(LlmProviderApiKeyCipherConverter.class);
+
+            String stored = created.convertToDatabaseColumn("sk-litellm-key");
+            assertThat(created.convertToEntityAttribute(stored)).isEqualTo("sk-litellm-key");
+        }
     }
 }
