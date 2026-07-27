@@ -44,7 +44,11 @@ RUN mvn install -N -q && \
 
 COPY emcip-policy-engine/src ./emcip-policy-engine/src
 
-RUN mvn -Pnative package -DskipTests -q -pl emcip-policy-engine -am
+# On failure, dump the JVM crash report so a GraalVM native-image SIGSEGV is
+# diagnosable from the CI step log (the hs_err file lives only inside this
+# ephemeral build layer and is otherwise discarded).
+RUN mvn -Pnative package -DskipTests -q -pl emcip-policy-engine -am \
+ || { echo "=== native-image crash: hs_err dump ==="; cat /build/hs_err_pid*.log 2>/dev/null; exit 1; }
 
 # Stage 2: Minimal runtime
 FROM debian:12-slim
