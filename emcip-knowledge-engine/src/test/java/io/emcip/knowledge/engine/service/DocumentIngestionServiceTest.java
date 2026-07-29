@@ -603,5 +603,7 @@ class DocumentIngestionServiceTest {
                                         .isEqualTo(IngestionJob.IngestionStatus.FAILED));
         // The literal-IP loopback target must be rejected BEFORE any socket connect.
         assertThat(hits.get()).isEqualTo(0);
+        // And it must fail as an SSRF block, not for some unrelated reason.
+        assertThat(job.getErrorMessage()).contains("SSRF blocked");
     }
 }

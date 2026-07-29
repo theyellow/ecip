@@ -37,6 +37,10 @@ public final class SsrfHttpClients {
                             guard.validateUrlHost(chain.request().url().host());
                             return chain.proceed(chain.request());
                         })
+                // SECURITY: redirects MUST stay disabled. The interceptor above validates only the
+                // original request URL; it does not re-run per redirect hop. Re-enabling redirects
+                // would let a Location: header send the fetch to an unvalidated private/literal
+                // host.
                 .followRedirects(false)
                 .followSslRedirects(false)
                 .connectTimeout(timeout)
