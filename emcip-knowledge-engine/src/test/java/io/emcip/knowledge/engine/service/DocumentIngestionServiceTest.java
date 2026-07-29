@@ -17,9 +17,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.sun.net.httpserver.HttpServer;
-import io.emcip.common.net.PinningDns;
 import io.emcip.common.net.SsrfAllowList;
-import io.emcip.common.net.SsrfGuard;
+import io.emcip.common.net.SsrfHttpClients;
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
 import io.emcip.knowledge.engine.config.IngestionProperties;
 import io.emcip.knowledge.engine.entity.IngestionJob;
@@ -99,13 +98,10 @@ class DocumentIngestionServiceTest {
     }
 
     private static OkHttpClient guardedClient(String... allowedHosts) {
-        SsrfGuard guard = new SsrfGuard(SsrfAllowList.parse(List.of(allowedHosts)));
-        return new OkHttpClient.Builder()
-                .dns(new PinningDns(guard))
-                .followRedirects(false)
-                .connectTimeout(Duration.ofSeconds(5))
-                .callTimeout(Duration.ofSeconds(5))
-                .build();
+        // Build via the same factory the production wiring uses, so the test exercises the real
+        // guarded client (pre-connect interceptor + PinningDns), not a drifted approximation.
+        return SsrfHttpClients.create(
+                SsrfAllowList.parse(List.of(allowedHosts)), Duration.ofSeconds(5));
     }
 
     // ── KnowledgeExtractionService.processDocument tests (carried over) ───────
@@ -552,5 +548,60 @@ class DocumentIngestionServiceTest {
     void submitUrlIngestion_rejectsNonHttpSchemeAtSubmit() {
         assertThatThrownBy(() -> service.submitUrlIngestion("file:///etc/passwd", null))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void submitUrlIngestion_blocksLiteralLoopbackIpBeforeConnect() throws Exception {
+        // A reachable loopback server: if the guard fails to block the literal-IP URL, the request
+        // reaches this handler. OkHttp skips its DNS hook for IP-literal hosts, so this is the case
+        // PinningDns alone does NOT cover — the pre-connect interceptor must reject it.
+        java.util.concurrent.atomic.AtomicInteger hits =
+                new java.util.concurrent.atomic.AtomicInteger();
+        httpServer.createContext(
+                "/secret",
+                exchange -> {
+                    hits.incrementAndGet();
+                    byte[] body = "secret".getBytes(StandardCharsets.UTF_8);
+                    exchange.sendResponseHeaders(200, body.length);
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(body);
+                    }
+                });
+        int port = httpServer.getAddress().getPort();
+
+        // Strict service: guarded client with an EMPTY allow-list (loopback not permitted).
+        DocumentIngestionService strictService =
+                new DocumentIngestionService(
+                        jobRepository,
+                        extractionService,
+                        tikaExtractionService,
+                        chunker,
+                        new IngestionProperties(3),
+                        graphRepository,
+                        documentRepository,
+                        guardedClient());
+
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setStatus(IngestionJob.IngestionStatus.QUEUED);
+        when(jobRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            IngestionJob j = inv.getArgument(0);
+                            if (j.getId() == null) j.setId(jobId);
+                            return j;
+                        });
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+
+        strictService.submitUrlIngestion("http://127.0.0.1:" + port + "/secret", null);
+
+        await().atMost(5, SECONDS)
+                .untilAsserted(
+                        () ->
+                                assertThat(job.getStatus())
+                                        .isEqualTo(IngestionJob.IngestionStatus.FAILED));
+        // The literal-IP loopback target must be rejected BEFORE any socket connect.
+        assertThat(hits.get()).isEqualTo(0);
     }
 }

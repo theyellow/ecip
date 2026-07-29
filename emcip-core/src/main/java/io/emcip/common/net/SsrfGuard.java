@@ -66,6 +66,64 @@ public final class SsrfGuard {
     }
 
     /**
+     * Validate a URL host string BEFORE the HTTP request is dispatched, covering IP-literal hosts.
+     * OkHttp connects directly to a literal-IP host without consulting the {@link PinningDns} hook
+     * (its {@code RouteSelector} skips DNS when the host parses as an IP), so literal-IP SSRF
+     * targets — {@code http://169.254.169.254/}, {@code http://127.0.0.1/}, {@code
+     * http://10.0.0.1/} — must be rejected here, before any socket connect. Hostnames are a no-op:
+     * {@link PinningDns} validates and pins them at resolution time. This method performs NO DNS
+     * lookup.
+     *
+     * @throws SsrfBlockedException if {@code host} is an IP literal in a blocked range that is not
+     *     allow-listed
+     */
+    public void validateUrlHost(String host) throws SsrfBlockedException {
+        InetAddress literal = parseIpLiteralOrNull(host);
+        if (literal == null) {
+            return; // hostname — deferred to PinningDns at resolution time
+        }
+        Optional<String> label = blockedLabel(literal);
+        if (label.isPresent() && !allowList.permits(host, literal)) {
+            throw new SsrfBlockedException(
+                    "SSRF blocked: host '"
+                            + host
+                            + "' is a disallowed address ("
+                            + label.get()
+                            + ")");
+        }
+    }
+
+    /**
+     * Parse {@code host} as an IP literal without performing DNS, returning {@code null} for
+     * hostnames. Only strings that cannot be DNS hostnames — all digits and dots (IPv4) or
+     * containing a colon (IPv6) — are handed to {@link InetAddress#getByName}, which resolves a
+     * literal without a network lookup. A genuine hostname (which always contains a non-numeric,
+     * non-colon character in some label) never reaches {@code getByName} here.
+     */
+    private static InetAddress parseIpLiteralOrNull(String host) {
+        if (host == null || host.isBlank()) {
+            return null;
+        }
+        boolean looksIpv4 = true;
+        for (int i = 0; i < host.length(); i++) {
+            char c = host.charAt(i);
+            if ((c < '0' || c > '9') && c != '.') {
+                looksIpv4 = false;
+                break;
+            }
+        }
+        boolean looksIpv6 = host.indexOf(':') >= 0;
+        if (!looksIpv4 && !looksIpv6) {
+            return null;
+        }
+        try {
+            return InetAddress.getByName(host);
+        } catch (UnknownHostException e) {
+            return null; // not a valid literal after all — treat as hostname
+        }
+    }
+
+    /**
      * Reject-if-any-blocked. Returns {@code resolved} unchanged when every address is safe (or
      * allow-listed); otherwise throws.
      */

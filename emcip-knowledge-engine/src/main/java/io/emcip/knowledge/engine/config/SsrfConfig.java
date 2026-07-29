@@ -1,8 +1,7 @@
 package io.emcip.knowledge.engine.config;
 
-import io.emcip.common.net.PinningDns;
 import io.emcip.common.net.SsrfAllowList;
-import io.emcip.common.net.SsrfGuard;
+import io.emcip.common.net.SsrfHttpClients;
 import java.time.Duration;
 import okhttp3.OkHttpClient;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -21,14 +20,6 @@ public class SsrfConfig {
 
     @Bean
     public OkHttpClient ssrfHttpClient(SsrfAllowList allowList) {
-        SsrfGuard guard = new SsrfGuard(allowList);
-        return new OkHttpClient.Builder()
-                .dns(new PinningDns(guard))
-                .followRedirects(false)
-                .followSslRedirects(false)
-                .connectTimeout(Duration.ofSeconds(30))
-                .readTimeout(Duration.ofSeconds(30))
-                .callTimeout(Duration.ofSeconds(30))
-                .build();
+        return SsrfHttpClients.create(allowList, Duration.ofSeconds(30));
     }
 }
