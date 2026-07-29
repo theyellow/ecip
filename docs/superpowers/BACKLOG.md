@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-26 (P2.1 audit integrity redesign delivered)
+> Last updated: 2026-07-29 (P2.2 SSRF protection delivered)
 > Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
 > Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
@@ -51,7 +51,7 @@
 | P1-M2 | JWT revocation is **per-replica** — `JwtRevocationService` uses an in-process `ConcurrentHashMap`. Correct at `replicas: 1` (current Helm default) but silently degrades on scale-out. Bounds the RT2-003 fix. | MEDIUM | P4 | M | ⏳ |
 | P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
 | P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
-| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ⏳ |
+| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ done (branch `feat/p2-ssrf-protection`) — SSRF guard (pin validated IP via OkHttp Dns) on URL ingestion; configurable allow-list; reingest path covered |
 | RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.3 | M | ⏳ |
 | RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ |
 | RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ |

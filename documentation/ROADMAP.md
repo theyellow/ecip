@@ -164,7 +164,23 @@ spring-kafka 4.x and reactor-kafka (the library it wrapped) is discontinued (EOL
 consumer stays a synchronous `@KafkaListener`, hardened with a `DefaultErrorHandler` (exponential
 backoff) → `DeadLetterTopicHandler` DLQ and `JacksonException` classified non-retryable — matching every
 other EMCIP Kafka consumer. See the spec's "Decision revision" banner:
-`docs/superpowers/specs/2026-07-25-audit-integrity-redesign-design.md`. **Next: P2.2 — SSRF protection.**
+`docs/superpowers/specs/2026-07-25-audit-integrity-redesign-design.md`.
+
+**P2.2 delivered (2026-07-29):** branch `feat/p2-ssrf-protection`. Added a reusable SSRF guard in
+`emcip-core` (`io.emcip.common.net`: `CidrBlock`, `SsrfAllowList`, `SsrfGuard`, `SsrfBlockedException`,
+`PinningDns`) that classifies the *resolved* IP against a hardcoded deny set (loopback `127.0.0.0/8` +
+`::1`, RFC-1918 `10/8` + `172.16/12` + `192.168/16`, link-local/metadata `169.254.0.0/16` incl.
+`169.254.169.254` + `fe80::/10`, IPv6 ULA `fc00::/7`, wildcard `0.0.0.0/8` + `::`, multicast/reserved
+`224/4` + `240/4` + `ff00::/8`), unwrapping IPv4-mapped IPv6 first. DNS-rebinding TOCTOU is closed by
+pinning: an OkHttp `Dns` hook (`PinningDns`) validates every resolved address and returns exactly the
+validated list, so OkHttp connects only to a pre-validated IP. Redirects are disabled
+(`followRedirects(false)` + `followSslRedirects(false)`), with 30s connect/read/call timeouts and the
+existing 10 MB `MAX_CONTENT_BYTES` cap preserved via a bounded body read. The http/https scheme check is
+centralized in `submitUrlIngestion`, covering both the controller and the `reingestJob` reprocess path;
+blocked URLs end the ingestion job `FAILED` with no raw internal response leaked. New config key
+`emcip.ingestion.ssrf.allowed-hosts` (hostnames or CIDRs) lets operators allow specific private targets;
+default empty = strict deny-private, and the blocklist always applies otherwise. **Next: P2.3 — admin-ui
+Spring Security.**
 
 ---
 
