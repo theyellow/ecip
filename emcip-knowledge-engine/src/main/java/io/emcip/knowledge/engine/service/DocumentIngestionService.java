@@ -40,6 +40,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -74,7 +78,7 @@ public class DocumentIngestionService {
     private final IngestionProperties ingestionProperties;
     private final GraphRepository graphRepository;
     private final KnowledgeDocumentRepository documentRepository;
-    private final okhttp3.OkHttpClient ssrfHttpClient;
+    private final OkHttpClient ssrfHttpClient;
 
     /** Submit a URL for async ingestion. Returns the job ID immediately. */
     public String submitUrlIngestion(String url, UUID tenantId) {
@@ -327,16 +331,16 @@ public class DocumentIngestionService {
     }
 
     private byte[] fetchWithTimeout(String url) throws IOException {
-        okhttp3.Request request = new okhttp3.Request.Builder().url(url).get().build();
-        try (okhttp3.Response response = ssrfHttpClient.newCall(request).execute()) {
+        Request request = new Request.Builder().url(url).get().build();
+        try (Response response = ssrfHttpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("HTTP " + response.code() + " fetching " + url);
             }
-            okhttp3.ResponseBody body = response.body();
+            ResponseBody body = response.body();
             if (body == null) {
                 throw new IOException("Empty response body");
             }
-            try (java.io.InputStream in = body.byteStream()) {
+            try (InputStream in = body.byteStream()) {
                 byte[] bytes = in.readNBytes(MAX_CONTENT_BYTES + 1);
                 if (bytes.length > MAX_CONTENT_BYTES) {
                     throw new IOException(

@@ -29,6 +29,14 @@ class SsrfGuardTest {
     }
 
     @Test
+    void blocksCarrierGradeNatIncludingAlibabaMetadata() throws Exception {
+        // RFC-6598 100.64.0.0/10 — Alibaba Cloud's metadata service lives at 100.100.100.200.
+        assertThat(guard.isBlocked(ip("100.100.100.200"))).isTrue();
+        assertThat(guard.isBlocked(ip("100.64.0.1"))).isTrue();
+        assertThat(guard.isBlocked(ip("100.127.255.254"))).isTrue();
+    }
+
+    @Test
     void blocksIpv4MappedIpv6Loopback() throws Exception {
         // ::ffff:127.0.0.1 must be classified as loopback even if it arrives as an Inet6Address.
         InetAddress mapped =
@@ -59,6 +67,20 @@ class SsrfGuardTest {
     void validateReturnsResolvedWhenAllPublic() throws Exception {
         List<InetAddress> resolved = List.of(ip("8.8.8.8"), ip("1.1.1.1"));
         assertThat(guard.validate("good.example.com", resolved)).isEqualTo(resolved);
+    }
+
+    @Test
+    void validateMessageNamesBlockedClassLoopback() throws Exception {
+        assertThatThrownBy(() -> guard.validate("evil.example.com", List.of(ip("127.0.0.1"))))
+                .isInstanceOf(SsrfBlockedException.class)
+                .hasMessageContaining("loopback");
+    }
+
+    @Test
+    void validateMessageNamesBlockedClassMetadata() throws Exception {
+        assertThatThrownBy(() -> guard.validate("evil.example.com", List.of(ip("169.254.169.254"))))
+                .isInstanceOf(SsrfBlockedException.class)
+                .hasMessageContaining("link-local/metadata");
     }
 
     @Test
