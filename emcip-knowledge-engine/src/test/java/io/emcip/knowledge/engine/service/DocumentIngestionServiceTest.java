@@ -2,6 +2,7 @@ package io.emcip.knowledge.engine.service;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -16,6 +17,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.sun.net.httpserver.HttpServer;
+import io.emcip.common.net.PinningDns;
+import io.emcip.common.net.SsrfAllowList;
+import io.emcip.common.net.SsrfGuard;
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
 import io.emcip.knowledge.engine.config.IngestionProperties;
 import io.emcip.knowledge.engine.entity.IngestionJob;
@@ -35,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -81,7 +86,8 @@ class DocumentIngestionServiceTest {
                         chunker,
                         new IngestionProperties(3),
                         graphRepository,
-                        documentRepository);
+                        documentRepository,
+                        guardedClient("localhost", "127.0.0.1"));
 
         httpServer = HttpServer.create(new InetSocketAddress(0), 0);
         httpServer.start();
@@ -90,6 +96,16 @@ class DocumentIngestionServiceTest {
     @AfterEach
     void tearDown() {
         if (httpServer != null) httpServer.stop(0);
+    }
+
+    private static OkHttpClient guardedClient(String... allowedHosts) {
+        SsrfGuard guard = new SsrfGuard(SsrfAllowList.parse(List.of(allowedHosts)));
+        return new OkHttpClient.Builder()
+                .dns(new PinningDns(guard))
+                .followRedirects(false)
+                .connectTimeout(Duration.ofSeconds(5))
+                .callTimeout(Duration.ofSeconds(5))
+                .build();
     }
 
     // ── KnowledgeExtractionService.processDocument tests (carried over) ───────
@@ -480,5 +496,61 @@ class DocumentIngestionServiceTest {
                                                                             .FAILED
                                                             && j.getErrorMessage() != null);
                         });
+    }
+
+    @Test
+    void submitUrlIngestion_blocksCloudMetadataAddress() {
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setStatus(IngestionJob.IngestionStatus.QUEUED);
+        when(jobRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            IngestionJob j = inv.getArgument(0);
+                            if (j.getId() == null) j.setId(jobId);
+                            return j;
+                        });
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+
+        service.submitUrlIngestion("http://169.254.169.254/latest/meta-data/", null);
+
+        await().atMost(5, SECONDS)
+                .untilAsserted(
+                        () ->
+                                assertThat(job.getStatus())
+                                        .isEqualTo(IngestionJob.IngestionStatus.FAILED));
+        // The fetch was rejected in the DNS hook — extraction must never run.
+        verify(tikaExtractionService, org.mockito.Mockito.never()).extract(any(byte[].class));
+    }
+
+    @Test
+    void submitUrlIngestion_blocksPrivateRfc1918Address() {
+        UUID jobId = UUID.randomUUID();
+        IngestionJob job = new IngestionJob();
+        job.setId(jobId);
+        job.setStatus(IngestionJob.IngestionStatus.QUEUED);
+        when(jobRepository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            IngestionJob j = inv.getArgument(0);
+                            if (j.getId() == null) j.setId(jobId);
+                            return j;
+                        });
+        when(jobRepository.findById(jobId)).thenReturn(Optional.of(job));
+
+        service.submitUrlIngestion("http://10.0.0.1/internal", null);
+
+        await().atMost(5, SECONDS)
+                .untilAsserted(
+                        () ->
+                                assertThat(job.getStatus())
+                                        .isEqualTo(IngestionJob.IngestionStatus.FAILED));
+    }
+
+    @Test
+    void submitUrlIngestion_rejectsNonHttpSchemeAtSubmit() {
+        assertThatThrownBy(() -> service.submitUrlIngestion("file:///etc/passwd", null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
