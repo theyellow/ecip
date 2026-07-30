@@ -876,6 +876,49 @@ Prefer CIDR entries over hostname entries where possible: a hostname allow-list 
 DNS-rebinding attack or a compromised host could abuse, whereas a CIDR entry constrains the
 bypass to a specific, fixed address range.
 
+=== Admin UI Security Headers
+
+`emcip-admin-ui` runs a `permitAll` Spring Security filter chain whose only job is to write
+security response headers onto every response — it authenticates nothing (JWT auth lives at
+`emcip-admin-api`). The chain enforces:
+
+[cols="2,3"]
+|===
+|Header |Value
+
+|`Content-Security-Policy`
+|`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`
+
+|`Strict-Transport-Security`
+|`max-age=31536000 ; includeSubDomains` — max-age = 1 year (31536000s), includeSubDomains, no preload. The space before *and* after the `;` is not a typo: Spring Security's `HstsHeaderWriter` emits that literal.
+
+|`X-Frame-Options`
+|`DENY`
+
+|`X-Content-Type-Options`
+|`nosniff`
+
+|`Referrer-Policy`
+|`no-referrer`
+
+|`Permissions-Policy`
+|`geolocation=(), camera=(), microphone=(), payment=()`
+|===
+
+`style-src` currently allows `'unsafe-inline'` because the React frontend still uses inline
+`style={{}}` attributes; `script-src` stays strict `'self'` with no such concession. Follow-up
+RT2-007-F1 tracks migrating the frontend off inline styles so `style-src` can be tightened to
+strict `'self'`.
+
+CSP is emitted as a response header only — there is no `<meta http-equiv="Content-Security-Policy">`
+in `index.html`.
+
+`Strict-Transport-Security` requires the application to know the original request was HTTPS. TLS
+terminates at the ingress, not at the `admin-ui` pod, so Spring must trust the ingress's
+`X-Forwarded-Proto` header. This is enabled via `server.forward-headers-strategy: framework` in
+`emcip-admin-ui`'s `application.yml` — without it, HSTS would never be written because Spring would
+see every request as plain HTTP.
+
 === Moderation Rules
 
 Rules are evaluated by `emcip-moderation-service` against every `policies.decisions` event.

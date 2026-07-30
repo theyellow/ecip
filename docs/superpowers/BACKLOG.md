@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-30 (P2.2 reactor build fix — OkHttp/MockWebServer version split scoped; SSRF follow-ups SSRF-F1…F4 logged)
+> Last updated: 2026-07-30 (P2.3 admin-ui security headers delivered — Spring Security CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy filter chain; follow-up RT2-007-F1 logged)
 > Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
 > Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
@@ -52,7 +52,8 @@
 | P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
 | P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
 | RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ done (branch `feat/p2-ssrf-protection`) — SSRF guard (pin validated IP via OkHttp Dns) on URL ingestion; configurable allow-list; reingest path covered |
-| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.3 | M | ⏳ |
+| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) | HIGH | P2.3 | M | ✅ branch `feat/p2-admin-ui-security` |
+| RT2-007-F1 | Remove admin-ui inline styles (68 occurrences / 22 files → CSS Modules; PipelineTrace enum/binary classes; Costs bar chart → inline SVG) and drop 'unsafe-inline' from CSP style-src to reach strict style-src 'self'. Ref: emcip-admin-ui/src/main/frontend. | LOW | P4 | M | ⏳ |
 | RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ |
 | RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ |
 | S5 / S-OPEN-1 / RT-013 / S-NEW-2 | **Secrets encryption at rest** — `telegram_accounts.session_string` + `api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`; AES-256-GCM `SecretCipher` in `emcip-core`, strict fail-closed reads, rows migrated by hand via `SecretCipherCli` + runbook. Merges the former P2.5 + P2.6. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`; plan: `plans/2026-07-23-secrets-encryption-at-rest.md`; runbook: `docs/operations/secrets-encryption.md` | CRITICAL | P2.0 | L | ✅ done (branch `feat/p2-secrets-encryption-at-rest`) |

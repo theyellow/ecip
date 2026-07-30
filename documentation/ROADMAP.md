@@ -132,7 +132,7 @@ Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 | 2.0 | **Secrets encryption at rest** *(merges the former 2.5 + 2.6)* — AES-256-GCM `SecretCipher` in `emcip-core`, `v1:`-prefixed. Covers `telegram_accounts.session_string`, `telegram_accounts.api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`. **Strict fail-closed reads**; existing rows migrated by hand in the cluster, no backfill code. Spec: `docs/superpowers/specs/2026-07-23-secrets-encryption-at-rest-design.md` | S5 / S-OPEN-1 / RT-013 / S-NEW-2 | emcip-core + admin-api + knowledge-engine + llm-orchestrator | L |
 | 2.1 | **Audit integrity redesign** *(demoted from P1 — see P1 note)*. Must solve three coupled problems together: (a) serialize chain writes so `saveWithChain` cannot fork under `setConcurrency(3)` — options: concurrency 1, a single-subscriber serializing sink, or computing `prev_hash` inside one locking SQL statement; (b) give failed saves a durable landing spot (DLT or error handler) so `MANUAL_IMMEDIATE` acks cannot commit past a lost record — note audit-service defines its **own** `KafkaConsumerConfig` with no error handler and does not use `CommonKafkaConfig`, while `emcip-core` already ships `DeadLetterTopicHandler`; (c) only then add the DELETE-prevention trigger, guarded by a sanctioned-purge session flag (`SET LOCAL emcip.audit_purge='on'`) so `AuditRetentionJob` still works. The UPDATE-prevention trigger already exists (`003-audit-tamper-resistance.xml`); only DELETE is missing. **Do not split these into separate PRs.** | RT2-002 / RT2-016 / B1 / RT-027 | audit-service | L |
 | 2.2 | **SSRF protection** on `DocumentIngestionService.fetchWithTimeout()` — https/http scheme whitelist, RFC-1918 + loopback + link-local + metadata-IP blocklist, DNS-resolution recheck | RT2-005 / RT-F2 / S-NEW-3 | knowledge-engine | M |
-| 2.3 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options + CSP meta tag in `index.html` | RT2-007 / RT-029 | admin-ui | M |
+| 2.3 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, header-only (no CSP meta tag; `index.html` unchanged) | RT2-007 / RT-029 | admin-ui | M |
 | 2.4 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S |
 | 2.5 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L |
 | 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M |
@@ -179,8 +179,19 @@ existing 10 MB `MAX_CONTENT_BYTES` cap preserved via a bounded body read. The ht
 centralized in `submitUrlIngestion`, covering both the controller and the `reingestJob` reprocess path;
 blocked URLs end the ingestion job `FAILED` with no raw internal response leaked. New config key
 `emcip.ingestion.ssrf.allowed-hosts` (hostnames or CIDRs) lets operators allow specific private targets;
-default empty = strict deny-private, and the blocklist always applies otherwise. **Next: P2.3 — admin-ui
-Spring Security.**
+default empty = strict deny-private, and the blocklist always applies otherwise.
+
+**P2.3 delivered (2026-07-30):** branch `feat/p2-admin-ui-security`. Added a `permitAll` Spring Security
+filter chain in `emcip-admin-ui` (auth still lives at admin-api) that writes CSP, HSTS,
+`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and
+`Permissions-Policy` on every response. `script-src` is strict `'self'`; `style-src` carries an interim
+`'unsafe-inline'` because the React frontend still uses inline `style={{}}` attributes, tracked as
+follow-up RT2-007-F1 (CSS Modules migration, then tighten to strict `'self'`). HSTS depends on
+`server.forward-headers-strategy: framework`, since TLS terminates at the ingress and Spring must trust
+the forwarded `X-Forwarded-Proto` to decide the connection is secure. CSP is header-only — `index.html`
+was left unchanged; a duplicate `<meta http-equiv="Content-Security-Policy">` was considered and dropped
+as redundant with (and a drift risk against) the header. **Next: P2.4 — DOMPurify on LLM/Markdown
+rendering.**
 
 ---
 
