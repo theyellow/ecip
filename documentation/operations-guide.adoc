@@ -836,6 +836,46 @@ Knowledge engine unreachable — skipping enrichment: <error message>
 
 Monitor for this log line (Loki query: `{app="emcip-llm-orchestrator"} |= "skipping enrichment"`) to detect misconfiguration.
 
+=== Document Ingestion (SSRF Protection)
+
+`emcip-knowledge-engine` fetches operator-submitted URLs during document ingestion. To prevent
+server-side request forgery, the ingestion HTTP client resolves the target host and rejects any
+address that falls in a hardcoded deny set: loopback, RFC-1918 private ranges, link-local
+addresses (including the `169.254.169.254` cloud-metadata IP), the RFC-6598 carrier-grade NAT
+range `100.64.0.0/10` (including Alibaba Cloud's `100.100.100.200` metadata IP), IPv6 unique-local
+addresses, the wildcard address, and multicast/reserved ranges — unwrapping IPv4-mapped IPv6
+addresses first. The
+deny set is checked against the actually-resolved IP (not just the hostname), so it also closes
+DNS-rebinding: redirects are disabled, and a blocked URL makes the ingestion job end `FAILED`
+rather than returning any internal response content. This covers URL ingestion (submission and
+reprocessing); it does not cover the separate connector fetchers.
+
+==== Configuration
+
+[cols="2,1,3"]
+|===
+|Key |Default |Description
+
+|`emcip.ingestion.ssrf.allowed-hosts`
+|_(empty)_
+|List of hostnames or CIDRs that bypass the private-range block, for legitimate internal targets (e.g. an internal wiki). Default is empty, i.e. strict deny-private. The deny-set blocklist always applies to every other host.
+|===
+
+[source,yaml]
+----
+emcip:
+  ingestion:
+    ssrf:
+      allowed-hosts:
+        - wiki.internal.example.com
+        - 10.20.0.0/24
+----
+
+Prefer CIDR entries over hostname entries where possible: a hostname allow-list entry permits
+*any* IP that hostname currently resolves to (including private or metadata addresses), which a
+DNS-rebinding attack or a compromised host could abuse, whereas a CIDR entry constrains the
+bypass to a specific, fixed address range.
+
 === Moderation Rules
 
 Rules are evaluated by `emcip-moderation-service` against every `policies.decisions` event.

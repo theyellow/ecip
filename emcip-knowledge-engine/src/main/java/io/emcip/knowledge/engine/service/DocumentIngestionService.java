@@ -20,12 +20,8 @@ import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +40,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -55,7 +55,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class DocumentIngestionService {
 
     private static final int MAX_CONTENT_BYTES = 10 * 1024 * 1024; // 10 MB
-    private static final Duration FETCH_TIMEOUT = Duration.ofSeconds(30);
     private static final ExecutorService INGESTION_EXECUTOR =
             Executors.newVirtualThreadPerTaskExecutor();
 
@@ -79,6 +78,7 @@ public class DocumentIngestionService {
     private final IngestionProperties ingestionProperties;
     private final GraphRepository graphRepository;
     private final KnowledgeDocumentRepository documentRepository;
+    private final OkHttpClient ssrfHttpClient;
 
     /** Submit a URL for async ingestion. Returns the job ID immediately. */
     public String submitUrlIngestion(String url, UUID tenantId) {
@@ -87,6 +87,7 @@ public class DocumentIngestionService {
 
     /** Submit a URL for async ingestion, bypassing dedup when replaceJobId is non-null. */
     public String submitUrlIngestion(String url, UUID tenantId, UUID replaceJobId) {
+        validateHttpScheme(url);
         if (replaceJobId == null) {
             checkSourceRefDuplicate(url, tenantId);
         }
@@ -94,6 +95,18 @@ public class DocumentIngestionService {
         UUID jobId = job.getId();
         INGESTION_EXECUTOR.submit(() -> processUrlAsync(jobId, url, tenantId));
         return jobId.toString();
+    }
+
+    private static void validateHttpScheme(String url) {
+        String scheme;
+        try {
+            scheme = new URI(url).getScheme();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid URL");
+        }
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+            throw new IllegalArgumentException("Only http and https URLs are allowed");
+        }
     }
 
     /**
@@ -317,26 +330,24 @@ public class DocumentIngestionService {
         }
     }
 
-    private byte[] fetchWithTimeout(String url) throws IOException, InterruptedException {
-        try (HttpClient client = HttpClient.newBuilder().connectTimeout(FETCH_TIMEOUT).build()) {
-            HttpRequest request =
-                    HttpRequest.newBuilder()
-                            .uri(URI.create(url))
-                            .timeout(FETCH_TIMEOUT)
-                            .GET()
-                            .build();
-            HttpResponse<byte[]> response =
-                    client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            byte[] body = response.body();
-            if (body.length > MAX_CONTENT_BYTES) {
-                throw new IOException(
-                        "Content too large: "
-                                + body.length
-                                + " bytes (max "
-                                + MAX_CONTENT_BYTES
-                                + ")");
+    private byte[] fetchWithTimeout(String url) throws IOException {
+        Request request = new Request.Builder().url(url).get().build();
+        try (Response response = ssrfHttpClient.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("HTTP " + response.code() + " fetching " + url);
             }
-            return body;
+            ResponseBody body = response.body();
+            if (body == null) {
+                throw new IOException("Empty response body");
+            }
+            try (InputStream in = body.byteStream()) {
+                byte[] bytes = in.readNBytes(MAX_CONTENT_BYTES + 1);
+                if (bytes.length > MAX_CONTENT_BYTES) {
+                    throw new IOException(
+                            "Content too large: exceeds " + MAX_CONTENT_BYTES + " bytes");
+                }
+                return bytes;
+            }
         }
     }
 
