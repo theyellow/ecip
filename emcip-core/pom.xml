@@ -53,10 +53,18 @@
       <artifactId>micrometer-core</artifactId>
     </dependency>
 
-    <!-- OkHttp for the SSRF-guarded fetch client (PinningDns) -->
+    <!--
+      OkHttp for the SSRF-guarded fetch client (PinningDns). Marked optional so it is NOT
+      propagated transitively to services that don't use the SSRF client: llm-orchestrator and
+      admin-api pull OkHttp 5.x via mockwebserver3, and leaking OkHttp 4.x onto their classpath
+      breaks MockWebServer 5.x (TaskRunner ABI). Only knowledge-engine uses the SSRF client, and it
+      declares OkHttp explicitly.
+    -->
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
+      <version>${mockwebserver.version}</version>
+      <optional>true</optional>
     </dependency>
 
     <!-- Servlet API + Spring Web (optional - for TenantContextFilter in MVC services) -->
