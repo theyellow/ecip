@@ -77,8 +77,19 @@ class SecurityHeadersTest {
                         new HttpEntity<>(requestHeaders),
                         String.class);
         String hsts = response.getHeaders().getFirst("Strict-Transport-Security");
-        assertThat(hsts).contains("max-age=31536000");
-        assertThat(hsts).contains("includeSubDomains");
+        // Byte-exact match guards two things: the "no preload" invariant (the brief bans
+        // `preload`) and the literal separator Spring Security's HSTS writer emits (a space
+        // before the semicolon, i.e. "max-age=31536000 ; includeSubDomains").
+        assertThat(hsts).isEqualTo("max-age=31536000 ; includeSubDomains");
+    }
+
+    @Test
+    void securityHeadersPresentOnSpaRoot() {
+        // No built SPA index exists in the test classpath, so "/" may 404 — the security filter
+        // runs before any controller, so headers are present regardless of status.
+        ResponseEntity<String> response = restTemplate.getForEntity("/", String.class);
+        HttpHeaders headers = response.getHeaders();
+        assertThat(headers.getFirst("Content-Security-Policy")).isEqualTo(EXPECTED_CSP);
     }
 
     @Test

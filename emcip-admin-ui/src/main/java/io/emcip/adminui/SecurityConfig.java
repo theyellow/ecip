@@ -20,6 +20,10 @@ public class SecurityConfig {
     private static final String CSP_POLICY =
             "default-src 'self'; "
                     + "script-src 'self'; "
+                    // style-src carries 'unsafe-inline' only because the React frontend still
+                    // uses inline style={{}} attributes. Interim state — follow-up RT2-007-F1
+                    // removes those and tightens this to strict 'self'. script-src stays strict
+                    // 'self' (no such concession).
                     + "style-src 'self' 'unsafe-inline'; "
                     + "img-src 'self' data:; "
                     + "font-src 'self'; "
@@ -38,6 +42,11 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .headers(
                         headers ->
+                                // Spring Security's default Cache-Control: no-cache, no-store,
+                                // max-age=0, must-revalidate (plus Pragma/Expires) is left
+                                // enabled on every response, including static SPA assets. This
+                                // is deliberate for this admin BFF: sensitive admin content must
+                                // not cache to disk (OWASP-aligned). Do not re-enable caching.
                                 headers.contentSecurityPolicy(
                                                 csp -> csp.policyDirectives(CSP_POLICY))
                                         .httpStrictTransportSecurity(
