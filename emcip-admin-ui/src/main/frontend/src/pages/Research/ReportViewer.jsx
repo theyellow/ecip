@@ -1,4 +1,5 @@
 import styles from './ReportViewer.module.css'
+import { sanitizeText } from '../../utils/sanitizeText'
 
 function renderMarkdownLines(content) {
   if (!content) return null
@@ -66,7 +67,7 @@ export function ReportViewer({ report }) {
   if (!report) return null
 
   function handleDownload() {
-    const blob = new Blob([report.content], { type: 'text/markdown;charset=utf-8' })
+    const blob = new Blob([sanitizeText(report.content)], { type: 'text/markdown;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -92,7 +93,7 @@ export function ReportViewer({ report }) {
         </button>
       </div>
 
-      <div className={styles.content}>{renderMarkdownLines(report.content)}</div>
+      <div className={styles.content}>{renderMarkdownLines(sanitizeText(report.content))}</div>
     </div>
   )
 }
