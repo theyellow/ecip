@@ -7,7 +7,7 @@
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
 > **Phase** column maps each item to its `ROADMAP.md` phase.
 
-**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · **P2.4 = next** · P2.5–P2.8 open · then P3 (release-readiness).
+**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · P2.4 ✅ · **P2.5 = next** · P2.6–P2.8 open · then P3 (release-readiness).
 
 ---
 
@@ -46,8 +46,8 @@
 | B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | P2.1 | L | ✅ PR #210 — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
 | RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ PR #215 — SSRF guard (pin validated IP via OkHttp `Dns` + pre-connect literal-IP interceptor) on URL ingestion; configurable allow-list; reingest path covered. Follow-ups SSRF-F1…F4 in §0b |
 | RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options + Referrer-Policy/Permissions-Policy; header-only, no meta tag) | HIGH | P2.3 | M | ✅ PR #217 |
-| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ **next** |
-| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ |
+| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ✅ PR #NNN — `sanitizeText` util (DOMPurify strip-tags via RETURN_DOM+textContent to avoid React double-encode, + Unicode hygiene for bidi/zero-width/control). No HTML sink existed; active mitigation is Unicode hygiene, DOMPurify is forward-cover. Applied to both renders + .md download + Copy. Spec: `specs/2026-07-31-p2.4-llm-render-sanitization-design.md` |
+| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ **next** |
 | RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ⏳ |
 | U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.7 | S | ⏳ |
 | RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.7 | XS | ⏳ |
