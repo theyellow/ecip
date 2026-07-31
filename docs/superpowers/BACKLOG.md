@@ -1,11 +1,13 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-30 (P2.2 reactor build fix — OkHttp/MockWebServer version split scoped; SSRF follow-ups SSRF-F1…F4 logged)
+> Last updated: 2026-07-30 (reorder + reconcile: §0 split into phase-ordered remediation + deferred follow-ups; §2 de-duplicated)
 > Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
 > Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
 > **Phase** column maps each item to its `ROADMAP.md` phase.
+
+**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · **P2.3 = next** · P2.4–P2.8 open · then P3 (release-readiness).
 
 ---
 
@@ -22,12 +24,8 @@
 >   `AI_CONFIG_WRITE` because it triggers LLM work.
 > - RT2-002's *"schedule `verifyChain()`"* follow-up — **ALREADY DONE** (`AuditChainVerificationJob`).
 > - TelegramAccountController has **13** endpoints (9 write + 4 read), not 11.
-> - **RT2-002/RT2-016/B1 delivered in P2.1** (branch `feat/p2-audit-integrity`, 2026-07-26): the chain is
->   now serialized by a Postgres advisory lock (`pg_advisory_xact_lock`) so `saveWithChain()` cannot fork
->   under concurrency, the consumer stays a synchronous `@KafkaListener` hardened with
->   `DefaultErrorHandler` (backoff) → DLQ instead of a bare `.block()`, and a DELETE-prevention trigger
->   guards `audit_events` behind the `emcip.audit_purge` session flag. See `ROADMAP.md` P2.1 and
->   `docs/superpowers/specs/2026-07-25-audit-integrity-redesign-design.md`.
+
+### 0a. Remediation items (phase-ordered)
 
 | ID | Item | Sev | Phase | Size | Status |
 |----|------|-----|-------|------|--------|
@@ -35,11 +33,6 @@
 | RT2-004 | `@PreAuthorize` WRITE perms on TelegramAccount/Tenant/AIProxy controllers (22 endpoints) | CRITICAL | P1.1 | S | ✅ PR #206 |
 | RT-F3 | JWT single-parse optimization (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
 | RT-F4 | Combine double save on login (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
-| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | **P2.1** | L | ✅ done (branch `feat/p2-audit-integrity`) |
-| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | **P2.1** | L | ✅ done (branch `feat/p2-audit-integrity`) |
-| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | **P2.1** | L | ✅ done (branch `feat/p2-audit-integrity`) — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
-| P2.1-F1 | DLQ publish in the shared `DeadLetterTopicHandler` is fire-and-forget and swallows exceptions on send — a hard broker outage past `delivery.timeout.ms` can lose a DLQ-routed record after the consumer offset has already committed. Harden by awaiting the send result (or a transactional outbox). Affects all EMCIP consumers, not just audit. | LOW | P4 | S | ⏳ |
-| INF-CI-IT | Integration tests (`*IT`) run in CI repo-wide. Today CI runs `mvn test` (Surefire only) and no module activates `maven-failsafe`, so all `*IT` classes across the repo are CI-invisible except the four audit ITs P2.1 wired in directly. Generalize: activate failsafe + `mvn verify` repo-wide, and audit the latent failures this surfaces (e.g. `AuditEventPersistenceIT` was silently red on `main` before P2.1). | MEDIUM | P3 | M | ⏳ |
 | RT2-008 | `ManualEnrichmentConsumer` explicit Kafka tenant-header validation | HIGH | P1.3 | XS | ✅ PR #207 |
 | RT2-009 | `PolicyDecisionConsumer` capture + set tenant UUID | HIGH | P1.3 | XS | ✅ PR #207 |
 | RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ✅ PR #208 |
@@ -47,22 +40,38 @@
 | I2 / RT-034 | Pin Docker base images to patch version (`21.0.11_10`) | MEDIUM | P1.4 | XS | ✅ PR #208 |
 | I4 | PMD `failOnViolation: true` — genuinely blocking | MEDIUM | P1.4 | XS | ✅ PR #208 |
 | I4b | **Checkstyle removed** — google_checks.xml is mostly formatting (Spotless already owns that, and its AOSP 4-space directly contradicts google_checks' 2-space), so the gate was inert and unfixable without fighting the formatter. Plugin + CI steps deleted. Static analysis = Spotless (format) + PMD (smells, blocking) + CodeQL (security). | — | P1.4 | XS | ✅ PR #208 |
-| P1-M1 | No end-to-end test that `@PreAuthorize` is enforced by the live filter chain — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security. `ControllerAuthorizationTest` is reflection-only (now inverted to catch unannotated write methods). Needs a `@WebFluxTest` + `@WithMockUser` suite. | MEDIUM | P3 | S | ⏳ |
-| P1-M2 | JWT revocation is **per-replica** — `JwtRevocationService` uses an in-process `ConcurrentHashMap`. Correct at `replicas: 1` (current Helm default) but silently degrades on scale-out. Bounds the RT2-003 fix. | MEDIUM | P4 | M | ⏳ |
-| P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
-| P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
-| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ done (branch `feat/p2-ssrf-protection`) — SSRF guard (pin validated IP via OkHttp Dns) on URL ingestion; configurable allow-list; reingest path covered |
-| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.3 | M | ⏳ |
+| S5 / S-OPEN-1 / RT-013 / S-NEW-2 | **Secrets encryption at rest** — `telegram_accounts.session_string` + `api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`; AES-256-GCM `SecretCipher` in `emcip-core`, strict fail-closed reads, rows migrated by hand via `SecretCipherCli` + runbook. Merges the former P2.5 + P2.6. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`; plan: `plans/2026-07-23-secrets-encryption-at-rest.md`; runbook: `docs/operations/secrets-encryption.md` | CRITICAL | P2.0 | L | ✅ PR #209 |
+| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | P2.1 | L | ✅ PR #210 |
+| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | P2.1 | L | ✅ PR #210 |
+| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | P2.1 | L | ✅ PR #210 — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
+| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ PR #215 — SSRF guard (pin validated IP via OkHttp `Dns` + pre-connect literal-IP interceptor) on URL ingestion; configurable allow-list; reingest path covered. Follow-ups SSRF-F1…F4 in §0b |
+| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.3 | M | ⏳ **next** |
 | RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ |
 | RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ |
-| S5 / S-OPEN-1 / RT-013 / S-NEW-2 | **Secrets encryption at rest** — `telegram_accounts.session_string` + `api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`; AES-256-GCM `SecretCipher` in `emcip-core`, strict fail-closed reads, rows migrated by hand via `SecretCipherCli` + runbook. Merges the former P2.5 + P2.6. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`; plan: `plans/2026-07-23-secrets-encryption-at-rest.md`; runbook: `docs/operations/secrets-encryption.md` | CRITICAL | P2.0 | L | ✅ done (branch `feat/p2-secrets-encryption-at-rest`) |
-| P2.0-M1 | llm-orchestrator's `LlmProviderApiKeyCipherConverter` Hibernate-injection is not covered by an integration test (only a hand-constructed unit test). KE proves the identical mechanism via Testcontainers; llm-orchestrator has no Testcontainers harness. Fails loud if it regresses (no no-arg ctor). Add a `@DataJpaTest` round-trip. | LOW | P4 | XS | ⏳ |
-| P2.0-M2 | `VendorApiKeyEncryptionIT` asserts the decrypt `rootCause` doesn't leak plaintext, but not that the JPA wrapper messages (`JpaSystemException`/`PersistenceException`) don't — safe today (fixed Hibernate string) but unpinned by a test. | LOW | P4 | XS | ⏳ |
-| P2.0-F1 | Follow-up: flip reads from strict-fail-closed to a stricter startup self-check once every environment reports zero plaintext (the design's planned hardening). Also revisit key rotation (the `v1:` prefix is the hook) with the P6 secrets ADR. | LOW | P3/P4 | S | ⏳ |
 | RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ⏳ |
 | U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.7 | S | ⏳ |
 | RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.7 | XS | ⏳ |
 | S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ⏳ |
+
+### 0b. Follow-ups raised during remediation → deferred to P3/P4
+
+> Non-blocking hardening + test-debt spawned while delivering the items above. None gates 1.0.0.
+
+| ID | Item | Sev | Phase | Size | Status |
+|----|------|-----|-------|------|--------|
+| INF-CI-IT | Integration tests (`*IT`) run in CI repo-wide. Today CI runs `mvn test` (Surefire only) and no module activates `maven-failsafe`, so all `*IT` classes across the repo are CI-invisible except the four audit ITs P2.1 wired in directly. Generalize: activate failsafe + `mvn verify` repo-wide, and audit the latent failures this surfaces (e.g. `AuditEventPersistenceIT` was silently red on `main` before P2.1). | MEDIUM | P3 | M | ⏳ |
+| P1-M1 | No end-to-end test that `@PreAuthorize` is enforced by the live filter chain — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security. `ControllerAuthorizationTest` is reflection-only (now inverted to catch unannotated write methods). Needs a `@WebFluxTest` + `@WithMockUser` suite. | MEDIUM | P3 | S | ⏳ |
+| P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
+| P2.0-F1 | Flip reads from strict-fail-closed to a stricter startup self-check once every environment reports zero plaintext (the design's planned hardening). Also revisit key rotation (the `v1:` prefix is the hook) with the P6 secrets ADR. | LOW | P3/P4 | S | ⏳ |
+| P1-M2 | JWT revocation is **per-replica** — `JwtRevocationService` uses an in-process `ConcurrentHashMap`. Correct at `replicas: 1` (current Helm default) but silently degrades on scale-out. Bounds the RT2-003 fix. | MEDIUM | P4 | M | ⏳ |
+| P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
+| P2.0-M1 | llm-orchestrator's `LlmProviderApiKeyCipherConverter` Hibernate-injection is not covered by an integration test (only a hand-constructed unit test). KE proves the identical mechanism via Testcontainers; llm-orchestrator has no Testcontainers harness. Fails loud if it regresses (no no-arg ctor). Add a `@DataJpaTest` round-trip. | LOW | P4 | XS | ⏳ |
+| P2.0-M2 | `VendorApiKeyEncryptionIT` asserts the decrypt `rootCause` doesn't leak plaintext, but not that the JPA wrapper messages (`JpaSystemException`/`PersistenceException`) don't — safe today (fixed Hibernate string) but unpinned by a test. | LOW | P4 | XS | ⏳ |
+| P2.1-F1 | DLQ publish in the shared `DeadLetterTopicHandler` is fire-and-forget and swallows exceptions on send — a hard broker outage past `delivery.timeout.ms` can lose a DLQ-routed record after the consumer offset has already committed. Harden by awaiting the send result (or a transactional outbox). Affects all EMCIP consumers, not just audit. | LOW | P4 | S | ⏳ |
+| SSRF-F1 | `SsrfGuard.unwrapIpv4Mapped()` unwraps only IPv4-*mapped* addresses (`::ffff:127.0.0.1`); it does not unwrap deprecated IPv4-*compatible* addresses (`::127.0.0.1` / `::7f00:1`). A crafted `::7f00:1` literal or resolution could bypass the loopback/private deny-set. Extend the unwrap (and add a test) to cover the `::/96` IPv4-compatible form. Ref: `emcip-core/.../SsrfGuard.java`. | LOW | P4 | XS | ⏳ |
+| SSRF-F2 | The SSRF deny-set omits the NAT64 well-known prefix `64:ff9b::/96` (RFC 6052). Where a NAT64 gateway is present, `64:ff9b::a00:1` translates to private `10.0.0.1`, reaching internal hosts. Add `64:ff9b::/96` to `SsrfGuard.DENY` with a `nat64` label + test. Ref: `emcip-core/.../SsrfGuard.java`. | LOW | P4 | XS | ⏳ |
+| SSRF-F3 | `SsrfProperties` is a mutable `@ConfigurationProperties` bean with getters/setters; convert to an immutable record (constructor-bound) for consistency with the project's config style and to prevent post-bind mutation. Ref: `emcip-knowledge-engine/.../config/SsrfProperties.java`. | LOW | P4 | XS | ⏳ |
+| SSRF-F4 | **Consolidate OkHttp / MockWebServer on 5.x.** The reactor straddles two OkHttp majors: knowledge-engine uses `mockwebserver` 4.12.0 (okhttp 4.x) while llm-orchestrator + admin-api use `mockwebserver3` 5.2.1 (okhttp 5.x). emcip-core's okhttp compile dep is marked `optional` (and knowledge-engine re-declares it) purely to keep okhttp 4.x from leaking onto the 5.x modules and breaking MockWebServer 5.x (`TaskRunner` ABI — this bit PR #215 on the reactor build). Migrate knowledge-engine tests (`okhttp3.mockwebserver.*` → `mockwebserver3.*`, ~13 files, `MockResponse` builder API) and the SSRF client to okhttp 5.x so a single okhttp version governs the reactor and `optional` can be dropped. Ref: root `pom.xml`, `emcip-core/pom.xml`, `emcip-knowledge-engine/pom.xml`. | LOW | P4 | M | ⏳ |
 
 ---
 
@@ -86,22 +95,16 @@
 
 ## 2. Open — Feature Work
 
-> Ordered by dependency: items are ready to pick up unless "Needs" says otherwise. Pick the top unblocked item.
+> Non-security feature work, ordered by dependency: items are ready to pick up unless "Needs" says otherwise.
+> Security remediation lives in §0; its follow-ups in §0b. Sequenced against `ROADMAP.md` P4/P5.
 
 | # | Item | Size | Needs | Notes |
 |---|------|------|-------|-------|
-| 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision needed first. |
-| RT-F1 | **Per-user/IP rate limiting** | S | — | Current Resilience4j rate limiters (auth 10/min, llm-trigger 20/min, admin-crud 100/min) are global counters shared across all users. A single user can exhaust the quota for everyone. Implement per-IP bucketing on auth endpoints and per-user on authenticated endpoints using a custom `RateLimiterConfig` key resolver. Ref: RT-014, `SecurityConfig.java`, `AuthController.java`. |
-| RT-F2 | **SSRF prevention on document ingestion** | XS | — | ✅ **Done** — delivered by P2.2 / RT2-005 (branch `feat/p2-ssrf-protection`, PR #215). Scheme whitelist + private-IP deny-set + IP pinning (OkHttp `Dns` hook) + pre-connect literal-IP interceptor + configurable allow-list. Follow-ups: SSRF-F1…F4 below. |
-| SSRF-F1 | **IPv4-compatible IPv6 unwrap in SSRF guard** | XS | — | `SsrfGuard.unwrapIpv4Mapped()` unwraps only IPv4-*mapped* addresses (`::ffff:127.0.0.1`); it does not unwrap deprecated IPv4-*compatible* addresses (`::127.0.0.1` / `::7f00:1`). A crafted `::7f00:1` literal or resolution could bypass the loopback/private deny-set. Extend the unwrap (and add a test) to cover the `::/96` IPv4-compatible form. Ref: `emcip-core/.../SsrfGuard.java`. |
-| SSRF-F2 | **NAT64 well-known prefix in SSRF deny-set** | XS | — | The deny-set omits the NAT64 well-known prefix `64:ff9b::/96` (RFC 6052). Where a NAT64 gateway is present, `64:ff9b::a00:1` translates to private `10.0.0.1`, reaching internal hosts. Add `64:ff9b::/96` to `SsrfGuard.DENY` with a `nat64` label + test. Ref: `emcip-core/.../SsrfGuard.java`. |
-| SSRF-F3 | **Convert `SsrfProperties` to a record** | XS | — | `SsrfProperties` is a mutable `@ConfigurationProperties` bean with getters/setters; convert to an immutable record (constructor-bound) for consistency with the project's config style and to prevent post-bind mutation. Ref: `emcip-knowledge-engine/.../config/SsrfProperties.java`. |
-| SSRF-F4 | **Consolidate OkHttp / MockWebServer on 5.x** | M | — | The reactor straddles two OkHttp majors: knowledge-engine uses `mockwebserver` 4.12.0 (okhttp 4.x) while llm-orchestrator + admin-api use `mockwebserver3` 5.2.1 (okhttp 5.x). emcip-core's okhttp compile dep is marked `optional` (and knowledge-engine re-declares it) purely to keep okhttp 4.x from leaking onto the 5.x modules and breaking MockWebServer 5.x (`TaskRunner` ABI — this bit PR #215 on the reactor build). Migrate knowledge-engine tests (`okhttp3.mockwebserver.*` → `mockwebserver3.*`, ~13 files, `MockResponse` builder API) and the SSRF client to okhttp 5.x so a single okhttp version governs the reactor and `optional` can be dropped. Ref: root `pom.xml`, `emcip-core/pom.xml`, `emcip-knowledge-engine/pom.xml`. |
-| RT-F3 | **JWT single-parse optimization** | XS | — | `JwtAuthenticationFilter` calls `validateToken()` 4× per request (extractJti, extractUsername, extractRole, extractTenantId — each re-parses + re-verifies HMAC). Parse `Claims` once, read all fields from the single object. Pre-existing issue worsened by +1 parse for jti. Ref: `JwtAuthenticationFilter.java`, `JwtService.java`. |
-| RT-F4 | **Combine double save on login** | XS | — | `AuthService.authenticate()` calls `userRepository.save()` twice — once for `lastLogin`, once for `currentJti`. Set both fields before a single save. Ref: `AuthService.java`. |
-| RT-F5 | **BackfillService partial completion status** | XS | — | When backfill hits `MAX_ITERATIONS` (5000), status is set to `COMPLETED` despite truncation. Add `PARTIAL` status or include a warning in status metadata so the caller knows not all messages were processed. Ref: `BackfillService.java`. |
-| 45 | **Language detection for MESSAGE_LANGUAGE condition** | S | — | `MESSAGE_LANGUAGE` policy condition is a dead placeholder — the intent classifier never populates a `language` field. Add a lightweight language detection library (e.g. [Lingua](https://github.com/pemistahl/lingua)) to `IntentClassificationService`, populate `language` in the `IntentClassifiedEvent` params map. Enables rules like "flag messages not in DE or EN". Ref: `MessageLanguageEvaluator.java`, `IntentClassificationService.java`. |
-| 46 | **Unicode-aware REGEX case folding** | XS | — | Intent classifier compiles REGEX rules with `Pattern.CASE_INSENSITIVE` but not `Pattern.UNICODE_CASE`. German umlauts are not case-folded in regex patterns (e.g. `(?i)\bÄrger\b` won't match `ärger`). Fix: add `Pattern.UNICODE_CASE` flag alongside `CASE_INSENSITIVE` in `IntentClassificationService.refreshRules()`. Ref: `IntentClassificationService.java:81`. |
+| RT-F1 | **Per-user/IP rate limiting** | S | — | Current Resilience4j rate limiters (auth 10/min, llm-trigger 20/min, admin-crud 100/min) are global counters shared across all users. A single user can exhaust the quota for everyone. Implement per-IP bucketing on auth endpoints and per-user on authenticated endpoints using a custom `RateLimiterConfig` key resolver. Ref: RT-014, `SecurityConfig.java`, `AuthController.java`. Roadmap: P4. |
+| RT-F5 | **BackfillService partial completion status** | XS | — | When backfill hits `MAX_ITERATIONS` (5000), status is set to `COMPLETED` despite truncation. Add `PARTIAL` status or include a warning in status metadata so the caller knows not all messages were processed. Ref: `BackfillService.java`. Roadmap: P4. |
+| 45 | **Language detection for MESSAGE_LANGUAGE condition** | S | — | `MESSAGE_LANGUAGE` policy condition is a dead placeholder — the intent classifier never populates a `language` field. Add a lightweight language detection library (e.g. [Lingua](https://github.com/pemistahl/lingua)) to `IntentClassificationService`, populate `language` in the `IntentClassifiedEvent` params map. Enables rules like "flag messages not in DE or EN". Ref: `MessageLanguageEvaluator.java`, `IntentClassificationService.java`. Roadmap: P4. |
+| 46 | **Unicode-aware REGEX case folding** | XS | — | Intent classifier compiles REGEX rules with `Pattern.CASE_INSENSITIVE` but not `Pattern.UNICODE_CASE`. German umlauts are not case-folded in regex patterns (e.g. `(?i)\bÄrger\b` won't match `ärger`). Fix: add `Pattern.UNICODE_CASE` flag alongside `CASE_INSENSITIVE` in `IntentClassificationService.refreshRules()`. Ref: `IntentClassificationService.java:81`. Roadmap: P4. |
+| 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision (ADR) needed first. Roadmap: P5. |
 
 ---
 
@@ -133,8 +136,8 @@
 | 19 | **Mixed-cluster: arm64 native images** | L | Cross-compile GraalVM native for Pi 4 nodes. Needs QEMU or dedicated arm64 runner. Ref: `specs/2026-05-02-mixed-cluster-helm-values-design.md`. |
 | 13 | **GraalVM native — R2DBC services** | XL | 4 services JVM-only (`moderation-service`, `audit-service`, `admin-api`, `intent-classifier`). Blocked on R2DBC + GraalVM reflection hints. Ref: `specs/2026-04-29-graalvm-native-migration-design.md`. |
 | RT-005 | **Kafka SASL authentication + topic ACLs** | M | Red Team finding RT-005 / LC-2. All services connect to Kafka without authentication; any pod in the cluster can produce/consume any topic. Currently acceptable because Kafka runs on a trusted internal network with no external exposure. Revisit when: multi-tenant cluster, external Kafka access, or compliance audit requires transport-level auth. Implementation: enable `SASL_PLAINTEXT` or `SASL_SSL`, per-service credentials, topic ACLs restricting produce/consume to owning services. Ref: `documentation/RED_TEAM_REPORT.md`. |
-| RT-012 | **Kubernetes pod security hardening** | S | Red Team finding RT-012. Pods run without `securityContext` restrictions — no `readOnlyRootFilesystem`, no `runAsNonRoot`, no `allowPrivilegeEscalation: false`, no dropped capabilities. This is infrastructure-level hardening (not application code). Implementation: add `securityContext` to all Deployment templates in `helm/emcip/templates/apps/standard-deployments.yaml` and the StatefulSet. Ref: `documentation/RED_TEAM_REPORT.md`. |
-| RT-013 | **Encrypt API keys at rest in database** — *no longer deferred; promoted to §0 as part of **P2.0**.* | — | Strategy decided 2026-07-23: application-level AES-256-GCM, key from a K8s Secret, never sent to Postgres. `pgcrypto` rejected (key would appear in SQL text and leak into `pg_stat_statements`/query logs); Vault deferred to P6, to swap in behind the same cipher boundary. Tracked in §0 with S5 / S-OPEN-1 / S-NEW-2. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`. |
+| RT-012 | **Kubernetes pod security hardening** — *promoted to P3.5 in `ROADMAP.md`.* | S | Pods run without `securityContext` restrictions — no `readOnlyRootFilesystem`, no `runAsNonRoot`, no `allowPrivilegeEscalation: false`, no dropped capabilities. Infrastructure-level hardening (not application code). Add `securityContext` to all Deployment templates in `helm/emcip/templates/apps/standard-deployments.yaml` and the StatefulSet. Ref: `documentation/RED_TEAM_REPORT.md`. |
+| RT-013 | **Encrypt API keys at rest in database** — *no longer deferred; delivered as P2.0 (§0).* | — | Strategy decided 2026-07-23: application-level AES-256-GCM, key from a K8s Secret, never sent to Postgres. `pgcrypto` rejected (key would appear in SQL text and leak into `pg_stat_statements`/query logs); Vault deferred to P6, to swap in behind the same cipher boundary. Delivered under S5 / S-OPEN-1 / S-NEW-2, PR #209. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`. |
 
 ---
 
@@ -188,6 +191,8 @@
 | — | Admin UI polish: Watched Groups rename, sticky columns, themed scrollbar, dot legend on Pipeline Trace, Global badge on tenant-less policy rules, research page error states | ✅ 2026-06-25/28. |
 | — | Knowledge-engine safeguards — fetch timeout (30s), content size limit (10 MB), chunk cap (500), backfill iteration limit (5000), stuck-pagination detection, batch delay, frontend polling timeouts | ✅ 2026-06-30. Branch: `fix/knowledge-engine-backfill-auth`. |
 | — | **Red Team remediation** — 16 quick wins + 10 structural changes. Wave 1: Kafka tenant fail-closed (RT-007), per-service DB users (RT-006), DB SSL (RT-016), ingress TLS/cert-manager (RT-032), audit publishing (RT-017), audit tamper resistance with hash chaining (RT-027). Wave 2: LLM prompt injection defense — boundary markers + output validation + ingestion scanning (RT-002/003/009), JWT revocation with jti tracking (RT-010). Standalone: rate limiting (RT-014), KE↔LLM-O circuit breakers (RT-025). Deferred: RT-005 Kafka SASL, RT-012 pod hardening, RT-013 encrypted API keys. Follow-ups: RT-F1–F5. | ✅ 2026-07-01. Branch: `fix/knowledge-engine-backfill-auth`. Spec: `specs/2026-06-30-red-team-remediation-design.md`. |
+| P0 | Unified ROADMAP + absorb 2026-07-18 review findings into backlog | ✅ PR #205 — 2026-07-22. |
+| RT-F2 | SSRF prevention on document ingestion (delivered as P2.2 / RT2-005) | ✅ PR #215 — 2026-07-29. Follow-ups SSRF-F1…F4 in §0b. |
 
 ---
 
