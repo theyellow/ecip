@@ -8,25 +8,32 @@ const ZERO_WIDTH = /[\u200B-\u200D\u2060\uFEFF]/g
 // Bidi embeddings/overrides + isolates (Trojan-Source).
 const BIDI = /[\u202A-\u202E\u2066-\u2069]/g
 
+function unicodeHygiene(text) {
+  return text.replace(CONTROL, '').replace(ZERO_WIDTH, '').replace(BIDI, '')
+}
+
 /**
- * Sanitize LLM-generated text for display, download, or clipboard.
- *
- * There is no HTML sink in this app (content is rendered via React text nodes),
- * so the DOMPurify pass is defense-in-depth forward-cover for any future HTML
- * sink. The active mitigation is the Unicode hygiene pass, which removes
- * bidi/zero-width/control characters that React escaping does NOT neutralize.
- *
- * DOMPurify is invoked with RETURN_DOM + textContent (not the default string
- * return) so its HTML-encoded output is not double-escaped by React.
+ * Sanitize LLM-generated text for a React TEXT-NODE sink (render, .md download,
+ * clipboard). These are NOT HTML sinks — React escapes text nodes — so the only
+ * residual risk React does not cover is hostile Unicode (bidi/zero-width/control
+ * chars), which this strips. It deliberately does NOT strip HTML tags: doing so
+ * would delete benign angle-bracket content (e.g. `List<String>`,
+ * `<https://autolinks>`) from research reports. Returns '' for non-strings.
  */
 export function sanitizeText(raw) {
   if (typeof raw !== 'string') return ''
-  const stripped =
-    DOMPurify.sanitize(raw, {
-      ALLOWED_TAGS: [],
-      ALLOWED_ATTR: [],
-      KEEP_CONTENT: true,
-      RETURN_DOM: true,
-    }).textContent ?? ''
-  return stripped.replace(CONTROL, '').replace(ZERO_WIDTH, '').replace(BIDI, '')
+  return unicodeHygiene(raw)
+}
+
+/**
+ * Sanitize untrusted content destined for an actual HTML sink
+ * (dangerouslySetInnerHTML / innerHTML). RESERVED: no such sink exists today —
+ * every LLM sink renders through React text nodes and must use sanitizeText().
+ * If one is ever introduced, route its content through this: it applies Unicode
+ * hygiene, then DOMPurify to strip scripts / event handlers / dangerous markup
+ * while keeping safe formatting. Returns '' for non-strings.
+ */
+export function sanitizeHtml(raw) {
+  if (typeof raw !== 'string') return ''
+  return DOMPurify.sanitize(unicodeHygiene(raw))
 }

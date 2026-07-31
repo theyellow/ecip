@@ -35,7 +35,7 @@ test('download blob contains sanitized content', async () => {
     await screen.getByRole('button', { name: /download/i }).click()
     expect(created).toHaveLength(1)
     const text = await created[0].text()
-    expect(text).not.toContain('<script')
+    expect(text).toContain('<script>bad()</script>')
     expect(text).not.toContain('\u202E')
     expect(text).toContain('A & B where x > y')
   } finally {

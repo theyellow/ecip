@@ -61,7 +61,7 @@ test('Copy button writes sanitized text to the clipboard', async () => {
   expect(writeText).toHaveBeenCalledTimes(1)
   const arg = writeText.mock.calls[0][0]
   expect(arg).toContain('A & B > C')
-  expect(arg).not.toContain('<script')
+  expect(arg).toContain('<script>x()</script>')
   expect(arg).not.toContain('\u202E')
   expect(arg).not.toContain('\u200B')
 })
