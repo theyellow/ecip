@@ -61,12 +61,19 @@ describe('AuditLog page', () => {
     render(<AuditLog />)
     await waitFor(() => screen.getByText('All types'))
 
-    // First combobox is the event-type filter; second is the page-size selector
+    // Combobox order: event-type, page-size, time-preset, action
     const [typeSelect] = screen.getAllByRole('combobox')
     await userEvent.selectOptions(typeSelect, 'POLICY_DECISION')
 
+    // list(page, size, eventType, from, to) — '24h' preset yields from=<iso>, to=null
     await waitFor(() =>
-      expect(mockApi.list).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), 'POLICY_DECISION')
+      expect(mockApi.list).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        'POLICY_DECISION',
+        expect.any(String),
+        null
+      )
     )
   })
 
@@ -75,12 +82,19 @@ describe('AuditLog page', () => {
     render(<AuditLog />)
     await waitFor(() => screen.getByText('Audit Log'))
 
-    // Third combobox is the page-size selector (event-type, action, page-size)
-    const [,, sizeSelect] = screen.getAllByRole('combobox')
+    // Combobox order: event-type, page-size, time-preset, action — size is the 2nd
+    const [, sizeSelect] = screen.getAllByRole('combobox')
     await userEvent.selectOptions(sizeSelect, '100')
 
+    // list(page, size, eventType, from, to) — '24h' preset yields from=<iso>, to=null
     await waitFor(() =>
-      expect(mockApi.list).toHaveBeenCalledWith(expect.any(Number), 100, expect.anything())
+      expect(mockApi.list).toHaveBeenCalledWith(
+        expect.any(Number),
+        100,
+        expect.anything(),
+        expect.any(String),
+        null
+      )
     )
   })
 
