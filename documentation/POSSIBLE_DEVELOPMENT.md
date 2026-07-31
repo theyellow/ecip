@@ -4,6 +4,13 @@ Raw ideas not yet in the backlog. Once an item gets a backlog entry it is remove
 
 ---
 
+## Admin UI — LLM Content Rendering
+
+Spawned by P2.4 (PR #218, `sanitizeText` hygiene-only sanitization of LLM/Markdown sinks):
+
+- Rich Markdown rendering for research reports + Flags chat (bold/links/code/tables via `react-markdown` or `marked`), replacing the hand-rolled `renderMarkdownLines`. This introduces a *real* HTML sink — route it through the reserved `sanitizeHtml()` helper (already in `src/utils/sanitizeText.js`), where DOMPurify does actual security work. Larger UX item; deliberately out of scope for the P2.4 security remediation.
+- `sanitizeText` memoization — `ReportViewer` re-runs `sanitizeText(report.content)` on every render; a `useMemo` keyed on `report.content` would avoid re-scanning long reports. Micro-optimization, only worth it if the viewer gains interactive state.
+
 ## Prompt Template System Follow-Ons
 
 - FlagService.chat() test coverage — the enrichment path (prepending flag context to first user message) has no unit test

@@ -7,7 +7,7 @@
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
 > **Phase** column maps each item to its `ROADMAP.md` phase.
 
-**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · **P2.4 = next** · P2.5–P2.8 open · then P3 (release-readiness).
+**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · P2.4 ✅ · **P2.5 = next** · P2.6–P2.8 open · then P3 (release-readiness).
 
 ---
 
@@ -46,8 +46,8 @@
 | B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | P2.1 | L | ✅ PR #210 — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
 | RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ PR #215 — SSRF guard (pin validated IP via OkHttp `Dns` + pre-connect literal-IP interceptor) on URL ingestion; configurable allow-list; reingest path covered. Follow-ups SSRF-F1…F4 in §0b |
 | RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options + Referrer-Policy/Permissions-Policy; header-only, no meta tag) | HIGH | P2.3 | M | ✅ PR #217 |
-| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ **next** |
-| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ |
+| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ✅ PR #218 — Unicode-hygiene sanitizer (`sanitizeText`, strips bidi/zero-width/control) on both renders + `.md` download + Copy; DOMPurify retained behind a reserved `sanitizeHtml()` for a future HTML sink. No HTML sink existed. Spec: `specs/2026-07-31-p2.4-llm-render-sanitization-design.md` |
+| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ **next** |
 | RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ⏳ |
 | U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.7 | S | ⏳ |
 | RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.7 | XS | ⏳ |
@@ -60,6 +60,7 @@
 | ID | Item | Sev | Phase | Size | Status |
 |----|------|-----|-------|------|--------|
 | INF-CI-IT | Integration tests (`*IT`) run in CI repo-wide. Today CI runs `mvn test` (Surefire only) and no module activates `maven-failsafe`, so all `*IT` classes across the repo are CI-invisible except the four audit ITs P2.1 wired in directly. Generalize: activate failsafe + `mvn verify` repo-wide, and audit the latent failures this surfaces (e.g. `AuditEventPersistenceIT` was silently red on `main` before P2.1). | MEDIUM | P3 | M | ⏳ |
+| INF-CI-FE | **Frontend vitest suite not run in CI.** `emcip-admin-ui`'s `frontend-maven-plugin` runs `npm run build` (vite) at `generate-resources` but never `npm test`, so every admin-ui vitest spec is CI-invisible — three had silently rotted red on `main` (Flags placeholder `...`→`…`; AuditLog `list()` arity + combobox-order drift) before P2.4/PR #218 fixed them. Add an `npm` execution running `test` (= `vitest run`) bound to the `test` phase (or a CI step), gated to fail the build. Sibling to INF-CI-IT (Java `*IT`); do the two together. Ref: `emcip-admin-ui/pom.xml`, `.github/workflows/maven.yml`. | LOW | P3 | XS | ⏳ |
 | P1-M1 | No end-to-end test that `@PreAuthorize` is enforced by the live filter chain — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security. `ControllerAuthorizationTest` is reflection-only (now inverted to catch unannotated write methods). Needs a `@WebFluxTest` + `@WithMockUser` suite. | MEDIUM | P3 | S | ⏳ |
 | P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
 | P2.0-F1 | Flip reads from strict-fail-closed to a stricter startup self-check once every environment reports zero plaintext (the design's planned hardening). Also revisit key rotation (the `v1:` prefix is the hook) with the P6 secrets ADR. | LOW | P3/P4 | S | ⏳ |

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuthRequest } from '../../auth/AuthContext'
 import { flagsApi } from '../../api/flags'
+import { sanitizeText } from '../../utils/sanitizeText'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Modal } from '../../components/Modal/Modal'
@@ -69,7 +70,7 @@ function parseMeta(raw) {
   }
 }
 
-function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
+export function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
   const meta = parseMeta(flag.metadata)
   const [status, setStatus] = useState(flag.signalStatus ?? 'NEW')
   const [saving, setSaving] = useState(false)
@@ -141,7 +142,7 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
   }
 
   const copyMessage = (content) => {
-    navigator.clipboard.writeText(content)
+    navigator.clipboard.writeText(sanitizeText(content))
   }
 
   const clearChat = () => {
@@ -248,7 +249,7 @@ function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
                       </button>
                     )}
                   </div>
-                  <div className={styles.chatMessageContent}>{msg.content}</div>
+                  <div className={styles.chatMessageContent}>{sanitizeText(msg.content)}</div>
                 </div>
               ))}
               {chatLoading && <div className={styles.chatThinking}>Thinking{'\u2026'}</div>}

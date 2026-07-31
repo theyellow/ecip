@@ -82,7 +82,7 @@ describe('Decisions page', () => {
     await waitFor(() => screen.getByText('FLAG'))
     await userEvent.click(screen.getByText('Repeated spam links'))
     await userEvent.click(screen.getByText(/reply/i))
-    const textarea = screen.getByPlaceholderText('Type your response...')
+    const textarea = screen.getByPlaceholderText('Type your response…')
     await userEvent.type(textarea, 'Please stop')
     await userEvent.click(screen.getByRole('button', { name: /send/i }))
     await waitFor(() =>
