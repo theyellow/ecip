@@ -1,5 +1,6 @@
 package io.emcip.knowledge.engine.service;
 
+import io.emcip.common.prompt.PromptFence;
 import io.emcip.knowledge.engine.client.LlmOrchestratorClient;
 import io.emcip.knowledge.engine.entity.ReportTemplate;
 import io.emcip.knowledge.engine.entity.ResearchEvidence;
@@ -136,6 +137,9 @@ public class ResearchReportService {
     }
 
     private String buildPrompt(String question, String evidenceSummary, ReportTemplate template) {
+        String nonce = PromptFence.newNonce();
+        String fencedEvidence = PromptFence.fence("WEB_EVIDENCE", nonce, evidenceSummary);
+
         String templateName =
                 switch (template) {
                     case TOPIC -> "research_topic";
@@ -144,23 +148,27 @@ public class ResearchReportService {
                 };
 
         LlmOrchestratorClient.TemplateResponse tmpl = llmClient.getTemplate(templateName);
+        String body;
         if (tmpl != null && tmpl.systemPrompt() != null) {
             log.info("Using template '{}' from orchestrator for report generation", templateName);
             String userTemplate =
                     tmpl.userPromptTemplate() != null
                             ? tmpl.userPromptTemplate()
                             : "{{topic}}\n\n{{evidence}}";
-            return tmpl.systemPrompt()
-                    + "\n\n"
-                    + userTemplate
-                            .replace("{{topic}}", question)
-                            .replace("{{evidence}}", evidenceSummary);
+            body =
+                    tmpl.systemPrompt()
+                            + "\n\n"
+                            + userTemplate
+                                    .replace("{{topic}}", question)
+                                    .replace("{{evidence}}", fencedEvidence);
+        } else {
+            // Fallback to hardcoded prompts
+            log.warn("Template '{}' not found, falling back to hardcoded prompt", templateName);
+            String promptTemplate = selectPromptTemplate(template);
+            body = promptTemplate.formatted(question, fencedEvidence);
         }
 
-        // Fallback to hardcoded prompts
-        log.warn("Template '{}' not found, falling back to hardcoded prompt", templateName);
-        String promptTemplate = selectPromptTemplate(template);
-        return promptTemplate.formatted(question, evidenceSummary);
+        return PromptFence.conventionPreamble(nonce) + "\n\n" + body;
     }
 
     // ── Private ──────────────────────────────────────────────────────────────
@@ -187,11 +195,13 @@ public class ResearchReportService {
                         sb.append("- [")
                                 .append(e.getSourceType())
                                 .append("] ")
-                                .append(e.getFinding())
+                                .append(PromptFence.neutralize(e.getFinding()))
                                 .append(" (confidence: ")
                                 .append(String.format("%.2f", e.getConfidenceScore()))
                                 .append(")\n");
-                        sb.append("  Source: ").append(e.getSourceRef()).append("\n");
+                        sb.append("  Source: ")
+                                .append(PromptFence.neutralize(e.getSourceRef()))
+                                .append("\n");
                     }
                     sb.append("\n");
                 });
