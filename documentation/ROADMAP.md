@@ -217,8 +217,9 @@ Dependency-ordered. The release cannot ship until `helm install` on a blank clus
 | 3.9 | **Gatling load tests in CI** — 3 sims exist, add gate | #14 | S | — |
 | 3.10 | **K8s HA / multi-replica** — HPA, PDB, tuned replicas | #12 | M | 3.5 |
 | 3.11 | **Backup/restore runbook** — scripts exist, document | I7 / M6 | S | — |
+| 3.12 | **Frontend tests in CI gate** — the Maven build runs `npm run build` but never `npm test`, so admin-ui vitest specs never gate CI (three silently rotted red before P2.4). Wire `vitest run` into the build. Pairs with 3.9 / INF-CI-IT. | INF-CI-FE | XS | — |
 
-**1.0.0 release gate:** P1 + P2 + P3.1–3.7 complete; P3.8–3.11 strongly recommended.
+**1.0.0 release gate:** P1 + P2 + P3.1–3.7 complete; P3.8–3.12 strongly recommended.
 
 ---
 
