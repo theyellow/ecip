@@ -39,6 +39,19 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                // CSRF is intentionally disabled: admin-ui is a stateless, cookieless BFF. It holds
+                // no server-side session and sets no auth cookie — the browser authenticates every
+                // request with a Bearer JWT read from sessionStorage and sent as an explicit
+                // Authorization header. CSRF is only exploitable when the browser carries an
+                // ambient
+                // credential (cookie/session) that a cross-site request can ride; there is none
+                // here,
+                // and a cross-origin page can neither read sessionStorage nor forge the
+                // Authorization
+                // header. Leaving CSRF enabled would instead break every proxied POST/PUT/DELETE to
+                // admin-api (which is itself the JWT auth boundary). CodeQL flags this line
+                // (java/spring-disabled-csrf-protection) — it is a reviewed false positive for a
+                // token-based, cookieless API; the alert is dismissed with this justification.
                 .csrf(AbstractHttpConfigurer::disable)
                 .headers(
                         headers ->
