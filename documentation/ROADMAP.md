@@ -181,7 +181,7 @@ blocked URLs end the ingestion job `FAILED` with no raw internal response leaked
 `emcip.ingestion.ssrf.allowed-hosts` (hostnames or CIDRs) lets operators allow specific private targets;
 default empty = strict deny-private, and the blocklist always applies otherwise.
 
-**P2.3 delivered (2026-07-30):** branch `feat/p2-admin-ui-security`. Added a `permitAll` Spring Security
+**P2.3 delivered (2026-07-30, PR #217):** branch `feat/p2-admin-ui-security`. Added a `permitAll` Spring Security
 filter chain in `emcip-admin-ui` (auth still lives at admin-api) that writes CSP, HSTS,
 `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and
 `Permissions-Policy` on every response. `script-src` is strict `'self'`; `style-src` carries an interim
