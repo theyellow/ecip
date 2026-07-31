@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { ReportViewer } from './ReportViewer'
 
-const HOSTILE = 'Safe <script>bad()</script> A & B where x > y‮evil​'
+const HOSTILE = 'Safe <script>bad()</script> A & B where x > y\u202Eevil\u200B'
 
 const report = {
   title: 'Test Report',
@@ -20,8 +20,8 @@ test('renders report content without a script element and without double-encodin
   const text = container.textContent
   expect(text).toContain('A & B where x > y')
   expect(text).not.toContain('&amp;')
-  expect(text).not.toContain('‮')
-  expect(text).not.toContain('​')
+  expect(text).not.toContain('\u202E')
+  expect(text).not.toContain('\u200B')
 })
 
 test('download blob contains sanitized content', async () => {
@@ -36,7 +36,7 @@ test('download blob contains sanitized content', async () => {
     expect(created).toHaveLength(1)
     const text = await created[0].text()
     expect(text).not.toContain('<script')
-    expect(text).not.toContain('‮')
+    expect(text).not.toContain('\u202E')
     expect(text).toContain('A & B where x > y')
   } finally {
     URL.createObjectURL = origCreate
