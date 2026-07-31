@@ -1,5 +1,6 @@
 package io.emcip.knowledge.engine.client;
 
+import io.emcip.common.prompt.PromptFence;
 import io.emcip.knowledge.engine.entity.ConceptType;
 import io.emcip.knowledge.engine.entity.RelationshipType;
 import io.emcip.knowledge.engine.model.ExtractionResult;
@@ -101,48 +102,8 @@ public class LlmOrchestratorClient {
 
     public ExtractionResult extract(
             String text, List<ConceptType> conceptTypes, List<RelationshipType> relationshipTypes) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("Extract ALL entities and relationships from the text below.\n\n");
-
-        prompt.append("CONCEPT TYPES (use the most specific type for each entity):\n");
-        for (ConceptType ct : conceptTypes) {
-            prompt.append("- ")
-                    .append(ct.getName())
-                    .append(": ")
-                    .append(ct.getDescription() != null ? ct.getDescription() : "")
-                    .append("\n");
-        }
-
-        prompt.append("\nRELATIONSHIP TYPES (extract all that apply):\n");
-        for (RelationshipType rt : relationshipTypes) {
-            prompt.append("- ")
-                    .append(rt.getName())
-                    .append(": ")
-                    .append(rt.getDescription() != null ? rt.getDescription() : "");
-            String src =
-                    rt.getSourceTypes() != null ? String.join(", ", rt.getSourceTypes()) : "any";
-            String tgt =
-                    rt.getTargetTypes() != null ? String.join(", ", rt.getTargetTypes()) : "any";
-            prompt.append(" (").append(src).append(" \u2192 ").append(tgt).append(")\n");
-        }
-
-        prompt.append(
-                "\nIMPORTANT: Use Person for people/names, Topic for subjects/themes,"
-                        + " Source for URLs/references. Do NOT classify everything as Topic.\n");
-
-        prompt.append("\nTEXT:\n")
-                .append(text)
-                .append("\n\nReturn ONLY valid JSON (no markdown, no explanation):\n")
-                .append(
-                        "{\n"
-                                + "  \"entities\": [{\"type\": \"<ConceptType>\","
-                                + " \"label\": \"<text>\"}],\n"
-                                + "  \"relationships\": [{\"type\": \"<RelationshipType>\","
-                                + " \"source\": \"<entity label>\","
-                                + " \"target\": \"<entity label>\"}]\n"
-                                + "}");
-
-        String finalPrompt = prompt.toString();
+        String nonce = PromptFence.newNonce();
+        String finalPrompt = buildExtractionPrompt(text, conceptTypes, relationshipTypes, nonce);
         try {
             return CircuitBreaker.decorateCheckedSupplier(
                             analyseCircuitBreaker(),
@@ -172,6 +133,59 @@ public class LlmOrchestratorClient {
             log.error("LLM orchestrator extract call failed: {}", e.getMessage());
             return new ExtractionResult(List.of(), List.of());
         }
+    }
+
+    String buildExtractionPrompt(
+            String text,
+            List<ConceptType> conceptTypes,
+            List<RelationshipType> relationshipTypes,
+            String nonce) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append(PromptFence.conventionPreamble(nonce)).append("\n\n");
+        prompt.append("Extract ALL entities and relationships from the text below.\n\n");
+
+        prompt.append("CONCEPT TYPES (use the most specific type for each entity):\n");
+        for (ConceptType ct : conceptTypes) {
+            prompt.append("- ")
+                    .append(PromptFence.neutralize(ct.getName()))
+                    .append(": ")
+                    .append(
+                            PromptFence.neutralize(
+                                    ct.getDescription() != null ? ct.getDescription() : ""))
+                    .append("\n");
+        }
+
+        prompt.append("\nRELATIONSHIP TYPES (extract all that apply):\n");
+        for (RelationshipType rt : relationshipTypes) {
+            prompt.append("- ")
+                    .append(PromptFence.neutralize(rt.getName()))
+                    .append(": ")
+                    .append(
+                            PromptFence.neutralize(
+                                    rt.getDescription() != null ? rt.getDescription() : ""));
+            String src =
+                    rt.getSourceTypes() != null ? String.join(", ", rt.getSourceTypes()) : "any";
+            String tgt =
+                    rt.getTargetTypes() != null ? String.join(", ", rt.getTargetTypes()) : "any";
+            prompt.append(" (").append(src).append(" → ").append(tgt).append(")\n");
+        }
+
+        prompt.append(
+                "\nIMPORTANT: Use Person for people/names, Topic for subjects/themes,"
+                        + " Source for URLs/references. Do NOT classify everything as Topic.\n");
+
+        prompt.append("\nTEXT:\n")
+                .append(PromptFence.fence("DOCUMENT_TEXT", nonce, text))
+                .append("\n\nReturn ONLY valid JSON (no markdown, no explanation):\n")
+                .append(
+                        "{\n"
+                                + "  \"entities\": [{\"type\": \"<ConceptType>\","
+                                + " \"label\": \"<text>\"}],\n"
+                                + "  \"relationships\": [{\"type\": \"<RelationshipType>\","
+                                + " \"source\": \"<entity label>\","
+                                + " \"target\": \"<entity label>\"}]\n"
+                                + "}");
+        return prompt.toString();
     }
 
     public String analyse(String prompt, String taskType) {
