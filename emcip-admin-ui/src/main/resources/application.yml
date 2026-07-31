@@ -1,5 +1,6 @@
 server:
   port: 14009
+  forward-headers-strategy: framework
 
 spring:
   application:

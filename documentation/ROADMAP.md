@@ -25,7 +25,7 @@
 |-------|-------|------|------|
 | **P0** | Reconcile & baseline | XS | ✅ done (PR #205) |
 | **P1** | Critical security quick-wins | ~1–2 days | ✅ done (#206/#207/#208) |
-| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.2 ✅ · **2.3 next** |
+| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.3 ✅ · **2.4 next** |
 | **P3** | Pre-1.0.0 release-readiness | ~3–5 weeks | **→ 1.0.0** |
 | **P4** | 1.0.0 polish + cheap wins | interleave | — |
 | **P5** | Post-1.0.0 features | large | — |
@@ -132,8 +132,8 @@ Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 | 2.0 | **Secrets encryption at rest** *(merges the former 2.5 + 2.6)* — AES-256-GCM `SecretCipher` in `emcip-core`, `v1:`-prefixed. Covers `telegram_accounts.session_string`, `telegram_accounts.api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`. **Strict fail-closed reads**; existing rows migrated by hand in the cluster, no backfill code. Spec: `docs/superpowers/specs/2026-07-23-secrets-encryption-at-rest-design.md` | S5 / S-OPEN-1 / RT-013 / S-NEW-2 | emcip-core + admin-api + knowledge-engine + llm-orchestrator | L | ✅ PR #209 |
 | 2.1 | **Audit integrity redesign** *(demoted from P1 — see P1 note)*. Must solve three coupled problems together: (a) serialize chain writes so `saveWithChain` cannot fork under `setConcurrency(3)` — options: concurrency 1, a single-subscriber serializing sink, or computing `prev_hash` inside one locking SQL statement; (b) give failed saves a durable landing spot (DLT or error handler) so `MANUAL_IMMEDIATE` acks cannot commit past a lost record — note audit-service defines its **own** `KafkaConsumerConfig` with no error handler and does not use `CommonKafkaConfig`, while `emcip-core` already ships `DeadLetterTopicHandler`; (c) only then add the DELETE-prevention trigger, guarded by a sanctioned-purge session flag (`SET LOCAL emcip.audit_purge='on'`) so `AuditRetentionJob` still works. The UPDATE-prevention trigger already exists (`003-audit-tamper-resistance.xml`); only DELETE is missing. **Do not split these into separate PRs.** | RT2-002 / RT2-016 / B1 / RT-027 | audit-service | L | ✅ PR #210 |
 | 2.2 | **SSRF protection** on `DocumentIngestionService.fetchWithTimeout()` — https/http scheme whitelist, RFC-1918 + loopback + link-local + metadata-IP blocklist, DNS-resolution recheck | RT2-005 / RT-F2 / S-NEW-3 | knowledge-engine | M | ✅ PR #215 |
-| 2.3 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options + CSP meta tag in `index.html` | RT2-007 / RT-029 | admin-ui | M | ⏳ **next** |
-| 2.4 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S | ⏳ |
+| 2.3 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy (header-only; `index.html` unchanged) | RT2-007 / RT-029 | admin-ui | M | ✅ PR #217 |
+| 2.4 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S | ⏳ **next** |
 | 2.5 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L | ⏳ |
 | 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M | ⏳ |
 | 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3), `npm audit fix` (RT2-015) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ⏳ |
@@ -182,7 +182,21 @@ blocked URLs end the ingestion job `FAILED` with no raw internal response leaked
 default empty = strict deny-private, and the blocklist always applies otherwise. A post-merge reactor
 build fix scoped the new OkHttp dependency (marked `optional` in `emcip-core`) so it stops colliding with
 the OkHttp-5.x `mockwebserver3` modules; four low-priority hardening follow-ups are logged as SSRF-F1…F4
-in `BACKLOG.md` §0b. **Next: P2.3 — admin-ui Spring Security.**
+in `BACKLOG.md` §0b.
+
+**P2.3 delivered (2026-07-30, PR #217):** branch `feat/p2-admin-ui-security`. Added a `permitAll` Spring Security
+filter chain in `emcip-admin-ui` (auth still lives at admin-api) that writes CSP, HSTS,
+`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and
+`Permissions-Policy` on every response. `script-src` is strict `'self'`; `style-src` carries an interim
+`'unsafe-inline'` because the React frontend still uses inline `style={{}}` attributes, tracked as
+follow-up RT2-007-F1 (CSS Modules migration, then tighten to strict `'self'`). HSTS depends on
+`server.forward-headers-strategy: framework`, since TLS terminates at the ingress and Spring must trust
+the forwarded `X-Forwarded-Proto` to decide the connection is secure. CSP is header-only — `index.html`
+was left unchanged; a duplicate `<meta http-equiv="Content-Security-Policy">` was considered and dropped
+as redundant with (and a drift risk against) the header. Note: Spring Security's stock `HstsHeaderWriter`
+emits `max-age=31536000 ; includeSubDomains` (OWS around the `;`, RFC 6797-valid, no preload). A second
+follow-up RT2-007-F2 (proxy header de-duplication) is logged in `BACKLOG.md` §0b. **Next: P2.4 — DOMPurify
+on LLM/Markdown rendering.**
 
 ---
 

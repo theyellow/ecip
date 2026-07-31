@@ -1,13 +1,13 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-30 (reorder + reconcile: §0 split into phase-ordered remediation + deferred follow-ups; §2 de-duplicated)
+> Last updated: 2026-07-31 (P2.3 admin-ui security headers delivered, PR #217 — Spring Security CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy filter chain; follow-ups RT2-007-F1/F2 logged in §0b)
 > Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
 > Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
 > **Phase** column maps each item to its `ROADMAP.md` phase.
 
-**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · **P2.3 = next** · P2.4–P2.8 open · then P3 (release-readiness).
+**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · **P2.4 = next** · P2.5–P2.8 open · then P3 (release-readiness).
 
 ---
 
@@ -45,8 +45,8 @@
 | RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | P2.1 | L | ✅ PR #210 |
 | B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | P2.1 | L | ✅ PR #210 — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
 | RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ PR #215 — SSRF guard (pin validated IP via OkHttp `Dns` + pre-connect literal-IP interceptor) on URL ingestion; configurable allow-list; reingest path covered. Follow-ups SSRF-F1…F4 in §0b |
-| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options) + CSP meta tag | HIGH | P2.3 | M | ⏳ **next** |
-| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ |
+| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options + Referrer-Policy/Permissions-Policy; header-only, no meta tag) | HIGH | P2.3 | M | ✅ PR #217 |
+| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ⏳ **next** |
 | RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ⏳ |
 | RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ⏳ |
 | U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.7 | S | ⏳ |
@@ -72,6 +72,8 @@
 | SSRF-F2 | The SSRF deny-set omits the NAT64 well-known prefix `64:ff9b::/96` (RFC 6052). Where a NAT64 gateway is present, `64:ff9b::a00:1` translates to private `10.0.0.1`, reaching internal hosts. Add `64:ff9b::/96` to `SsrfGuard.DENY` with a `nat64` label + test. Ref: `emcip-core/.../SsrfGuard.java`. | LOW | P4 | XS | ⏳ |
 | SSRF-F3 | `SsrfProperties` is a mutable `@ConfigurationProperties` bean with getters/setters; convert to an immutable record (constructor-bound) for consistency with the project's config style and to prevent post-bind mutation. Ref: `emcip-knowledge-engine/.../config/SsrfProperties.java`. | LOW | P4 | XS | ⏳ |
 | SSRF-F4 | **Consolidate OkHttp / MockWebServer on 5.x.** The reactor straddles two OkHttp majors: knowledge-engine uses `mockwebserver` 4.12.0 (okhttp 4.x) while llm-orchestrator + admin-api use `mockwebserver3` 5.2.1 (okhttp 5.x). emcip-core's okhttp compile dep is marked `optional` (and knowledge-engine re-declares it) purely to keep okhttp 4.x from leaking onto the 5.x modules and breaking MockWebServer 5.x (`TaskRunner` ABI — this bit PR #215 on the reactor build). Migrate knowledge-engine tests (`okhttp3.mockwebserver.*` → `mockwebserver3.*`, ~13 files, `MockResponse` builder API) and the SSRF client to okhttp 5.x so a single okhttp version governs the reactor and `optional` can be dropped. Ref: root `pom.xml`, `emcip-core/pom.xml`, `emcip-knowledge-engine/pom.xml`. | LOW | P4 | M | ⏳ |
+| RT2-007-F1 | Remove admin-ui inline styles (68 occurrences / 22 files → CSS Modules; PipelineTrace enum/binary classes; Costs bar chart → inline SVG) and drop 'unsafe-inline' from CSP style-src to reach strict style-src 'self'. Ref: emcip-admin-ui/src/main/frontend. | LOW | P4 | M | ⏳ |
+| RT2-007-F2 | `ApiProxyController` forwards admin-api's own security headers (CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy), so a 200 `/api/**` response carries duplicate (and divergent) copies alongside admin-ui's. Harmless today (proxied responses are JSON consumed by `fetch()`, not rendered documents; document responses are served locally by admin-ui), but the BFF should be the single header authority — add those names to `HOP_BY_HOP_HEADERS`/a strip-list and cover with a fixture that returns downstream headers. Ref: `emcip-admin-ui/src/main/java/io/emcip/adminui/ApiProxyController.java`. | LOW | P4 | XS | ⏳ |
 
 ---
 
