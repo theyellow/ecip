@@ -5,7 +5,10 @@ import DOMPurify from 'dompurify'
 const CONTROL = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g
 // Zero-width space/non-joiner/joiner, word-joiner, BOM.
 const ZERO_WIDTH = /[\u200B-\u200D\u2060\uFEFF]/g
-// Bidi embeddings/overrides + isolates (Trojan-Source).
+// Bidi embeddings/overrides + isolates (Trojan-Source) - the reordering-capable set.
+// Deliberately NOT LRM/RLM/ALM (\u200E/\u200F/\u061C): those are legitimate directional
+// marks used to render RTL text (Arabic/Hebrew) correctly and cannot reorder content, so
+// stripping them would corrupt valid messages for no security gain.
 const BIDI = /[\u202A-\u202E\u2066-\u2069]/g
 
 function unicodeHygiene(text) {
