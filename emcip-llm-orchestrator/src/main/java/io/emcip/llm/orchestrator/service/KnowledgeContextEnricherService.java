@@ -1,5 +1,6 @@
 package io.emcip.llm.orchestrator.service;
 
+import io.emcip.common.prompt.PromptFence;
 import io.emcip.llm.orchestrator.client.KnowledgeEngineClient;
 import io.emcip.llm.orchestrator.client.KnowledgeEngineClient.DocumentResult;
 import io.emcip.llm.orchestrator.config.KnowledgeEnrichmentProperties;
@@ -23,9 +24,11 @@ public class KnowledgeContextEnricherService {
      *
      * @param userQuery natural-language user query
      * @param tenantId current tenant (null = cross-tenant)
+     * @param nonce per-call fence nonce shared with the USER_CONTENT fence and system-prompt
+     *     convention preamble
      * @return formatted context block, or "" if nothing relevant found
      */
-    public String buildContext(String userQuery, UUID tenantId) {
+    public String buildContext(String userQuery, UUID tenantId, String nonce) {
         KnowledgeEngineClient.SearchResponse response =
                 knowledgeEngineClient.search(userQuery, "HYBRID", tenantId, props.maxResults());
 
@@ -40,11 +43,9 @@ public class KnowledgeContextEnricherService {
 
         StringBuilder sb = new StringBuilder();
         for (DocumentResult result : relevant) {
-            sb.append("<<<KNOWLEDGE_SOURCE_BEGIN source=\"")
-                    .append(result.document().sourceRef())
-                    .append("\">>>\n");
-            sb.append(result.document().content());
-            sb.append("\n<<<KNOWLEDGE_SOURCE_END>>>\n\n");
+            String body =
+                    "source=" + result.document().sourceRef() + "\n" + result.document().content();
+            sb.append(PromptFence.fence("KNOWLEDGE_SOURCE", nonce, body)).append("\n\n");
             if (sb.length() >= props.contextMaxChars()) {
                 break;
             }

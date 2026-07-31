@@ -40,7 +40,7 @@ class KnowledgeContextEnricherServiceTest {
         when(client.search(anyString(), eq("HYBRID"), eq(tenantId), eq(5)))
                 .thenReturn(new SearchResponse(List.of(), List.of(result)));
 
-        String context = enricher.buildContext("what is climate change?", tenantId);
+        String context = enricher.buildContext("what is climate change?", tenantId, "testnonce");
 
         assertThat(context).contains("Climate change increases sea levels.");
         assertThat(context).contains("https://ipcc.ch");
@@ -59,7 +59,7 @@ class KnowledgeContextEnricherServiceTest {
         when(client.search(anyString(), eq("HYBRID"), eq(tenantId), eq(5)))
                 .thenReturn(new SearchResponse(List.of(), List.of(lowScore)));
 
-        String context = enricher.buildContext("what is climate change?", tenantId);
+        String context = enricher.buildContext("what is climate change?", tenantId, "testnonce");
 
         assertThat(context).isEmpty();
     }
@@ -68,7 +68,7 @@ class KnowledgeContextEnricherServiceTest {
     void buildContext_returnsEmpty_whenClientReturnsEmpty() {
         when(client.search(any(), any(), any(), anyInt())).thenReturn(SearchResponse.empty());
 
-        String context = enricher.buildContext("some query", UUID.randomUUID());
+        String context = enricher.buildContext("some query", UUID.randomUUID(), "testnonce");
 
         assertThat(context).isEmpty();
     }
@@ -91,12 +91,13 @@ class KnowledgeContextEnricherServiceTest {
 
         when(client.search("query", "HYBRID", tenantId, props.maxResults())).thenReturn(response);
 
-        String context = enricher.buildContext("query", tenantId);
+        String context = enricher.buildContext("query", tenantId, "testnonce");
 
-        assertThat(context)
-                .contains("<<<KNOWLEDGE_SOURCE_BEGIN source=\"https://example.com/1\">>>");
-        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_END>>>");
+        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_BEGIN n=testnonce>>>");
+        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_END n=testnonce>>>");
         assertThat(context).contains("doc1-content");
+        assertThat(context)
+                .contains("source=https://example.com/1"); // sourceRef now inside the fence body
     }
 
     @Test
@@ -110,7 +111,7 @@ class KnowledgeContextEnricherServiceTest {
         when(client.search(anyString(), eq("HYBRID"), eq(tenantId), eq(5)))
                 .thenReturn(new SearchResponse(List.of(), List.of(result)));
 
-        String context = enricher.buildContext("long query", tenantId);
+        String context = enricher.buildContext("long query", tenantId, "testnonce");
 
         assertThat(context.length()).isLessThanOrEqualTo(2000);
     }

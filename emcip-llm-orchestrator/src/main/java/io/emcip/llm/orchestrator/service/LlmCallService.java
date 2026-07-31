@@ -1,5 +1,6 @@
 package io.emcip.llm.orchestrator.service;
 
+import io.emcip.common.prompt.PromptFence;
 import io.emcip.common.tenant.TenantContext;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
 import io.emcip.llm.orchestrator.client.LlmResponse;
@@ -112,13 +113,14 @@ public class LlmCallService {
                     TenantContext.getTenantId() != null
                             ? UUID.fromString(TenantContext.getTenantId())
                             : null;
-            // Wrap user content with boundary markers (RT-002/003)
-            String markedContent =
-                    "<<<USER_CONTENT_BEGIN>>>\n" + userContent + "\n<<<USER_CONTENT_END>>>";
+            // Wrap user content with a nonce-keyed fence (RT2-006)
+            String fenceNonce = PromptFence.newNonce();
+            String markedContent = PromptFence.fence("USER_CONTENT", fenceNonce, userContent);
 
             String enrichedContent =
                     knowledgeEnrichmentProperties.enabled()
-                            ? buildEnrichedContent(userContent, markedContent, tenantUuid)
+                            ? buildEnrichedContent(
+                                    userContent, markedContent, tenantUuid, fenceNonce)
                             : markedContent;
 
             String renderedUser = orchestratorService.renderPromptTemplate(template, contextVars);
@@ -127,10 +129,16 @@ public class LlmCallService {
                             ? enrichedContent
                             : renderedUser.replace("{{content}}", enrichedContent);
 
+            String systemPrompt =
+                    PromptFence.conventionPreamble(fenceNonce)
+                            + (template.getSystemPrompt() == null
+                                    ? ""
+                                    : "\n\n" + template.getSystemPrompt());
+
             LlmResponse response =
                     llmClient.call(
                             modelConfig.getModelName(),
-                            template.getSystemPrompt(),
+                            systemPrompt,
                             finalContent,
                             template.getMaxTokens(),
                             template.getTemperature());
@@ -176,8 +184,9 @@ public class LlmCallService {
         }
     }
 
-    private String buildEnrichedContent(String userQuery, String markedContent, UUID tenantId) {
-        String context = knowledgeContextEnricherService.buildContext(userQuery, tenantId);
+    private String buildEnrichedContent(
+            String userQuery, String markedContent, UUID tenantId, String nonce) {
+        String context = knowledgeContextEnricherService.buildContext(userQuery, tenantId, nonce);
         if (context.isBlank()) {
             return markedContent;
         }
