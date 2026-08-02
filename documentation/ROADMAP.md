@@ -219,8 +219,11 @@ neutralized-not-fenced (`LlmOrchestratorClient`), research web evidence at promp
 (`ResearchReportService`, so stored `ResearchEvidence` stays faithful), and the previously-dead `resolve()`.
 The convention rides in the **system prompt** for `LlmCallService`, but at the **prompt-body top** for the
 knowledge-engine paths because they POST to `/api/analyse` and cannot set the orchestrator's system prompt.
-The 6-regex ingestion scanner was **deliberately left as telemetry** (regex detection is inherently
-incomplete; expanding it is whack-a-mole). **Next: P2.6 — ROLE_SERVICE path restriction.**
+The 6-regex ingestion scanner (`DocumentIngestionService`) is a **fail-closed gate** — on a match it sets
+`FLAGGED_INJECTION_RISK` and rejects the doc *before* chunking/embedding (visible to operators in the
+Knowledge UI) — and its **detector was deliberately not expanded**: deny-list input filtering is the wrong
+tool for prompt injection (OWASP LLM01), and the fencing above is the actual control, so more regexes would
+only add false confidence. **Next: P2.6 — ROLE_SERVICE path restriction.**
 
 ---
 

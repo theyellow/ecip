@@ -11,6 +11,14 @@ Spawned by P2.4 (PR #218, `sanitizeText` hygiene-only sanitization of LLM/Markdo
 - Rich Markdown rendering for research reports + Flags chat (bold/links/code/tables via `react-markdown` or `marked`), replacing the hand-rolled `renderMarkdownLines`. This introduces a *real* HTML sink — route it through the reserved `sanitizeHtml()` helper (already in `src/utils/sanitizeText.js`), where DOMPurify does actual security work. Larger UX item; deliberately out of scope for the P2.4 security remediation.
 - `sanitizeText` memoization — `ReportViewer` re-runs `sanitizeText(report.content)` on every render; a `useMemo` keyed on `report.content` would avoid re-scanning long reports. Micro-optimization, only worth it if the viewer gains interactive state.
 
+## Knowledge Base Trust & Safety
+
+Spawned by P2.5 (PR #219, prompt-injection fencing). Fencing contains *instruction* injection; these address the residual *data-poisoning* risk (false facts in retrieved content skewing outputs). Tracked as BACKLOG §0b **KE-TRUST**. Not a 1.0 blocker — ingestion is operator-driven.
+
+- Source provenance / trust scoring for ingested knowledge — weight or filter retrieval by source reputation, so low-trust sources can't silently dominate a summary/report.
+- Operator quarantine-review workflow for `FLAGGED_INJECTION_RISK` documents — today they are rejected before embedding and only *surfaced* (yellow status in the Knowledge UI, `KnowledgeQueryService.findAllByStatus`); add an explicit review + re-ingest/override action instead of silent rejection.
+- Do NOT expand the 6-regex `INJECTION_PATTERNS` set for "security" — deny-list detection is the wrong tool (OWASP LLM01); the fencing is the control. Any scanner work should be about the operator workflow, not more patterns.
+
 ## Prompt Template System Follow-Ons
 
 - FlagService.chat() test coverage — the enrichment path (prepending flag context to first user message) has no unit test
