@@ -1,5 +1,6 @@
 package io.emcip.llm.orchestrator.service;
 
+import io.emcip.common.prompt.PromptFence;
 import io.emcip.llm.orchestrator.client.KnowledgeEngineClient;
 import io.emcip.llm.orchestrator.client.KnowledgeEngineClient.DocumentResult;
 import io.emcip.llm.orchestrator.config.KnowledgeEnrichmentProperties;
@@ -23,9 +24,11 @@ public class KnowledgeContextEnricherService {
      *
      * @param userQuery natural-language user query
      * @param tenantId current tenant (null = cross-tenant)
+     * @param nonce per-call fence nonce shared with the USER_CONTENT fence and system-prompt
+     *     convention preamble
      * @return formatted context block, or "" if nothing relevant found
      */
-    public String buildContext(String userQuery, UUID tenantId) {
+    public String buildContext(String userQuery, UUID tenantId, String nonce) {
         KnowledgeEngineClient.SearchResponse response =
                 knowledgeEngineClient.search(userQuery, "HYBRID", tenantId, props.maxResults());
 
@@ -39,21 +42,23 @@ public class KnowledgeContextEnricherService {
         }
 
         StringBuilder sb = new StringBuilder();
+        boolean first = true;
         for (DocumentResult result : relevant) {
-            sb.append("<<<KNOWLEDGE_SOURCE_BEGIN source=\"")
-                    .append(result.document().sourceRef())
-                    .append("\">>>\n");
-            sb.append(result.document().content());
-            sb.append("\n<<<KNOWLEDGE_SOURCE_END>>>\n\n");
-            if (sb.length() >= props.contextMaxChars()) {
+            String body =
+                    "source=" + result.document().sourceRef() + "\n" + result.document().content();
+            String fencedSource = PromptFence.fence("KNOWLEDGE_SOURCE", nonce, body) + "\n\n";
+            // Fence integrity beats the soft cap: a fenced source is only appended if it fits
+            // whole within contextMaxChars, except the very first source, which is always
+            // included in full so buildContext never returns an empty string for a single
+            // over-sized result. This guarantees no fence is ever cut mid-marker.
+            if (first || sb.length() + fencedSource.length() <= props.contextMaxChars()) {
+                sb.append(fencedSource);
+                first = false;
+            } else {
                 break;
             }
         }
 
-        String raw = sb.toString().stripTrailing();
-        if (raw.length() > props.contextMaxChars()) {
-            raw = raw.substring(0, props.contextMaxChars());
-        }
-        return raw;
+        return sb.toString().stripTrailing();
     }
 }

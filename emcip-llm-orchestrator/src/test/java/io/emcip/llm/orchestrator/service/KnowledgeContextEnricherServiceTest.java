@@ -40,7 +40,7 @@ class KnowledgeContextEnricherServiceTest {
         when(client.search(anyString(), eq("HYBRID"), eq(tenantId), eq(5)))
                 .thenReturn(new SearchResponse(List.of(), List.of(result)));
 
-        String context = enricher.buildContext("what is climate change?", tenantId);
+        String context = enricher.buildContext("what is climate change?", tenantId, "testnonce");
 
         assertThat(context).contains("Climate change increases sea levels.");
         assertThat(context).contains("https://ipcc.ch");
@@ -59,7 +59,7 @@ class KnowledgeContextEnricherServiceTest {
         when(client.search(anyString(), eq("HYBRID"), eq(tenantId), eq(5)))
                 .thenReturn(new SearchResponse(List.of(), List.of(lowScore)));
 
-        String context = enricher.buildContext("what is climate change?", tenantId);
+        String context = enricher.buildContext("what is climate change?", tenantId, "testnonce");
 
         assertThat(context).isEmpty();
     }
@@ -68,7 +68,7 @@ class KnowledgeContextEnricherServiceTest {
     void buildContext_returnsEmpty_whenClientReturnsEmpty() {
         when(client.search(any(), any(), any(), anyInt())).thenReturn(SearchResponse.empty());
 
-        String context = enricher.buildContext("some query", UUID.randomUUID());
+        String context = enricher.buildContext("some query", UUID.randomUUID(), "testnonce");
 
         assertThat(context).isEmpty();
     }
@@ -91,16 +91,19 @@ class KnowledgeContextEnricherServiceTest {
 
         when(client.search("query", "HYBRID", tenantId, props.maxResults())).thenReturn(response);
 
-        String context = enricher.buildContext("query", tenantId);
+        String context = enricher.buildContext("query", tenantId, "testnonce");
 
-        assertThat(context)
-                .contains("<<<KNOWLEDGE_SOURCE_BEGIN source=\"https://example.com/1\">>>");
-        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_END>>>");
+        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_BEGIN n=testnonce>>>");
+        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_END n=testnonce>>>");
         assertThat(context).contains("doc1-content");
+        assertThat(context)
+                .contains("source=https://example.com/1"); // sourceRef now inside the fence body
     }
 
     @Test
-    void buildContext_truncatesContextToMaxChars() {
+    void buildContext_includesFirstSourceWholeEvenIfItAloneExceedsMaxChars() {
+        // Fence integrity beats the soft cap: a single source is never cut mid-marker,
+        // even if its fenced form is larger than contextMaxChars.
         UUID tenantId = UUID.randomUUID();
         String longContent = "A".repeat(3000);
         KnowledgeDocument doc =
@@ -110,8 +113,50 @@ class KnowledgeContextEnricherServiceTest {
         when(client.search(anyString(), eq("HYBRID"), eq(tenantId), eq(5)))
                 .thenReturn(new SearchResponse(List.of(), List.of(result)));
 
-        String context = enricher.buildContext("long query", tenantId);
+        String context = enricher.buildContext("long query", tenantId, "testnonce");
 
-        assertThat(context.length()).isLessThanOrEqualTo(2000);
+        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_BEGIN n=testnonce>>>");
+        assertThat(context).contains("<<<KNOWLEDGE_SOURCE_END n=testnonce>>>");
+        assertThat(context).contains(longContent);
+        assertThat(context).endsWith("<<<KNOWLEDGE_SOURCE_END n=testnonce>>>");
+    }
+
+    @Test
+    void buildContext_dropsWholeSubsequentSourceThatWouldExceedMaxChars() {
+        // The cap only ever drops a WHOLE trailing fence; it never truncates one mid-marker.
+        UUID tenantId = UUID.randomUUID();
+        String content1 = "A".repeat(500);
+        String content2 = "B".repeat(1400);
+        KnowledgeDocument doc1 =
+                new KnowledgeDocument(
+                        UUID.randomUUID(), content1, "https://example.com/1", "WEBPAGE");
+        KnowledgeDocument doc2 =
+                new KnowledgeDocument(
+                        UUID.randomUUID(), content2, "https://example.com/2", "WEBPAGE");
+        DocumentResult result1 = new DocumentResult(doc1, 0.95);
+        DocumentResult result2 = new DocumentResult(doc2, 0.90);
+        when(client.search(anyString(), eq("HYBRID"), eq(tenantId), eq(5)))
+                .thenReturn(new SearchResponse(List.of(), List.of(result1, result2)));
+
+        String context = enricher.buildContext("query", tenantId, "testnonce");
+
+        assertThat(context).contains(content1);
+        assertThat(context).doesNotContain(content2);
+
+        long beginCount = countOccurrences(context, "_BEGIN n=testnonce>>>");
+        long endCount = countOccurrences(context, "_END n=testnonce>>>");
+        assertThat(beginCount).isEqualTo(endCount);
+        assertThat(beginCount).isEqualTo(1);
+        assertThat(context).endsWith("<<<KNOWLEDGE_SOURCE_END n=testnonce>>>");
+    }
+
+    private static long countOccurrences(String haystack, String needle) {
+        long count = 0;
+        int idx = 0;
+        while ((idx = haystack.indexOf(needle, idx)) != -1) {
+            count++;
+            idx += needle.length();
+        }
+        return count;
     }
 }
