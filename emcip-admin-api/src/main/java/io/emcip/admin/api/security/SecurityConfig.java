@@ -73,6 +73,14 @@ public class SecurityConfig {
                                         .permitAll()
                                         .pathMatchers("/actuator/health", "/actuator/health/**")
                                         .permitAll()
+                                        .pathMatchers(
+                                                "/actuator/prometheus",
+                                                "/actuator/info",
+                                                "/actuator/metrics",
+                                                "/actuator/metrics/**")
+                                        .permitAll()
+                                        .pathMatchers("/api/internal/**")
+                                        .hasRole("SERVICE")
                                         .anyExchange()
                                         .authenticated())
                 .exceptionHandling(

@@ -128,4 +128,9 @@ class RolePermissionsTest {
                 .containsExactlyInAnyOrder(
                         Permission.GROUPS_READ, Permission.AUDIT_READ, Permission.TELEGRAM_READ);
     }
+
+    @Test
+    void serviceIdentityHasNoUserPermissions() {
+        assertThat(RolePermissions.SERVICE_PERMISSIONS).isEmpty();
+    }
 }

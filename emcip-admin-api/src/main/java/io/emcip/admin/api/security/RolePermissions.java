@@ -55,6 +55,15 @@ public final class RolePermissions {
     private static final Set<Permission> VIEWER_PERMISSIONS =
             EnumSet.of(Permission.GROUPS_READ, Permission.AUDIT_READ, Permission.TELEGRAM_READ);
 
+    /**
+     * ROLE_SERVICE is a service identity granted by ServiceTokenAuthenticationFilter for internal
+     * service-to-service calls, path-scoped to /api/internal/**. It holds NO user Permissions, so
+     * it can never satisfy a user-permission @PreAuthorize on a user-facing endpoint. Modeled here
+     * so the RBAC matrix is complete; it is deliberately NOT a member of the user-assignable Role
+     * enum.
+     */
+    public static final Set<Permission> SERVICE_PERMISSIONS = EnumSet.noneOf(Permission.class);
+
     private RolePermissions() {}
 
     public static Set<Permission> permissionsFor(Role role) {
