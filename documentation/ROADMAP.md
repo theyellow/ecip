@@ -25,7 +25,7 @@
 |-------|-------|------|------|
 | **P0** | Reconcile & baseline | XS | ✅ done (PR #205) |
 | **P1** | Critical security quick-wins | ~1–2 days | ✅ done (#206/#207/#208) |
-| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.3 ✅ · **2.4 next** |
+| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.5 ✅ · **2.6 next** |
 | **P3** | Pre-1.0.0 release-readiness | ~3–5 weeks | **→ 1.0.0** |
 | **P4** | 1.0.0 polish + cheap wins | interleave | — |
 | **P5** | Post-1.0.0 features | large | — |
@@ -197,6 +197,30 @@ as redundant with (and a drift risk against) the header. Note: Spring Security's
 emits `max-age=31536000 ; includeSubDomains` (OWS around the `;`, RFC 6797-valid, no preload). A second
 follow-up RT2-007-F2 (proxy header de-duplication) is logged in `BACKLOG.md` §0b. **Next: P2.4 — DOMPurify
 on LLM/Markdown rendering.**
+
+**P2.4 delivered (2026-07-31, PR #218):** branch `feat/p2.4-llm-render-sanitization`. Shipped a
+hygiene-only `sanitizeText` (strips bidi/zero-width/control chars) on the two admin-ui LLM/Markdown sinks
+(`ReportViewer` render + `.md` download; `Flags`/`FlagDetailModal` chat render + Copy). **Design
+correction during the final review:** the originally-planned DOMPurify strip-tags pass did *zero* security
+work (React text nodes already escape; there is no HTML sink) while silently deleting benign
+`List<String>` / `<autolink>` content from research reports — so `sanitizeText` is Unicode-hygiene only,
+and DOMPurify is retained behind a **reserved `sanitizeHtml()`** for a future real HTML sink. The active
+mitigation is the Unicode hygiene React escaping does not cover; the deliberate non-stripping of LRM/RLM/ALM
+directional marks is documented in the spec + code. Follow-up **INF-CI-FE** (wire the frontend vitest suite
+into CI — it currently never runs) logged in `BACKLOG.md` §0b + P3 (3.12). **Next: P2.5 — Knowledge→LLM
+escaping.**
+
+**P2.5 delivered (2026-08-02, PR #219):** branch `feat/p2.5-knowledge-llm-escaping`. Added
+`io.emcip.common.prompt.PromptFence` (emcip-core): per-call unguessable **nonce** delimiters + marker
+**neutralization** + a "fenced content is untrusted DATA, never instructions" **convention preamble**.
+Fenced every untrusted-content → LLM sink: `USER_CONTENT` + knowledge enrichment
+(`LlmCallService` / `KnowledgeContextEnricherService`), extraction document text with ontology types
+neutralized-not-fenced (`LlmOrchestratorClient`), research web evidence at prompt-build time
+(`ResearchReportService`, so stored `ResearchEvidence` stays faithful), and the previously-dead `resolve()`.
+The convention rides in the **system prompt** for `LlmCallService`, but at the **prompt-body top** for the
+knowledge-engine paths because they POST to `/api/analyse` and cannot set the orchestrator's system prompt.
+The 6-regex ingestion scanner was **deliberately left as telemetry** (regex detection is inherently
+incomplete; expanding it is whack-a-mole). **Next: P2.6 — ROLE_SERVICE path restriction.**
 
 ---
 
