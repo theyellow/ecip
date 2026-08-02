@@ -223,14 +223,8 @@ public class LlmOrchestratorClient {
     }
 
     public String resolve(String label, String conceptType, List<String> candidates) {
-        String prompt =
-                String.format(
-                        """
-Entity resolution: does "%s" (type: %s) match any of these existing entities?
-Candidates: %s
-Respond with the matching candidate label, or "NEW" if no match.
-""",
-                        label, conceptType, String.join(", ", candidates));
+        String nonce = PromptFence.newNonce();
+        String prompt = buildResolvePrompt(label, conceptType, candidates, nonce);
 
         try {
             return CircuitBreaker.decorateCheckedSupplier(
@@ -259,6 +253,22 @@ Respond with the matching candidate label, or "NEW" if no match.
             log.error("LLM orchestrator resolve call failed: {}", e.getMessage());
             return "NEW";
         }
+    }
+
+    String buildResolvePrompt(
+            String label, String conceptType, List<String> candidates, String nonce) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append(PromptFence.conventionPreamble(nonce)).append("\n\n");
+        prompt.append("Entity resolution: does ")
+                .append(PromptFence.fence("ENTITY_LABEL", nonce, label))
+                .append(" (type: ")
+                .append(PromptFence.neutralize(conceptType))
+                .append(") match any of these existing entities?\n");
+        prompt.append("Candidates: ")
+                .append(PromptFence.fence("CANDIDATES", nonce, String.join(", ", candidates)))
+                .append("\n");
+        prompt.append("Respond with the matching candidate label, or \"NEW\" if no match.\n");
+        return prompt.toString();
     }
 
     @SuppressWarnings("unchecked")

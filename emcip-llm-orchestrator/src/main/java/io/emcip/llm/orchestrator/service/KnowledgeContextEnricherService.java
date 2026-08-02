@@ -42,19 +42,23 @@ public class KnowledgeContextEnricherService {
         }
 
         StringBuilder sb = new StringBuilder();
+        boolean first = true;
         for (DocumentResult result : relevant) {
             String body =
                     "source=" + result.document().sourceRef() + "\n" + result.document().content();
-            sb.append(PromptFence.fence("KNOWLEDGE_SOURCE", nonce, body)).append("\n\n");
-            if (sb.length() >= props.contextMaxChars()) {
+            String fencedSource = PromptFence.fence("KNOWLEDGE_SOURCE", nonce, body) + "\n\n";
+            // Fence integrity beats the soft cap: a fenced source is only appended if it fits
+            // whole within contextMaxChars, except the very first source, which is always
+            // included in full so buildContext never returns an empty string for a single
+            // over-sized result. This guarantees no fence is ever cut mid-marker.
+            if (first || sb.length() + fencedSource.length() <= props.contextMaxChars()) {
+                sb.append(fencedSource);
+                first = false;
+            } else {
                 break;
             }
         }
 
-        String raw = sb.toString().stripTrailing();
-        if (raw.length() > props.contextMaxChars()) {
-            raw = raw.substring(0, props.contextMaxChars());
-        }
-        return raw;
+        return sb.toString().stripTrailing();
     }
 }
