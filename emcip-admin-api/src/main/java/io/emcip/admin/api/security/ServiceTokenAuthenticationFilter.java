@@ -41,11 +41,22 @@ public class ServiceTokenAuthenticationFilter implements WebFilter {
         }
     }
 
+    private static final String INTERNAL_PATH_PREFIX = "/api/internal/";
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        String serviceToken = exchange.getRequest().getHeaders().getFirst(SERVICE_TOKEN_HEADER);
+        String path = exchange.getRequest().getPath().value();
 
+        // Non-/api/ paths (e.g. /actuator/**) are not service-token gated — matches the fleet
+        // pattern
+        // and keeps Prometheus scraping working.
+        if (!path.startsWith("/api/")) {
+            return chain.filter(exchange);
+        }
+
+        String serviceToken = exchange.getRequest().getHeaders().getFirst(SERVICE_TOKEN_HEADER);
         if (serviceToken == null) {
+            // No service token — let the JWT filter authenticate the user request.
             return chain.filter(exchange);
         }
 
@@ -57,11 +68,21 @@ public class ServiceTokenAuthenticationFilter implements WebFilter {
             return exchange.getResponse().setComplete();
         }
 
-        UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(
-                        "service", null, List.of(new SimpleGrantedAuthority("ROLE_SERVICE")));
+        // Valid service token: authorize ONLY internal service-to-service paths (RT2-014).
+        if (path.startsWith(INTERNAL_PATH_PREFIX)) {
+            UsernamePasswordAuthenticationToken auth =
+                    new UsernamePasswordAuthenticationToken(
+                            "service", null, List.of(new SimpleGrantedAuthority("ROLE_SERVICE")));
+            return chain.filter(exchange)
+                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
+        }
 
-        return chain.filter(exchange)
-                .contextWrite(ReactiveSecurityContextHolder.withAuthentication(auth));
+        // Valid token on a non-internal path — the service token is not permitted here (BFLA fix).
+        log.warn(
+                "Service token presented on non-internal path {} from {}",
+                path,
+                exchange.getRequest().getRemoteAddress());
+        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+        return exchange.getResponse().setComplete();
     }
 }

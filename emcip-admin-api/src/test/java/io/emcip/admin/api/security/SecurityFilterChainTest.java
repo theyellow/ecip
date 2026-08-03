@@ -147,7 +147,7 @@ class SecurityFilterChainTest {
     void serviceTokenFilter_validToken_chainRunsWithServiceRoleInContext() {
         MockServerWebExchange exchange =
                 MockServerWebExchange.from(
-                        MockServerHttpRequest.get("/api/groups")
+                        MockServerHttpRequest.get("/api/internal/ping")
                                 .header("X-Service-Token", DEFAULT_SERVICE_TOKEN)
                                 .build());
 
@@ -165,6 +165,48 @@ class SecurityFilterChainTest {
         assertThat(capturedAuth.get()).isNotNull();
         assertThat(capturedAuth.get().getAuthorities())
                 .anyMatch(a -> a.getAuthority().equals("ROLE_SERVICE"));
+    }
+
+    @Test
+    void serviceTokenFilter_validToken_nonInternalPath_forbidden() {
+        MockServerWebExchange exchange =
+                MockServerWebExchange.from(
+                        MockServerHttpRequest.get("/api/groups")
+                                .header("X-Service-Token", DEFAULT_SERVICE_TOKEN)
+                                .build());
+        AtomicBoolean chainInvoked = new AtomicBoolean(false);
+        WebFilterChain chain =
+                ex -> {
+                    chainInvoked.set(true);
+                    return Mono.empty();
+                };
+
+        StepVerifier.create(serviceTokenFilter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(chainInvoked.get()).isFalse();
+    }
+
+    @Test
+    void serviceTokenFilter_actuatorPath_passesThroughIgnoringToken() {
+        MockServerWebExchange exchange =
+                MockServerWebExchange.from(
+                        MockServerHttpRequest.get("/actuator/prometheus")
+                                .header("X-Service-Token", DEFAULT_SERVICE_TOKEN)
+                                .build());
+        AtomicReference<Authentication> capturedAuth = new AtomicReference<>();
+        WebFilterChain chain =
+                ex ->
+                        ReactiveSecurityContextHolder.getContext()
+                                .map(SecurityContext::getAuthentication)
+                                .doOnNext(capturedAuth::set)
+                                .then()
+                                .switchIfEmpty(Mono.empty());
+
+        StepVerifier.create(serviceTokenFilter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isNull(); // not blocked
+        assertThat(capturedAuth.get()).isNull(); // token ignored on actuator, no ROLE_SERVICE set
     }
 
     @Test
