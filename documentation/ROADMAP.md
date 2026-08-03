@@ -25,7 +25,7 @@
 |-------|-------|------|------|
 | **P0** | Reconcile & baseline | XS | ✅ done (PR #205) |
 | **P1** | Critical security quick-wins | ~1–2 days | ✅ done (#206/#207/#208) |
-| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.6 ✅ · **2.7 next** |
+| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.7 ✅ · **2.8 next** |
 | **P3** | Pre-1.0.0 release-readiness | ~3–5 weeks | **→ 1.0.0** |
 | **P4** | 1.0.0 polish + cheap wins | interleave | — |
 | **P5** | Post-1.0.0 features | large | — |
@@ -136,8 +136,8 @@ Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 | 2.4 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S | ✅ |
 | 2.5 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L | ✅ |
 | 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M | ✅ |
-| 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3); RT2-015 ✅ delivered (React 19 + react-router v8, npm audit 0) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ⏳ **next** |
-| 2.8 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S | ⏳ |
+| 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3); RT2-015 ✅ delivered (React 19 + react-router v8, npm audit 0) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ✅ |
+| 2.8 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S | ⏳ **next** |
 
 **Note (2.0):** the secrets-management strategy decision that RT-013 was blocked on is now **made** —
 app-level AES-256-GCM with the key from a K8s Secret, key never sent to Postgres. pgcrypto was rejected
@@ -235,6 +235,13 @@ pre-existing monitoring gap (Prometheus was timing out, unable to scrape admin-a
 decision: since admin-api only **sends** the token (never receives it), the inbound surface is confined to a
 reserved `/api/internal/**` prefix with no endpoints yet (reserved for future inter-service callback patterns).
 **Next: P2.7 — UI hygiene batch.**
+
+**P2.7 delivered (2026-08-03):** branch `feat/p2.7-ui-hygiene`. Shipped U-NEW-1/2/3:
+user-facing load failures now render `error` toasts (`addToast('error', message)`), background/cleanup
+catches log a single `console.warn('<context>:', e?.message || e)`, and array-index React keys (`key={i}`)
+in the Costs component were replaced with stable `key={d.date}` / `key={m.modelName}` identifiers (index-correct keys elsewhere annotated
+in comments on other list renders for future stability). RT2-015 (React 19 + react-router v8 upgrade, npm audit 0)
+was delivered separately in PR #222. **Next: P2.8 — Failed-login audit.**
 
 ---
 

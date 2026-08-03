@@ -7,7 +7,7 @@
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
 > **Phase** column maps each item to its `ROADMAP.md` phase.
 
-**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · P2.4 ✅ · P2.5 ✅ · P2.6 ✅ · **P2.7 = next** · P2.8 open · then P3 (release-readiness).
+**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · P2.4 ✅ · P2.5 ✅ · P2.6 ✅ · P2.7 ✅ · **P2.8 = next** · then P3 (release-readiness).
 
 ---
 
@@ -49,7 +49,7 @@
 | RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ✅ PR #218 — Unicode-hygiene sanitizer (`sanitizeText`, strips bidi/zero-width/control) on both renders + `.md` download + Copy; DOMPurify retained behind a reserved `sanitizeHtml()` for a future HTML sink. No HTML sink existed. Spec: `specs/2026-07-31-p2.4-llm-render-sanitization-design.md` |
 | RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ✅ PR #219 — per-call nonce fence + "treat fenced content as data" convention via shared io.emcip.common.prompt.PromptFence; applied to USER_CONTENT, knowledge enrichment, extraction document text, research web evidence. Ontology types neutralized-not-fenced; evidence fenced at prompt-build. Ingestion regex scanner is a fail-closed gate (match → FLAGGED_INJECTION_RISK, doc rejected) whose detector was deliberately not expanded (fencing is the control; deny-list filtering is the wrong tool). Residual data-poisoning risk → §0b KE-TRUST. Spec: specs/2026-07-31-p2.5-prompt-injection-fencing-design.md |
 | RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ✅ PR #221 — service token scoped to /api/internal/** (403 elsewhere) in ServiceTokenAuthenticationFilter; ROLE_SERVICE modeled as empty-permission SERVICE identity in RolePermissions (not the user Role enum); admin-api actuator metrics endpoints opened (fleet-consistent, fixes the Prometheus scrape). Spec: specs/2026-08-02-p2.6-role-service-path-restriction-design.md |
-| U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.7 | S | ⏳ **next** |
+| U-NEW-1/2/3 | UI hygiene: user-facing load failures → error toasts, background/cleanup catches → `console.warn`, stable React keys in Costs (index-correct keys annotated) | MEDIUM | P2.7 | S | ✅ PR #NNN |
 | RT2-015 | React 19 + react-router v8 upgrade (+ Maven Node 24) → npm audit 0 (esbuild/vite/vitest/react-router) | MEDIUM | P2.7 | S | ✅ |
 | S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ⏳ |
 
