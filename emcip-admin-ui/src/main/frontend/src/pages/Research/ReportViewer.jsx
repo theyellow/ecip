@@ -13,6 +13,7 @@ function renderMarkdownLines(content) {
       elements.push(
         <ul key={key++} className={styles.list}>
           {listBuffer.map((item, i) => (
+            // index key is stable here: ephemeral markdown items, re-rendered wholesale
             <li key={i} className={styles.listItem}>
               {item}
             </li>

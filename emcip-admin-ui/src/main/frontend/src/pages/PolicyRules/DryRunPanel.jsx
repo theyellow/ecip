@@ -92,6 +92,7 @@ export function DryRunPanel({ rule, api }) {
                 {result.matched && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{'\u2192'} Group {result.matchedGroupIndex + 1}</span>}
               </div>
               {result.groupResults.map((g, i) => (
+                // index key is stable here: computed dry-run result, rendered wholesale
                 <div key={i} className={styles.group}>
                   <div className={`${styles.groupLabel} ${g.matched ? styles.groupPass : styles.groupFail}`}>
                     {g.matched ? '\u2713' : '\u2717'} Group {i + 1}

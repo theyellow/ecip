@@ -51,6 +51,7 @@ function IntentSelect({ value, onChange, knownIntents }) {
         <option value="">— Any intent —</option>
         <option value={WILDCARD}>* (wildcard)</option>
         {knownIntents.map(i => (
+          // index key is stable here: the index is the option value
           <option key={i} value={i}>{i}</option>
         ))}
         <option value={CUSTOM_SENTINEL}>Custom…</option>

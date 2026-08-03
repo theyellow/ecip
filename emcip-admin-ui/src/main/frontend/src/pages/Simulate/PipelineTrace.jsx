@@ -119,7 +119,10 @@ export function PipelineTrace({ result, loading }) {
               )}
               {lines && (
                 <div className={styles.stageData}>
-                  {lines.map((line, i) => <span key={i}>{line}</span>)}
+                  {lines.map((line, i) => (
+                    // index key is stable here: ephemeral text-line spans, re-rendered wholesale
+                    <span key={i}>{line}</span>
+                  ))}
                 </div>
               )}
             </div>

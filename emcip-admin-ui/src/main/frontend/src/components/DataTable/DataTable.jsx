@@ -28,6 +28,7 @@ export function DataTable({
         </div>
         <div className={styles.controls}>
           {filters?.map((f, i) => (
+            // index key is stable here: filters is a static per-page prop array
             <select key={i} className={styles.filter} value={f.value} onChange={f.onChange}>
               {f.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
