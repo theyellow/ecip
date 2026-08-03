@@ -225,7 +225,7 @@ Knowledge UI) — and its **detector was deliberately not expanded**: deny-list 
 tool for prompt injection (OWASP LLM01), and the fencing above is the actual control, so more regexes would
 only add false confidence. **Next: P2.6 — ROLE_SERVICE path restriction.**
 
-**P2.6 delivered (2026-08-03, #NNN):** branch `feat/p2.6-role-service-path-restriction`. Scoped the
+**P2.6 delivered (2026-08-03, PR #221):** branch `feat/p2.6-role-service-path-restriction`. Scoped the
 `ServiceTokenAuthenticationFilter` to inbound `/api/internal/**` only — a valid token on any other `/api/**`
 path is rejected with 403 (authenticated-but-forbidden). `ROLE_SERVICE` was modeled as an empty-permission
 SERVICE identity in `RolePermissions` (not added to the user `Role` enum, so it cannot be assigned to human
