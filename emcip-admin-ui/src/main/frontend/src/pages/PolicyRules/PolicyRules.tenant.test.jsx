@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import { PolicyRules } from './PolicyRules'
 
@@ -35,9 +36,10 @@ vi.mock('../../api/intentRules', () => ({
 
 describe('PolicyRules page — tenant dropdown', () => {
   it('shows tenant dropdown in Create Rule modal', async () => {
+    const user = userEvent.setup()
     render(<PolicyRules />)
     await waitFor(() => screen.getByText('+ Create Rule'))
-    screen.getByRole('button', { name: /create rule/i }).click()
+    await user.click(screen.getByRole('button', { name: /create rule/i }))
     await waitFor(() => {
       expect(screen.getByText(/beta corp/i)).toBeInTheDocument()
     })

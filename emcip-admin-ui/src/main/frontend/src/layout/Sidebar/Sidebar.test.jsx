@@ -38,32 +38,38 @@ function renderSidebar() {
 }
 
 describe('Sidebar', () => {
-  it('renders the logout button', () => {
+  it('renders the logout button', async () => {
+    mockAuth = { role: 'TENANT_ADMIN', currentTenant: { id: 'tid', name: 'Test Tenant' }, setCurrentTenant: mockSetCurrentTenant, logout: mockLogout }
     renderSidebar()
     expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument()
   })
 
   it('calls logout when the logout button is clicked', async () => {
+    mockAuth = { role: 'TENANT_ADMIN', currentTenant: { id: 'tid', name: 'Test Tenant' }, setCurrentTenant: mockSetCurrentTenant, logout: mockLogout }
     mockLogout.mockClear()
     renderSidebar()
     await userEvent.click(screen.getByRole('button', { name: /logout/i }))
     expect(mockLogout).toHaveBeenCalledOnce()
   })
 
-  it('ADMIN sees tenant dropdown', () => {
+  it('ADMIN sees tenant dropdown', async () => {
     mockAuth = { role: 'ADMIN', currentTenant: null, setCurrentTenant: mockSetCurrentTenant, logout: mockLogout }
     renderSidebar()
-    expect(screen.getByRole('combobox', { name: /select active tenant/i })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('combobox', { name: /select active tenant/i })).toBeInTheDocument()
+    })
   })
 
-  it('ADMIN sees all nav items including Tenants, AI Config, Users, Intent Rules', () => {
+  it('ADMIN sees all nav items including Tenants, AI Config, Users, Intent Rules', async () => {
     mockAuth = { role: 'ADMIN', currentTenant: null, setCurrentTenant: mockSetCurrentTenant, logout: mockLogout }
     renderSidebar()
-    expect(screen.getByText('Tenants')).toBeInTheDocument()
-    expect(screen.getByText('Intent Rules')).toBeInTheDocument()
-    expect(screen.getByText('AI Config')).toBeInTheDocument()
-    expect(screen.getByText('Users')).toBeInTheDocument()
-    expect(screen.getByText('Watched Groups')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('Tenants')).toBeInTheDocument()
+      expect(screen.getByText('Intent Rules')).toBeInTheDocument()
+      expect(screen.getByText('AI Config')).toBeInTheDocument()
+      expect(screen.getByText('Users')).toBeInTheDocument()
+      expect(screen.getByText('Watched Groups')).toBeInTheDocument()
+    })
   })
 
   it('TENANT_ADMIN sees static tenant label, not dropdown', () => {
