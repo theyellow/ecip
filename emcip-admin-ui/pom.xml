@@ -53,8 +53,8 @@
         <configuration>
           <workingDirectory>src/main/frontend</workingDirectory>
           <installDirectory>target</installDirectory>
-          <nodeVersion>v20.18.0</nodeVersion>
-          <npmVersion>10.8.0</npmVersion>
+          <nodeVersion>v24.18.0</nodeVersion>
+          <npmVersion>12.0.1</npmVersion>
         </configuration>
         <executions>
           <execution>
