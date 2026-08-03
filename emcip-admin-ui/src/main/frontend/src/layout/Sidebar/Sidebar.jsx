@@ -36,7 +36,7 @@ export function Sidebar() {
     if (role === 'ADMIN') {
       tenantsApi(request).list()
         .then(setTenants)
-        .catch(() => {})
+        .catch(e => console.warn('Sidebar tenant prefetch failed:', e?.message || e))
     }
   }, [role])
 

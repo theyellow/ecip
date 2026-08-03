@@ -86,8 +86,11 @@ export function Knowledge() {
   const api = useMemo(() => knowledgeApi(request, rawFetch), [request, rawFetch])
 
   useEffect(() => {
-    tenantsApi(request).list().then(setTenants).catch(() => {})
-  }, [request])
+    tenantsApi(request)
+      .list()
+      .then(setTenants)
+      .catch(e => addToast('error', `Failed to load tenants: ${e.message || 'Unknown error'}`))
+  }, [request, addToast])
 
   // Load ingestion jobs (isBackground=true skips the loading indicator to avoid flicker)
   const loadJobs = useCallback(async (isBackground = false) => {

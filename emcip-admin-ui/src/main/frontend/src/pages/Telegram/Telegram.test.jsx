@@ -1,7 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import ToastProvider from '../../components/Toast/ToastProvider'
 import { Telegram } from './Telegram'
+
+function renderTelegram() {
+  return render(<ToastProvider><Telegram /></ToastProvider>)
+}
 
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
@@ -35,7 +40,7 @@ describe('Telegram page', () => {
   })
 
   it('renders accounts table with no-accounts empty state', async () => {
-    render(<Telegram />)
+    renderTelegram()
     await waitFor(() =>
       expect(screen.getByText('No accounts configured')).toBeInTheDocument()
     )
@@ -45,7 +50,7 @@ describe('Telegram page', () => {
     mockApi.listAccounts.mockResolvedValue([
       { id: 'uuid-1', displayName: 'Monitor 1', phoneNumber: '+49123', status: 'ACTIVE', lastError: null },
     ])
-    render(<Telegram />)
+    renderTelegram()
     await waitFor(() => expect(screen.getByText('Monitor 1')).toBeInTheDocument())
     expect(screen.getByText('ACTIVE')).toBeInTheDocument()
   })
@@ -55,7 +60,7 @@ describe('Telegram page', () => {
       { id: 'uuid-1', displayName: 'Monitor 1', phoneNumber: '+49123', status: 'ACTIVE', lastError: null },
     ])
     mockApi.listWatched.mockResolvedValue([])
-    render(<Telegram />)
+    renderTelegram()
     await waitFor(() => screen.getByText('Monitor 1'))
 
     await userEvent.click(screen.getByRole('button', { name: /groups/i }))
@@ -72,7 +77,7 @@ describe('Telegram page', () => {
     mockApi.discoverChats.mockResolvedValue([
       { chatId: 111, title: 'My Group', type: 'SUPERGROUP' },
     ])
-    render(<Telegram />)
+    renderTelegram()
     await waitFor(() => screen.getByText('Monitor 1'))
     await userEvent.click(screen.getByRole('button', { name: /groups/i }))
     await userEvent.click(screen.getByRole('button', { name: /discover/i }))
@@ -89,7 +94,7 @@ describe('Telegram page', () => {
       { chatId: 111, title: 'My Group', type: 'SUPERGROUP' },
     ])
     mockApi.watchGroup.mockResolvedValue({ chatId: 111, name: 'My Group', moderationLevel: 'MEDIUM' })
-    render(<Telegram />)
+    renderTelegram()
     await waitFor(() => screen.getByText('Monitor 1'))
     await userEvent.click(screen.getByRole('button', { name: /groups/i }))
     await userEvent.click(screen.getByRole('button', { name: /discover/i }))
@@ -106,7 +111,7 @@ describe('Telegram page', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValue([newAccount])
 
-    render(<Telegram />)
+    renderTelegram()
     await waitFor(() => screen.getByText('No accounts configured'))
     await userEvent.click(screen.getByRole('button', { name: /add account/i }))
     await userEvent.type(screen.getByPlaceholderText(/monitor account/i), 'Bot 2')

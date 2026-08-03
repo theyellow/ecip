@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { AuthProvider } from '../../auth/AuthContext'
+import ToastProvider from '../../components/Toast/ToastProvider'
 import { ThemeProvider } from '../../theme/ThemeContext'
 import { Groups } from './Groups'
 
@@ -17,7 +18,7 @@ beforeEach(() => {
 })
 
 const wrap = ui => render(
-  <MemoryRouter><ThemeProvider><AuthProvider>{ui}</AuthProvider></ThemeProvider></MemoryRouter>
+  <MemoryRouter><ThemeProvider><AuthProvider><ToastProvider>{ui}</ToastProvider></AuthProvider></ThemeProvider></MemoryRouter>
 )
 
 test('renders groups table with name and chatId', async () => {

@@ -73,7 +73,7 @@ export function AuthProvider({ children }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: rt }),
-      }).catch(() => {})
+      }).catch(e => console.warn('Auth logout cleanup failed:', e?.message || e))
     }
     sessionStorage.removeItem('emcip-token')
     sessionStorage.removeItem('emcip-refresh-token')
