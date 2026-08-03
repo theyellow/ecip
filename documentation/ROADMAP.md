@@ -136,7 +136,7 @@ Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 | 2.4 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S | ✅ |
 | 2.5 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L | ✅ |
 | 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M | ✅ |
-| 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3), `npm audit fix` (RT2-015) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ⏳ **next** |
+| 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3); RT2-015 ✅ delivered (React 19 + react-router v8, npm audit 0) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ⏳ **next** |
 | 2.8 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S | ⏳ |
 
 **Note (2.0):** the secrets-management strategy decision that RT-013 was blocked on is now **made** —
