@@ -25,7 +25,7 @@
 |-------|-------|------|------|
 | **P0** | Reconcile & baseline | XS | ✅ done (PR #205) |
 | **P1** | Critical security quick-wins | ~1–2 days | ✅ done (#206/#207/#208) |
-| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.5 ✅ · **2.6 next** |
+| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.6 ✅ · **2.7 next** |
 | **P3** | Pre-1.0.0 release-readiness | ~3–5 weeks | **→ 1.0.0** |
 | **P4** | 1.0.0 polish + cheap wins | interleave | — |
 | **P5** | Post-1.0.0 features | large | — |
@@ -135,8 +135,8 @@ Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 | 2.3 | **admin-ui Spring Security** — `SecurityConfig` with CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy (header-only; `index.html` unchanged) | RT2-007 / RT-029 | admin-ui | M | ✅ PR #217 |
 | 2.4 | **DOMPurify** on LLM/Markdown rendering — `Flags.jsx`, `ReportViewer.jsx` | RT2-011 / RT2-012 | admin-ui | S | ✅ |
 | 2.5 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L | ✅ |
-| 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M | ⏳ **next** |
-| 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3), `npm audit fix` (RT2-015) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ⏳ |
+| 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M | ✅ |
+| 2.7 | **UI hygiene batch** — replace 7× `console.error/warn` with toasts (U-NEW-1), replace `key={i}` in 8+ lists (U-NEW-2), fix 3× silent `.catch(() => {})` (U-NEW-3), `npm audit fix` (RT2-015) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ⏳ **next** |
 | 2.8 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S | ⏳ |
 
 **Note (2.0):** the secrets-management strategy decision that RT-013 was blocked on is now **made** —
@@ -224,6 +224,17 @@ The 6-regex ingestion scanner (`DocumentIngestionService`) is a **fail-closed ga
 Knowledge UI) — and its **detector was deliberately not expanded**: deny-list input filtering is the wrong
 tool for prompt injection (OWASP LLM01), and the fencing above is the actual control, so more regexes would
 only add false confidence. **Next: P2.6 — ROLE_SERVICE path restriction.**
+
+**P2.6 delivered (2026-08-03, #NNN):** branch `feat/p2.6-role-service-path-restriction`. Scoped the
+`ServiceTokenAuthenticationFilter` to inbound `/api/internal/**` only — a valid token on any other `/api/**`
+path is rejected with 403 (authenticated-but-forbidden). `ROLE_SERVICE` was modeled as an empty-permission
+SERVICE identity in `RolePermissions` (not added to the user `Role` enum, so it cannot be assigned to human
+accounts). Admin-api's actuator metrics endpoints (`/actuator/prometheus`, `/actuator/metrics`) were opened
+for Prometheus scraping with a `permitAll` rule, fleet-consistent with the other services — this fixes a
+pre-existing monitoring gap (Prometheus was timing out, unable to scrape admin-api's metrics). The security
+decision: since admin-api only **sends** the token (never receives it), the inbound surface is confined to a
+reserved `/api/internal/**` prefix with no endpoints yet (reserved for future inter-service callback patterns).
+**Next: P2.7 — UI hygiene batch.**
 
 ---
 

@@ -114,6 +114,8 @@ Each service owns its own database tables. No service may read or write another 
 
 IMPORTANT: If you are tempted to inject a repository from another service's module, stop. Add a REST endpoint to the owning service and call it via `WebClient` with `X-Service-Token`.
 
+`admin-api` accepts an inbound `X-Service-Token` **only** on `/api/internal/**` (reserved for internal callbacks); a valid token on any other `/api/**` path is rejected with 403. Actuator endpoints are open for scraping (not token-gated), matching the other services.
+
 === JPA Entities (Phase 2/3 services)
 
 Every JPA entity follows this pattern:
