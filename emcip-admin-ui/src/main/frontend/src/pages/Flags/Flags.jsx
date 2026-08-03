@@ -234,6 +234,7 @@ export function FlagDetailModal({ flag, onClose, onStatusChange, api }) {
           {chatMessages.length > 0 && (
             <div className={styles.chatMessages}>
               {chatMessages.map((msg, i) => (
+                // index key is stable here: chatMessages is append-only, no id, never reorders
                 <div
                   key={i}
                   className={`${styles.chatMessage} ${msg.role === 'user' ? styles.chatMessageUser : styles.chatMessageAssistant}`}

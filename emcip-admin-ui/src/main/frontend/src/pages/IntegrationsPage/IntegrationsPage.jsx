@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { hasPermission } from '../../auth/permissions'
 import { integrationsApi } from '../../api/integrations'
+import { useToast } from '../../components/Toast/useToast'
 import styles from './IntegrationsPage.module.css'
 
 const VENDORS = [
@@ -77,10 +78,14 @@ function KeyModal({ vendorName, onSave, onClose }) {
 function GlobalKeysTab({ api }) {
   const [keys, setKeys] = useState([])
   const [modal, setModal] = useState(null)
+  const { addToast } = useToast()
 
   const reload = useCallback(() => {
-    api.listGlobalKeys().then(setKeys).catch(console.error)
-  }, [api])
+    api
+      .listGlobalKeys()
+      .then(setKeys)
+      .catch((e) => addToast('error', `Failed to load global keys: ${e.message || 'Unknown error'}`))
+  }, [api, addToast])
 
   useEffect(() => {
     reload()
@@ -189,10 +194,14 @@ function GlobalKeysTab({ api }) {
 function SourcesTab({ api }) {
   const [sources, setSources] = useState([])
   const [triggering, setTriggering] = useState({})
+  const { addToast } = useToast()
 
   useEffect(() => {
-    api.listSources().then(setSources).catch(console.error)
-  }, [api])
+    api
+      .listSources()
+      .then(setSources)
+      .catch((e) => addToast('error', `Failed to load sources: ${e.message || 'Unknown error'}`))
+  }, [api, addToast])
 
   const handleTrigger = async (sourceId) => {
     setTriggering((prev) => ({ ...prev, [sourceId]: true }))
@@ -203,7 +212,10 @@ function SourcesTab({ api }) {
       alert('Trigger failed: ' + e.message)
     } finally {
       setTriggering((prev) => ({ ...prev, [sourceId]: false }))
-      api.listSources().then(setSources).catch(console.error)
+      api
+        .listSources()
+        .then(setSources)
+        .catch((e) => addToast('error', `Failed to refresh sources: ${e.message || 'Unknown error'}`))
     }
   }
 
@@ -251,6 +263,7 @@ function SourcesTab({ api }) {
 
 function RunHistoryTab({ api, sources }) {
   const [runs, setRuns] = useState([])
+  const { addToast } = useToast()
 
   useEffect(() => {
     if (sources.length === 0) return
@@ -259,8 +272,8 @@ function RunHistoryTab({ api, sources }) {
         const all = results.flat().sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
         setRuns(all)
       })
-      .catch(console.error)
-  }, [api, sources])
+      .catch((e) => addToast('error', `Failed to load run history: ${e.message || 'Unknown error'}`))
+  }, [api, sources, addToast])
 
   const vendorName = (sourceId) => {
     const src = sources.find((s) => s.id === sourceId)
@@ -319,10 +332,14 @@ function RunHistoryTab({ api, sources }) {
 function MyKeysTab({ api }) {
   const [ownKeys, setOwnKeys] = useState([])
   const [modal, setModal] = useState(null)
+  const { addToast } = useToast()
 
   const reload = useCallback(() => {
-    api.listOwnKeys().then(setOwnKeys).catch(console.error)
-  }, [api])
+    api
+      .listOwnKeys()
+      .then(setOwnKeys)
+      .catch((e) => addToast('error', `Failed to load your API keys: ${e.message || 'Unknown error'}`))
+  }, [api, addToast])
 
   useEffect(() => {
     reload()
@@ -424,6 +441,7 @@ export function IntegrationsPage() {
   const request = useAuthRequest()
   const api = useMemo(() => integrationsApi(request), [request])
   const isAdmin = hasPermission(role, 'INTEGRATIONS_GLOBAL_MANAGE')
+  const { addToast } = useToast()
 
   const adminTabs = ['Global Keys', 'Sources & Schedule', 'Run History']
   const [activeTab, setActiveTab] = useState(isAdmin ? 'Global Keys' : 'My API Keys')
@@ -431,9 +449,12 @@ export function IntegrationsPage() {
 
   useEffect(() => {
     if (isAdmin) {
-      api.listSources().then(setSources).catch(console.error)
+      api
+        .listSources()
+        .then(setSources)
+        .catch((e) => addToast('error', `Failed to load sources: ${e.message || 'Unknown error'}`))
     }
-  }, [isAdmin, api])
+  }, [isAdmin, api, addToast])
 
   return (
     <div className={styles.page}>

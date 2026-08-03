@@ -7,6 +7,7 @@ import { Button } from '../../components/Button/Button'
 import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
 import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
+import { useToast } from '../../components/Toast/useToast'
 import { BackfillModal } from './BackfillModal'
 import styles from './Groups.module.css'
 
@@ -25,9 +26,13 @@ const BASE_COLUMNS = [
 function GroupEditModal({ group, onClose, onSave, tenants, api }) {
   const isNew = !group
   const [watchers, setWatchers] = useState([])
+  const { addToast } = useToast()
   useEffect(() => {
     if (group?.telegramChatId) {
-      api.watchers(group.telegramChatId).then(setWatchers).catch(() => {})
+      api
+        .watchers(group.telegramChatId)
+        .then(setWatchers)
+        .catch(e => addToast('error', `Failed to load watchers: ${e.message || 'Unknown error'}`))
     }
   }, [group?.telegramChatId])
   const [form, setForm] = useState({
@@ -137,6 +142,7 @@ function GroupEditModal({ group, onClose, onSave, tenants, api }) {
 export function Groups() {
   const authRequest = useAuthRequest()
   const api = groupsApi(authRequest)
+  const { addToast } = useToast()
   const [groups, setGroups] = useState([])
   const [modal, setModal] = useState(null)
   const [backfillGroup, setBackfillGroup] = useState(null)
@@ -164,7 +170,12 @@ export function Groups() {
 
   const load = () => api.list().then(setGroups).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
-  useEffect(() => { tenantsApi(authRequest).list().then(setTenants).catch(() => {}) }, [])
+  useEffect(() => {
+    tenantsApi(authRequest)
+      .list()
+      .then(setTenants)
+      .catch(e => addToast('error', `Failed to load tenants: ${e.message || 'Unknown error'}`))
+  }, [addToast])
 
   const filtered = groups.filter(g => !levelFilter || g.moderationLevel === levelFilter)
 

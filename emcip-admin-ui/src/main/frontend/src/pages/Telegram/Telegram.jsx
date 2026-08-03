@@ -6,6 +6,7 @@ import { Button } from '../../components/Button/Button'
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
 import { Modal } from '../../components/Modal/Modal'
 import { SectionLabel } from '../../components/SectionLabel/SectionLabel'
+import { useToast } from '../../components/Toast/useToast'
 import styles from './Telegram.module.css'
 
 const STATUS_VARIANT = {
@@ -19,6 +20,7 @@ const STATUS_VARIANT = {
 export function Telegram() {
   const authRequest = useAuthRequest()
   const api = useMemo(() => telegramApi(authRequest), [authRequest])
+  const { addToast } = useToast()
 
   const [accounts, setAccounts] = useState([])
   const [error, setError] = useState('')
@@ -46,7 +48,7 @@ export function Telegram() {
           .forEach(a =>
             api.getStatus(a.id)
               .then(s => setAccounts(prev => prev.map(p => p.id === a.id ? { ...p, status: s.status } : p)))
-              .catch(() => {})
+              .catch(e => console.warn('Telegram account status refresh failed:', e?.message || e))
           )
       })
       .catch(e => setError(e.message))
@@ -61,9 +63,9 @@ export function Telegram() {
       api
         .listWatched(accountId)
         .then(groups => setWatchedGroups(prev => ({ ...prev, [accountId]: groups })))
-        .catch(() => {})
+        .catch(e => addToast('error', `Failed to load watched groups: ${e.message || 'Unknown error'}`))
     },
-    [api],
+    [api, addToast],
   )
 
   const openDiscover = useCallback(

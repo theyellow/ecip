@@ -7,6 +7,7 @@ import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { DataTable } from '../../components/DataTable/DataTable'
 import { Modal } from '../../components/Modal/Modal'
+import { useToast } from '../../components/Toast/useToast'
 import { ConditionGroupBuilder } from './ConditionGroupBuilder'
 import { DryRunPanel } from './DryRunPanel'
 import { RuleHistoryTab } from './RuleHistoryTab'
@@ -50,6 +51,7 @@ function IntentSelect({ value, onChange, knownIntents }) {
         <option value="">— Any intent —</option>
         <option value={WILDCARD}>* (wildcard)</option>
         {knownIntents.map(i => (
+          // keyed by the unique intent string (map arg is the element, not an index)
           <option key={i} value={i}>{i}</option>
         ))}
         <option value={CUSTOM_SENTINEL}>Custom…</option>
@@ -186,6 +188,7 @@ function RuleModal({ rule, onClose, onSave, tenants, knownIntents, api }) {
 export function PolicyRules() {
   const authRequest = useAuthRequest()
   const { currentTenant } = useAuth()
+  const { addToast } = useToast()
   const api = policyRulesApi(authRequest)
   const [rules, setRules] = useState([])
   const [modal, setModal] = useState(null)
@@ -195,7 +198,12 @@ export function PolicyRules() {
 
   const load = () => api.list().then(setRules).catch(e => setError(e.message))
   useEffect(() => { load() }, [])
-  useEffect(() => { tenantsApi(authRequest).list().then(setTenants).catch(() => {}) }, [])
+  useEffect(() => {
+    tenantsApi(authRequest)
+      .list()
+      .then(setTenants)
+      .catch(e => addToast('error', `Failed to load tenants: ${e.message || 'Unknown error'}`))
+  }, [addToast])
   useEffect(() => {
     intentRulesApi(authRequest)
       .list()
@@ -203,8 +211,8 @@ export function PolicyRules() {
         const intents = [...new Set(rules.map(r => r.intent).filter(Boolean))].sort()
         setKnownIntents(intents)
       })
-      .catch(() => {})
-  }, [])
+      .catch(e => addToast('error', `Failed to load known intents: ${e.message || 'Unknown error'}`))
+  }, [addToast])
 
   const save = async form => {
     try {

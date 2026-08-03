@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
+import ToastProvider from '../../components/Toast/ToastProvider'
 import { Groups } from './Groups'
 
 const mockGroups = [
@@ -33,7 +34,7 @@ vi.mock('../../api/tenants', () => ({
 describe('Groups page — tenant dropdown', () => {
   it('shows tenant dropdown in Add Group modal', async () => {
     const user = userEvent.setup()
-    render(<Groups />)
+    render(<ToastProvider><Groups /></ToastProvider>)
     await waitFor(() => screen.getByText('+ Add Group'))
     await user.click(screen.getByRole('button', { name: /add group/i }))
     await waitFor(() => {
