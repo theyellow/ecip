@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { intentRulesApi } from '../../api/intentRules'
 import { Badge } from '../../components/Badge/Badge'

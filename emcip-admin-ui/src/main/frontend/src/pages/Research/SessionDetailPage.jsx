@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router'
 import { useAuthRequest } from '../../auth/AuthContext'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'

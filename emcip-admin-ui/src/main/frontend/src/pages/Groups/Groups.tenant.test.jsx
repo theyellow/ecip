@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import { Groups } from './Groups'
 
@@ -31,9 +32,10 @@ vi.mock('../../api/tenants', () => ({
 
 describe('Groups page — tenant dropdown', () => {
   it('shows tenant dropdown in Add Group modal', async () => {
+    const user = userEvent.setup()
     render(<Groups />)
     await waitFor(() => screen.getByText('+ Add Group'))
-    screen.getByRole('button', { name: /add group/i }).click()
+    await user.click(screen.getByRole('button', { name: /add group/i }))
     await waitFor(() => {
       expect(screen.getByText(/acme corp/i)).toBeInTheDocument()
     })

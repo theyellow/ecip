@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useAuthRequest } from '../../auth/AuthContext'
 import { intentSignalConfigApi } from '../../api/intentSignalConfig'
 import { Button } from '../../components/Button/Button'

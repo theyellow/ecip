@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { hasPermission } from '../../auth/permissions'
 import { tenantsApi } from '../../api/tenants'

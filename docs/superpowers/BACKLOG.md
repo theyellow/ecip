@@ -50,7 +50,7 @@
 | RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ✅ PR #219 — per-call nonce fence + "treat fenced content as data" convention via shared io.emcip.common.prompt.PromptFence; applied to USER_CONTENT, knowledge enrichment, extraction document text, research web evidence. Ontology types neutralized-not-fenced; evidence fenced at prompt-build. Ingestion regex scanner is a fail-closed gate (match → FLAGGED_INJECTION_RISK, doc rejected) whose detector was deliberately not expanded (fencing is the control; deny-list filtering is the wrong tool). Residual data-poisoning risk → §0b KE-TRUST. Spec: specs/2026-07-31-p2.5-prompt-injection-fencing-design.md |
 | RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ✅ PR #221 — service token scoped to /api/internal/** (403 elsewhere) in ServiceTokenAuthenticationFilter; ROLE_SERVICE modeled as empty-permission SERVICE identity in RolePermissions (not the user Role enum); admin-api actuator metrics endpoints opened (fleet-consistent, fixes the Prometheus scrape). Spec: specs/2026-08-02-p2.6-role-service-path-restriction-design.md |
 | U-NEW-1/2/3 | UI hygiene: console leaks → toasts, `key={i}` → data IDs, silent `.catch(()=>{})` | MEDIUM | P2.7 | S | ⏳ **next** |
-| RT2-015 | `npm audit fix` (esbuild/vite/vitest) | MEDIUM | P2.7 | XS | ⏳ |
+| RT2-015 | React 19 + react-router v8 upgrade (+ Maven Node 24) → npm audit 0 (esbuild/vite/vitest/react-router) | MEDIUM | P2.7 | S | ✅ |
 | S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ⏳ |
 
 ### 0b. Follow-ups raised during remediation → deferred to P3/P4
