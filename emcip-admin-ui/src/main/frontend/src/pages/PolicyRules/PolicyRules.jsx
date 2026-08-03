@@ -51,7 +51,7 @@ function IntentSelect({ value, onChange, knownIntents }) {
         <option value="">— Any intent —</option>
         <option value={WILDCARD}>* (wildcard)</option>
         {knownIntents.map(i => (
-          // index key is stable here: the index is the option value
+          // keyed by the unique intent string (map arg is the element, not an index)
           <option key={i} value={i}>{i}</option>
         ))}
         <option value={CUSTOM_SENTINEL}>Custom…</option>
@@ -203,7 +203,7 @@ export function PolicyRules() {
       .list()
       .then(setTenants)
       .catch(e => addToast('error', `Failed to load tenants: ${e.message || 'Unknown error'}`))
-  }, [])
+  }, [addToast])
   useEffect(() => {
     intentRulesApi(authRequest)
       .list()
@@ -212,7 +212,7 @@ export function PolicyRules() {
         setKnownIntents(intents)
       })
       .catch(e => addToast('error', `Failed to load known intents: ${e.message || 'Unknown error'}`))
-  }, [])
+  }, [addToast])
 
   const save = async form => {
     try {

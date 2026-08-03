@@ -155,7 +155,7 @@ export function Costs() {
             ) : (
               <>
                 <div className={styles.chartContainer}>
-                  {byDay.map((d, i) => (
+                  {byDay.map((d) => (
                     <div key={d.date} className={styles.chartBarWrap}>
                       <div
                         className={styles.chartBar}
@@ -166,7 +166,7 @@ export function Costs() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: '2px' }}>
-                  {byDay.map((d, i) => (
+                  {byDay.map((d) => (
                     <div key={d.date} className={styles.chartLabel} style={{ flex: 1 }}>
                       {d.date?.slice(5)}
                     </div>
@@ -198,7 +198,7 @@ export function Costs() {
                     </td>
                   </tr>
                 )}
-                {byModel.map((m, i) => (
+                {byModel.map((m) => (
                   <tr key={m.modelName}>
                     <td>{m.modelName}</td>
                     <td className={`${styles.mono} ${styles.right}`}>{m.callCount}</td>

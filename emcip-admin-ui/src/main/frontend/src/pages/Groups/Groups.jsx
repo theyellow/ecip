@@ -175,7 +175,7 @@ export function Groups() {
       .list()
       .then(setTenants)
       .catch(e => addToast('error', `Failed to load tenants: ${e.message || 'Unknown error'}`))
-  }, [])
+  }, [addToast])
 
   const filtered = groups.filter(g => !levelFilter || g.moderationLevel === levelFilter)
 
