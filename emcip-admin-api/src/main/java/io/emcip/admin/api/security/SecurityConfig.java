@@ -106,7 +106,8 @@ public class SecurityConfig {
                                                                                         ? denied
                                                                                                 .getMessage()
                                                                                         : "Access"
-                                                                                              + " denied"));
+                                                                                              + " denied"),
+                                                                        "DENIED");
                                                                 return Mono.<Void>error(denied);
                                                             });
                                         }))
