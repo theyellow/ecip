@@ -15,7 +15,7 @@
 - **Verify-first principle**: the 2026-07-18 reviews already retracted 3 false findings (RT2-001, RT2-010, I1), and P1 execution corrected **6 more** (see the archived P1 corrections table). Before implementing each batch, confirm the finding still holds against current `main` — and check the *premises* the plan states about the code, not just the finding itself. P1 batch 1.2 had to be discarded because the plan asserted the audit Kafka listener was single-threaded without ever opening `KafkaConsumerConfig`.
 - Each phase (from P1 on) enters the normal cycle: **brainstorm/spec → writing-plans → implement → verify → PR**. This roadmap is the meta-plan that decides *what batch is next*.
 
-**1.0.0 ships at the end of P3** (the only pre-release phase). **P4–P5 are post-release** — they never gate 1.0.0. The 1.0.0 gate is: **P1 + P2 done ✅, plus P3's release-gate tier (3.1–3.7)**; P3's recommended tier is do-if-time-before-ship. **P0, P1 and P2 are complete — their detail is archived at the bottom of this doc** (retained for rationale + lessons) so the top stays focused on what's next.
+**1.0.0 ships at the end of P3** (the only pre-release phase). **P4–P5 are post-release** — they never gate 1.0.0. P3 is ordered **value-first**; the **Gate** column in the P3 table (not an item's position) marks what blocks the 1.0.0 tag. **P0, P1 and P2 are complete — their detail is archived at the bottom of this doc** (retained for rationale + lessons) so the top stays focused on what's next.
 
 ---
 
@@ -34,39 +34,39 @@
 
 ## P3 — Pre-1.0.0 release-readiness *(ACTIVE)*
 
-Dependency-ordered. **This is the last phase before 1.0.0.** The release cannot ship until `helm install` on a blank cluster produces a working system with no manual steps. Two tiers below: **3.1–3.7 are the release gate (mandatory)**; **3.8+ are strongly recommended** but do not block the tag.
+**The last phase before 1.0.0.** Ordered **value-first**: the quick, high-leverage work that de-risks everything else comes first, and the heavy **deploy-from-zero infra** (Liquibase / K8s / Helm / Prometheus) is grouped **last** as one coordinated sprint. Execution order and the release gate are **separate**: the **Gate** column marks what actually blocks the 1.0.0 tag regardless of when it's scheduled — several gate items are deliberately late (the final release push), while earlier items are high-value-but-non-blocking.
+
+Four tiers, each internally coherent: **① Test & CI safety net → ② Security/correctness finish → ③ Decisions & docs → ④ Deploy-from-zero infra.**
 
 > **Known state — the local cluster is hand-wired (clean-boot is not yet proven).** The dev k8s
 > cluster is *not* a clean install: Liquibase was bypassed, some tables (conversation-context) were
 > created by hand, and postgres was patched in place. A from-zero `helm install` currently would **not**
-> come up — this is drift we deliberately deferred to P3, not a live outage. Boot-from-zero needs, in
-> order: **consolidated Liquibase** (3.1) · the **`SecretCipher` encryption key + provider API-key
-> secrets** provisioned as k8s Secrets · a **tenant seed** (3.3) · a **telegram test-account seed**
-> (3.4). Validate the whole from-zero path **together with the user** (3.2). So "the cluster is broken"
-> is really "missing consolidated migrations + secrets + seeds" — exactly what 3.1–3.4 deliver.
+> come up — this is drift we deliberately deferred, not a live outage. "The cluster is broken" is really
+> "missing **consolidated migrations + secret key(s) + tenant/telegram seeds**". Getting boot-from-zero
+> working is the **Tier ④ sprint (3.11 → 3.14)**, validated **together with the user** — done near the
+> end because none of the value-first work above it needs a clean cluster.
 
-| Order | Item | ID | Size | Needs |
-|-------|------|----|------|-------|
-| 3.1 | **Liquibase migration consolidation** — squash to `001-initial-schema.xml` per service (removes `md5sum='manual'` fragility) | INF1 | M | — |
-| 3.2 | **Fresh-install smoke test** — drop DB, `helm install`, verify all 18 pages; document in `docs/operations/fresh-install.md` | INF2 | S | 3.1 |
-| 3.3 | **Tenant provisioning endpoint** — admin-api endpoint + Liquibase-safe seed (no direct DB access) | #21 | M | — |
-| 3.4 | **Telegram test-account seeding via Helm** | INF3 | S | 3.3 |
-| 3.5 | **K8s pod hardening** — `securityContext` (readOnlyRootFilesystem, runAsNonRoot, drop caps), ServiceAccounts, NetworkPolicy | RT-012 | M | — |
-| 3.6 | **Prometheus alerting rules** — CPU, memory, error rates, Kafka lag | I5 | S | — |
-| 3.7 | **ADRs 009–011** — multi-tenancy strategy, auth/authz architecture, API versioning (decide `/v1` before 1.0.0) | S6 | S | — |
-| — | *— release gate above; recommended-before-ship below —* | | | |
-| 3.8 | **Test coverage to 80%** — JaCoCo gate; weakest: intent-classifier, tdlib-adapter, moderation-service | #4 | L | — |
-| 3.9 | **Gatling load tests in CI** — 3 sims exist, add gate | #14 | S | — |
-| 3.10 | **K8s HA / multi-replica** — HPA, PDB, tuned replicas | #12 | M | 3.5 |
-| 3.11 | **Backup/restore runbook** — scripts exist, document | I7 / M6 | S | — |
-| 3.12 | **Frontend tests in CI gate** — the Maven build runs `npm run build` but never `npm test`, so admin-ui vitest specs never gate CI (three silently rotted red before P2.4). Wire `vitest run` into the build. | INF-CI-FE | XS | — |
-| 3.13 | **Java integration tests in CI** — `*IT` classes aren't run by `mvn test`/`verify` (failsafe lives only in root `pluginManagement`), so every Testcontainers IT is CI-invisible — incl. P2.8's new `AdminAuditEventPersistenceIT`, which currently only passes via direct Failsafe. Activate failsafe + `mvn verify` repo-wide and triage the latent failures it surfaces. Do together with 3.9 / 3.12. | INF-CI-IT | M | — |
-| 3.14 | **`@PreAuthorize` live-filter e2e test** — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security; `ControllerAuthorizationTest` is reflection-only. Add a `@WebFluxTest` + `@WithMockUser` suite proving the filter chain enforces authz. | P1-M1 | S | — |
-| 3.15 | **Finish base-image pinning** — pin the still-floating `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) to patch versions (Temurin already pinned in P1.4). | P1-M3 | XS | — |
-| 3.16 | **Per-user/IP rate limiting** — custom `RateLimiterConfig` key resolver (global counters today). Pulled up from the old P4 as pre-ship hardening. | RT-F1 | S | — |
-| 3.17 | **Secrets: strict startup self-check** — flip encryption reads from lenient-fail-closed to a startup self-check once every environment reports zero plaintext (the P2.0 design's planned hardening). | P2.0-F1 | S | — |
+| Order | Tier | Item | ID | Size | Gate? | Needs |
+|-------|------|------|----|------|-------|-------|
+| 3.1 | ① CI net | **Java integration tests in CI** — `*IT` classes aren't run by `mvn test`/`verify` (failsafe lives only in root `pluginManagement`), so every Testcontainers IT is CI-invisible — incl. P2.8's new `AdminAuditEventPersistenceIT`, which currently only passes via direct Failsafe. Activate failsafe + `mvn verify` repo-wide and triage the latent failures it surfaces. | INF-CI-IT | M | — | — |
+| 3.2 | ① CI net | **Frontend tests in CI gate** — the Maven build runs `npm run build` but never `npm test`, so admin-ui vitest specs never gate CI (three silently rotted red before P2.4). Wire `vitest run` into the build. Sibling of 3.1 — do together. | INF-CI-FE | XS | — | — |
+| 3.3 | ① CI net | **`@PreAuthorize` live-filter e2e test** — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security; `ControllerAuthorizationTest` is reflection-only. Add a `@WebFluxTest` + `@WithMockUser` suite proving the filter chain enforces authz. | P1-M1 | S | — | 3.1 |
+| 3.4 | ① CI net | **Test coverage to 80%** — JaCoCo gate; weakest: intent-classifier, tdlib-adapter, moderation-service. (Do after 3.1–3.2 so the coverage push runs against a CI that actually executes the tests.) | #4 | L | — | 3.1, 3.2 |
+| 3.5 | ① CI net | **Gatling load tests in CI** — 3 sims exist, add gate. | #14 | S | — | — |
+| 3.6 | ② Security | **Per-user/IP rate limiting** — custom `RateLimiterConfig` key resolver (global counters today). | RT-F1 | S | — | — |
+| 3.7 | ② Security | **Secrets: strict startup self-check** — flip encryption reads from lenient-fail-closed to a startup self-check once every environment reports zero plaintext (the P2.0 design's planned hardening). | P2.0-F1 | S | — | — |
+| 3.8 | ② Security | **Finish base-image pinning** — pin the still-floating `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) to patch versions (Temurin already pinned in P1.4). | P1-M3 | XS | — | — |
+| 3.9 | ③ Decisions | **ADRs 009–011** — multi-tenancy strategy, auth/authz architecture, **API versioning (decide `/v1` before 1.0.0)**. Settled *before* Tier ④ adds the new tenant endpoint. | S6 | S | ✅ **gate** | — |
+| 3.10 | ③ Decisions | **Backup/restore runbook** — scripts exist, document. | I7 / M6 | S | — | — |
+| 3.11 | ④ Infra | **Liquibase migration consolidation** — squash to `001-initial-schema.xml` per service (removes `md5sum='manual'` fragility). *Start of the boot-from-zero sprint.* | INF1 | M | ✅ **gate** | — |
+| 3.12 | ④ Infra | **Tenant provisioning endpoint** — admin-api endpoint + Liquibase-safe seed (no direct DB access). | #21 | M | ✅ **gate** | 3.9 |
+| 3.13 | ④ Infra | **Telegram test-account seeding via Helm** — post-deploy Job seeds `telegram_accounts` (removes manual DB access). | INF3 | S | ✅ **gate** | 3.12 |
+| 3.14 | ④ Infra | **Fresh-install smoke test** — drop DB, `helm install`, verify all 18 pages; document in `docs/operations/fresh-install.md`. *This is the boot-from-zero validation — do with the user.* | INF2 | S | ✅ **gate** | 3.11, 3.12, 3.13 |
+| 3.15 | ④ Infra | **K8s pod hardening** — `securityContext` (readOnlyRootFilesystem, runAsNonRoot, drop caps), ServiceAccounts, NetworkPolicy. | RT-012 | M | ✅ **gate** | — |
+| 3.16 | ④ Infra | **K8s HA / multi-replica** — HPA, PDB, tuned replicas. | #12 | M | — | 3.15 |
+| 3.17 | ④ Infra | **Prometheus alerting rules** — CPU, memory, error rates, Kafka lag. | I5 | S | ✅ **gate** | — |
 
-**1.0.0 release gate:** P1 + P2 ✅ and **P3.1–3.7** complete. **P3.8–3.17** are strongly recommended before tagging but do not block it. (Follow-up rows 3.13–3.17 were folded in from BACKLOG §0b during the 2026-08-05 cleanup; §0b remains the status source of truth.)
+**1.0.0 release gate:** P1 + P2 ✅, plus every **Gate**-flagged row above — the boot-from-zero infra (3.11–3.14), K8s pod hardening (3.15), Prometheus alerting (3.17), and the ADRs incl. the `/v1` decision (3.9). Non-gate rows are strongly recommended before tagging but do not block it. Ordered value-first, so the gate items cluster in the final stretch. (Rows folded in from BACKLOG §0b during the 2026-08-05 cleanup; §0b remains the status source of truth.)
 
 ---
 
