@@ -2,6 +2,7 @@ package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.config.GlobalExceptionHandler;
@@ -63,11 +64,13 @@ class AuthControllerTest {
 
     @Test
     void token_validCredentials_returns200WithToken() {
-        when(authService.authenticate("admin", "secret")).thenReturn(Mono.just(tokenResponse()));
+        when(authService.authenticate(eq("admin"), eq("secret"), eq("203.0.113.7"), eq("XFF")))
+                .thenReturn(Mono.just(tokenResponse()));
 
         webTestClient
                 .post()
                 .uri("/api/auth/token")
+                .header("X-Forwarded-For", "203.0.113.7")
                 .bodyValue(new AuthController.AuthRequest("admin", "secret"))
                 .exchange()
                 .expectStatus()
@@ -82,7 +85,7 @@ class AuthControllerTest {
 
     @Test
     void token_invalidCredentials_returns401() {
-        when(authService.authenticate("admin", "wrong"))
+        when(authService.authenticate(eq("admin"), eq("wrong"), eq("203.0.113.7"), eq("XFF")))
                 .thenReturn(
                         Mono.error(
                                 new ResponseStatusException(
@@ -91,6 +94,7 @@ class AuthControllerTest {
         webTestClient
                 .post()
                 .uri("/api/auth/token")
+                .header("X-Forwarded-For", "203.0.113.7")
                 .bodyValue(new AuthController.AuthRequest("admin", "wrong"))
                 .exchange()
                 .expectStatus()
