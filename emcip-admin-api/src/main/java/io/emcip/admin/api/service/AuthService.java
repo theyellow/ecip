@@ -2,10 +2,12 @@ package io.emcip.admin.api.service;
 
 import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.dto.TokenResponse;
+import io.emcip.admin.api.entity.AdminUser;
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.repository.TenantRepository;
 import io.emcip.admin.api.security.JwtService;
+import io.emcip.admin.api.util.AuditText;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
@@ -27,62 +29,94 @@ public class AuthService {
     private final TenantRepository tenantRepository;
     private final AdminAuditPublisher auditPublisher;
 
-    public Mono<TokenResponse> authenticate(String username, String password) {
+    public Mono<TokenResponse> authenticate(
+            String username, String password, String clientIp, String ipSource) {
+        String safeUser = AuditText.sanitize(username);
         return userRepository
                 .findByUsername(username)
-                .filter(
-                        user ->
-                                user.isEnabled()
-                                        && passwordEncoder.matches(
-                                                password, user.getPasswordHash()))
-                .switchIfEmpty(
-                        Mono.error(
-                                new ResponseStatusException(
-                                        HttpStatus.UNAUTHORIZED, "Invalid credentials")))
                 .flatMap(
-                        user ->
-                                resolveTenantName(user.getTenantId())
-                                        .flatMap(
-                                                tenantName -> {
-                                                    user.setLastLogin(Instant.now());
-                                                    var tokenWithJti =
-                                                            jwtService.generateTokenWithJti(
-                                                                    user.getUsername(),
-                                                                    user.getRole().name(),
-                                                                    user.getTenantId(),
-                                                                    tenantName.isEmpty()
-                                                                            ? null
-                                                                            : tenantName);
-                                                    user.setCurrentJti(tokenWithJti.jti());
-                                                    return userRepository
-                                                            .save(user)
-                                                            .flatMap(
-                                                                    saved ->
-                                                                            refreshTokenService
-                                                                                    .issue(
-                                                                                            saved
-                                                                                                    .getId())
-                                                                                    .map(
-                                                                                            rawRefresh ->
-                                                                                                    new TokenResponse(
-                                                                                                            tokenWithJti
-                                                                                                                    .token(),
-                                                                                                            Instant
-                                                                                                                    .now()
-                                                                                                                    .plusMillis(
-                                                                                                                            JwtService
-                                                                                                                                    .EXPIRY_MS),
-                                                                                                            rawRefresh)));
-                                                })
-                                        .doOnSuccess(
-                                                resp ->
-                                                        auditPublisher.publish(
-                                                                "LOGIN_SUCCESS",
-                                                                "Session",
-                                                                user.getUsername(),
-                                                                user.getUsername(),
-                                                                user.getTenantId(),
-                                                                Map.of("ip", "request-context"))));
+                        user -> {
+                            if (!user.isEnabled()) {
+                                return loginFailure(
+                                        safeUser,
+                                        "DISABLED",
+                                        user.getTenantId(),
+                                        clientIp,
+                                        ipSource);
+                            }
+                            if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+                                return loginFailure(
+                                        safeUser,
+                                        "BAD_PASSWORD",
+                                        user.getTenantId(),
+                                        clientIp,
+                                        ipSource);
+                            }
+                            return onSuccess(user, clientIp, ipSource);
+                        })
+                .switchIfEmpty(
+                        Mono.defer(
+                                () ->
+                                        loginFailure(
+                                                safeUser,
+                                                "USER_NOT_FOUND",
+                                                null,
+                                                clientIp,
+                                                ipSource)));
+    }
+
+    private Mono<TokenResponse> onSuccess(AdminUser user, String clientIp, String ipSource) {
+        return resolveTenantName(user.getTenantId())
+                .flatMap(
+                        tenantName -> {
+                            user.setLastLogin(Instant.now());
+                            var tokenWithJti =
+                                    jwtService.generateTokenWithJti(
+                                            user.getUsername(),
+                                            user.getRole().name(),
+                                            user.getTenantId(),
+                                            tenantName.isEmpty() ? null : tenantName);
+                            user.setCurrentJti(tokenWithJti.jti());
+                            return userRepository
+                                    .save(user)
+                                    .flatMap(
+                                            saved ->
+                                                    refreshTokenService
+                                                            .issue(saved.getId())
+                                                            .map(
+                                                                    rawRefresh ->
+                                                                            new TokenResponse(
+                                                                                    tokenWithJti
+                                                                                            .token(),
+                                                                                    Instant.now()
+                                                                                            .plusMillis(
+                                                                                                    JwtService
+                                                                                                            .EXPIRY_MS),
+                                                                                    rawRefresh)));
+                        })
+                .doOnSuccess(
+                        resp ->
+                                auditPublisher.publish(
+                                        "LOGIN_SUCCESS",
+                                        "Session",
+                                        user.getUsername(),
+                                        user.getUsername(),
+                                        user.getTenantId(),
+                                        Map.of("ip", clientIp, "ipSource", ipSource)));
+    }
+
+    private <T> Mono<T> loginFailure(
+            String safeUser, String reason, UUID tenantId, String clientIp, String ipSource) {
+        auditPublisher.publish(
+                "LOGIN_FAILURE",
+                "Session",
+                safeUser,
+                safeUser,
+                tenantId,
+                Map.of("reason", reason, "ip", clientIp, "ipSource", ipSource),
+                "FAILURE");
+        return Mono.error(
+                new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
     }
 
     public Mono<TokenResponse> refresh(String rawRefreshToken) {
