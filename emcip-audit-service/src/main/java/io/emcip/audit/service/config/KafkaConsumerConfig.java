@@ -52,6 +52,38 @@ public class KafkaConsumerConfig {
         return new DefaultKafkaConsumerFactory<>(props);
     }
 
+    // --- Consumer: dedicated audit.events group, latest offset ---
+    // The shared consumerFactory() above uses auto.offset.reset=earliest for the five
+    // durable domain topics (correct - durable replay). audit.events has an accumulated
+    // unconsumed backlog (incl. header-less historical FlagService events that would DLQ).
+    // A distinct group with latest starts at the tail so the backlog is not replayed.
+
+    @Bean
+    public ConsumerFactory<String, String> adminAuditConsumerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "emcip-audit-service-admin");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        // Start at the tail: do NOT replay the pre-existing unconsumed audit.events backlog.
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, String>
+            adminAuditListenerContainerFactory(DeadLetterTopicHandler dlqHandler) {
+        ConcurrentKafkaListenerContainerFactory<String, String> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(adminAuditConsumerFactory());
+        factory.setConcurrency(3);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.setCommonErrorHandler(errorHandler(dlqHandler));
+        return factory;
+    }
+
     // --- Producer (used only for DLQ publishing) ---
 
     @Bean
