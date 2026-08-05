@@ -7,7 +7,7 @@
 > Dependency key: items are ordered so prerequisites appear before dependents. "Needs" column lists hard blockers.
 > **Phase** column maps each item to its `ROADMAP.md` phase.
 
-**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · P2.4 ✅ · P2.5 ✅ · P2.6 ✅ · P2.7 ✅ · **P2.8 = next** · then P3 (release-readiness).
+**At a glance:** P1 ✅ · P2.0 ✅ · P2.1 ✅ · P2.2 ✅ · P2.3 ✅ · P2.4 ✅ · P2.5 ✅ · P2.6 ✅ · P2.7 ✅ · **P2.8 ✅** · **P3 = next**.
 
 ---
 
@@ -51,7 +51,7 @@
 | RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ✅ PR #221 — service token scoped to /api/internal/** (403 elsewhere) in ServiceTokenAuthenticationFilter; ROLE_SERVICE modeled as empty-permission SERVICE identity in RolePermissions (not the user Role enum); admin-api actuator metrics endpoints opened (fleet-consistent, fixes the Prometheus scrape). Spec: specs/2026-08-02-p2.6-role-service-path-restriction-design.md |
 | U-NEW-1/2/3 | UI hygiene: user-facing load failures → error toasts, background/cleanup catches → `console.warn`, stable React keys in Costs (index-correct keys annotated) | MEDIUM | P2.7 | S | ✅ PR #223 |
 | RT2-015 | React 19 + react-router v8 upgrade (+ Maven Node 24) → npm audit 0 (esbuild/vite/vitest/react-router) | MEDIUM | P2.7 | S | ✅ |
-| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ⏳ |
+| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ✅ PR #TBD — `LOGIN_FAILURE` distinguishes `USER_NOT_FOUND`/`BAD_PASSWORD`/`DISABLED` in `details.reason` (client always gets an identical 401); client IP captured (leftmost `X-Forwarded-For` else socket, tagged `ipSource`), also fixing the old `LOGIN_SUCCESS` `"request-context"` placeholder. **Also the true RT-017 closure**: wired up the previously-unconsumed `audit.events` Kafka topic — a new `@KafkaListener(topics="audit.events", groupId="emcip-audit-service-admin", latest offset)` in audit-service now persists all admin audit events (LOGIN_*, ACCESS_DENIED, USER_*, PASSWORD_CHANGED, flag events) to `audit_events`, which never happened before (publish≠persist). Tenant header added at publish; `ACCESS_DENIED` outcome fixed `SUCCESS`→`DENIED`; `FlagService` routed through the publisher. Follow-ups P2.8-F1 (XFF trust) and P2.8-F2 (flag actor/tenant) in §0b. Spec: `specs/2026-08-03-p2.8-failed-login-audit-design.md` |
 
 ### 0b. Follow-ups raised during remediation → deferred to P3/P4
 
@@ -59,7 +59,7 @@
 
 | ID | Item | Sev | Phase | Size | Status |
 |----|------|-----|-------|------|--------|
-| INF-CI-IT | Integration tests (`*IT`) run in CI repo-wide. Today CI runs `mvn test` (Surefire only) and no module activates `maven-failsafe`, so all `*IT` classes across the repo are CI-invisible except the four audit ITs P2.1 wired in directly. Generalize: activate failsafe + `mvn verify` repo-wide, and audit the latent failures this surfaces (e.g. `AuditEventPersistenceIT` was silently red on `main` before P2.1). | MEDIUM | P3 | M | ⏳ |
+| INF-CI-IT | Integration tests (`*IT`) run in CI repo-wide. Today CI runs `mvn test` (Surefire only) and no module activates `maven-failsafe`, so all `*IT` classes across the repo are CI-invisible except the four audit ITs P2.1 wired in directly. Generalize: activate failsafe + `mvn verify` repo-wide, and audit the latent failures this surfaces (e.g. `AuditEventPersistenceIT` was silently red on `main` before P2.1). P2.8's new `AdminAuditEventPersistenceIT` is also gated by this gap — it passes via direct Failsafe invocation, but isn't run by `mvn test`/`verify` in the normal lifecycle either. | MEDIUM | P3 | M | ⏳ |
 | INF-CI-FE | **Frontend vitest suite not run in CI.** `emcip-admin-ui`'s `frontend-maven-plugin` runs `npm run build` (vite) at `generate-resources` but never `npm test`, so every admin-ui vitest spec is CI-invisible — three had silently rotted red on `main` (Flags placeholder `...`→`…`; AuditLog `list()` arity + combobox-order drift) before P2.4/PR #218 fixed them. Add an `npm` execution running `test` (= `vitest run`) bound to the `test` phase (or a CI step), gated to fail the build. Sibling to INF-CI-IT (Java `*IT`); do the two together. Ref: `emcip-admin-ui/pom.xml`, `.github/workflows/maven.yml`. | LOW | P3 | XS | ⏳ |
 | P1-M1 | No end-to-end test that `@PreAuthorize` is enforced by the live filter chain — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security. `ControllerAuthorizationTest` is reflection-only (now inverted to catch unannotated write methods). Needs a `@WebFluxTest` + `@WithMockUser` suite. | MEDIUM | P3 | S | ⏳ |
 | P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |

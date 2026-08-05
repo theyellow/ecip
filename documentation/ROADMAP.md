@@ -25,7 +25,7 @@
 |-------|-------|------|------|
 | **P0** | Reconcile & baseline | XS | ✅ done (PR #205) |
 | **P1** | Critical security quick-wins | ~1–2 days | ✅ done (#206/#207/#208) |
-| **P2** | Security structural hardening | ~1–2 weeks | 🔄 2.0–2.7 ✅ · **2.8 next** |
+| **P2** | Security structural hardening | ~1–2 weeks | ✅ done (2.0–2.8) |
 | **P3** | Pre-1.0.0 release-readiness | ~3–5 weeks | **→ 1.0.0** |
 | **P4** | 1.0.0 polish + cheap wins | interleave | — |
 | **P5** | Post-1.0.0 features | large | — |
@@ -137,7 +137,7 @@ Multi-day items. Roughly ordered by risk. Each is its own spec → plan → PR.
 | 2.5 | **Knowledge→LLM escaping** — escape boundary markers in knowledge/ontology/web-search content; move to structured role messages; expand injection patterns | RT2-006 / RT-009 | knowledge-engine + llm-orchestrator | L | ✅ |
 | 2.6 | **ROLE_SERVICE path restriction** — limit service token to `/api/internal/**` + `/actuator/**`; add to RBAC matrix | RT2-014 / RT-020 | admin-api | M | ✅ |
 | 2.7 | **UI hygiene batch** — replace 6× `console.error` with toasts (U-NEW-1), replace `key={i}` in 3 Costs lists, annotate the index-correct ones (U-NEW-2), fix 9 silent `.catch(() => {})` (U-NEW-3); RT2-015 ✅ delivered (React 19 + react-router v8, npm audit 0) | U-NEW-1/2/3 / RT2-015 | admin-ui | S | ✅ |
-| 2.8 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S | ⏳ **next** |
+| 2.8 | **Failed-login audit** — publish `LOGIN_FAILURE` on `BadCredentialsException` | S-OPEN-3 / RT-017 | admin-api | S | ✅ |
 
 **Note (2.0):** the secrets-management strategy decision that RT-013 was blocked on is now **made** —
 app-level AES-256-GCM with the key from a K8s Secret, key never sent to Postgres. pgcrypto was rejected
@@ -242,6 +242,19 @@ catches log a single `console.warn('<context>:', e?.message || e)`, and array-in
 in the Costs component were replaced with stable `key={d.date}` / `key={m.modelName}` identifiers (index-correct keys elsewhere annotated
 in comments on other list renders for future stability). RT2-015 (React 19 + react-router v8 upgrade, npm audit 0)
 was delivered separately in PR #222. **Next: P2.8 — Failed-login audit.**
+
+**P2.8 delivered (2026-08-05, PR #TBD):** branch `feat/p2.8-failed-login-audit`. Shipped S-OPEN-3:
+`LOGIN_FAILURE` audit event on failed login, distinguishing reasons `USER_NOT_FOUND`/`BAD_PASSWORD`/`DISABLED`
+in `details.reason` only (the client always gets an identical 401); client IP captured (leftmost
+`X-Forwarded-For` else socket, tagged `ipSource`), also fixing the old `LOGIN_SUCCESS` `"request-context"`
+placeholder. **The real RT-017 closure:** wired up the previously-unconsumed `audit.events` Kafka topic — a
+new `@KafkaListener(topics="audit.events", groupId="emcip-audit-service-admin", latest offset)` in
+audit-service now persists all admin audit events (LOGIN_*, ACCESS_DENIED, USER_*, PASSWORD_CHANGED, flag
+events) to `audit_events`, which never happened before (publish≠persist). Tenant header added at publish;
+`ACCESS_DENIED` outcome fixed `SUCCESS`→`DENIED`; `FlagService` routed through the publisher. Follow-ups
+P2.8-F1 (XFF trust) and P2.8-F2 (flag actor/tenant) logged in `docs/superpowers/BACKLOG.md` §0b. Spec:
+`docs/superpowers/specs/2026-08-03-p2.8-failed-login-audit-design.md`. **P2 is now complete. Next: P3 —
+Pre-1.0.0 release-readiness.**
 
 ---
 
