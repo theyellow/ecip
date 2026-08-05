@@ -1,25 +1,28 @@
 package io.emcip.admin.api.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.client.PolicyEngineClient;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.apache.kafka.clients.producer.ProducerRecord;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -33,7 +36,7 @@ class FlagServiceTest {
     @Mock private WebClient tdlibClient;
     @Mock private WebClient orchestratorWebClient;
     @Mock private CircuitBreakerRegistry circuitBreakerRegistry;
-    @Mock private KafkaTemplate<String, String> kafkaTemplate;
+    @Mock private AdminAuditPublisher auditPublisher;
 
     private FlagService flagService;
 
@@ -51,8 +54,7 @@ class FlagServiceTest {
                         tdlibClient,
                         orchestratorWebClient,
                         circuitBreakerRegistry,
-                        kafkaTemplate,
-                        new ObjectMapper());
+                        auditPublisher);
     }
 
     private JsonNode pageNode() {
@@ -131,8 +133,15 @@ class FlagServiceTest {
                                         && !resp.markedActioned())
                 .verifyComplete();
 
-        org.mockito.Mockito.verify(kafkaTemplate)
-                .send(org.mockito.ArgumentMatchers.any(ProducerRecord.class));
+        verify(auditPublisher)
+                .publish(
+                        eq("ADD_NOTE"),
+                        eq("Flag"),
+                        eq("flag-1"),
+                        eq("system"),
+                        isNull(),
+                        any(Map.class),
+                        eq("SUCCESS"));
         org.mockito.Mockito.verifyNoInteractions(groupProfileRepository);
     }
 }

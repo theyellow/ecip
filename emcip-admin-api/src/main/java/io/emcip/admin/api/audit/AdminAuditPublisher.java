@@ -1,11 +1,13 @@
 package io.emcip.admin.api.audit;
 
 import io.emcip.common.events.EventSchemas;
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -21,7 +23,7 @@ public class AdminAuditPublisher {
     private final ObjectMapper objectMapper;
 
     /**
-     * Publishes an admin audit event to the audit.events Kafka topic.
+     * Publishes an admin audit event to the audit.events Kafka topic with outcome {@code SUCCESS}.
      *
      * @param action action verb (e.g. LOGIN_SUCCESS, USER_CREATED, ROLE_CHANGED)
      * @param resourceType entity type (e.g. User, Tenant, PolicyRule)
@@ -37,6 +39,28 @@ public class AdminAuditPublisher {
             String actor,
             UUID tenantId,
             Map<String, Object> details) {
+        publish(action, resourceType, resourceId, actor, tenantId, details, "SUCCESS");
+    }
+
+    /**
+     * Publishes an admin audit event to the audit.events Kafka topic.
+     *
+     * @param action action verb (e.g. LOGIN_SUCCESS, USER_CREATED, ROLE_CHANGED)
+     * @param resourceType entity type (e.g. User, Tenant, PolicyRule)
+     * @param resourceId ID of the affected resource
+     * @param actor username of the admin performing the action
+     * @param tenantId tenant context (nullable for ADMIN users)
+     * @param details additional key-value details (nullable)
+     * @param outcome outcome of the action (e.g. SUCCESS, FAILURE)
+     */
+    public void publish(
+            String action,
+            String resourceType,
+            String resourceId,
+            String actor,
+            UUID tenantId,
+            Map<String, Object> details,
+            String outcome) {
         try {
             var event =
                     new EventSchemas.AuditEvent(
@@ -50,17 +74,20 @@ public class AdminAuditPublisher {
                             resourceType,
                             resourceId,
                             details,
-                            "SUCCESS");
+                            outcome);
 
             String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(TOPIC, resourceId, json);
+            var record = new ProducerRecord<String, String>(TOPIC, resourceId, json);
+            TenantAwareKafkaSupport.addTenantHeader(record, tenantId);
+            kafkaTemplate.send(record);
 
             log.debug(
-                    "Published audit event: action={}, resource={}/{}, actor={}",
+                    "Published audit event: action={}, resource={}/{}, actor={}, outcome={}",
                     action,
                     resourceType,
                     resourceId,
-                    actor);
+                    actor,
+                    outcome);
         } catch (Exception e) {
             // Audit publishing must never break the main operation
             log.error("Failed to publish audit event: action={}, error={}", action, e.getMessage());

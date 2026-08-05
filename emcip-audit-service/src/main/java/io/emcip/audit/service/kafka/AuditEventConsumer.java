@@ -154,6 +154,63 @@ public class AuditEventConsumer {
                 });
     }
 
+    @KafkaListener(
+            topics = "audit.events",
+            groupId = "emcip-audit-service-admin",
+            containerFactory = "adminAuditListenerContainerFactory")
+    public void handleAdminAuditEvent(
+            ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
+        processAdminAuditEvent(record, acknowledgment);
+    }
+
+    /**
+     * Persists admin-originated audit events from {@code emcip-admin-api}, preserving their native
+     * action/actor/outcome semantics. Deliberately does NOT reuse {@link #processAuditEvent}, which
+     * flattens {@code action -> eventType} and {@code outcome -> "PROCESSED"} for the generic
+     * domain-topic events — that mapping would destroy the LOGIN_FAILURE/FAILURE distinction admin
+     * audit events carry.
+     */
+    private void processAdminAuditEvent(
+            ConsumerRecord<String, String> record, Acknowledgment acknowledgment) {
+        UUID tenantUuid;
+        try {
+            tenantUuid = TenantAwareKafkaSupport.validateTenantHeader(record);
+        } catch (IllegalStateException e) {
+            log.error("Rejecting admin audit record: {}", e.getMessage());
+            acknowledgment.acknowledge();
+            return;
+        }
+
+        EventSchemas.AuditEvent event =
+                objectMapper.readValue(record.value(), EventSchemas.AuditEvent.class);
+
+        AuditEventEntity entity =
+                AuditEventEntity.builder()
+                        .eventId(event.eventId())
+                        .eventType(event.eventType())
+                        .correlationId(event.eventId())
+                        .sourceService("emcip-admin-api")
+                        .action(event.action())
+                        .actorType("ADMIN")
+                        .actorId(event.actor())
+                        .resourceType(event.resourceType())
+                        .resourceId(event.resourceId())
+                        .outcome(event.outcome())
+                        .details(auditService.serializeDetails(event.changes()))
+                        .tenantId(tenantUuid)
+                        .createdAt(Instant.now())
+                        .build();
+
+        try {
+            auditService.saveWithChain(entity).block();
+        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+            log.warn("Admin audit event {} already persisted; skipping duplicate", event.eventId());
+            acknowledgment.acknowledge();
+            return;
+        }
+        acknowledgment.acknowledge();
+    }
+
     private <T extends EventSchemas.Event> void processAuditEvent(
             ConsumerRecord<String, String> record,
             Acknowledgment acknowledgment,
