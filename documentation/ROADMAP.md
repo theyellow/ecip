@@ -27,7 +27,7 @@
 | **P1** | Critical security quick-wins | ~1–2 days | ✅ done (#206/#207/#208) |
 | **P2** | Security structural hardening | ~1–2 weeks | ✅ done (2.0–2.8) |
 | **P3** | Pre-1.0.0 release-readiness | ~3–5 weeks | **→ ships 1.0.0** |
-| **P4** | Post-1.0.0 — features + deferred polish | large | — (post-release) |
+| **P4** | Post-1.0.0 — features | large | — (post-release) |
 | **P5** | Long horizon | ongoing | — (post-release) |
 
 ---
@@ -36,14 +36,14 @@
 
 **The last phase before 1.0.0.** Ordered **value-first**: the quick, high-leverage work that de-risks everything else comes first, and the heavy **deploy-from-zero infra** (Liquibase / K8s / Helm / Prometheus) is grouped **last** as one coordinated sprint. Execution order and the release gate are **separate**: the **Gate** column marks what actually blocks the 1.0.0 tag regardless of when it's scheduled — several gate items are deliberately late (the final release push), while earlier items are high-value-but-non-blocking.
 
-Four tiers, each internally coherent: **① Test & CI safety net → ② Security/correctness finish → ③ Decisions & docs → ④ Deploy-from-zero infra.**
+Five tiers, each internally coherent: **① Test & CI safety net → ② Security/correctness finish → ③ Product polish & cheap wins → ④ Decisions & docs → ⑤ Deploy-from-zero infra.**
 
 > **Known state — the local cluster is hand-wired (clean-boot is not yet proven).** The dev k8s
 > cluster is *not* a clean install: Liquibase was bypassed, some tables (conversation-context) were
 > created by hand, and postgres was patched in place. A from-zero `helm install` currently would **not**
 > come up — this is drift we deliberately deferred, not a live outage. "The cluster is broken" is really
 > "missing **consolidated migrations + secret key(s) + tenant/telegram seeds**". Getting boot-from-zero
-> working is the **Tier ④ sprint (3.11 → 3.14)**, validated **together with the user** — done near the
+> working is the **Tier ⑤ sprint (3.16 → 3.19)**, validated **together with the user** — done near the
 > end because none of the value-first work above it needs a clean cluster.
 
 | Order | Tier | Item | ID | Size | Gate? | Needs |
@@ -56,30 +56,28 @@ Four tiers, each internally coherent: **① Test & CI safety net → ② Securit
 | 3.6 | ② Security | **Per-user/IP rate limiting** — custom `RateLimiterConfig` key resolver (global counters today). | RT-F1 | S | — | — |
 | 3.7 | ② Security | **Secrets: strict startup self-check** — flip encryption reads from lenient-fail-closed to a startup self-check once every environment reports zero plaintext (the P2.0 design's planned hardening). | P2.0-F1 | S | — | — |
 | 3.8 | ② Security | **Finish base-image pinning** — pin the still-floating `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) to patch versions (Temurin already pinned in P1.4). | P1-M3 | XS | — | — |
-| 3.9 | ③ Decisions | **ADRs 009–011** — multi-tenancy strategy, auth/authz architecture, **API versioning (decide `/v1` before 1.0.0)**. Settled *before* Tier ④ adds the new tenant endpoint. | S6 | S | ✅ **gate** | — |
-| 3.10 | ③ Decisions | **Backup/restore runbook** — scripts exist, document. | I7 / M6 | S | — | — |
-| 3.11 | ④ Infra | **Liquibase migration consolidation** — squash to `001-initial-schema.xml` per service (removes `md5sum='manual'` fragility). *Start of the boot-from-zero sprint.* | INF1 | M | ✅ **gate** | — |
-| 3.12 | ④ Infra | **Tenant provisioning endpoint** — admin-api endpoint + Liquibase-safe seed (no direct DB access). | #21 | M | ✅ **gate** | 3.9 |
-| 3.13 | ④ Infra | **Telegram test-account seeding via Helm** — post-deploy Job seeds `telegram_accounts` (removes manual DB access). | INF3 | S | ✅ **gate** | 3.12 |
-| 3.14 | ④ Infra | **Fresh-install smoke test** — drop DB, `helm install`, verify all 18 pages; document in `docs/operations/fresh-install.md`. *This is the boot-from-zero validation — do with the user.* | INF2 | S | ✅ **gate** | 3.11, 3.12, 3.13 |
-| 3.15 | ④ Infra | **K8s pod hardening** — `securityContext` (readOnlyRootFilesystem, runAsNonRoot, drop caps), ServiceAccounts, NetworkPolicy. | RT-012 | M | ✅ **gate** | — |
-| 3.16 | ④ Infra | **K8s HA / multi-replica** — HPA, PDB, tuned replicas. | #12 | M | — | 3.15 |
-| 3.17 | ④ Infra | **Prometheus alerting rules** — CPU, memory, error rates, Kafka lag. | I5 | S | ✅ **gate** | — |
+| 3.9 | ③ Polish | **BackfillService partial-completion status** — hitting `MAX_ITERATIONS` (5000) currently sets `COMPLETED` despite truncation; add a `PARTIAL` status / warning so callers know not all messages processed. | RT-F5 | XS | — | — |
+| 3.10 | ③ Polish | **Language detection for `MESSAGE_LANGUAGE`** — the policy condition is a dead placeholder; add Lingua to the intent classifier, populate `language` in `IntentClassifiedEvent`. Enables "flag messages not in DE/EN". | #45 | S | — | — |
+| 3.11 | ③ Polish | **Unicode-aware regex case folding** — add `Pattern.UNICODE_CASE` alongside `CASE_INSENSITIVE` so German umlauts case-fold in regex rules (`(?i)\bÄrger\b` matches `ärger`). | #46 | XS | — | — |
+| 3.12 | ③ Polish | **Toast migration** — replace per-page `alertBanner`/`errorBanner` with `useToast()` across ~13 admin-ui pages (finishes the P2.7 toast direction). | — (POSSIBLE_DEVELOPMENT) | S | — | — |
+| 3.13 | ③ Polish | **Knowledge-enrichment follow-ons** — per-template enrichment flag, task-type-aware search type, enrichment health indicator, context re-ranking. | — (POSSIBLE_DEVELOPMENT) | M | — | — |
+| 3.14 | ④ Decisions | **ADRs 009–011** — multi-tenancy strategy, auth/authz architecture, **API versioning (decide `/v1` before 1.0.0)**. Settled *before* Tier ⑤ adds the new tenant endpoint. | S6 | S | ✅ **gate** | — |
+| 3.15 | ④ Decisions | **Backup/restore runbook** — scripts exist, document. | I7 / M6 | S | — | — |
+| 3.16 | ⑤ Infra | **Liquibase migration consolidation** — squash to `001-initial-schema.xml` per service (removes `md5sum='manual'` fragility). *Start of the boot-from-zero sprint.* | INF1 | M | ✅ **gate** | — |
+| 3.17 | ⑤ Infra | **Tenant provisioning endpoint** — admin-api endpoint + Liquibase-safe seed (no direct DB access). | #21 | M | ✅ **gate** | 3.14 |
+| 3.18 | ⑤ Infra | **Telegram test-account seeding via Helm** — post-deploy Job seeds `telegram_accounts` (removes manual DB access). | INF3 | S | ✅ **gate** | 3.17 |
+| 3.19 | ⑤ Infra | **Fresh-install smoke test** — drop DB, `helm install`, verify all 18 pages; document in `docs/operations/fresh-install.md`. *This is the boot-from-zero validation — do with the user.* | INF2 | S | ✅ **gate** | 3.16, 3.17, 3.18 |
+| 3.20 | ⑤ Infra | **K8s pod hardening** — `securityContext` (readOnlyRootFilesystem, runAsNonRoot, drop caps), ServiceAccounts, NetworkPolicy. | RT-012 | M | ✅ **gate** | — |
+| 3.21 | ⑤ Infra | **K8s HA / multi-replica** — HPA, PDB, tuned replicas. | #12 | M | — | 3.20 |
+| 3.22 | ⑤ Infra | **Prometheus alerting rules** — CPU, memory, error rates, Kafka lag. | I5 | S | ✅ **gate** | — |
 
-**1.0.0 release gate:** P1 + P2 ✅, plus every **Gate**-flagged row above — the boot-from-zero infra (3.11–3.14), K8s pod hardening (3.15), Prometheus alerting (3.17), and the ADRs incl. the `/v1` decision (3.9). Non-gate rows are strongly recommended before tagging but do not block it. Ordered value-first, so the gate items cluster in the final stretch. (Rows folded in from BACKLOG §0b during the 2026-08-05 cleanup; §0b remains the status source of truth.)
+**1.0.0 release gate:** P1 + P2 ✅, plus every **Gate**-flagged row above — the boot-from-zero infra (3.16–3.19), K8s pod hardening (3.20), Prometheus alerting (3.22), and the ADRs incl. the `/v1` decision (3.14). Non-gate rows are strongly recommended before tagging but do not block it. Ordered value-first, so the gate items cluster in the final stretch. (Rows folded in from BACKLOG §0b + the old P4 polish bucket during the 2026-08-05 cleanup; BACKLOG §0b remains the status source of truth for the remediation follow-ups.)
 
 ---
 
-## P4 — Post-1.0.0 (features + deferred polish)
+## P4 — Post-1.0.0 (features)
 
-Does **not** gate 1.0.0. Ships after (or interleaved with the recommended tail of P3).
-
-**Deferred polish / cheap wins** (were the old "1.0.0 polish" bucket):
-- **RT-F5** — `BackfillService` `PARTIAL` status on `MAX_ITERATIONS` truncation. XS
-- **#45** — language detection (Lingua) → populate `language` in `IntentClassifiedEvent`; unblocks `MESSAGE_LANGUAGE` rules. S
-- **#46** — Unicode-aware regex case folding (`Pattern.UNICODE_CASE`) for German umlauts. XS
-- **Toast migration** — replace per-page `alertBanner`/`errorBanner` with `useToast()` across ~13 pages (POSSIBLE_DEVELOPMENT). S
-- **Knowledge-enrichment follow-ons** — per-template enrichment flag, task-type-aware search type, enrichment health indicator, context re-ranking (POSSIBLE_DEVELOPMENT). M
+Does **not** gate 1.0.0. Ships after 1.0.0. *(The old "deferred polish / cheap wins" bucket was pulled into P3 tier ③ on 2026-08-05 — not worth deferring past the release.)*
 
 **Features** (were P5):
 - **#8 ML toxicity detection** *(XL)* — needs an architecture decision (ADR) first: OpenNLP vs Perspective API vs local LiteLLM scorer.

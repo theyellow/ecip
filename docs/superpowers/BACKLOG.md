@@ -81,14 +81,14 @@
 ## 2. Open — Feature Work
 
 > Non-security feature work, ordered by dependency: items are ready to pick up unless "Needs" says otherwise.
-> Security remediation lives in §0; its follow-ups in §0b. Sequenced against `ROADMAP.md` P4/P5.
+> Security remediation lives in §0; its follow-ups in §0b. Sequenced against `ROADMAP.md` P3–P4 (the cheap wins RT-F1/RT-F5/#45/#46 were pulled into P3 on 2026-08-05).
 
 | # | Item | Size | Needs | Notes |
 |---|------|------|-------|-------|
 | RT-F1 | **Per-user/IP rate limiting** | S | — | Current Resilience4j rate limiters (auth 10/min, llm-trigger 20/min, admin-crud 100/min) are global counters shared across all users. A single user can exhaust the quota for everyone. Implement per-IP bucketing on auth endpoints and per-user on authenticated endpoints using a custom `RateLimiterConfig` key resolver. Ref: RT-014, `SecurityConfig.java`, `AuthController.java`. Roadmap: P3.6 (recommended-before-ship). |
-| RT-F5 | **BackfillService partial completion status** | XS | — | When backfill hits `MAX_ITERATIONS` (5000), status is set to `COMPLETED` despite truncation. Add `PARTIAL` status or include a warning in status metadata so the caller knows not all messages were processed. Ref: `BackfillService.java`. Roadmap: P4. |
-| 45 | **Language detection for MESSAGE_LANGUAGE condition** | S | — | `MESSAGE_LANGUAGE` policy condition is a dead placeholder — the intent classifier never populates a `language` field. Add a lightweight language detection library (e.g. [Lingua](https://github.com/pemistahl/lingua)) to `IntentClassificationService`, populate `language` in the `IntentClassifiedEvent` params map. Enables rules like "flag messages not in DE or EN". Ref: `MessageLanguageEvaluator.java`, `IntentClassificationService.java`. Roadmap: P4. |
-| 46 | **Unicode-aware REGEX case folding** | XS | — | Intent classifier compiles REGEX rules with `Pattern.CASE_INSENSITIVE` but not `Pattern.UNICODE_CASE`. German umlauts are not case-folded in regex patterns (e.g. `(?i)\bÄrger\b` won't match `ärger`). Fix: add `Pattern.UNICODE_CASE` flag alongside `CASE_INSENSITIVE` in `IntentClassificationService.refreshRules()`. Ref: `IntentClassificationService.java:81`. Roadmap: P4. |
+| RT-F5 | **BackfillService partial completion status** | XS | — | When backfill hits `MAX_ITERATIONS` (5000), status is set to `COMPLETED` despite truncation. Add `PARTIAL` status or include a warning in status metadata so the caller knows not all messages were processed. Ref: `BackfillService.java`. Roadmap: P3.9. |
+| 45 | **Language detection for MESSAGE_LANGUAGE condition** | S | — | `MESSAGE_LANGUAGE` policy condition is a dead placeholder — the intent classifier never populates a `language` field. Add a lightweight language detection library (e.g. [Lingua](https://github.com/pemistahl/lingua)) to `IntentClassificationService`, populate `language` in the `IntentClassifiedEvent` params map. Enables rules like "flag messages not in DE or EN". Ref: `MessageLanguageEvaluator.java`, `IntentClassificationService.java`. Roadmap: P3.10. |
+| 46 | **Unicode-aware REGEX case folding** | XS | — | Intent classifier compiles REGEX rules with `Pattern.CASE_INSENSITIVE` but not `Pattern.UNICODE_CASE`. German umlauts are not case-folded in regex patterns (e.g. `(?i)\bÄrger\b` won't match `ärger`). Fix: add `Pattern.UNICODE_CASE` flag alongside `CASE_INSENSITIVE` in `IntentClassificationService.refreshRules()`. Ref: `IntentClassificationService.java:81`. Roadmap: P3.11. |
 | 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision (ADR) needed first. Roadmap: P4. |
 
 ---
