@@ -1,5 +1,6 @@
 package io.emcip.admin.api.service;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.client.PolicyEngineClient;
 import io.emcip.admin.api.controller.FlagController;
 import io.emcip.admin.api.entity.GroupProfile;
@@ -14,15 +15,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
@@ -38,8 +35,7 @@ public class FlagService {
     private final WebClient tdlibClient;
     private final WebClient orchestratorWebClient;
     private final CircuitBreaker tdlibCircuitBreaker;
-    private final KafkaTemplate<String, String> kafkaTemplate;
-    private final ObjectMapper objectMapper;
+    private final AdminAuditPublisher auditPublisher;
 
     public FlagService(
             PolicyEngineClient policyEngineClient,
@@ -49,8 +45,7 @@ public class FlagService {
             @Qualifier("tdlibWebClient") WebClient tdlibClient,
             @Qualifier("orchestratorWebClient") WebClient orchestratorWebClient,
             CircuitBreakerRegistry circuitBreakerRegistry,
-            KafkaTemplate<String, String> kafkaTemplate,
-            ObjectMapper objectMapper) {
+            AdminAuditPublisher auditPublisher) {
         this.policyEngineClient = policyEngineClient;
         this.groupProfileRepository = groupProfileRepository;
         this.watchedGroupRepository = watchedGroupRepository;
@@ -58,8 +53,7 @@ public class FlagService {
         this.tdlibClient = tdlibClient;
         this.orchestratorWebClient = orchestratorWebClient;
         this.tdlibCircuitBreaker = circuitBreakerRegistry.circuitBreaker("tdlib-adapter");
-        this.kafkaTemplate = kafkaTemplate;
-        this.objectMapper = objectMapper;
+        this.auditPublisher = auditPublisher;
     }
 
     public Mono<JsonNode> listFlags(
@@ -354,48 +348,22 @@ public class FlagService {
             long telegramMessageId,
             boolean replyToOriginal,
             boolean prefixModerator) {
-        try {
-            ObjectNode event = JsonNodeFactory.instance.objectNode();
-            event.put("eventType", "OPERATOR_REPLY");
-            event.put("action", "SEND_MESSAGE");
-            event.put("sourceService", "admin-api");
-            event.put("resourceId", flagId);
-            event.put("outcome", "SUCCESS");
-
-            ObjectNode details = event.putObject("details");
-            details.put("target", target);
-            details.put("chatId", chatId);
-            details.put("accountId", accountId.toString());
-            details.put("telegramMessageId", telegramMessageId);
-            details.put("replyToOriginal", replyToOriginal);
-            details.put("prefixModerator", prefixModerator);
-
-            String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(new ProducerRecord<>("audit.events", flagId, json));
-        } catch (JacksonException e) {
-            log.error("Failed to publish audit event for flag {}", flagId, e);
-        }
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("target", target);
+        details.put("chatId", chatId);
+        details.put("accountId", accountId.toString());
+        details.put("telegramMessageId", telegramMessageId);
+        details.put("replyToOriginal", replyToOriginal);
+        details.put("prefixModerator", prefixModerator);
+        auditPublisher.publish("SEND_MESSAGE", "Flag", flagId, "system", null, details, "SUCCESS");
     }
 
     private void publishNoteAuditEvent(String flagId, String noteText, long chatId) {
-        try {
-            ObjectNode event = JsonNodeFactory.instance.objectNode();
-            event.put("eventType", "OPERATOR_NOTE");
-            event.put("action", "ADD_NOTE");
-            event.put("sourceService", "admin-api");
-            event.put("resourceId", flagId);
-            event.put("outcome", "SUCCESS");
-
-            ObjectNode details = event.putObject("details");
-            details.put("target", "NOTE");
-            details.put("noteText", noteText);
-            details.put("chatId", chatId);
-
-            String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send(new ProducerRecord<>("audit.events", flagId, json));
-        } catch (JacksonException e) {
-            log.error("Failed to publish note audit event for flag {}", flagId, e);
-        }
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("target", "NOTE");
+        details.put("noteText", noteText);
+        details.put("chatId", chatId);
+        auditPublisher.publish("ADD_NOTE", "Flag", flagId, "system", null, details, "SUCCESS");
     }
 
     private static Long parseSenderId(String senderId) {
