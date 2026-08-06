@@ -2,22 +2,61 @@ package io.emcip.admin.api.config;
 
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import java.security.Principal;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * Authorization denials must be 403, and must be audited.
+     *
+     * <p>Without this handler the catch-all {@code @ExceptionHandler(Exception.class)} below
+     * claimed every {@link AccessDeniedException} and returned <b>500 "An unexpected error
+     * occurred"</b>. A {@code @PreAuthorize} denial is raised while the controller method is
+     * invoked, i.e. inside {@code DispatcherHandler} — closer to the controller than Spring
+     * Security's {@code ExceptionTranslationWebFilter}, so this advice sees it first and the
+     * filter's {@code accessDeniedHandler} in {@link io.emcip.admin.api.security.SecurityConfig}
+     * never ran.
+     *
+     * <p>The filter's handler still covers denials raised by the {@code authorizeExchange} path
+     * rules (for example {@code /api/internal/**}), which never reach a controller.
+     *
+     * <p>NOTE: because the filter's handler is bypassed for method-level denials, those are also
+     * <em>not</em> published as {@code ACCESS_DENIED} audit events — a gap in the P2.8 admin audit
+     * trail that is tracked separately and deliberately not fixed here.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public Mono<ResponseEntity<ProblemDetail>> handleAccessDenied(
+            AccessDeniedException ex, ServerWebExchange exchange) {
+        String path = exchange.getRequest().getPath().value();
+        return exchange.getPrincipal()
+                .map(Principal::getName)
+                .defaultIfEmpty("anonymous")
+                .map(
+                        actor -> {
+                            log.warn(
+                                    "Access denied for {} on {}: {}", actor, path, ex.getMessage());
+                            ProblemDetail problem =
+                                    ProblemDetail.forStatusAndDetail(
+                                            HttpStatus.FORBIDDEN, "Access denied");
+                            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+                        });
+    }
 
     @ExceptionHandler(WebExchangeBindException.class)
     public Mono<ResponseEntity<ProblemDetail>> handleValidation(WebExchangeBindException ex) {

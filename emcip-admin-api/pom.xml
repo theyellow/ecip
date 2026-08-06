@@ -143,6 +143,17 @@
       <artifactId>spring-security-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!--
+      Spring Boot 4 split the test slice annotations out of spring-boot-test-autoconfigure into
+      per-technology modules, so @WebFluxTest is no longer on the classpath via
+      spring-boot-starter-test. Needed by PreAuthorizeEnforcementTest (P3 3.3), which drives the
+      real SecurityConfig filter chain plus reactive method security.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webflux-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>mockwebserver3</artifactId>
