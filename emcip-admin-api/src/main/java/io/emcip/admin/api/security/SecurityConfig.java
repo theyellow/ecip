@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
@@ -15,17 +16,25 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authorization.HttpStatusServerAccessDeniedHandler;
+import org.springframework.security.web.server.authorization.ServerAccessDeniedHandler;
 import org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
-import reactor.core.publisher.Mono;
 
 @Configuration
 @EnableWebFluxSecurity
 @EnableReactiveMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+
+    /**
+     * Writes the actual 403 response after the denial has been audited. The custom handler below
+     * only adds the audit side effect; response semantics stay Spring's.
+     */
+    private static final ServerAccessDeniedHandler ACCESS_DENIED_RESPONSE =
+            new HttpStatusServerAccessDeniedHandler(HttpStatus.FORBIDDEN);
 
     private final AdminAuditPublisher auditPublisher;
 
@@ -108,7 +117,17 @@ public class SecurityConfig {
                                                                                         : "Access"
                                                                                               + " denied"),
                                                                         "DENIED");
-                                                                return Mono.<Void>error(denied);
+                                                                // Delegate to Spring's standard
+                                                                // writer so the client actually
+                                                                // gets a 403. Re-raising the
+                                                                // exception here (the previous
+                                                                // behaviour) let it escape the
+                                                                // filter chain unhandled — there is
+                                                                // no @ControllerAdvice for
+                                                                // AccessDeniedException — so every
+                                                                // denial surfaced as a 500.
+                                                                return ACCESS_DENIED_RESPONSE
+                                                                        .handle(exchange, denied);
                                                             });
                                         }))
                 .addFilterAt(serviceTokenFilter, SecurityWebFiltersOrder.HTTP_BASIC)
