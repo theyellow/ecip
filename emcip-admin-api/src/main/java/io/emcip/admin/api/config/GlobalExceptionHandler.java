@@ -1,10 +1,12 @@
 package io.emcip.admin.api.config;
 
+import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import java.security.Principal;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -20,7 +22,10 @@ import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final AdminAuditPublisher auditPublisher;
 
     /**
      * Authorization denials must be 403, and must be audited.
@@ -36,9 +41,12 @@ public class GlobalExceptionHandler {
      * <p>The filter's handler still covers denials raised by the {@code authorizeExchange} path
      * rules (for example {@code /api/internal/**}), which never reach a controller.
      *
-     * <p>NOTE: because the filter's handler is bypassed for method-level denials, those are also
-     * <em>not</em> published as {@code ACCESS_DENIED} audit events — a gap in the P2.8 admin audit
-     * trail that is tracked separately and deliberately not fixed here.
+     * <p>Because the filter's handler is bypassed here, this advice also publishes the {@code
+     * ACCESS_DENIED} audit event for method-level denials (AUDIT-DENY). Without it the P2.8 admin
+     * audit trail recorded only path-rule denials — the small minority — and silently missed every
+     * {@code @PreAuthorize} denial. The two paths are mutually exclusive, so a denial is audited
+     * exactly once: a path-rule denial never reaches a controller and therefore never reaches this
+     * advice.
      */
     @ExceptionHandler(AccessDeniedException.class)
     public Mono<ResponseEntity<ProblemDetail>> handleAccessDenied(
@@ -51,6 +59,18 @@ public class GlobalExceptionHandler {
                         actor -> {
                             log.warn(
                                     "Access denied for {} on {}: {}", actor, path, ex.getMessage());
+                            auditPublisher.publish(
+                                    "ACCESS_DENIED",
+                                    "Endpoint",
+                                    path,
+                                    actor,
+                                    null,
+                                    Map.of(
+                                            "reason",
+                                            ex.getMessage() != null
+                                                    ? ex.getMessage()
+                                                    : "Access denied"),
+                                    "DENIED");
                             ProblemDetail problem =
                                     ProblemDetail.forStatusAndDetail(
                                             HttpStatus.FORBIDDEN, "Access denied");

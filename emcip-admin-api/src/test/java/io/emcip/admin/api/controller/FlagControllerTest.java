@@ -42,7 +42,11 @@ class FlagControllerTest {
 
         webTestClient =
                 WebTestClient.bindToController(new FlagController(flagService, rateLimiterRegistry))
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .build();
     }
 

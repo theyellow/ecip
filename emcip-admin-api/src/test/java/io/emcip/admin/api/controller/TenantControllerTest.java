@@ -40,7 +40,11 @@ class TenantControllerTest {
         webTestClient =
                 WebTestClient.bindToController(
                                 new TenantController(tenantService, rateLimiterRegistry))
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .build();
     }
 

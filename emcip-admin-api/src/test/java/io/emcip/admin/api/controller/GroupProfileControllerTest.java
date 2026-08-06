@@ -54,7 +54,11 @@ class GroupProfileControllerTest {
         controller = new GroupProfileController(service, rateLimiterRegistry);
         webTestClient =
                 WebTestClient.bindToController(controller)
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .webFilter(ADMIN_MODE_FILTER)
                         .build();
     }

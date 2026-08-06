@@ -27,7 +27,11 @@ class EnrichmentSourceControllerTest {
     void setUp() {
         client =
                 WebTestClient.bindToController(new EnrichmentSourceController(service))
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .build();
     }
 
