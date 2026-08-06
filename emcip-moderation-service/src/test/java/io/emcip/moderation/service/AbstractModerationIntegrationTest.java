@@ -5,20 +5,36 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+/**
+ * Base class for moderation service integration tests.
+ *
+ * <p>Containers are started once per JVM using a static initializer (singleton pattern) rather than
+ * per-test-class via {@code @Testcontainers}/{@code @Container}. This prevents Testcontainers from
+ * stopping the shared containers when the first test class finishes, which would break the cached
+ * Spring context for subsequent test classes.
+ *
+ * <p>This class previously used {@code @Testcontainers}/{@code @Container}, which produced an
+ * order-dependent failure: the three IT classes here share one cached Spring context, but JUnit
+ * stopped the containers after the first class and restarted them on fresh random ports for the
+ * next. The cached context kept the original ports, so the R2DBC pool and Kafka clients pointed at
+ * dead ones — {@code ConnectionFactoryHealthIndicator} then reported DOWN and {@code
+ * /actuator/health} returned 503, failing {@code TraceContextPropagationIT}. Mirrors the pattern
+ * already documented in {@code AbstractAuditIntegrationTest}.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 public abstract class AbstractModerationIntegrationTest {
 
-    @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    static final PostgreSQLContainer<?> POSTGRES;
+    static final KafkaContainer KAFKA;
 
-    @Container
-    static final KafkaContainer KAFKA =
-            new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"));
+    static {
+        POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+        KAFKA = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"));
+        POSTGRES.start();
+        KAFKA.start();
+    }
 
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {
