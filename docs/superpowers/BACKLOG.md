@@ -1,6 +1,6 @@
 # EMCIP Backlog
 
-> Last updated: 2026-07-31 (P2.3 admin-ui security headers delivered, PR #217 — Spring Security CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy filter chain; follow-ups RT2-007-F1/F2 logged in §0b)
+> Last updated: 2026-08-05 (P2 complete — P2.8 failed-login audit + audit.events consumer, PR #224. §0a remediation rows all delivered → relocated to §5; open follow-ups remain in §0b. See `documentation/ROADMAP.md` for the P3 sequence.)
 > Single source of truth for all open work **status**. Sequencing & rationale live in `documentation/ROADMAP.md`.
 > Completed items are in §5.
 > Size guide: **XS** < 2h · **S** ½ day · **M** 1–2 days · **L** 3–5 days · **XL** > 1 week
@@ -27,31 +27,9 @@
 
 ### 0a. Remediation items (phase-ordered)
 
-| ID | Item | Sev | Phase | Size | Status |
-|----|------|-----|-------|------|--------|
-| RT2-003 | JWT revocation filter returns 401 (not passthrough) | CRITICAL | P1.1 | S | ✅ PR #206 |
-| RT2-004 | `@PreAuthorize` WRITE perms on TelegramAccount/Tenant/AIProxy controllers (22 endpoints) | CRITICAL | P1.1 | S | ✅ PR #206 |
-| RT-F3 | JWT single-parse optimization (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
-| RT-F4 | Combine double save on login (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
-| RT2-008 | `ManualEnrichmentConsumer` explicit Kafka tenant-header validation | HIGH | P1.3 | XS | ✅ PR #207 |
-| RT2-009 | `PolicyDecisionConsumer` capture + set tenant UUID | HIGH | P1.3 | XS | ✅ PR #207 |
-| RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ✅ PR #208 |
-| S-OPEN-2 | Java CodeQL SAST in CI | HIGH | P1.4 | XS | ✅ PR #208 |
-| I2 / RT-034 | Pin Docker base images to patch version (`21.0.11_10`) | MEDIUM | P1.4 | XS | ✅ PR #208 |
-| I4 | PMD `failOnViolation: true` — genuinely blocking | MEDIUM | P1.4 | XS | ✅ PR #208 |
-| I4b | **Checkstyle removed** — google_checks.xml is mostly formatting (Spotless already owns that, and its AOSP 4-space directly contradicts google_checks' 2-space), so the gate was inert and unfixable without fighting the formatter. Plugin + CI steps deleted. Static analysis = Spotless (format) + PMD (smells, blocking) + CodeQL (security). | — | P1.4 | XS | ✅ PR #208 |
-| S5 / S-OPEN-1 / RT-013 / S-NEW-2 | **Secrets encryption at rest** — `telegram_accounts.session_string` + `api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`; AES-256-GCM `SecretCipher` in `emcip-core`, strict fail-closed reads, rows migrated by hand via `SecretCipherCli` + runbook. Merges the former P2.5 + P2.6. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`; plan: `plans/2026-07-23-secrets-encryption-at-rest.md`; runbook: `docs/operations/secrets-encryption.md` | CRITICAL | P2.0 | L | ✅ PR #209 |
-| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | P2.1 | L | ✅ PR #210 |
-| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | P2.1 | L | ✅ PR #210 |
-| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | P2.1 | L | ✅ PR #210 — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
-| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ PR #215 — SSRF guard (pin validated IP via OkHttp `Dns` + pre-connect literal-IP interceptor) on URL ingestion; configurable allow-list; reingest path covered. Follow-ups SSRF-F1…F4 in §0b |
-| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options + Referrer-Policy/Permissions-Policy; header-only, no meta tag) | HIGH | P2.3 | M | ✅ PR #217 |
-| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ✅ PR #218 — Unicode-hygiene sanitizer (`sanitizeText`, strips bidi/zero-width/control) on both renders + `.md` download + Copy; DOMPurify retained behind a reserved `sanitizeHtml()` for a future HTML sink. No HTML sink existed. Spec: `specs/2026-07-31-p2.4-llm-render-sanitization-design.md` |
-| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ✅ PR #219 — per-call nonce fence + "treat fenced content as data" convention via shared io.emcip.common.prompt.PromptFence; applied to USER_CONTENT, knowledge enrichment, extraction document text, research web evidence. Ontology types neutralized-not-fenced; evidence fenced at prompt-build. Ingestion regex scanner is a fail-closed gate (match → FLAGGED_INJECTION_RISK, doc rejected) whose detector was deliberately not expanded (fencing is the control; deny-list filtering is the wrong tool). Residual data-poisoning risk → §0b KE-TRUST. Spec: specs/2026-07-31-p2.5-prompt-injection-fencing-design.md |
-| RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ✅ PR #221 — service token scoped to /api/internal/** (403 elsewhere) in ServiceTokenAuthenticationFilter; ROLE_SERVICE modeled as empty-permission SERVICE identity in RolePermissions (not the user Role enum); admin-api actuator metrics endpoints opened (fleet-consistent, fixes the Prometheus scrape). Spec: specs/2026-08-02-p2.6-role-service-path-restriction-design.md |
-| U-NEW-1/2/3 | UI hygiene: user-facing load failures → error toasts, background/cleanup catches → `console.warn`, stable React keys in Costs (index-correct keys annotated) | MEDIUM | P2.7 | S | ✅ PR #223 |
-| RT2-015 | React 19 + react-router v8 upgrade (+ Maven Node 24) → npm audit 0 (esbuild/vite/vitest/react-router) | MEDIUM | P2.7 | S | ✅ |
-| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ✅ PR #224 — `LOGIN_FAILURE` distinguishes `USER_NOT_FOUND`/`BAD_PASSWORD`/`DISABLED` in `details.reason` (client always gets an identical 401); client IP captured (leftmost `X-Forwarded-For` else socket, tagged `ipSource`), also fixing the old `LOGIN_SUCCESS` `"request-context"` placeholder. **Also the true RT-017 closure**: wired up the previously-unconsumed `audit.events` Kafka topic — a new `@KafkaListener(topics="audit.events", groupId="emcip-audit-service-admin", latest offset)` in audit-service now persists all admin audit events (LOGIN_*, ACCESS_DENIED, USER_*, PASSWORD_CHANGED, flag events) to `audit_events`, which never happened before (publish≠persist). Tenant header added at publish; `ACCESS_DENIED` outcome fixed `SUCCESS`→`DENIED`; `FlagService` routed through the publisher. Follow-ups P2.8-F1 (XFF trust) and P2.8-F2 (flag actor/tenant) in §0b. Spec: `specs/2026-08-03-p2.8-failed-login-audit-design.md` |
+> **All P1–P2 remediation items are delivered.** The full phase-ordered table (with each item's
+> delivered-note) was relocated to **§5 Completed** on 2026-08-05 so this section stays focused on
+> *open* work. Open follow-ups spawned by that remediation are in **§0b** below.
 
 ### 0b. Follow-ups raised during remediation → deferred to P3/P4
 
@@ -63,7 +41,7 @@
 | INF-CI-FE | **Frontend vitest suite not run in CI.** `emcip-admin-ui`'s `frontend-maven-plugin` runs `npm run build` (vite) at `generate-resources` but never `npm test`, so every admin-ui vitest spec is CI-invisible — three had silently rotted red on `main` (Flags placeholder `...`→`…`; AuditLog `list()` arity + combobox-order drift) before P2.4/PR #218 fixed them. Add an `npm` execution running `test` (= `vitest run`) bound to the `test` phase (or a CI step), gated to fail the build. Sibling to INF-CI-IT (Java `*IT`); do the two together. Ref: `emcip-admin-ui/pom.xml`, `.github/workflows/maven.yml`. | LOW | P3 | XS | ⏳ |
 | P1-M1 | No end-to-end test that `@PreAuthorize` is enforced by the live filter chain — existing controller tests use `WebTestClient.bindToController(...)`, which bypasses Spring Security. `ControllerAuthorizationTest` is reflection-only (now inverted to catch unannotated write methods). Needs a `@WebFluxTest` + `@WithMockUser` suite. | MEDIUM | P3 | S | ⏳ |
 | P1-M3 | Base-image pinning is Temurin-only — `docker/postgres-knowledge/Dockerfile` (`postgres:16`) and the three `Dockerfile.native` runtimes (`debian:12-slim`) still float. | LOW | P3 | XS | ⏳ |
-| P2.0-F1 | Flip reads from strict-fail-closed to a stricter startup self-check once every environment reports zero plaintext (the design's planned hardening). Also revisit key rotation (the `v1:` prefix is the hook) with the P6 secrets ADR. | LOW | P3/P4 | S | ⏳ |
+| P2.0-F1 | Flip reads from strict-fail-closed to a stricter startup self-check once every environment reports zero plaintext (the design's planned hardening). Also revisit key rotation (the `v1:` prefix is the hook) with the P5 secrets ADR. **Folded into ROADMAP P3.7.** | LOW | P3 | S | ⏳ |
 | P1-M2 | JWT revocation is **per-replica** — `JwtRevocationService` uses an in-process `ConcurrentHashMap`. Correct at `replicas: 1` (current Helm default) but silently degrades on scale-out. Bounds the RT2-003 fix. | MEDIUM | P4 | M | ⏳ |
 | P1-M4 | `ManualEnrichmentConsumerTest` hardcodes the global sentinel string instead of referencing `TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL`; no test asserts the sentinel cannot bypass a *tenant-scoped* source. | LOW | P4 | XS | ⏳ |
 | P2.0-M1 | llm-orchestrator's `LlmProviderApiKeyCipherConverter` Hibernate-injection is not covered by an integration test (only a hand-constructed unit test). KE proves the identical mechanism via Testcontainers; llm-orchestrator has no Testcontainers harness. Fails loud if it regresses (no no-arg ctor). Add a `@DataJpaTest` round-trip. | LOW | P4 | XS | ⏳ |
@@ -103,15 +81,15 @@
 ## 2. Open — Feature Work
 
 > Non-security feature work, ordered by dependency: items are ready to pick up unless "Needs" says otherwise.
-> Security remediation lives in §0; its follow-ups in §0b. Sequenced against `ROADMAP.md` P4/P5.
+> Security remediation lives in §0; its follow-ups in §0b. Sequenced against `ROADMAP.md` P3–P4 (the cheap wins RT-F1/RT-F5/#45/#46 were pulled into P3 on 2026-08-05).
 
 | # | Item | Size | Needs | Notes |
 |---|------|------|-------|-------|
-| RT-F1 | **Per-user/IP rate limiting** | S | — | Current Resilience4j rate limiters (auth 10/min, llm-trigger 20/min, admin-crud 100/min) are global counters shared across all users. A single user can exhaust the quota for everyone. Implement per-IP bucketing on auth endpoints and per-user on authenticated endpoints using a custom `RateLimiterConfig` key resolver. Ref: RT-014, `SecurityConfig.java`, `AuthController.java`. Roadmap: P4. |
-| RT-F5 | **BackfillService partial completion status** | XS | — | When backfill hits `MAX_ITERATIONS` (5000), status is set to `COMPLETED` despite truncation. Add `PARTIAL` status or include a warning in status metadata so the caller knows not all messages were processed. Ref: `BackfillService.java`. Roadmap: P4. |
-| 45 | **Language detection for MESSAGE_LANGUAGE condition** | S | — | `MESSAGE_LANGUAGE` policy condition is a dead placeholder — the intent classifier never populates a `language` field. Add a lightweight language detection library (e.g. [Lingua](https://github.com/pemistahl/lingua)) to `IntentClassificationService`, populate `language` in the `IntentClassifiedEvent` params map. Enables rules like "flag messages not in DE or EN". Ref: `MessageLanguageEvaluator.java`, `IntentClassificationService.java`. Roadmap: P4. |
-| 46 | **Unicode-aware REGEX case folding** | XS | — | Intent classifier compiles REGEX rules with `Pattern.CASE_INSENSITIVE` but not `Pattern.UNICODE_CASE`. German umlauts are not case-folded in regex patterns (e.g. `(?i)\bÄrger\b` won't match `ärger`). Fix: add `Pattern.UNICODE_CASE` flag alongside `CASE_INSENSITIVE` in `IntentClassificationService.refreshRules()`. Ref: `IntentClassificationService.java:81`. Roadmap: P4. |
-| 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision (ADR) needed first. Roadmap: P5. |
+| RT-F1 | **Per-user/IP rate limiting** | S | — | Current Resilience4j rate limiters (auth 10/min, llm-trigger 20/min, admin-crud 100/min) are global counters shared across all users. A single user can exhaust the quota for everyone. Implement per-IP bucketing on auth endpoints and per-user on authenticated endpoints using a custom `RateLimiterConfig` key resolver. Ref: RT-014, `SecurityConfig.java`, `AuthController.java`. Roadmap: P3.6 (recommended-before-ship). |
+| RT-F5 | **BackfillService partial completion status** | XS | — | When backfill hits `MAX_ITERATIONS` (5000), status is set to `COMPLETED` despite truncation. Add `PARTIAL` status or include a warning in status metadata so the caller knows not all messages were processed. Ref: `BackfillService.java`. Roadmap: P3.9. |
+| 45 | **Language detection for MESSAGE_LANGUAGE condition** | S | — | `MESSAGE_LANGUAGE` policy condition is a dead placeholder — the intent classifier never populates a `language` field. Add a lightweight language detection library (e.g. [Lingua](https://github.com/pemistahl/lingua)) to `IntentClassificationService`, populate `language` in the `IntentClassifiedEvent` params map. Enables rules like "flag messages not in DE or EN". Ref: `MessageLanguageEvaluator.java`, `IntentClassificationService.java`. Roadmap: P3.10. |
+| 46 | **Unicode-aware REGEX case folding** | XS | — | Intent classifier compiles REGEX rules with `Pattern.CASE_INSENSITIVE` but not `Pattern.UNICODE_CASE`. German umlauts are not case-folded in regex patterns (e.g. `(?i)\bÄrger\b` won't match `ärger`). Fix: add `Pattern.UNICODE_CASE` flag alongside `CASE_INSENSITIVE` in `IntentClassificationService.refreshRules()`. Ref: `IntentClassificationService.java:81`. Roadmap: P3.11. |
+| 8 | **ML toxicity detection** | XL | Architecture decision | Replace keyword/regex with model-based scorer (OpenNLP, Perspective API, or local LiteLLM). Architecture decision (ADR) needed first. Roadmap: P4. |
 
 ---
 
@@ -144,7 +122,7 @@
 | 13 | **GraalVM native — R2DBC services** | XL | 4 services JVM-only (`moderation-service`, `audit-service`, `admin-api`, `intent-classifier`). Blocked on R2DBC + GraalVM reflection hints. Ref: `specs/2026-04-29-graalvm-native-migration-design.md`. |
 | RT-005 | **Kafka SASL authentication + topic ACLs** | M | Red Team finding RT-005 / LC-2. All services connect to Kafka without authentication; any pod in the cluster can produce/consume any topic. Currently acceptable because Kafka runs on a trusted internal network with no external exposure. Revisit when: multi-tenant cluster, external Kafka access, or compliance audit requires transport-level auth. Implementation: enable `SASL_PLAINTEXT` or `SASL_SSL`, per-service credentials, topic ACLs restricting produce/consume to owning services. Ref: `documentation/RED_TEAM_REPORT.md`. |
 | RT-012 | **Kubernetes pod security hardening** — *promoted to P3.5 in `ROADMAP.md`.* | S | Pods run without `securityContext` restrictions — no `readOnlyRootFilesystem`, no `runAsNonRoot`, no `allowPrivilegeEscalation: false`, no dropped capabilities. Infrastructure-level hardening (not application code). Add `securityContext` to all Deployment templates in `helm/emcip/templates/apps/standard-deployments.yaml` and the StatefulSet. Ref: `documentation/RED_TEAM_REPORT.md`. |
-| RT-013 | **Encrypt API keys at rest in database** — *no longer deferred; delivered as P2.0 (§0).* | — | Strategy decided 2026-07-23: application-level AES-256-GCM, key from a K8s Secret, never sent to Postgres. `pgcrypto` rejected (key would appear in SQL text and leak into `pg_stat_statements`/query logs); Vault deferred to P6, to swap in behind the same cipher boundary. Delivered under S5 / S-OPEN-1 / S-NEW-2, PR #209. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`. |
+| RT-013 | **Encrypt API keys at rest in database** — *no longer deferred; delivered as P2.0 (§0).* | — | Strategy decided 2026-07-23: application-level AES-256-GCM, key from a K8s Secret, never sent to Postgres. `pgcrypto` rejected (key would appear in SQL text and leak into `pg_stat_statements`/query logs); Vault deferred to P5, to swap in behind the same cipher boundary. Delivered under S5 / S-OPEN-1 / S-NEW-2, PR #209. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`. (Vault revisit is now ROADMAP P5.) |
 
 ---
 
@@ -200,6 +178,36 @@
 | — | **Red Team remediation** — 16 quick wins + 10 structural changes. Wave 1: Kafka tenant fail-closed (RT-007), per-service DB users (RT-006), DB SSL (RT-016), ingress TLS/cert-manager (RT-032), audit publishing (RT-017), audit tamper resistance with hash chaining (RT-027). Wave 2: LLM prompt injection defense — boundary markers + output validation + ingestion scanning (RT-002/003/009), JWT revocation with jti tracking (RT-010). Standalone: rate limiting (RT-014), KE↔LLM-O circuit breakers (RT-025). Deferred: RT-005 Kafka SASL, RT-012 pod hardening, RT-013 encrypted API keys. Follow-ups: RT-F1–F5. | ✅ 2026-07-01. Branch: `fix/knowledge-engine-backfill-auth`. Spec: `specs/2026-06-30-red-team-remediation-design.md`. |
 | P0 | Unified ROADMAP + absorb 2026-07-18 review findings into backlog | ✅ PR #205 — 2026-07-22. |
 | RT-F2 | SSRF prevention on document ingestion (delivered as P2.2 / RT2-005) | ✅ PR #215 — 2026-07-29. Follow-ups SSRF-F1…F4 in §0b. |
+
+### 5a. P1–P2 security remediation (2026-07-18 reviews) — delivered
+
+> Relocated from §0a on 2026-08-05 (all delivered). Phase-ordered; delivered-notes intact.
+
+| ID | Item | Sev | Phase | Size | Status |
+|----|------|-----|-------|------|--------|
+| RT2-003 | JWT revocation filter returns 401 (not passthrough) | CRITICAL | P1.1 | S | ✅ PR #206 |
+| RT2-004 | `@PreAuthorize` WRITE perms on TelegramAccount/Tenant/AIProxy controllers (22 endpoints) | CRITICAL | P1.1 | S | ✅ PR #206 |
+| RT-F3 | JWT single-parse optimization (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
+| RT-F4 | Combine double save on login (folded into P1.1) | LOW | P1.1 | XS | ✅ PR #206 |
+| RT2-008 | `ManualEnrichmentConsumer` explicit Kafka tenant-header validation | HIGH | P1.3 | XS | ✅ PR #207 |
+| RT2-009 | `PolicyDecisionConsumer` capture + set tenant UUID | HIGH | P1.3 | XS | ✅ PR #207 |
+| RT2-013 / S-NEW-1 | admin-ui actuator `show-details: never` | HIGH | P1.4 | XS | ✅ PR #208 |
+| S-OPEN-2 | Java CodeQL SAST in CI | HIGH | P1.4 | XS | ✅ PR #208 |
+| I2 / RT-034 | Pin Docker base images to patch version (`21.0.11_10`) | MEDIUM | P1.4 | XS | ✅ PR #208 |
+| I4 | PMD `failOnViolation: true` — genuinely blocking | MEDIUM | P1.4 | XS | ✅ PR #208 |
+| I4b | **Checkstyle removed** — google_checks.xml is mostly formatting (Spotless already owns that, and its AOSP 4-space directly contradicts google_checks' 2-space), so the gate was inert and unfixable without fighting the formatter. Plugin + CI steps deleted. Static analysis = Spotless (format) + PMD (smells, blocking) + CodeQL (security). | — | P1.4 | XS | ✅ PR #208 |
+| S5 / S-OPEN-1 / RT-013 / S-NEW-2 | **Secrets encryption at rest** — `telegram_accounts.session_string` + `api_hash`, `ke_vendor_api_keys.api_key`, `llm_provider_configs.api_key`; AES-256-GCM `SecretCipher` in `emcip-core`, strict fail-closed reads, rows migrated by hand via `SecretCipherCli` + runbook. Merges the former P2.5 + P2.6. Spec: `specs/2026-07-23-secrets-encryption-at-rest-design.md`; plan: `plans/2026-07-23-secrets-encryption-at-rest.md`; runbook: `docs/operations/secrets-encryption.md` | CRITICAL | P2.0 | L | ✅ PR #209 |
+| RT2-002 | Wire `saveWithChain()` into `AuditEventConsumer` (activate hash chain) | HIGH | P2.1 | L | ✅ PR #210 |
+| RT2-016 | DELETE-prevention trigger on `audit_events` | HIGH | P2.1 | L | ✅ PR #210 |
+| B1 | Remove `.block()` from `AuditEventConsumer` Kafka listener | HIGH | P2.1 | L | ✅ PR #210 — retained a single `.block()` bridging a reactive `saveWithChain()` at the Kafka consumer thread; the risky part (silent loss under `MANUAL_IMMEDIATE`) is fixed via `DefaultErrorHandler`→DLQ, not by removing `.block()` |
+| RT2-005 | SSRF protection on `DocumentIngestionService` (scheme whitelist + private-IP blocklist + DNS recheck) | HIGH | P2.2 | M | ✅ PR #215 — SSRF guard (pin validated IP via OkHttp `Dns` + pre-connect literal-IP interceptor) on URL ingestion; configurable allow-list; reingest path covered. Follow-ups SSRF-F1…F4 in §0b |
+| RT2-007 | admin-ui Spring Security (CSP/HSTS/X-Frame-Options + Referrer-Policy/Permissions-Policy; header-only, no meta tag) | HIGH | P2.3 | M | ✅ PR #217 |
+| RT2-011 / RT2-012 | DOMPurify on LLM/Markdown rendering (Flags, ReportViewer) | HIGH | P2.4 | S | ✅ PR #218 — Unicode-hygiene sanitizer (`sanitizeText`, strips bidi/zero-width/control) on both renders + `.md` download + Copy; DOMPurify retained behind a reserved `sanitizeHtml()` for a future HTML sink. No HTML sink existed. Spec: `specs/2026-07-31-p2.4-llm-render-sanitization-design.md` |
+| RT2-006 | Knowledge/ontology/web-search content escaping in LLM prompts | HIGH | P2.5 | L | ✅ PR #219 — per-call nonce fence + "treat fenced content as data" convention via shared io.emcip.common.prompt.PromptFence; applied to USER_CONTENT, knowledge enrichment, extraction document text, research web evidence. Ontology types neutralized-not-fenced; evidence fenced at prompt-build. Ingestion regex scanner is a fail-closed gate (match → FLAGGED_INJECTION_RISK, doc rejected) whose detector was deliberately not expanded (fencing is the control; deny-list filtering is the wrong tool). Residual data-poisoning risk → §0b KE-TRUST. Spec: specs/2026-07-31-p2.5-prompt-injection-fencing-design.md |
+| RT2-014 / RT-020 | `ROLE_SERVICE` path restriction + add to RBAC matrix | MEDIUM | P2.6 | M | ✅ PR #221 — service token scoped to /api/internal/** (403 elsewhere) in ServiceTokenAuthenticationFilter; ROLE_SERVICE modeled as empty-permission SERVICE identity in RolePermissions (not the user Role enum); admin-api actuator metrics endpoints opened (fleet-consistent, fixes the Prometheus scrape). Spec: specs/2026-08-02-p2.6-role-service-path-restriction-design.md |
+| U-NEW-1/2/3 | UI hygiene: user-facing load failures → error toasts, background/cleanup catches → `console.warn`, stable React keys in Costs (index-correct keys annotated) | MEDIUM | P2.7 | S | ✅ PR #223 |
+| RT2-015 | React 19 + react-router v8 upgrade (+ Maven Node 24) → npm audit 0 (esbuild/vite/vitest/react-router) | MEDIUM | P2.7 | S | ✅ |
+| S-OPEN-3 | `LOGIN_FAILURE` audit event on `BadCredentialsException` | MEDIUM | P2.8 | S | ✅ PR #224 — `LOGIN_FAILURE` distinguishes `USER_NOT_FOUND`/`BAD_PASSWORD`/`DISABLED` in `details.reason` (client always gets an identical 401); client IP captured (leftmost `X-Forwarded-For` else socket, tagged `ipSource`), also fixing the old `LOGIN_SUCCESS` `"request-context"` placeholder. **Also the true RT-017 closure**: wired up the previously-unconsumed `audit.events` Kafka topic — a new `@KafkaListener(topics="audit.events", groupId="emcip-audit-service-admin", latest offset)` in audit-service now persists all admin audit events (LOGIN_*, ACCESS_DENIED, USER_*, PASSWORD_CHANGED, flag events) to `audit_events`, which never happened before (publish≠persist). Tenant header added at publish; `ACCESS_DENIED` outcome fixed `SUCCESS`→`DENIED`; `FlagService` routed through the publisher. Follow-ups P2.8-F1 (XFF trust) and P2.8-F2 (flag actor/tenant) in §0b. Spec: `specs/2026-08-03-p2.8-failed-login-audit-design.md` |
 
 ---
 
