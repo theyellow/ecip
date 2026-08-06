@@ -413,6 +413,35 @@ Ports: 9080 (tdlib-adapter) through 9087 (admin-api). See the _Operations Guide_
 
 == Testing
 
+=== How tests are split and run
+
+Surefire runs unit tests; Failsafe runs integration tests. The split is by **class name**, configured in the root `pom.xml`:
+
+[cols="1,2,2"]
+|===
+|Plugin |Runs |Phase
+
+|`maven-surefire-plugin`
+|`**/*Test.java` — excluding `*IT` and `*IntegrationTest`
+|`test`
+
+|`maven-failsafe-plugin`
+|`**/*IT.java` and `**/*IntegrationTest.java`
+|`integration-test` + `verify`
+|===
+
+Because of that split, **`mvn test` does not run integration tests — use `mvn verify`**. The same applies to the admin-ui vitest suite, which is bound to the `test` phase via `frontend-maven-plugin` and skipped by `-DskipTests`.
+
+[source,bash]
+----
+mvn test      # unit tests only (Surefire)
+mvn verify    # unit + integration (Failsafe, needs Docker) + frontend vitest
+----
+
+CI runs `mvn -B verify`, so every `*IT` / `*IntegrationTest` class gates the build automatically — adding one requires no CI change.
+
+NOTE: Failsafe must stay listed in the root `<build><plugins>`. It is not a default-lifecycle plugin, so configuring it in `pluginManagement` alone silently disables every integration test.
+
 === Testcontainers (Integration Tests)
 
 Services with database operations use `TestcontainersInitializer` to spin up a real PostgreSQL container:
@@ -467,12 +496,14 @@ class IntentClassifierServiceTest {
 
 === Backup/Restore Integration Test
 
-Gated by the environment variable `ECIP_IT_ENABLED=true`:
+Unlike the Testcontainers ITs, `BackupRestoreIT` runs against a **live** PostgreSQL on `localhost:14005`, so it is gated by `ECIP_IT_ENABLED=true` and stays skipped in CI:
 
 [source,bash]
 ----
-ECIP_IT_ENABLED=true mvn test -pl emcip-audit-service -Dtest=BackupRestoreIT
+ECIP_IT_ENABLED=true mvn verify -pl emcip-policy-engine -Dit.test=BackupRestoreIT
 ----
+
+NOTE: The class lives in `emcip-policy-engine` (this guide previously pointed at `emcip-audit-service`). Failsafe selects by `-Dit.test`, not `-Dtest`.
 
 === Gatling Load Tests
 
@@ -692,11 +723,11 @@ One commit minimum per user story. Squash WIP commits before opening a PR.
 [source,bash]
 ----
 mvn spotless:apply          # Format code
-mvn test                    # All tests pass
+mvn verify                  # Unit + integration + frontend tests pass (needs Docker)
 mvn spotless:check          # Verify formatting (CI will check this)
 ----
 
-CI runs `mvn verify` on every PR. A Spotless violation or failing test blocks merge.
+CI runs `mvn -B verify` on every PR. A Spotless violation, PMD violation, or any failing unit, integration, or vitest test blocks merge.
 
 == Image Publishing
 

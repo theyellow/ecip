@@ -42,11 +42,13 @@ jobs:
     - name: Build with Maven (no tests)
       run: mvn -B clean install -DskipTests --file pom.xml
 
-    - name: Run tests
-      run: mvn -B test --file pom.xml
-
-    - name: Audit integrity integration tests
-      run: mvn -B test -pl emcip-audit-service -Dtest=AuditChainConcurrencyIT,AuditDeletePreventionIT,AuditEventPersistenceIT,AuditDlqIT -DfailIfNoTests=false
+    # `verify` (not `test`) so maven-failsafe runs the *IT / *IntegrationTest classes and
+    # the admin-ui npm-test execution runs vitest. Replaces the former `mvn test` step plus
+    # the hardcoded `-Dtest=Audit...IT` list, which only covered 4 of the 15 IT classes and
+    # silently omitted every new one (e.g. AdminAuditEventPersistenceIT from P2.8).
+    # Testcontainers-backed ITs use the Docker daemon preinstalled on ubuntu-latest.
+    - name: Run tests (unit + integration + frontend)
+      run: mvn -B verify --file pom.xml
 
     - name: Generate JaCoCo coverage report
       run: mvn -B jacoco:report --file pom.xml
