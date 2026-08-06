@@ -203,7 +203,7 @@ public class AuditEventConsumer {
 
         try {
             auditService.saveWithChain(entity).block();
-        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+        } catch (org.springframework.dao.DuplicateKeyException dup) {
             log.warn("Admin audit event {} already persisted; skipping duplicate", event.eventId());
             acknowledgment.acknowledge();
             return;
@@ -256,10 +256,12 @@ public class AuditEventConsumer {
 
         try {
             auditService.saveWithChain(entity).block();
-        } catch (org.springframework.dao.DataIntegrityViolationException dup) {
+        } catch (org.springframework.dao.DuplicateKeyException dup) {
             // Redelivered record (e.g. after a rebalance) whose event_id is already persisted —
             // it is already safely audited. Ack + skip so it is not retried/DLQ'd as if it were a
-            // genuine failure.
+            // genuine failure. Narrowed from DataIntegrityViolationException (P2.8-F3): only a
+            // unique-constraint hit means "already audited"; any other integrity violation
+            // (NOT NULL, FK, check) is a genuine failure and must reach the DLQ, not be acked away.
             log.warn("Audit event {} already persisted; skipping duplicate", event.eventId());
             acknowledgment.acknowledge();
             return;

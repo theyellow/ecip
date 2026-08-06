@@ -186,15 +186,59 @@ class AuditEventConsumerTest {
 
         when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
         when(auditService.saveWithChain(any(AuditEventEntity.class)))
-                .thenReturn(
-                        Mono.error(
-                                new org.springframework.dao.DataIntegrityViolationException(
-                                        "dup")));
+                .thenReturn(Mono.error(new org.springframework.dao.DuplicateKeyException("dup")));
 
         assertThatCode(() -> consumer.handleTelegramMessage(record, acknowledgment))
                 .doesNotThrowAnyException();
 
         verify(acknowledgment).acknowledge();
+    }
+
+    /**
+     * The duplicate catch is narrowed to DuplicateKeyException (P2.8-F3), so a
+     * non-unique-constraint integrity violation — NOT NULL, FK, check — must propagate to the error
+     * handler and reach the DLQ rather than being acked away as "already audited".
+     */
+    @Test
+    void handleTelegramMessage_nonDuplicateIntegrityViolation_propagatesAndDoesNotAck()
+            throws Exception {
+        TelegramMessageEvent event =
+                new TelegramMessageEvent(
+                        "evt-integrity",
+                        "2026-04-21T10:00:00Z",
+                        null,
+                        null,
+                        12345L,
+                        67890L,
+                        "user-1",
+                        "USER",
+                        "hello world",
+                        0,
+                        null,
+                        false,
+                        null,
+                        null,
+                        Map.of(),
+                        "",
+                        null,
+                        null,
+                        null);
+        String json = objectMapper.writeValueAsString(event);
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("telegram.raw.messages", 0, 0L, "key", json);
+        addTenantHeader(record);
+
+        when(auditService.serializeDetails(any())).thenReturn(Json.of("{\"detail\":\"value\"}"));
+        when(auditService.saveWithChain(any(AuditEventEntity.class)))
+                .thenReturn(
+                        Mono.error(
+                                new org.springframework.dao.DataIntegrityViolationException(
+                                        "null value in column \"event_type\"")));
+
+        assertThatThrownBy(() -> consumer.handleTelegramMessage(record, acknowledgment))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+
+        verify(acknowledgment, never()).acknowledge();
     }
 
     // --- handleIntentClassified ---

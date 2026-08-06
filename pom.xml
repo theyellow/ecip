@@ -385,6 +385,18 @@
     </pluginManagement>
 
     <plugins>
+      <!--
+        Failsafe is NOT a default-lifecycle plugin, so declaring it only in pluginManagement
+        above left every *IT / *IntegrationTest class unrun (P3 3.1 / INF-CI-IT). Surefire
+        excludes both patterns, so nothing else picked them up either. Activating it here
+        makes `mvn verify` run integration tests in this module and, by plugin inheritance,
+        in every child module. Version, includes and executions come from pluginManagement.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+
       <!-- AsciiDoc PDF Documentation -->
       <plugin>
         <groupId>org.asciidoctor</groupId>
