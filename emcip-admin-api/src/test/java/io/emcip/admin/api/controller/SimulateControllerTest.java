@@ -89,7 +89,11 @@ class SimulateControllerTest {
         controller = new SimulateController(simulationService, rateLimiterRegistry);
         webTestClient =
                 WebTestClient.bindToController(controller)
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .build();
         when(simulationService.simulate(any())).thenReturn(Mono.just(FULL_TRACE));
     }

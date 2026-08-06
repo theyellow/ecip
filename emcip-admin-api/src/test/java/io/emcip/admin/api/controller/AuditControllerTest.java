@@ -25,7 +25,11 @@ class AuditControllerTest {
     void setUp() {
         webTestClient =
                 WebTestClient.bindToController(new AuditController(auditServiceClient))
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .build();
     }
 

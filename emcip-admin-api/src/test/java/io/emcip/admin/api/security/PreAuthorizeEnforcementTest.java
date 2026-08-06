@@ -1,6 +1,9 @@
 package io.emcip.admin.api.security;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.audit.AdminAuditPublisher;
@@ -210,5 +213,54 @@ class PreAuthorizeEnforcementTest {
     @Test
     void writeEndpoint_asAnalyst_isForbidden() {
         deleteGroup("ANALYST").expectStatus().isForbidden();
+    }
+
+    // --- ACCESS_DENIED auditing (AUDIT-DENY) ---
+
+    /**
+     * A method-level denial must reach the admin audit trail. Before AUDIT-DENY this advice-handled
+     * path published nothing: {@code SecurityConfig}'s {@code accessDeniedHandler} is what
+     * publishes the event, and it never runs for {@code @PreAuthorize} denials, so the overwhelming
+     * majority of denials went unaudited.
+     */
+    @Test
+    void methodLevelDenial_publishesAccessDeniedAuditEvent() {
+        deleteGroup("VIEWER").expectStatus().isForbidden();
+
+        verify(auditPublisher)
+                .publish(
+                        eq("ACCESS_DENIED"),
+                        eq("Endpoint"),
+                        eq("/api/groups/" + CHAT_ID),
+                        eq("test-user"),
+                        any(),
+                        any(),
+                        eq("DENIED"));
+    }
+
+    /**
+     * The path-rule branch still audits through {@code SecurityConfig}'s handler, and the two paths
+     * stay mutually exclusive — a path-rule denial never reaches a controller, so it is published
+     * once, not twice.
+     */
+    @Test
+    void pathRuleDenial_publishesAccessDeniedAuditEventExactlyOnce() {
+        webTestClient
+                .get()
+                .uri("/api/internal/anything")
+                .header(HttpHeaders.AUTHORIZATION, bearer("VIEWER"))
+                .exchange()
+                .expectStatus()
+                .isForbidden();
+
+        verify(auditPublisher)
+                .publish(
+                        eq("ACCESS_DENIED"),
+                        eq("Endpoint"),
+                        eq("/api/internal/anything"),
+                        anyString(),
+                        any(),
+                        any(),
+                        eq("DENIED"));
     }
 }

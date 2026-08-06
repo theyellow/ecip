@@ -12,7 +12,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 class GlobalExceptionHandlerTest {
 
-    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    private final GlobalExceptionHandler handler =
+            new GlobalExceptionHandler(
+                    org.mockito.Mockito.mock(io.emcip.admin.api.audit.AdminAuditPublisher.class));
 
     @Test
     void handleResponseStatus_returnsCorrectStatusAndDetail() {
@@ -85,7 +87,11 @@ class GlobalExceptionHandlerTest {
         org.springframework.test.web.reactive.server.WebTestClient client =
                 org.springframework.test.web.reactive.server.WebTestClient.bindToController(
                                 new TestController())
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .build();
 
         client.post()

@@ -35,7 +35,11 @@ class ResearchProxyControllerTest {
                         knowledgeWebClient, CircuitBreakerRegistry.ofDefaults());
         webTestClient =
                 WebTestClient.bindToController(controller)
-                        .controllerAdvice(new GlobalExceptionHandler())
+                        .controllerAdvice(
+                                new GlobalExceptionHandler(
+                                        org.mockito.Mockito.mock(
+                                                io.emcip.admin.api.audit.AdminAuditPublisher
+                                                        .class)))
                         .build();
     }
 
