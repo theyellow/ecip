@@ -30,5 +30,13 @@ for m in emcip-audit-service emcip-conversation-context emcip-knowledge-engine \
   fi
 done
 
+# Excluded classes must NOT appear in any coverage report.
+if grep -hE ',(dto|entity)$' */target/site/jacoco/jacoco.csv 2>/dev/null | grep -q .; then
+  echo "EXCLUDE FAILED: dto/entity packages still counted"; fail=1
+fi
+if grep -hE ',[A-Za-z]+Application,' */target/site/jacoco/jacoco.csv 2>/dev/null | grep -q .; then
+  echo "EXCLUDE FAILED: *Application classes still counted"; fail=1
+fi
+
 [ "$fail" -eq 0 ] && echo "coverage wiring OK"
 exit "$fail"

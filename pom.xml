@@ -335,6 +335,14 @@
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
           <version>${jacoco.version}</version>
+          <configuration>
+            <excludes>
+              <exclude>**/dto/**</exclude>
+              <exclude>**/entity/**</exclude>
+              <exclude>**/*Application.class</exclude>
+              <exclude>**/config/*Properties.class</exclude>
+            </excludes>
+          </configuration>
           <executions>
             <execution>
               <id>prepare-agent</id>
