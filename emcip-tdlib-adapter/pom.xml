@@ -15,6 +15,10 @@
 
   <properties>
     <service.port>9080</service.port>
+    <!-- Coverage ratchet floor: measured 44.7% - 2. May be raised freely;
+         lowering requires a written reason in the commit body.
+         See docs/development/coverage.md -->
+    <jacoco.minimum-coverage>0.42</jacoco.minimum-coverage>
   </properties>
 
   <dependencies>

@@ -13,6 +13,13 @@
   <name>EMCIP Core - Shared Library</name>
   <description>Shared components, events, and utilities for EMCIP services</description>
 
+  <properties>
+    <!-- Coverage ratchet floor: measured 80.8% - 2. May be raised freely;
+         lowering requires a written reason in the commit body.
+         See docs/development/coverage.md -->
+    <jacoco.minimum-coverage>0.78</jacoco.minimum-coverage>
+  </properties>
+
   <dependencies>
     <!-- Spring Boot Starters (non-web, shared functionality) -->
     <dependency>
