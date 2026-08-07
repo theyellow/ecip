@@ -77,7 +77,17 @@
     <pmd.version>3.23.0</pmd.version>
 
     <!-- Code Quality Thresholds -->
-    <jacoco.minimum-coverage>0.80</jacoco.minimum-coverage>
+    <!-- Per-module floors live in each module pom. Root default is 0.00 so a newly
+         added module inherits a floor it cannot fail; setting its real floor is an
+         explicit step in that module's own PR. See docs/development/coverage.md. -->
+    <jacoco.minimum-coverage>0.00</jacoco.minimum-coverage>
+
+    <!-- JaCoCo agent argLines. Declared empty so a -DskipTests build does not fail
+         on an unresolved placeholder. Surefire and failsafe BOTH read the plain
+         `argLine` property by default, so each agent must use its own property or
+         the second prepare-agent silently overwrites the first. -->
+    <surefireArgLine />
+    <failsafeArgLine />
     <jjwt.version>0.12.5</jjwt.version>
     <mockwebserver.version>4.12.0</mockwebserver.version>
     <postgresql-test.version>1.19.7</postgresql-test.version>
@@ -287,6 +297,7 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${maven-surefire.version}</version>
           <configuration>
+            <argLine>@{surefireArgLine}</argLine>
             <includes>
               <include>**/*Test.java</include>
             </includes>
@@ -303,6 +314,7 @@
           <artifactId>maven-failsafe-plugin</artifactId>
           <version>${maven-failsafe.version}</version>
           <configuration>
+            <argLine>@{failsafeArgLine}</argLine>
             <includes>
               <include>**/*IT.java</include>
               <include>**/*IntegrationTest.java</include>
@@ -329,6 +341,39 @@
               <goals>
                 <goal>prepare-agent</goal>
               </goals>
+              <configuration>
+                <destFile>${project.build.directory}/jacoco.exec</destFile>
+                <propertyName>surefireArgLine</propertyName>
+              </configuration>
+            </execution>
+            <execution>
+              <id>prepare-agent-integration</id>
+              <goals>
+                <goal>prepare-agent-integration</goal>
+              </goals>
+              <configuration>
+                <destFile>${project.build.directory}/jacoco-it.exec</destFile>
+                <propertyName>failsafeArgLine</propertyName>
+              </configuration>
+            </execution>
+            <execution>
+              <id>merge-exec</id>
+              <goals>
+                <goal>merge</goal>
+              </goals>
+              <phase>post-integration-test</phase>
+              <configuration>
+                <fileSets>
+                  <fileSet>
+                    <directory>${project.build.directory}</directory>
+                    <includes>
+                      <include>jacoco.exec</include>
+                      <include>jacoco-it.exec</include>
+                    </includes>
+                  </fileSet>
+                </fileSets>
+                <destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+              </configuration>
             </execution>
             <execution>
               <id>report</id>
@@ -336,6 +381,9 @@
                 <goal>report</goal>
               </goals>
               <phase>verify</phase>
+              <configuration>
+                <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+              </configuration>
             </execution>
             <execution>
               <id>check-coverage</id>
@@ -344,6 +392,7 @@
               </goals>
               <phase>verify</phase>
               <configuration>
+                <dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
                 <rules>
                   <rule>
                     <element>BUNDLE</element>
@@ -395,6 +444,17 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
+      </plugin>
+
+      <!--
+        JaCoCo was declared only in pluginManagement, and it is not a default-lifecycle
+        plugin, so only emcip-core (which activated it directly) ever had coverage
+        measured. Activating it here makes every module inherit it. Version, executions
+        and destination files come from pluginManagement.
+      -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
       </plugin>
 
       <!-- AsciiDoc PDF Documentation -->
