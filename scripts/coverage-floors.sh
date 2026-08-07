@@ -14,6 +14,8 @@ for f in */target/site/jacoco/jacoco.csv; do
         floor = int(pct) - 2;
         if (floor < 0) floor = 0;
         printf "%-30s %7.1f%% %7s\n", m, pct, sprintf("0.%02d", floor);
+      } else {
+        printf "%-30s %8s %7s\n", m, "NO DATA", "-";
       }
     }' "$f"
 done
