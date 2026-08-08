@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dorny/paths-filter@v4
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
           predicate-quantifier: 'every'
@@ -42,8 +42,19 @@ jobs:
               - '!**/*.md'
               - '!.github/workflows/build-images.yml'
 
+      # A `changes` job that *succeeds* with an empty or malformed output (e.g. the
+      # filter key gets renamed without updating `outputs:` above) is indistinguishable
+      # from a legitimate 'false' to `build`/`code-quality`'s `if:` — both skip, and
+      # ci-gate reports SUCCESS. That would silently disable the whole build gate while
+      # looking identical to the docs-only fast path. Same defect class as P3.4's
+      # `${surefireArgLine}`. Hard-fail on anything but a real boolean so it can't happen.
       - name: Report decision
-        run: echo "code=${{ steps.filter.outputs.code }}"
+        run: |
+          echo "code=${{ steps.filter.outputs.code }}"
+          case "${{ steps.filter.outputs.code }}" in
+            true|false) ;;
+            *) echo "::error::paths-filter produced an unusable value — refusing to let the gate pass silently"; exit 1 ;;
+          esac
 
   build:
     needs: changes
@@ -135,6 +146,10 @@ jobs:
   ci-gate:
     name: ci-gate
     if: always()
+    # This `needs` list IS the gate's definition. Any job added to this workflow but
+    # not listed here gates nothing — it can fail or hang and ci-gate reports green
+    # regardless. Keep this in sync whenever a job is added (e.g. the planned Gatling
+    # job, ROADMAP 3.5).
     needs: [changes, build, code-quality]
     runs-on: ubuntu-latest
     steps:
