@@ -27,12 +27,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import tools.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class EntityEnrichmentConsumerTest {
 
     @Mock private EnrichmentSourceRepository sourceRepo;
@@ -96,30 +93,48 @@ class EntityEnrichmentConsumerTest {
     @Test
     void consume_createsRunPerEnabledSourceAndDispatchesPipeline() {
         UUID tenantId = UUID.randomUUID();
-        EnrichmentSource source = new EnrichmentSource();
-        source.setId(UUID.randomUUID());
-        when(sourceRepo.findAllByEnabledTrueAndTenantId(tenantId)).thenReturn(List.of(source));
+        EnrichmentSource sourceOne = new EnrichmentSource();
+        sourceOne.setId(UUID.randomUUID());
+        EnrichmentSource sourceTwo = new EnrichmentSource();
+        sourceTwo.setId(UUID.randomUUID());
+        when(sourceRepo.findAllByEnabledTrueAndTenantId(tenantId))
+                .thenReturn(List.of(sourceOne, sourceTwo));
 
-        EnrichmentRun saved = new EnrichmentRun();
-        saved.setId(UUID.randomUUID());
-        when(runRepo.save(any(EnrichmentRun.class))).thenReturn(saved);
+        EnrichmentRun savedOne = new EnrichmentRun();
+        savedOne.setId(UUID.randomUUID());
+        EnrichmentRun savedTwo = new EnrichmentRun();
+        savedTwo.setId(UUID.randomUUID());
+        when(runRepo.save(any(EnrichmentRun.class))).thenReturn(savedOne, savedTwo);
 
         consumer.consume(record(entityCreatedJson("Acme"), tenantId));
 
         ArgumentCaptor<EnrichmentRun> runCaptor = ArgumentCaptor.forClass(EnrichmentRun.class);
-        verify(runRepo).save(runCaptor.capture());
-        org.assertj.core.api.Assertions.assertThat(runCaptor.getValue().getTriggerType())
-                .isEqualTo(TriggerType.TOPIC_DRIVEN);
-        org.assertj.core.api.Assertions.assertThat(runCaptor.getValue().getStatus())
-                .isEqualTo(RunStatus.RUNNING);
+        verify(runRepo, org.mockito.Mockito.times(2)).save(runCaptor.capture());
+        for (EnrichmentRun run : runCaptor.getAllValues()) {
+            org.assertj.core.api.Assertions.assertThat(run.getTriggerType())
+                    .isEqualTo(TriggerType.TOPIC_DRIVEN);
+            org.assertj.core.api.Assertions.assertThat(run.getStatus())
+                    .isEqualTo(RunStatus.RUNNING);
+        }
 
         await().atMost(Duration.ofSeconds(5))
                 .untilAsserted(
                         () ->
                                 verify(pipelineService)
                                         .execute(
-                                                eq(source),
-                                                eq(saved),
+                                                eq(sourceOne),
+                                                eq(savedOne),
+                                                eq(TriggerMode.TOPIC_DRIVEN),
+                                                eq("Acme"),
+                                                eq(null),
+                                                eq(tenantId)));
+        await().atMost(Duration.ofSeconds(5))
+                .untilAsserted(
+                        () ->
+                                verify(pipelineService)
+                                        .execute(
+                                                eq(sourceTwo),
+                                                eq(savedTwo),
                                                 eq(TriggerMode.TOPIC_DRIVEN),
                                                 eq("Acme"),
                                                 eq(null),
