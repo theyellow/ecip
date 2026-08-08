@@ -71,11 +71,20 @@ state and will almost certainly 422 on this user-owned personal repo. Also send 
 GitHub preserves or clears the omitted `rules`/`bypass_actors` on a partial write is
 undocumented, and if cleared, a bare `-f` write would silently strip *all* protection
 from `main` — deletion, force-push, PR-only — not just the status-check requirement,
-and the restore step would not bring it back. **This procedure has not yet been
-exercised.** A runbook step that has never been run is exactly the "checks that
-cannot fail" failure this project has now recorded three times (INF-CI-COV,
-`ci-gate`'s own path-filter design, and this one) — it must be dry-run before it is
-trusted.
+and the restore step would not bring it back.
+
+**Verified 2026-08-08** against ruleset `15118295`: the full-payload
+`enforcement=disabled` write was **ACCEPTED** on this user-owned repo (confirming the
+suspicion that drove this rewrite — the old bare `-f enforcement=evaluate` form is
+Enterprise-only and would have 422'd here). Read-back during the disabled window
+showed all four rules (`deletion`, `non_fast_forward`, `pull_request`,
+`required_status_checks`) and the single bypass actor still present — a full-payload
+write does not strip rules, which was the specific risk with the previous bare `-f`
+form. The restore write (`--input .github/rulesets/main.json`) returned the ruleset
+byte-identical (via `diff` on `jq -S` output) to both the pre-exercise snapshot and
+the checked-in payload. `main` was unprotected for roughly 20 seconds. This sequence
+has been run for real and the rules survive the disabled window — it can be followed
+under pressure without improvising.
 
 ---
 
