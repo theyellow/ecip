@@ -12,6 +12,7 @@ import java.util.Optional;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
+import org.springframework.util.StringUtils;
 
 /**
  * Decides which rate-limit bucket a request belongs to.
@@ -77,27 +78,79 @@ public class RateLimitGroups {
     }
 
     /**
-     * @return the group this request belongs to, or empty if the path is exempt. First match wins;
-     *     the {@code /api/**} catch-all is deliberate, so an endpoint added later is limited by
-     *     default rather than silently unlimited.
+     * @return the group this request belongs to, or empty if the path is exempt. First match wins.
+     *     <p>The raw request target is attacker-controlled, so matching happens against a
+     *     canonicalized path (dot-segments collapsed, matrix parameters stripped, trailing slash
+     *     removed) rather than the raw string - otherwise {@code AntPathMatcher} treats a pattern
+     *     like {@code /api/internal/**} as a literal token match and lets {@code
+     *     /api/internal/../flags/1/analyse} through as "internal" traffic even though it denotes an
+     *     LLM-trigger endpoint.
+     *     <p>The default is fail-closed: only a path that explicitly matches an exempt pattern is
+     *     exempt. Everything else - including paths nobody has written a rule for yet, and paths
+     *     that only differ from a known route by case - falls through to {@code ADMIN_CRUD}. This
+     *     is the same principle as the {@code /api/**} catch-all applied consistently: an endpoint
+     *     added later, or a request shaped in a way nobody anticipated, is limited by default
+     *     rather than silently unlimited or silently exempt.
+     *     <p>A canonical path that collapses into looking like an exempt path (e.g. {@code
+     *     /api/../actuator/health} canonicalizing to {@code /actuator/health}) is still never
+     *     treated as exempt if the raw path carried a dot-segment: this filter's normalization is
+     *     not guaranteed to agree with whatever normalization the downstream router applies, and
+     *     the exempt branch is the dangerous direction to be wrong about. The same ambiguity in the
+     *     non-exempt branches only costs a bucket assignment, never a bypass, so it is not guarded.
      */
     public Optional<Group> resolve(HttpMethod method, String path) {
-        if (matches(path, "/actuator/**") || matches(path, "/api/internal/**")) {
+        String canonical = canonicalize(path);
+        boolean traversalAttempted = path.contains("..");
+
+        if (!traversalAttempted && isExempt(canonical)) {
             return Optional.empty();
         }
-        if (matches(path, "/api/auth/**") || matches(path, "/auth/**")) {
+        if (matches(canonical, "/api/auth/**") || matches(canonical, "/auth/**")) {
             return Optional.of(Group.AUTH);
         }
         if (HttpMethod.POST.equals(method)
-                && (matches(path, "/api/flags/*/analyse")
-                        || matches(path, "/api/flags/*/chat")
-                        || matches(path, "/api/simulate/message"))) {
+                && (matches(canonical, "/api/flags/*/analyse")
+                        || matches(canonical, "/api/flags/*/chat")
+                        || matches(canonical, "/api/simulate/message"))) {
             return Optional.of(Group.LLM_TRIGGER);
         }
-        if (matches(path, "/api/**")) {
-            return Optional.of(Group.ADMIN_CRUD);
+        return Optional.of(Group.ADMIN_CRUD);
+    }
+
+    /**
+     * Exempt matching deliberately uses plain prefix checks rather than {@code AntPathMatcher}.
+     * This is the dangerous branch - the one that turns off rate limiting entirely - so it should
+     * not depend on wildcard-matching semantics at all, only on "does this canonical path literally
+     * live under this literal directory."
+     */
+    private static boolean isExempt(String canonical) {
+        return canonical.equals("/actuator")
+                || canonical.startsWith("/actuator/")
+                || canonical.equals("/api/internal")
+                || canonical.startsWith("/api/internal/");
+    }
+
+    /**
+     * Collapses dot-segments, repeated slashes, and matrix parameters ({@code ;key=value} suffixes
+     * on a path segment), then strips a trailing slash (except for a bare {@code /}). The result is
+     * deliberately the only value ever matched against - the raw request path is never matched
+     * directly.
+     */
+    private static String canonicalize(String rawPath) {
+        String cleaned = StringUtils.cleanPath(rawPath).replaceAll("/{2,}", "/");
+        String[] segments = cleaned.split("/", -1);
+        StringBuilder sb = new StringBuilder();
+        for (String segment : segments) {
+            int matrixParamIndex = segment.indexOf(';');
+            sb.append(matrixParamIndex >= 0 ? segment.substring(0, matrixParamIndex) : segment);
+            sb.append('/');
         }
-        return Optional.empty();
+        sb.setLength(Math.max(sb.length() - 1, 0));
+        String result = sb.toString();
+        if (result.length() > 1 && result.endsWith("/")) {
+            result = result.substring(0, result.length() - 1);
+        }
+        return result.isEmpty() ? "/" : result;
     }
 
     public RateLimiter limiterFor(Group group, String key) {
