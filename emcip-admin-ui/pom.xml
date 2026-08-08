@@ -17,6 +17,10 @@
       free of a node/vitest run.
     -->
     <skipTests>false</skipTests>
+    <!-- Coverage ratchet floor: measured 76.5% - 2. May be raised freely;
+         lowering requires a written reason in the commit body.
+         See docs/development/coverage.md -->
+    <jacoco.minimum-coverage>0.74</jacoco.minimum-coverage>
   </properties>
 
   <dependencies>

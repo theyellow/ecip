@@ -13,6 +13,7 @@
   <properties>
     <gatling.version>3.11.5</gatling.version>
     <gatling-maven-plugin.version>4.9.6</gatling-maven-plugin.version>
+    <jacoco.skip>true</jacoco.skip>
   </properties>
 
   <dependencies>

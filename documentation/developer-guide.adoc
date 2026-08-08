@@ -238,6 +238,13 @@ If files were changed: `git add -A && git commit --amend --no-edit`.
 
 CI enforces `mvn spotless:check` in the `verify` phase. A failing Spotless check blocks the build.
 
+=== Coverage gate
+
+`mvn verify` enforces a per-module JaCoCo line-coverage floor across all 11 Java modules, measured
+on merged unit + integration test execution data. Floors ratchet up (`measured − 2`) as coverage
+improves and may never be lowered without a written reason. See `docs/development/coverage.md` for
+the current floors, the rules, and how to re-measure.
+
 == Kafka Topics Reference
 
 [cols="2,2,2,2"]
