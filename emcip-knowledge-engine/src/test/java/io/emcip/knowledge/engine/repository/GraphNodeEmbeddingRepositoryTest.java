@@ -155,4 +155,54 @@ class GraphNodeEmbeddingRepositoryTest {
         verify(jdbcTemplate).query(anyString(), any(RowMapper.class), args.capture());
         assertThat(args.getValue()).doesNotContain((Object) tenantId);
     }
+
+    @Test
+    void findSimilarNodes_bindsTenantIdAndReturnsMappedResults() {
+        NodeSimilarityResult mapped = new NodeSimilarityResult(UUID.randomUUID(), "Acme", 0.9);
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of(mapped));
+
+        List<NodeSimilarityResult> result =
+                repository.findSimilarNodes(new float[] {0.1f, 0.2f}, tenantId, 5);
+
+        assertThat(result).containsExactly(mapped);
+
+        ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), args.capture());
+        assertThat(args.getValue()).contains(tenantId);
+    }
+
+    @Test
+    void findSimilarNodes_returnsEmptyWhenNoRowsFound() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+
+        List<NodeSimilarityResult> result =
+                repository.findSimilarNodes(new float[] {0.1f}, tenantId, 5);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findSimilarNodes_returnsEmptyWhenQueryThrows() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenThrow(new RuntimeException("db error"));
+
+        List<NodeSimilarityResult> result =
+                repository.findSimilarNodes(new float[] {0.1f}, tenantId, 5);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void findSimilarNodes_nullTenant_omitsTenantIdFromBoundArgs() {
+        when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
+                .thenReturn(List.of());
+
+        repository.findSimilarNodes(new float[] {0.1f}, null, 5);
+
+        ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), args.capture());
+        assertThat(args.getValue()).doesNotContain((Object) tenantId);
+    }
 }
