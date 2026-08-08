@@ -10,10 +10,10 @@ fails if a module drops below its floor.
 | emcip-admin-api | 55.4% | 0.53 |
 | emcip-admin-ui | 76.5% | 0.74 |
 | emcip-audit-service | 73.5% | 0.71 |
-| emcip-conversation-context | 22.1% | 0.20 |
+| emcip-conversation-context | 74.8% | 0.72 |
 | emcip-core | 80.8% | 0.78 |
 | emcip-intent-classifier | 71.5% | 0.69 |
-| emcip-knowledge-engine | 71.3% | 0.69 |
+| emcip-knowledge-engine | 75.0% | 0.73 |
 | emcip-llm-orchestrator | 54.6% | 0.52 |
 | emcip-moderation-service | 85.4% | 0.83 |
 | emcip-policy-engine | 72.4% | 0.70 |
