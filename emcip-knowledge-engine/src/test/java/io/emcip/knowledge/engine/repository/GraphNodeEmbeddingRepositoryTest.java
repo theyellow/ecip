@@ -87,8 +87,10 @@ class GraphNodeEmbeddingRepositoryTest {
 
         repository.storeEmbedding("Acme", "ORGANIZATION", null, embedding);
 
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).update(anyString(), args.capture());
+        verify(jdbcTemplate).update(sql.capture(), args.capture());
+        assertThat(sql.getValue()).contains("tenant_id IS NULL");
         assertThat(args.getValue()).doesNotContain((Object) tenantId);
     }
 
@@ -151,8 +153,10 @@ class GraphNodeEmbeddingRepositoryTest {
 
         repository.findNearestNeighbour(new float[] {0.1f}, "ORGANIZATION", null);
 
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), args.capture());
+        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), args.capture());
+        assertThat(sql.getValue()).contains("tenant_id IS NULL");
         assertThat(args.getValue()).doesNotContain((Object) tenantId);
     }
 
@@ -201,8 +205,10 @@ class GraphNodeEmbeddingRepositoryTest {
 
         repository.findSimilarNodes(new float[] {0.1f}, null, 5);
 
+        ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
-        verify(jdbcTemplate).query(anyString(), any(RowMapper.class), args.capture());
-        assertThat(args.getValue()).doesNotContain((Object) tenantId);
+        verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), args.capture());
+        assertThat(sql.getValue()).doesNotContain("tenant_id");
+        assertThat(args.getValue()).doesNotContain((Object) tenantId).hasSize(3);
     }
 }

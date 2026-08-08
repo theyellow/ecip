@@ -50,6 +50,9 @@ jobs:
     - name: Run tests (unit + integration + frontend)
       run: mvn -B verify --file pom.xml
 
+    - name: Verify coverage wiring
+      run: ./scripts/check-coverage-wiring.sh
+
     - name: Upload coverage to GitHub Actions
       uses: actions/upload-artifact@v4
       with:

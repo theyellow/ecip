@@ -68,14 +68,18 @@ class TelegramMessageConsumerTest {
     void consume_rejectsRecordWithoutTenantHeader() {
         consumer.consume(record(validTelegramMessageJson(), null));
 
-        verifyNoInteractions(contextService);
+        await().during(Duration.ofMillis(300))
+                .atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> verifyNoInteractions(contextService));
     }
 
     @Test
     void consume_ignoresMalformedJsonWithoutThrowing() {
         consumer.consume(record("{not json", UUID.randomUUID()));
 
-        verifyNoInteractions(contextService);
+        await().during(Duration.ofMillis(300))
+                .atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> verifyNoInteractions(contextService));
     }
 
     @Test
@@ -95,7 +99,9 @@ class TelegramMessageConsumerTest {
 
         consumer.consume(record(wrongShapeJson, UUID.randomUUID()));
 
-        verifyNoInteractions(contextService);
+        await().during(Duration.ofMillis(300))
+                .atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> verifyNoInteractions(contextService));
     }
 
     @Test

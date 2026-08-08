@@ -62,14 +62,18 @@ class IntentClassificationConsumerTest {
     void consume_rejectsRecordWithoutTenantHeader() {
         consumer.consume(record(validIntentClassifiedJson(), null));
 
-        verifyNoInteractions(contextService);
+        await().during(Duration.ofMillis(300))
+                .atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> verifyNoInteractions(contextService));
     }
 
     @Test
     void consume_ignoresMalformedJsonWithoutThrowing() {
         consumer.consume(record("{not json", UUID.randomUUID()));
 
-        verifyNoInteractions(contextService);
+        await().during(Duration.ofMillis(300))
+                .atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> verifyNoInteractions(contextService));
     }
 
     @Test
@@ -91,7 +95,9 @@ class IntentClassificationConsumerTest {
 
         consumer.consume(record(wrongShapeJson, UUID.randomUUID()));
 
-        verifyNoInteractions(contextService);
+        await().during(Duration.ofMillis(300))
+                .atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> verifyNoInteractions(contextService));
     }
 
     @Test
