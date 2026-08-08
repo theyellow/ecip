@@ -358,3 +358,4 @@ events) to `audit_events`, which never happened before (publish≠persist). Tena
 `ACCESS_DENIED` outcome fixed `SUCCESS`→`DENIED`; `FlagService` routed through the publisher. Follow-ups
 P2.8-F1 (XFF trust) and P2.8-F2 (flag actor/tenant) logged in `docs/superpowers/BACKLOG.md` §0b. Spec:
 `docs/superpowers/specs/2026-08-03-p2.8-failed-login-audit-design.md`. **P2 is now complete.**
+
