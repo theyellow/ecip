@@ -9,17 +9,45 @@ on:
       - 'helm/**'
       - '*.md'
       - '.github/workflows/build-images.yml'
+  # No paths-ignore here — deliberately. A workflow that a path filter prevents from
+  # triggering reports NO status at all, and a required check that never reports leaves
+  # the PR permanently at "Expected — waiting for status to be reported". The same
+  # exclusions are applied inside the workflow by the `changes` job instead, where a
+  # skipped job still reports a conclusion. See P3.5a.
   pull_request:
     branches: [ main ]
-    paths-ignore:
-      - 'docs/**'
-      - 'documentation/**'
-      - 'helm/**'
-      - '*.md'
-      - '.github/workflows/build-images.yml'
 
 jobs:
+  # Decides whether this PR touches anything that needs a build. Expressed as
+  # negations with predicate-quantifier 'every' (a file counts only if it matches
+  # ALL patterns), so the filter is fail-closed: any path not named below — including
+  # one nobody anticipated — is treated as code and runs the full build. An allowlist
+  # of code paths would fail open, which is the defect class recorded in P3.4.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          predicate-quantifier: 'every'
+          filters: |
+            code:
+              - '!docs/**'
+              - '!documentation/**'
+              - '!helm/**'
+              - '!**/*.md'
+              - '!.github/workflows/build-images.yml'
+
+      - name: Report decision
+        run: echo "code=${{ steps.filter.outputs.code }}"
+
   build:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -67,6 +95,8 @@ jobs:
 
   # Separate job for code quality to run in parallel
   code-quality:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -94,3 +124,29 @@ jobs:
 
     - name: PMD
       run: mvn -B pmd:check --file pom.xml
+
+  # The single required status check for this workflow (P3.5a). It runs on every PR
+  # without exception, so it always reports a conclusion and can never deadlock a PR.
+  #   skipped   -> passes (the docs-only path; that is the whole point)
+  #   failure   -> fails
+  #   cancelled -> fails
+  # `changes` is in `needs` so that a failure of the filter job itself fails the gate
+  # rather than skipping the build and reporting green.
+  ci-gate:
+    name: ci-gate
+    if: always()
+    needs: [changes, build, code-quality]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check upstream job results
+        run: |
+          echo "results: ${{ join(needs.*.result, ',') }}"
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "::error::An upstream job failed"
+            exit 1
+          fi
+          if [[ "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "::error::An upstream job was cancelled"
+            exit 1
+          fi
+          echo "All upstream jobs succeeded or were skipped"
