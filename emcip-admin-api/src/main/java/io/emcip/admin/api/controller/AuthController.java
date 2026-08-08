@@ -35,12 +35,13 @@ public class AuthController {
     private final AdminUserRepository userRepository;
     private final JwtRevocationService revocationService;
     private final RateLimiterRegistry rateLimiterRegistry;
+    private final ClientIp clientIp;
 
     @Operation(summary = "Obtain a JWT token")
     @PostMapping({"/api/auth/token", "/auth/token"})
     public Mono<ResponseEntity<TokenResponse>> token(
             @Valid @RequestBody AuthRequest request, ServerWebExchange exchange) {
-        ClientIp.Resolved client = ClientIp.resolve(exchange.getRequest());
+        ClientIp.Resolved client = clientIp.resolve(exchange.getRequest());
         return authService
                 .authenticate(request.username(), request.password(), client.ip(), client.source())
                 .map(ResponseEntity::ok)

@@ -39,6 +39,14 @@ management:
     health:
       show-details: never
 
+emcip:
+  security:
+    # Position from the RIGHT of X-Forwarded-For that holds the real client IP.
+    # Chain is: client -> nginx ingress -> admin-ui BFF -> admin-api, and the BFF appends its own
+    # hop, so hop 2 is the client under either nginx use-forwarded-headers mode. Verified against a
+    # live request in P3.6 - do not change without re-running that verification.
+    trusted-proxy-hops: 2
+
 admin:
   jwt:
     secret: ${ADMIN_JWT_SECRET:changeme-in-production-32chars-secret}

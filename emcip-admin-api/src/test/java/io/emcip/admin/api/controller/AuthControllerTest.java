@@ -12,6 +12,7 @@ import io.emcip.admin.api.repository.AdminUserRepository;
 import io.emcip.admin.api.security.JwtRevocationService;
 import io.emcip.admin.api.service.AuthService;
 import io.emcip.admin.api.service.RefreshTokenService;
+import io.emcip.admin.api.util.ClientIp;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
@@ -38,6 +39,7 @@ class AuthControllerTest {
     @Mock private AdminUserRepository userRepository;
     @Mock private JwtRevocationService revocationService;
     @Mock private RateLimiterRegistry rateLimiterRegistry;
+    @Mock private ClientIp clientIp;
 
     private WebTestClient webTestClient;
 
@@ -45,6 +47,8 @@ class AuthControllerTest {
     void setUp() {
         RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
         when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
+        when(clientIp.resolve(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new ClientIp.Resolved("203.0.113.7", "XFF_TRUSTED"));
 
         webTestClient =
                 WebTestClient.bindToController(
@@ -53,7 +57,8 @@ class AuthControllerTest {
                                         refreshTokenService,
                                         userRepository,
                                         revocationService,
-                                        rateLimiterRegistry))
+                                        rateLimiterRegistry,
+                                        clientIp))
                         .controllerAdvice(
                                 new GlobalExceptionHandler(
                                         org.mockito.Mockito.mock(
@@ -68,7 +73,8 @@ class AuthControllerTest {
 
     @Test
     void token_validCredentials_returns200WithToken() {
-        when(authService.authenticate(eq("admin"), eq("secret"), eq("203.0.113.7"), eq("XFF")))
+        when(authService.authenticate(
+                        eq("admin"), eq("secret"), eq("203.0.113.7"), eq("XFF_TRUSTED")))
                 .thenReturn(Mono.just(tokenResponse()));
 
         webTestClient
@@ -89,7 +95,8 @@ class AuthControllerTest {
 
     @Test
     void token_invalidCredentials_returns401() {
-        when(authService.authenticate(eq("admin"), eq("wrong"), eq("203.0.113.7"), eq("XFF")))
+        when(authService.authenticate(
+                        eq("admin"), eq("wrong"), eq("203.0.113.7"), eq("XFF_TRUSTED")))
                 .thenReturn(
                         Mono.error(
                                 new ResponseStatusException(
