@@ -20,7 +20,9 @@ PR without exception and reports one conclusion for the whole Maven workflow.
 Upstream jobs that are *skipped* (docs-only PRs) pass it; *failed* or *cancelled*
 jobs fail it. It exists because a workflow prevented from triggering by a `paths`
 filter reports no status at all, and a required check that never reports blocks the
-PR forever. Never require `build` or `code-quality` directly.
+PR forever. Never require `build` or `code-quality` directly. `ci-gate`'s `needs:`
+list **is** the gate's real definition — a job added to `maven.yml` but not added to
+that list gates nothing, however it fails or hangs.
 
 **Non-strict** means a PR need not be rebased onto current `main` before merging. Two
 PRs green in isolation but broken together are caught by the push-to-`main` run, not
@@ -58,10 +60,22 @@ is what prompted P3.5a. Two options, in order of preference:
 Last resort, if the bypass is unavailable:
 
 ```bash
-gh api --method PUT repos/theyellow/ecip/rulesets/15118295 -f enforcement=evaluate
-# ... merge, then IMMEDIATELY:
-gh api --method PUT repos/theyellow/ecip/rulesets/15118295 -f enforcement=active
+jq '.enforcement="disabled"' .github/rulesets/main.json | gh api --method PUT repos/theyellow/ecip/rulesets/15118295 --input -
+# ... merge, then restore the unmodified payload:
+gh api --method PUT repos/theyellow/ecip/rulesets/15118295 --input .github/rulesets/main.json
 ```
+
+Use `disabled`, not `evaluate` — `evaluate` is a GitHub Enterprise-only enforcement
+state and will almost certainly 422 on this user-owned personal repo. Also send the
+**full payload** with `enforcement` changed, not a bare `-f enforcement=...`: whether
+GitHub preserves or clears the omitted `rules`/`bypass_actors` on a partial write is
+undocumented, and if cleared, a bare `-f` write would silently strip *all* protection
+from `main` — deletion, force-push, PR-only — not just the status-check requirement,
+and the restore step would not bring it back. **This procedure has not yet been
+exercised.** A runbook step that has never been run is exactly the "checks that
+cannot fail" failure this project has now recorded three times (INF-CI-COV,
+`ci-gate`'s own path-filter design, and this one) — it must be dry-run before it is
+trusted.
 
 ---
 
@@ -71,3 +85,27 @@ A gate that has not been seen to fail is not a gate. After any change to `ci-gat
 `maven.yml`'s triggers, or the ruleset, re-run the P3.5a proofs: a PR with a failing
 test must show `mergeStateStatus: "BLOCKED"`, and a docs-only PR must show
 `"CLEAN"` with `build` skipped.
+
+---
+
+## Residual risks (known, accepted, not fixed here)
+
+- **The gate does not protect its own definition.** For `pull_request` events GitHub
+  runs the workflow from the PR's merge ref, i.e. a PR's edits to `maven.yml` govern
+  the checks that PR itself is judged against. This repo is public with forking
+  enabled and `required_approving_review_count: 0`, so a PR that edits `ci-gate` to
+  `exit 0` (or removes a job from its `needs:`) self-approves its own gate. A
+  CODEOWNERS-based mitigation for `.github/workflows/**` is a separate decision, not
+  yet made.
+- **`pull_request` retarget with no new commits deadlocks.** `maven.yml`'s trigger
+  uses the default `types` (`opened`, `synchronize`, `reopened`), which excludes
+  `edited`. A PR opened against another branch and later retargeted to `main` without
+  a new commit fires no workflow run, so `ci-gate` never reports and the PR sits at
+  "Expected — waiting for status to be reported" permanently. Recoverable with an
+  empty commit or the admin bypass; the trigger `types` are deliberately left
+  unchanged.
+- **The in-workflow filter excludes more Markdown than the old trigger filter did.**
+  The `changes` job's `code` filter negates `!**/*.md` (any Markdown, any depth); the
+  `push` trigger's `paths-ignore` above it only negates top-level `*.md`. Currently
+  harmless — no Markdown file is a build or runtime input — but a future `.md` placed
+  under, say, `src/main/resources` would skip CI for a change that ought to run it.
