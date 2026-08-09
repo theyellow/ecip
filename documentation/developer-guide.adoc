@@ -311,6 +311,17 @@ curl http://localhost:<port>/actuator/prometheus
 
 Ports: 9080 (tdlib-adapter) through 9087 (admin-api). See the _Operations Guide_ for the full port table.
 
+=== Error Responses: what may reach a client (admin-api)
+
+Exception messages are internal diagnostics. They name database schema, classes, packages and file paths, and must not be echoed to an HTTP client — a real leak shipped this way (a Telegram reconnect returned the fail-closed crypto error verbatim, disclosing `telegram_accounts.api_hash` and a repo path).
+
+`GlobalExceptionHandler` enforces this. Two rules when adding an endpoint:
+
+. *Never put `ex.getMessage()` into a response body.* Log it — with the stack trace — and return a fixed sentence. This applies to a `Map.of("reason", e.getMessage())` in a controller just as much as to a `ProblemDetail`; the leak that prompted this was the former, and it bypassed the advice entirely.
+. *To show a client a specific sentence, use one of the two supported routes:* bean validation (`@Valid`, which yields per-field errors) or `ResponseStatusException(status, reason)`, whose reason is author-written. A bare `IllegalArgumentException` is *not* one of them — its detail is replaced with "Invalid request", because in practice such exceptions come from library code (`Enum.valueOf` discloses package and class names, `UUID.fromString` echoes header values).
+
+Where a client genuinely needs to branch on the failure, add a stable `code` property to the `ProblemDetail` rather than making it match on wording — as `SECRET_NOT_ENCRYPTED` does. The admin-ui client surfaces `detail` as the error message and `code` alongside it.
+
 === Rate Limiting (admin-api)
 
 Every admin-api endpoint is rate-limited *per caller*, not globally. A caller that exceeds its limit gets:
