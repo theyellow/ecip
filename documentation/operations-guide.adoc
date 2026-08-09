@@ -238,6 +238,27 @@ NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` mus
 `telegram-*` values are required only if the Telegram profile is active.
 LLM provider URL is not a Kubernetes secret — configure it at runtime via Admin UI → AI Config → LLM Provider.
 
+=== Topology-Dependent Configuration
+
+Most configuration is safe to leave at its default. One setting is not, because it encodes the *shape of the proxy chain* rather than a preference, and nothing in the build can detect that it has become wrong:
+
+[cols="1,1,3"]
+|===
+|Property |Default |Meaning
+
+|`emcip.security.trusted-proxy-hops`
+|`2`
+|Which `X-Forwarded-For` entry admin-api trusts as the real client IP, counted *from the right*. Describes the chain `client → nginx ingress → admin-ui BFF → admin-api`.
+|===
+
+This value keys the `auth` rate limiter and the client IP recorded in login audit events. Set it too high and a caller can spoof their way into a fresh rate-limit bucket per request by prepending header entries; set it too low and admin-api keys on a proxy's own address, collapsing every client into one bucket.
+
+WARNING: Changing the ingress, adding a CDN or load balancer in front of it, or altering how the admin-ui BFF forwards headers all invalidate this number — and every unit test still passes with a wrong value. Re-run the verification procedure in `docs/operations/rate-limiting.md` after any such change, and watch the `emcip.ratelimit.untrusted_ip` metric, which rises when the header is shorter than the hop count and resolution falls back to the socket address.
+
+The nginx ingress `use-forwarded-headers` setting interacts with this directly: it determines whether nginx appends to an existing `X-Forwarded-For` or replaces it, which changes how many entries admin-api sees. The BFF appends its own hop in either mode, which is what makes hop 2 the client under both.
+
+See `docs/operations/rate-limiting.md` for the limits themselves, the metrics to alert on, and the re-verification procedure.
+
 [[install]]
 === Install
 

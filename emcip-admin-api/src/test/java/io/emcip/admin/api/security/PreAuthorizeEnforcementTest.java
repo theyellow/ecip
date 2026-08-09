@@ -10,9 +10,10 @@ import io.emcip.admin.api.audit.AdminAuditPublisher;
 import io.emcip.admin.api.controller.GroupProfileController;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.service.GroupProfileService;
-import io.github.resilience4j.ratelimiter.RateLimiter;
-import io.github.resilience4j.ratelimiter.RateLimiterConfig;
+import io.emcip.admin.api.util.ClientIp;
 import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -103,20 +104,50 @@ class PreAuthorizeEnforcementTest {
         ServiceTokenAuthenticationFilter serviceTokenAuthenticationFilter() {
             return new ServiceTokenAuthenticationFilter();
         }
+
+        /**
+         * The chain also wires {@link RateLimitWebFilter}, so it and its collaborators must be real
+         * beans for the same reason the authentication filters are. The limits themselves are
+         * deliberately permissive here ({@code RateLimiterRegistry.ofDefaults()}): this suite is
+         * about authorization, and a request rejected with 429 before reaching method security
+         * would mask exactly what it is meant to prove. Enforcement is proven in {@link
+         * RateLimitWebFilterTest}.
+         */
+        @Bean
+        MeterRegistry meterRegistry() {
+            return new SimpleMeterRegistry();
+        }
+
+        @Bean
+        RateLimiterRegistry rateLimiterRegistry() {
+            return RateLimiterRegistry.ofDefaults();
+        }
+
+        @Bean
+        ClientIp clientIp(MeterRegistry meterRegistry) {
+            return new ClientIp(1, meterRegistry);
+        }
+
+        @Bean
+        RateLimitGroups rateLimitGroups(RateLimiterRegistry registry) {
+            return new RateLimitGroups(registry);
+        }
+
+        @Bean
+        RateLimitWebFilter rateLimitWebFilter(
+                ClientIp clientIp, RateLimitGroups groups, MeterRegistry meterRegistry) {
+            return new RateLimitWebFilter(clientIp, groups, meterRegistry);
+        }
     }
 
     @Autowired private WebTestClient webTestClient;
     @Autowired private JwtService jwtService;
 
     @MockitoBean private GroupProfileService groupProfileService;
-    @MockitoBean private RateLimiterRegistry rateLimiterRegistry;
     @MockitoBean private AdminAuditPublisher auditPublisher;
 
     @BeforeEach
     void setUp() {
-        when(rateLimiterRegistry.rateLimiter(anyString()))
-                .thenReturn(RateLimiter.of("test", RateLimiterConfig.ofDefaults()));
-
         GroupProfile profile = new GroupProfile();
         profile.setId(1L);
         profile.setTelegramChatId(CHAT_ID);

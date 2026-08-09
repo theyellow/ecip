@@ -39,6 +39,18 @@ management:
     health:
       show-details: never
 
+emcip:
+  security:
+    # Position from the RIGHT of X-Forwarded-For that holds the real client IP.
+    # Chain is: client -> nginx ingress -> admin-ui BFF -> admin-api, and the BFF appends its own
+    # hop, so hop 2 is the client under either nginx use-forwarded-headers mode.
+    #
+    # NOT YET VERIFIED against a live request. The value above is derived from the documented
+    # topology, and every unit test passes with a wrong value, so it stays unproven until the
+    # procedure in docs/operations/rate-limiting.md ("Verifying the hop count") has been run
+    # against the real ingress and its result recorded there with a date.
+    trusted-proxy-hops: 2
+
 admin:
   jwt:
     secret: ${ADMIN_JWT_SECRET:changeme-in-production-32chars-secret}

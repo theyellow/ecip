@@ -3,8 +3,6 @@ package io.emcip.admin.api.controller;
 import io.emcip.admin.api.dto.StatusUpdateRequest;
 import io.emcip.admin.api.service.AccountSelectionException;
 import io.emcip.admin.api.service.FlagService;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
-import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -37,7 +35,6 @@ import tools.jackson.databind.node.JsonNodeFactory;
 public class FlagController {
 
     private final FlagService flagService;
-    private final RateLimiterRegistry rateLimiterRegistry;
 
     public record ReplyRequest(
             @NotBlank @Size(max = 4096, message = "text must be 4096 characters or fewer")
@@ -113,9 +110,7 @@ public class FlagController {
                 .map(ResponseEntity::ok)
                 .onErrorReturn(
                         ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                .body(new AnalyseResponse(false, "Analysis unavailable", null)))
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("llm-trigger")));
+                                .body(new AnalyseResponse(false, "Analysis unavailable", null)));
     }
 
     @Operation(summary = "Multi-turn AI research chat about a flag")
@@ -133,8 +128,6 @@ public class FlagController {
                                                 JsonNodeFactory.instance
                                                         .objectNode()
                                                         .put("success", false)
-                                                        .put("content", "Chat unavailable")))
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("llm-trigger")));
+                                                        .put("content", "Chat unavailable")));
     }
 }

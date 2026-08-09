@@ -46,7 +46,8 @@ public class SecurityConfig {
             ServerHttpSecurity http,
             JwtAuthenticationFilter jwtFilter,
             ServiceTokenAuthenticationFilter serviceTokenFilter,
-            AdminTenantContextFilter adminTenantContextFilter) {
+            AdminTenantContextFilter adminTenantContextFilter,
+            RateLimitWebFilter rateLimitFilter) {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .cors(corsSpec -> corsSpec.configurationSource(corsConfigurationSource()))
                 .headers(
@@ -133,6 +134,7 @@ public class SecurityConfig {
                 .addFilterAt(serviceTokenFilter, SecurityWebFiltersOrder.HTTP_BASIC)
                 .addFilterAt(jwtFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .addFilterAfter(adminTenantContextFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+                .addFilterAfter(rateLimitFilter, SecurityWebFiltersOrder.AUTHENTICATION)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .build();

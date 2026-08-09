@@ -311,6 +311,45 @@ curl http://localhost:<port>/actuator/prometheus
 
 Ports: 9080 (tdlib-adapter) through 9087 (admin-api). See the _Operations Guide_ for the full port table.
 
+=== Rate Limiting (admin-api)
+
+Every admin-api endpoint is rate-limited *per caller*, not globally. A caller that exceeds its limit gets:
+
+[source,http]
+----
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+Content-Type: application/problem+json
+
+{"type":"about:blank","title":"Too Many Requests","status":429,"detail":"Rate limit exceeded"}
+----
+
+[cols="1,2,1,1"]
+|===
+|Group |Paths |Key |Limit
+
+|`auth`
+|`/api/auth/**`, `/auth/**`
+|Client IP
+|10 / 60s
+
+|`llm-trigger`
+|`POST /api/flags/*/analyse`, `POST /api/flags/*/chat`, `POST /api/simulate/message`
+|JWT subject
+|20 / 60s
+
+|`admin-crud`
+|everything else under `/api/**`
+|JWT subject
+|100 / 60s
+|===
+
+`/actuator/**` and `/api/internal/**` are exempt.
+
+IMPORTANT: `admin-crud` is a catch-all, so *a new `/api/**` endpoint is rate-limited by default* — you do not add anything to get it, and you cannot opt out per endpoint. If a new endpoint is expensive enough to need the tighter `llm-trigger` budget, add its path to `RateLimitGroups.resolve`. Do not reach for `RateLimiterOperator` in a controller: per-controller limiters were removed in P3.6 because they counted globally, and mixing the two would double-count every request.
+
+Enforcement lives in `RateLimitWebFilter`, not in the controllers, and it writes the 429 itself — `GlobalExceptionHandler` cannot see exceptions thrown from a `WebFilter`. Details and tuning: `docs/operations/rate-limiting.md`.
+
 === Admin API Endpoints Summary
 
 [cols="1,2,2"]

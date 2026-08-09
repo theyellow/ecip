@@ -131,6 +131,12 @@
       <version>2.3.0</version>
     </dependency>
 
+    <!-- Caffeine cache for bounded per-key rate limiters -->
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+
     <!-- Testing -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

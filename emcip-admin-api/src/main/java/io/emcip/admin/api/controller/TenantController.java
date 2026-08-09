@@ -3,8 +3,6 @@ package io.emcip.admin.api.controller;
 import io.emcip.admin.api.dto.TenantUpdateRequest;
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.service.TenantService;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
-import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,7 +30,6 @@ import reactor.core.publisher.Mono;
 public class TenantController {
 
     private final TenantService tenantService;
-    private final RateLimiterRegistry rateLimiterRegistry;
 
     @Operation(summary = "List all tenants")
     @GetMapping
@@ -45,10 +42,7 @@ public class TenantController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('TENANTS_WRITE')")
     public Mono<Tenant> createTenant(@Valid @RequestBody Tenant tenant) {
-        return tenantService
-                .create(tenant)
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
+        return tenantService.create(tenant);
     }
 
     @Operation(summary = "Update a tenant's editable fields")
@@ -56,10 +50,7 @@ public class TenantController {
     @PreAuthorize("hasAuthority('TENANTS_WRITE')")
     public Mono<Tenant> updateTenant(
             @PathVariable("id") UUID id, @Valid @RequestBody TenantUpdateRequest request) {
-        return tenantService
-                .update(id, request)
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
+        return tenantService.update(id, request);
     }
 
     @Operation(summary = "Delete a tenant")
@@ -67,9 +58,6 @@ public class TenantController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAuthority('TENANTS_WRITE')")
     public Mono<Void> deleteTenant(@PathVariable("id") UUID id) {
-        return tenantService
-                .delete(id)
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
+        return tenantService.delete(id);
     }
 }

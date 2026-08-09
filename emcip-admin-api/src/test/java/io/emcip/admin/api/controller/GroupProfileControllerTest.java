@@ -2,7 +2,6 @@ package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -10,9 +9,6 @@ import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.service.GroupProfileService;
 import io.emcip.common.tenant.TenantContext;
-import io.github.resilience4j.ratelimiter.RateLimiter;
-import io.github.resilience4j.ratelimiter.RateLimiterConfig;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -34,7 +30,6 @@ import reactor.core.publisher.Mono;
 class GroupProfileControllerTest {
 
     @Mock private GroupProfileService service;
-    @Mock private RateLimiterRegistry rateLimiterRegistry;
 
     private GroupProfileController controller;
     private WebTestClient webTestClient;
@@ -48,10 +43,8 @@ class GroupProfileControllerTest {
     @BeforeEach
     void setUp() {
         TenantContext.setAdminMode(true);
-        RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
-        when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
 
-        controller = new GroupProfileController(service, rateLimiterRegistry);
+        controller = new GroupProfileController(service);
         webTestClient =
                 WebTestClient.bindToController(controller)
                         .controllerAdvice(

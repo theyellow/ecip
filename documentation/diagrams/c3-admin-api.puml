@@ -17,6 +17,10 @@ Container_Boundary(admin_api, "Admin API - Port 9087") {
 
     Component(tenant_filter, "AdminTenantContextFilter", "Java / Spring WebFlux WebFilter", "Extracts X-Tenant-Id header<br/>Binds to TenantContext (ThreadLocal)<br/>ROLE_ADMIN JWT activates admin mode<br/>Clears after request")
 
+    Component(rate_limit_filter, "RateLimitWebFilter", "Java / Spring WebFlux WebFilter", "Per-caller rate limits<br/>auth by client IP, rest by JWT subject<br/>Writes 429 directly (advice cannot see filters)<br/>Bounded Caffeine cache per group")
+
+    Component(client_ip, "ClientIp", "Java", "Trusted client IP<br/>Nth X-Forwarded-For entry from the RIGHT<br/>Falls back to socket + metric, never guesses")
+
     ' Controllers
     Component(auth_ctrl, "AuthController", "Java / Spring REST", "POST /api/auth/token<br/>Verifies credentials via bcrypt<br/>Issues signed JWT")
 
@@ -44,6 +48,11 @@ Container(llm_orchestrator, "LLM Orchestrator", "Java / Port 9084", "Provider co
 ' Request path
 Rel(jwt_filter, security_config, "Feeds authentication", "SecurityContext")
 Rel(svc_token_filter, security_config, "Feeds authentication", "SecurityContext")
+Rel(jwt_filter, rate_limit_filter, "Runs before (principal available)", "SecurityContext")
+Rel(rate_limit_filter, client_ip, "Resolves key for auth group", "X-Forwarded-For")
+Rel(rate_limit_filter, auth_ctrl, "Forwards if within limit", "429 otherwise")
+Rel(rate_limit_filter, tenant_ctrl, "Forwards if within limit", "429 otherwise")
+
 Rel(tenant_filter, auth_ctrl, "Provides tenant context", "TenantContext")
 Rel(tenant_filter, tenant_ctrl, "Provides tenant context", "TenantContext")
 Rel(tenant_filter, policy_ctrl, "Provides tenant context", "TenantContext")

@@ -32,6 +32,20 @@ public class ApiProxyController {
                     "trailer",
                     "host");
 
+    /** Forwarded headers are rewritten by this proxy, never copied through from the client. */
+    private static final Set<String> FORWARDED_HEADERS = Set.of("x-forwarded-for", "forwarded");
+
+    /**
+     * Builds the {@code X-Forwarded-For} value sent upstream: the inbound chain plus this proxy's
+     * own hop. admin-api counts hops from the right (P3.6), so appending here is what makes its
+     * {@code trusted-proxy-hops} count deterministic.
+     */
+    static String forwardedForHeader(HttpServletRequest request) {
+        String inbound = request.getHeader("X-Forwarded-For");
+        String own = request.getRemoteAddr();
+        return (inbound == null || inbound.isBlank()) ? own : inbound + ", " + own;
+    }
+
     private final RestClient restClient;
 
     public ApiProxyController(
@@ -57,17 +71,20 @@ public class ApiProxyController {
                         .method(method)
                         .uri(uri)
                         .headers(
-                                headers ->
-                                        Collections.list(request.getHeaderNames()).stream()
-                                                .filter(
-                                                        name ->
-                                                                !HOP_BY_HOP_HEADERS.contains(
-                                                                        name.toLowerCase()))
-                                                .forEach(
-                                                        name ->
-                                                                headers.add(
-                                                                        name,
-                                                                        request.getHeader(name))));
+                                headers -> {
+                                    Collections.list(request.getHeaderNames()).stream()
+                                            .filter(
+                                                    name ->
+                                                            !HOP_BY_HOP_HEADERS.contains(
+                                                                            name.toLowerCase())
+                                                                    && !FORWARDED_HEADERS.contains(
+                                                                            name.toLowerCase()))
+                                            .forEach(
+                                                    name ->
+                                                            headers.add(
+                                                                    name, request.getHeader(name)));
+                                    headers.add("X-Forwarded-For", forwardedForHeader(request));
+                                });
 
         if (body != null && body.length > 0) {
             spec.body(body);
