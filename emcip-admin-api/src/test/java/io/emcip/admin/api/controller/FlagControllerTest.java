@@ -1,14 +1,10 @@
 package io.emcip.admin.api.controller;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.service.AccountSelectionException;
 import io.emcip.admin.api.service.FlagService;
-import io.github.resilience4j.ratelimiter.RateLimiter;
-import io.github.resilience4j.ratelimiter.RateLimiterConfig;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,17 +27,13 @@ import tools.jackson.databind.node.ObjectNode;
 class FlagControllerTest {
 
     @Mock private FlagService flagService;
-    @Mock private RateLimiterRegistry rateLimiterRegistry;
 
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
-        RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
-        when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
-
         webTestClient =
-                WebTestClient.bindToController(new FlagController(flagService, rateLimiterRegistry))
+                WebTestClient.bindToController(new FlagController(flagService))
                         .controllerAdvice(
                                 new GlobalExceptionHandler(
                                         org.mockito.Mockito.mock(

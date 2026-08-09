@@ -8,8 +8,6 @@ import io.emcip.admin.api.security.JwtService;
 import io.emcip.admin.api.service.AuthService;
 import io.emcip.admin.api.service.RefreshTokenService;
 import io.emcip.admin.api.util.ClientIp;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
-import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -34,7 +32,6 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final AdminUserRepository userRepository;
     private final JwtRevocationService revocationService;
-    private final RateLimiterRegistry rateLimiterRegistry;
     private final ClientIp clientIp;
 
     @Operation(summary = "Obtain a JWT token")
@@ -44,17 +41,13 @@ public class AuthController {
         ClientIp.Resolved client = clientIp.resolve(exchange.getRequest());
         return authService
                 .authenticate(request.username(), request.password(), client.ip(), client.source())
-                .map(ResponseEntity::ok)
-                .transformDeferred(RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("auth")));
+                .map(ResponseEntity::ok);
     }
 
     @Operation(summary = "Refresh an access token using a valid refresh token")
     @PostMapping("/api/auth/refresh")
     public Mono<ResponseEntity<TokenResponse>> refresh(@Valid @RequestBody RefreshRequest request) {
-        return authService
-                .refresh(request.refreshToken())
-                .map(ResponseEntity::ok)
-                .transformDeferred(RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("auth")));
+        return authService.refresh(request.refreshToken()).map(ResponseEntity::ok);
     }
 
     @Operation(summary = "Revoke a refresh token (logout)")

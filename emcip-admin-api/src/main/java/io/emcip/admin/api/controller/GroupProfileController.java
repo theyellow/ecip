@@ -2,8 +2,6 @@ package io.emcip.admin.api.controller;
 
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.service.GroupProfileService;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
-import io.github.resilience4j.reactor.ratelimiter.operator.RateLimiterOperator;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -29,7 +27,6 @@ import reactor.core.publisher.Mono;
 public class GroupProfileController {
 
     private final GroupProfileService service;
-    private final RateLimiterRegistry rateLimiterRegistry;
 
     @Operation(summary = "List all group profiles")
     @GetMapping
@@ -50,9 +47,7 @@ public class GroupProfileController {
     @PreAuthorize("hasAuthority('GROUPS_WRITE')")
     public Mono<ResponseEntity<GroupProfile>> create(@Valid @RequestBody GroupProfile profile) {
         return service.create(profile)
-                .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved))
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
+                .map(saved -> ResponseEntity.status(HttpStatus.CREATED).body(saved));
     }
 
     @Operation(summary = "Update a group profile")
@@ -60,20 +55,14 @@ public class GroupProfileController {
     @PreAuthorize("hasAuthority('GROUPS_WRITE')")
     public Mono<ResponseEntity<GroupProfile>> update(
             @PathVariable("chatId") Long chatId, @Valid @RequestBody GroupProfile update) {
-        return service.update(chatId, update)
-                .map(ResponseEntity::ok)
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
+        return service.update(chatId, update).map(ResponseEntity::ok);
     }
 
     @Operation(summary = "Delete a group profile")
     @DeleteMapping("/{chatId}")
     @PreAuthorize("hasAuthority('GROUPS_WRITE')")
     public Mono<ResponseEntity<Void>> delete(@PathVariable("chatId") Long chatId) {
-        return service.delete(chatId)
-                .thenReturn(ResponseEntity.<Void>noContent().<Void>build())
-                .transformDeferred(
-                        RateLimiterOperator.of(rateLimiterRegistry.rateLimiter("admin-crud")));
+        return service.delete(chatId).thenReturn(ResponseEntity.<Void>noContent().<Void>build());
     }
 
     @Operation(summary = "List accounts watching a group")

@@ -1,7 +1,6 @@
 package io.emcip.admin.api.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -13,9 +12,6 @@ import io.emcip.admin.api.security.JwtRevocationService;
 import io.emcip.admin.api.service.AuthService;
 import io.emcip.admin.api.service.RefreshTokenService;
 import io.emcip.admin.api.util.ClientIp;
-import io.github.resilience4j.ratelimiter.RateLimiter;
-import io.github.resilience4j.ratelimiter.RateLimiterConfig;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,15 +34,12 @@ class AuthControllerTest {
     @Mock private RefreshTokenService refreshTokenService;
     @Mock private AdminUserRepository userRepository;
     @Mock private JwtRevocationService revocationService;
-    @Mock private RateLimiterRegistry rateLimiterRegistry;
     @Mock private ClientIp clientIp;
 
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
-        RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
-        when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
         when(clientIp.resolve(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new ClientIp.Resolved("203.0.113.7", "XFF_TRUSTED"));
 
@@ -57,7 +50,6 @@ class AuthControllerTest {
                                         refreshTokenService,
                                         userRepository,
                                         revocationService,
-                                        rateLimiterRegistry,
                                         clientIp))
                         .controllerAdvice(
                                 new GlobalExceptionHandler(

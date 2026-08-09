@@ -1,15 +1,11 @@
 package io.emcip.admin.api.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import io.emcip.admin.api.config.GlobalExceptionHandler;
 import io.emcip.admin.api.entity.Tenant;
 import io.emcip.admin.api.service.TenantService;
-import io.github.resilience4j.ratelimiter.RateLimiter;
-import io.github.resilience4j.ratelimiter.RateLimiterConfig;
-import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,18 +24,13 @@ import reactor.core.publisher.Mono;
 class TenantControllerTest {
 
     @Mock private TenantService tenantService;
-    @Mock private RateLimiterRegistry rateLimiterRegistry;
 
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
-        RateLimiter rateLimiter = RateLimiter.of("test", RateLimiterConfig.ofDefaults());
-        when(rateLimiterRegistry.rateLimiter(anyString())).thenReturn(rateLimiter);
-
         webTestClient =
-                WebTestClient.bindToController(
-                                new TenantController(tenantService, rateLimiterRegistry))
+                WebTestClient.bindToController(new TenantController(tenantService))
                         .controllerAdvice(
                                 new GlobalExceptionHandler(
                                         org.mockito.Mockito.mock(
