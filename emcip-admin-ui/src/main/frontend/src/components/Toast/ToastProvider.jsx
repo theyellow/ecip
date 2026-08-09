@@ -1,4 +1,4 @@
-import { createContext, useCallback, useState } from 'react';
+import { createContext, useCallback, useMemo, useState } from 'react';
 import Toast from './Toast';
 import styles from './Toast.module.css';
 
@@ -24,8 +24,13 @@ export default function ToastProvider({ children }) {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // Memoized because this provider re-renders on every toast, and consumers may depend on the
+  // context object itself rather than destructuring `addToast` out of it. See
+  // providerStability.test.jsx for why an unstable context value is a request loop here.
+  const value = useMemo(() => ({ addToast }), [addToast]);
+
   return (
-    <ToastContext.Provider value={{ addToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <div className={styles.container}>
         {toasts.map(toast => (

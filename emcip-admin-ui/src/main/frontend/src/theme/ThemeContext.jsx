@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 const ThemeContext = createContext(null)
 
@@ -17,10 +17,14 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('emcip-theme', theme)
   }, [theme])
 
-  const toggleTheme = () => setTheme(t => (t === 'light' ? 'dark' : 'light'))
+  // Stable identity: an effect anywhere that depends on `toggleTheme` or on the context object
+  // would otherwise re-run on every render. See providerStability.test.jsx.
+  const toggleTheme = useCallback(() => setTheme(t => (t === 'light' ? 'dark' : 'light')), [])
+
+  const value = useMemo(() => ({ theme, toggleTheme }), [theme, toggleTheme])
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   )

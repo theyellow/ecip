@@ -251,7 +251,19 @@ Pages follow one shape: `useAuthRequest()` → `useMemo` an api client on it →
 
 `useAuthRequest` used to call `makeRefreshableRequest(...)` on every render, so it never did. The loop was invisible while it merely hammered the API; it became a visible outage once per-caller rate limiting landed, as a burst of hundreds of requests that drained the caller's bucket and turned every page into 429s until the state stopped changing. The rate limiter did not cause it — it exposed it.
 
-Consequently *everything `AuthProvider` hands out is memoized*: the callbacks with `useCallback`, the context value with `useMemo`, and the request with `useMemo` over the values that actually change what it sends. Preserve that when editing `AuthContext`, and prefer `renderHook` identity assertions plus a "one mount, one fetch" test (`AuthContext.test.jsx`) over eyeballing the network tab — the loop self-terminates once the error text stops changing, so it is easy to mistake for a transient glitch.
+Consequently *everything every provider hands out is memoized* — callbacks with `useCallback`, the context value itself with `useMemo`, and the request with `useMemo` over the values that actually change what it sends. This applies to `AuthProvider`, `ThemeProvider` and `ToastProvider` alike; the latter two were unstable too, harmlessly only because nothing happened to depend on them yet.
+
+Two test files hold the line, and both were confirmed to fail against the unstable code before being trusted:
+
+`providerStability.test.jsx`:: Asserts referential stability for every context the app exposes, and — in the other direction — that values still *change* when the underlying state does, so the invariant cannot be satisfied by freezing everything with an empty dependency list. **Adding a provider means adding one line to its `CASES` list.**
+`pageLoadLoop.test.jsx`:: Mounts `Telegram`, `Knowledge`, `IntegrationsPage` and `ResearchPage` — the four whose effects depend on `[api]`/`[request]` — through the *real* provider stack with only `global.fetch` stubbed, and asserts each endpoint is fetched exactly once. Counting per path rather than in total means it needs no tuning as endpoints are added, and a failure names the endpoint that looped.
+
+Two things to know before extending these:
+
+* *Do not mock `AuthContext` in a loop test.* Every page test does (`useAuthRequest: () => vi.fn()`), which is itself a new function per call — that is precisely why none of them could observe this bug in either direction.
+* *The fetch stub must stop settling past a cap.* A loop is a chain of promise resolutions, so it starves the macrotask queue and `act()` never reaches quiescence: without the cap the test dies of a five-second timeout whose message says nothing, instead of naming the endpoint. Returning a promise that never resolves halts it regardless of how the page handles failure — rejecting does not, because a page whose catch handler raises a toast keeps generating new state.
+
+Lint does not cover any of this: `exhaustive-deps` checks for *missing* dependencies, never for unstable ones, and was silent throughout.
 
 == Kafka Topics Reference
 
