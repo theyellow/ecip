@@ -100,3 +100,49 @@ test('makeRequest does NOT send X-Tenant-Id for ADMIN with no active tenant', as
     })
   )
 })
+
+test('error message uses ProblemDetail detail so the operator sees guidance, not "409 Conflict"', async () => {
+  fetch.mockResolvedValue({
+    ok: false,
+    status: 409,
+    statusText: 'Conflict',
+    json: async () => ({
+      title: 'Secret not encrypted',
+      status: 409,
+      detail: 'This value was stored before secrets encryption was enabled. Re-enter the Telegram API hash to secure it.',
+      code: 'SECRET_NOT_ENCRYPTED',
+      field: 'the Telegram API hash',
+    }),
+  })
+  const request = makeRequest('tok', 'ADMIN', null)
+  await expect(request('/api/telegram/accounts/x/reconnect', { method: 'POST' })).rejects.toMatchObject({
+    status: 409,
+    code: 'SECRET_NOT_ENCRYPTED',
+    message: expect.stringContaining('Re-enter the Telegram API hash'),
+  })
+})
+
+test('error message falls back to status text when there is no detail', async () => {
+  fetch.mockResolvedValue({
+    ok: false,
+    status: 500,
+    statusText: 'Internal Server Error',
+    json: async () => ({ status: 500 }),
+  })
+  const request = makeRequest('tok', 'ADMIN', null)
+  await expect(request('/api/groups')).rejects.toMatchObject({
+    status: 500,
+    message: '500 Internal Server Error',
+  })
+})
+
+test('a blank detail does not blank out the error message', async () => {
+  fetch.mockResolvedValue({
+    ok: false,
+    status: 502,
+    statusText: 'Bad Gateway',
+    json: async () => ({ detail: '   ' }),
+  })
+  const request = makeRequest('tok', 'ADMIN', null)
+  await expect(request('/api/groups')).rejects.toMatchObject({ message: '502 Bad Gateway' })
+})

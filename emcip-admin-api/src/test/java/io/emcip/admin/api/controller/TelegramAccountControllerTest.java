@@ -13,6 +13,7 @@ import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.service.TelegramAccountService;
+import io.emcip.common.crypto.PlaintextSecretException;
 import io.emcip.common.tenant.ReactorTenantContext;
 import java.time.Instant;
 import java.util.List;
@@ -263,16 +264,10 @@ class TelegramAccountControllerTest {
     @Test
     void reconnect_plaintextSecret_doesNotLeakSchemaOrPathsButStaysActionable() {
         UUID id = UUID.randomUUID();
-        // The exact exception SecretCipher throws fail-closed. It deliberately names the table,
-        // the column and a repo file path — none of which may reach an HTTP client.
+        // The real exception SecretCipher throws fail-closed. Its message deliberately names the
+        // table, the column and a repo file path — none of which may reach an HTTP client.
         when(telegramAccountService.reconnect(id))
-                .thenReturn(
-                        Mono.error(
-                                new IllegalStateException(
-                                        "Plaintext secret in telegram_accounts.api_hash — this"
-                                                + " value was never encrypted. Run the migration"
-                                                + " runbook in"
-                                                + " docs/operations/secrets-encryption.md")));
+                .thenReturn(Mono.error(new PlaintextSecretException("telegram_accounts.api_hash")));
 
         String body =
                 new String(
@@ -281,10 +276,8 @@ class TelegramAccountControllerTest {
                                 .uri("/api/telegram/accounts/{id}/reconnect", id)
                                 .exchange()
                                 .expectStatus()
-                                .isAccepted()
+                                .isEqualTo(409)
                                 .expectBody()
-                                .jsonPath("$.accepted")
-                                .isEqualTo(false)
                                 .jsonPath("$.code")
                                 .isEqualTo("SECRET_NOT_ENCRYPTED")
                                 .returnResult()
@@ -298,7 +291,7 @@ class TelegramAccountControllerTest {
                 .doesNotContain(".md");
         assertThat(body)
                 .as("but must still tell the operator what to do")
-                .contains("Re-enter the API hash");
+                .contains("Re-enter the Telegram API hash");
     }
 
     @Test
@@ -338,8 +331,7 @@ class TelegramAccountControllerTest {
                 .thenReturn(
                         Mono.error(
                                 new IllegalStateException(
-                                        "Failed to decrypt secret in"
-                                                + " telegram_accounts.api_hash")));
+                                        "Failed to decrypt secret in telegram_accounts.api_hash")));
 
         String body =
                 new String(
