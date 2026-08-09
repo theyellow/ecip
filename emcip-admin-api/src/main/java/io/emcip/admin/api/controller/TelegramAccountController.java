@@ -113,9 +113,50 @@ public class TelegramAccountController {
                 .thenReturn(Map.<String, Object>of("accepted", true))
                 .onErrorResume(
                         e -> {
-                            log.warn("reconnect failed for {}: {}", id, e.getMessage());
-                            return Mono.just(Map.of("accepted", false, "reason", e.getMessage()));
+                            // The full exception goes to the log, never to the client. Echoing
+                            // e.getMessage() leaked database schema and internal file paths (the
+                            // fail-closed plaintext-secret error names both), and would equally
+                            // have leaked internal hostnames from a WebClient failure. It also
+                            // bypassed the policy GlobalExceptionHandler applies everywhere else,
+                            // where unexpected exceptions become "An unexpected error occurred".
+                            log.warn("reconnect failed for {}", id, e);
+                            return Mono.just(
+                                    Map.of(
+                                            "accepted", false,
+                                            "reason", reconnectFailureReason(e),
+                                            "code", reconnectFailureCode(e)));
                         });
+    }
+
+    /**
+     * Stable, machine-readable classification of a reconnect failure, so the UI can offer the right
+     * next step without the server describing its internals. {@code SECRET_NOT_ENCRYPTED} is the
+     * one an operator can actually act on: the account predates secrets encryption, and re-entering
+     * the API hash stores it encrypted (the write path already encrypts).
+     */
+    private static String reconnectFailureCode(Throwable e) {
+        return isPlaintextSecret(e) ? "SECRET_NOT_ENCRYPTED" : "RECONNECT_FAILED";
+    }
+
+    private static String reconnectFailureReason(Throwable e) {
+        return isPlaintextSecret(e)
+                ? "This account was created before secrets encryption was enabled. Re-enter the API"
+                        + " hash to secure it, then reconnect."
+                : "Reconnect failed. Check the admin-api logs for details.";
+    }
+
+    /**
+     * Matched on the marker prefix rather than the full sentence so the wording of the underlying
+     * error can change without silently degrading this to the generic branch. {@code SecretCipher}
+     * throws {@code IllegalStateException} for both the plaintext case and genuine decrypt
+     * failures; only the former is the operator's to fix, and a decrypt failure must NOT be
+     * reported as "re-enter the value" — that would talk an operator into overwriting data that is
+     * merely unreadable with the current key.
+     */
+    private static boolean isPlaintextSecret(Throwable e) {
+        return e instanceof IllegalStateException
+                && e.getMessage() != null
+                && e.getMessage().startsWith("Plaintext secret in ");
     }
 
     @Operation(summary = "Submit authentication code for a Telegram account")
