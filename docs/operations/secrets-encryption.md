@@ -128,12 +128,33 @@ them encrypted. Setting the columns to NULL first is not required.
 
 ### Repairing a legacy value through the Admin UI
 
-Re-entering the secret is the supported repair, and it works while the value is still plaintext:
+Re-entering the secret is the supported repair where the UI offers it, and it works while the value
+is still plaintext:
 
 | Secret | Where |
 |---|---|
-| `telegram_accounts.api_hash` | Telegram → the account → re-enter the API hash |
 | `llm_provider_configs.api_key` | AI Config → Provider Configs → Edit → retype the key |
+| `ke_vendor_api_keys.api_key` | Integrations → Global Keys |
+| `telegram_accounts.api_hash` | **No UI path** — see below |
+
+> **`telegram_accounts.api_hash` has no re-entry path.** `apiHash` is accepted only when an account
+> is *created*; there is no update endpoint and no edit form. The 409 tells the operator to re-enter
+> it anyway, which is a bug tracked as `TG-REENTER`. Until that is fixed, repair the row with
+> `scripts/encrypt-legacy-secrets.sh` (below) rather than through the product.
+
+### Repairing legacy values with the script
+
+`scripts/encrypt-legacy-secrets.sh` performs step 3 of the runbook for every encrypted column at
+once, using the key already in `emcip-secrets`. It is dry-run by default, prints no secret in either
+form, and verifies afterwards that no plaintext remains:
+
+```bash
+./scripts/encrypt-legacy-secrets.sh            # report only
+./scripts/encrypt-legacy-secrets.sh --apply    # encrypt in place
+```
+
+Restart the reading services afterwards, as the script's closing output states, so nothing holds a
+stale fail-closed result.
 
 Reads of these values fail closed until then, so the affected feature stays broken while the rest of
 the UI works normally. The failure is reported as `409` with `code: SECRET_NOT_ENCRYPTED` and a
