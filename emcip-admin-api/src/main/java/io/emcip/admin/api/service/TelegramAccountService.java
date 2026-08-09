@@ -122,6 +122,46 @@ public class TelegramAccountService {
                 });
     }
 
+    /**
+     * Replaces the stored Telegram API credentials for an existing account.
+     *
+     * <p>This is the repair path for an {@code api_hash} written before secrets encryption: such a
+     * value fails closed on every read, and until this existed there was no way to replace it — the
+     * hash was accepted only when an account was created, so the error telling an operator to
+     * re-enter it named something the product could not do.
+     *
+     * <p>It deliberately never decrypts the current value. Reading it is exactly what fails on the
+     * rows this method exists to fix.
+     *
+     * @param apiId new API ID, or null to keep the stored one
+     * @param apiHash new API hash; stored encrypted
+     */
+    public Mono<TelegramAccount> updateCredentials(UUID id, Integer apiId, String apiHash) {
+        return Mono.deferContextual(
+                ctx -> {
+                    Mono<TelegramAccount> found =
+                            ReactorTenantContext.isAdminMode(ctx)
+                                    ? repository.findById(id)
+                                    : repository.findByIdAndTenantId(
+                                            id,
+                                            UUID.fromString(ReactorTenantContext.getTenantId(ctx)));
+                    return found.switchIfEmpty(
+                                    Mono.error(
+                                            new ResponseStatusException(
+                                                    HttpStatus.NOT_FOUND,
+                                                    "Account not found: " + id)))
+                            .flatMap(
+                                    account -> {
+                                        if (apiId != null) {
+                                            account.setApiId(apiId);
+                                        }
+                                        account.setApiHash(cipher.encrypt(apiHash));
+                                        account.setUpdatedAt(Instant.now());
+                                        return repository.save(account);
+                                    });
+                });
+    }
+
     public Mono<Void> delete(UUID id) {
         return Mono.deferContextual(
                 ctx -> {
