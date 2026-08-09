@@ -341,7 +341,7 @@ Content-Type: application/problem+json
 |`admin-crud`
 |everything else under `/api/**`
 |JWT subject
-|100 / 60s
+|600 / 60s
 |===
 
 `/actuator/**` and `/api/internal/**` are exempt.

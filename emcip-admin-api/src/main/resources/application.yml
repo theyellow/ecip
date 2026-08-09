@@ -112,7 +112,15 @@ resilience4j:
         limit-refresh-period: 60s
         timeout-duration: 0s
       admin-crud:
-        limit-for-period: 100
+        # 600/min per user. NOT a round-number guess: the Admin UI consumes ~50 req/min per
+        # operator while merely sitting open (component polling), and an active navigation burst
+        # goes well past 100 — the previous value, which made the UI 429 on every page.
+        #
+        # 100 was calibrated when this limiter was attached by hand to a few controller methods.
+        # P3.6 made it the /api/** catch-all covering EVERY endpoint without re-deriving the
+        # budget, so the scope grew by an order of magnitude while the number stayed put.
+        # It is per-JWT-subject, so this is one operator's ceiling, not the platform's.
+        limit-for-period: 600
         limit-refresh-period: 60s
         timeout-duration: 0s
   circuitbreaker:

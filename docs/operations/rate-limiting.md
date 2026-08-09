@@ -19,7 +19,7 @@ first match wins.
 |-------|---------|----------|-------|
 | `auth` | `/api/auth/**`, `/auth/**` | **Client IP** | 10 / 60s |
 | `llm-trigger` | `POST /api/flags/*/analyse`, `POST /api/flags/*/chat`, `POST /api/simulate/message` | JWT subject | 20 / 60s |
-| `admin-crud` | everything else under `/api/**` (catch-all) | JWT subject | 100 / 60s |
+| `admin-crud` | everything else under `/api/**` (catch-all) | JWT subject | 600 / 60s |
 
 Exempt (never limited): `/actuator/**` and `/api/internal/**`.
 
@@ -27,6 +27,23 @@ The numbers live in `emcip-admin-api/src/main/resources/application.yml` under
 `resilience4j.ratelimiter.instances`. Only the *config* is read from there — the
 registry instance is a template, and the filter creates one limiter **per key**
 from it.
+
+### Why `admin-crud` is 600 and not 100
+
+Because 100 was measured to be wrong, in production, by breaking the Admin UI.
+
+The UI consumes roughly **50 requests/minute per operator while merely sitting open** (component
+polling), and an active navigation burst goes well past 100. With the limit at 100 every page
+returned 429 within about 30 seconds of browsing.
+
+The number was not originally chosen for this job: it was calibrated when `admin-crud` was attached
+by hand to a handful of controller methods. P3.6 turned it into the `/api/**` catch-all covering
+*every* endpoint — the right change — but the budget was not re-derived for the new scope. Widening
+what a limit covers without revisiting its value is the trap; the limit looks unchanged in the diff
+while what it governs grows by an order of magnitude.
+
+It is per-JWT-subject, so 600/min is one operator's ceiling, not the platform's. If you add polling
+to the UI, re-check this number against a real session rather than assuming headroom.
 
 ### Why auth is keyed by IP and the rest by user
 
@@ -128,7 +145,7 @@ any of those change.
 
    ```bash
    microk8s.kubectl -n emcip exec deploy/emcip-admin-api -- \
-     curl -s localhost:8080/actuator/metrics/emcip.ratelimit.untrusted_ip
+     curl -s localhost:9087/actuator/metrics/emcip.ratelimit.untrusted_ip
    ```
 
    A non-zero and rising count means resolution is falling back to the socket —

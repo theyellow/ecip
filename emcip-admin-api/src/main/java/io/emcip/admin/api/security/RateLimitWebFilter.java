@@ -34,6 +34,9 @@ public class RateLimitWebFilter implements WebFilter {
 
     private static final String RETRY_AFTER_SECONDS = "60";
 
+    /** The chosen bucket key together with how it was chosen, so logs can tell them apart. */
+    private record Keyed(String key, String keyType) {}
+
     private final ClientIp clientIp;
     private final RateLimitGroups groups;
     private final MeterRegistry meterRegistry;
@@ -52,10 +55,13 @@ public class RateLimitWebFilter implements WebFilter {
             return apply(
                     exchange, chain, group, clientIp.resolve(exchange.getRequest()).ip(), "ip");
         }
+        // keyType is derived, not assumed: an unauthenticated request reaching a user-keyed group
+        // falls back to the IP, and logging it as "user" made the two indistinguishable in
+        // production exactly when telling them apart mattered.
         return ReactiveSecurityContextHolder.getContext()
-                .map(ctx -> ctx.getAuthentication().getName())
-                .defaultIfEmpty(clientIp.resolve(exchange.getRequest()).ip())
-                .flatMap(key -> apply(exchange, chain, group, key, "user"));
+                .map(ctx -> new Keyed(ctx.getAuthentication().getName(), "user"))
+                .defaultIfEmpty(new Keyed(clientIp.resolve(exchange.getRequest()).ip(), "ip"))
+                .flatMap(keyed -> apply(exchange, chain, group, keyed.key(), keyed.keyType()));
     }
 
     private Mono<Void> apply(
