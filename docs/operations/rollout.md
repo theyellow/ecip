@@ -19,6 +19,7 @@ upstream images that CI does not touch.
 | `emcip-intent-classifier` | Deployment | `rollout restart deployment` | ✅ Yes |
 | `emcip-moderation-service` | Deployment | `rollout restart deployment` | ✅ Yes |
 | `emcip-conversation-context` | Deployment | `rollout restart deployment` | ✅ Yes |
+| `emcip-knowledge-engine` | Deployment | `rollout restart deployment` | ✅ Yes |
 | `emcip-llm-orchestrator` | Deployment | `rollout restart deployment` | ✅ Yes |
 | `emcip-policy-engine` | Deployment | `rollout restart deployment` | ✅ Yes |
 | `emcip-tdlib-adapter` | **StatefulSet** | `rollout restart statefulset` | ✅ Yes |
@@ -45,6 +46,7 @@ microk8s.kubectl rollout restart deployment \
   emcip-intent-classifier \
   emcip-moderation-service \
   emcip-conversation-context \
+  emcip-knowledge-engine \
   emcip-llm-orchestrator \
   emcip-policy-engine \
   -n emcip
@@ -57,6 +59,35 @@ microk8s.kubectl get pods -n emcip -w
 ```
 
 All images use `pullPolicy: Always`, so new pods always pull the latest tag.
+
+> **A restart only re-pulls images — it cannot apply chart changes.** If the running Helm release
+> predates a chart change (new env var, new `secretKeyRef`, changed probe), `rollout restart`
+> replays the *old* pod spec forever and the new image crashes for a reason the logs describe but
+> the runbook does not. Check how stale the release is before a big rollout:
+>
+> ```bash
+> microk8s.helm3 list -n emcip | cat        # REVISION + UPDATED date
+> ```
+>
+> If it predates the changes you are deploying, `helm upgrade` instead of restarting. To see what
+> would change first (no helm-diff plugin needed):
+>
+> ```bash
+> microk8s.helm3 get values emcip -n emcip 2>/dev/null | cat | tail -n +2 > /tmp/live-values.yaml
+> microk8s.helm3 get manifest emcip -n emcip 2>/dev/null | cat > /tmp/current.yaml
+> microk8s.helm3 upgrade emcip ./helm/emcip -n emcip -f /tmp/live-values.yaml --dry-run 2>&1 \
+>   | sed -n '/^MANIFEST:/,$p' | tail -n +2 > /tmp/new.yaml
+> diff /tmp/current.yaml /tmp/new.yaml
+> ```
+>
+> This bit us on 2026-08-09: the release was 37 days old, admin-api / knowledge-engine /
+> llm-orchestrator crashed on a missing `EMCIP_SECRET_KEY`, and no number of restarts could have
+> fixed it — the env var was not in the deployed pod spec at all.
+
+**Restarting everything at once is not free.** Services that have not restarted in weeks may replay
+a large Kafka backlog on startup. `conversation-context` was SIGTERM'd by its liveness probe three
+times on 2026-08-09 grinding through duplicate `event_id` inserts before stabilising. Prefer waves
+— Liquibase/JPA services first, then the rest — so a failure is attributable to one service.
 
 ---
 

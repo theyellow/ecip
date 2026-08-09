@@ -231,11 +231,14 @@ kubectl create secret generic emcip-secrets \
   --from-literal=telegram-api-hash=<hash> \
   --from-literal=telegram-phone-number=<+4912345> \
   --from-literal=grafana-admin-password=<password> \
+  --from-literal=emcip-secret-key=$(openssl rand -base64 32) \
   -n emcip
 ----
 
 NOTE: Replace each `<...>` placeholder with a real value. `admin-jwt-secret` must be at least 32 characters.
 `telegram-*` values are required only if the Telegram profile is active.
+
+WARNING: `emcip-secret-key` is the AES-256 secrets-encryption key, and it is **not optional** — admin-api, knowledge-engine and llm-orchestrator declare a non-optional `secretKeyRef` on it and will not start if it is missing. Back it up somewhere separate from the database *before* creating anything: there is no recovery, and every encrypted value becomes unreadable without it. For an existing cluster that predates this key, add it with `./scripts/add-secret-key.sh` and then run `helm upgrade` — adding the Secret key alone is not enough, because a release created before the `secretKeyRef` existed has no such env var in its pod spec. See `docs/operations/secrets-encryption.md`.
 LLM provider URL is not a Kubernetes secret — configure it at runtime via Admin UI → AI Config → LLM Provider.
 
 === Topology-Dependent Configuration
