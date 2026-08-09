@@ -9,6 +9,7 @@ skinparam responseMessageBelowArrow true
 title Admin UI Authentication Flow
 
 actor "Browser\n(Admin UI)" as Browser
+participant "RateLimitWebFilter" as RL
 participant "AuthController\nPOST /api/auth/token" as AC
 participant "AuthService" as AS
 participant "AdminUserRepository" as Repo
@@ -17,7 +18,17 @@ participant "JwtService" as JWT
 
 == Login ==
 
-Browser -> AC : POST /api/auth/token\n{username, password}
+Browser -> RL : POST /api/auth/token\n{username, password}
+activate RL
+RL -> RL : resolve client IP\n(hop 2 from RIGHT of X-Forwarded-For)
+
+alt limit exceeded for this IP (10 / 60s)
+    RL --> Browser : 429 Too Many Requests\nRetry-After: 60
+else within limit
+    RL -> AC : forward
+end
+deactivate RL
+
 activate AC
 AC -> AS : authenticate(username, password)
 activate AS

@@ -13,6 +13,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,6 +21,8 @@ import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 class RateLimitWebFilterTest {
 
@@ -60,6 +63,20 @@ class RateLimitWebFilterTest {
 
         assertThat(rejected.getResponse().getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
         assertThat(rejected.getResponse().getHeaders().getFirst("Retry-After")).isNotNull();
+
+        // The body must match GlobalExceptionHandler's RequestNotPermitted ProblemDetail exactly,
+        // so a client cannot tell which layer rejected it. Asserted rather than assumed: the two
+        // are produced by entirely separate code paths and nothing else would catch them drifting.
+        assertThat(rejected.getResponse().getHeaders().getContentType())
+                .isEqualTo(MediaType.APPLICATION_PROBLEM_JSON);
+        // Compared as parsed JSON rather than as a string: key order is not part of the contract,
+        // but these four fields are.
+        JsonNode body =
+                new ObjectMapper().readTree(rejected.getResponse().getBodyAsString().block());
+        assertThat(body.get("type").asString()).isEqualTo("about:blank");
+        assertThat(body.get("title").asString()).isEqualTo("Too Many Requests");
+        assertThat(body.get("status").asInt()).isEqualTo(429);
+        assertThat(body.get("detail").asString()).isEqualTo("Rate limit exceeded");
     }
 
     @Test
