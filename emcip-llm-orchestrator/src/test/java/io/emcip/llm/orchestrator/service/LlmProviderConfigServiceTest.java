@@ -2,13 +2,16 @@ package io.emcip.llm.orchestrator.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
 import io.emcip.llm.orchestrator.repository.LlmProviderConfigRepository;
-import java.util.List;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -44,13 +47,6 @@ class LlmProviderConfigServiceTest {
 
     @Test
     void saveProvider_deactivatesOthersBeforeSavingActiveConfig() {
-        LlmProviderConfig existing =
-                LlmProviderConfig.builder()
-                        .name("old")
-                        .baseUrl("http://old:4000")
-                        .active(true)
-                        .build();
-        when(repository.findAll()).thenReturn(List.of(existing));
         LlmProviderConfig incoming =
                 LlmProviderConfig.builder()
                         .name("new")
@@ -61,9 +57,11 @@ class LlmProviderConfigServiceTest {
 
         service.saveProvider(incoming);
 
-        // existing was deactivated and saved, then incoming was saved
-        verify(repository, times(2)).save(any());
-        assertThat(existing.getActive()).isFalse();
+        // One bulk update, not a load-modify-save loop: loading the other rows would
+        // decrypt their keys and fail on any row that predates secrets encryption.
+        verify(repository).deactivateAllExcept(eq(null), any(Instant.class));
+        verify(repository, times(1)).save(any());
+        verify(repository, never()).findAll();
     }
 
     @Test
@@ -76,25 +74,17 @@ class LlmProviderConfigServiceTest {
                         .baseUrl("http://litellm:4000")
                         .active(true)
                         .build();
-        // findAll returns the same instance — simulates editing an already-active provider
-        when(repository.findAll()).thenReturn(List.of(config));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         LlmProviderConfig result = service.saveProvider(config);
 
-        // must remain active — self-deactivation was the bug
+        // must remain active — self-deactivation was the bug, and the id is what excludes it
         assertThat(result.getActive()).isTrue();
-        verify(repository, times(1)).save(any());
+        verify(repository).deactivateAllExcept(eq(id), any(Instant.class));
     }
 
     @Test
     void saveProvider_doesNotDeactivateOthersWhenSavingInactiveConfig() {
-        LlmProviderConfig existing =
-                LlmProviderConfig.builder()
-                        .name("old")
-                        .baseUrl("http://old:4000")
-                        .active(true)
-                        .build();
         LlmProviderConfig incoming =
                 LlmProviderConfig.builder()
                         .name("new")
@@ -105,8 +95,42 @@ class LlmProviderConfigServiceTest {
 
         service.saveProvider(incoming);
 
-        // only incoming was saved — existing untouched
         verify(repository, times(1)).save(any());
-        assertThat(existing.getActive()).isTrue();
+        verify(repository, never()).deactivateAllExcept(any(), any());
+    }
+
+    @Test
+    void updateProvider_returnsEmptyForUnknownId() {
+        UUID id = UUID.randomUUID();
+        when(repository.findSummaryById(id)).thenReturn(Optional.empty());
+
+        assertThat(service.updateProvider(id, "n", "http://x", false, "sk-key")).isEmpty();
+        verify(repository, never()).updateDetails(any(), any(), any(), any(), any());
+        verify(repository, never()).updateApiKey(any(), any(), any());
+    }
+
+    @Test
+    void updateProvider_leavesStoredKeyAloneWhenNoneSupplied() {
+        UUID id = UUID.randomUUID();
+        LlmProviderConfigRepository.Summary summary =
+                mock(LlmProviderConfigRepository.Summary.class);
+        when(repository.findSummaryById(id)).thenReturn(Optional.of(summary));
+
+        service.updateProvider(id, "n", "http://x", false, null);
+
+        verify(repository).updateDetails(eq(id), eq("n"), eq("http://x"), eq(false), any());
+        verify(repository, never()).updateApiKey(any(), any(), any());
+    }
+
+    @Test
+    void updateProvider_writesReplacementKeyWhenSupplied() {
+        UUID id = UUID.randomUUID();
+        LlmProviderConfigRepository.Summary summary =
+                mock(LlmProviderConfigRepository.Summary.class);
+        when(repository.findSummaryById(id)).thenReturn(Optional.of(summary));
+
+        service.updateProvider(id, "n", "http://x", false, "sk-replacement");
+
+        verify(repository).updateApiKey(eq(id), eq("sk-replacement"), any(Instant.class));
     }
 }

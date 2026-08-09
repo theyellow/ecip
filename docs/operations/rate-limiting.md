@@ -30,20 +30,35 @@ from it.
 
 ### Why `admin-crud` is 600 and not 100
 
-Because 100 was measured to be wrong, in production, by breaking the Admin UI.
+**Read this before tuning the number — the reason recorded here was wrong twice.**
 
-The UI consumes roughly **50 requests/minute per operator while merely sitting open** (component
-polling), and an active navigation burst goes well past 100. With the limit at 100 every page
-returned 429 within about 30 seconds of browsing.
+The limit was first 100, calibrated when `admin-crud` was attached by hand to a handful of
+controller methods. P3.6 turned it into the `/api/**` catch-all covering *every* endpoint — the
+right change — but the budget was not re-derived for the new scope. Widening what a limit covers
+without revisiting its value is a real trap: the limit looks unchanged in the diff while what it
+governs grows by an order of magnitude. So it was raised to 600.
 
-The number was not originally chosen for this job: it was calibrated when `admin-crud` was attached
-by hand to a handful of controller methods. P3.6 turned it into the `/api/**` catch-all covering
-*every* endpoint — the right change — but the budget was not re-derived for the new scope. Widening
-what a limit covers without revisiting its value is the trap; the limit looks unchanged in the diff
-while what it governs grows by an order of magnitude.
+That did not fix it either, and the reason is the useful part. This runbook previously stated that
+the UI consumed "roughly 50 requests/minute per operator while merely sitting open". That
+measurement was real but the explanation was not: the traffic was not polling, it was an **unbounded
+render loop** in the Admin UI. `useAuthRequest()` returned a new function on every render, so every
+page's `useMemo`/`useCallback`/`useEffect` chain re-armed on each `setState` and fetched again —
+hundreds of requests per second, not per minute. See the developer guide, *Admin UI: context
+identity and request loops*.
 
-It is per-JWT-subject, so 600/min is one operator's ceiling, not the platform's. If you add polling
-to the UI, re-check this number against a real session rather than assuming headroom.
+Two lessons worth keeping:
+
+* **A 429 storm is a symptom, and its cause is often on the client.** Before raising a limit, look
+  at the arrival pattern. Dozens of rejections inside 100 ms from a single subject is not an
+  operator browsing; that is a loop or a retry storm. `kubectl logs -l app=admin-api | grep "Rate
+  limit exceeded"` shows the timestamps directly.
+* **Raising a limit to make an error go away removes the evidence, not the fault.** Both changes to
+  this number were made without measuring the client, and both caused or prolonged an outage.
+
+The loop is fixed, so the 600 figure is now **known to be loose rather than justified** — it was
+sized against pathological traffic. Re-deriving it from real per-operator usage is tracked as
+`RL-BUDGET` in the backlog. It is per-JWT-subject, so 600/min is one operator's ceiling, not the
+platform's.
 
 ### Why auth is keyed by IP and the rest by user
 

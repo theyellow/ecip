@@ -280,10 +280,23 @@ public class OrchestratorController {
                 "active", p.getActive());
     }
 
+    /**
+     * Same response shape as {@link #maskConfig}, built from a projection so that listing never
+     * decrypts. The mask was always "***" or "" - the plaintext was read only to decide which.
+     */
+    private Map<String, Object> maskConfig(LlmProviderConfigRepository.Summary s) {
+        return Map.of(
+                "id", s.getId().toString(),
+                "name", s.getName(),
+                "baseUrl", s.getBaseUrl(),
+                "apiKey", Boolean.TRUE.equals(s.getHasApiKey()) ? "***" : "",
+                "active", s.getActive());
+    }
+
     @Operation(summary = "List all LLM provider configurations (api_key masked)")
     @GetMapping("/provider-config")
     public List<Map<String, Object>> listProviderConfigs() {
-        return providerConfigRepository.findAll().stream().map(this::maskConfig).toList();
+        return providerConfigRepository.findAllSummaries().stream().map(this::maskConfig).toList();
     }
 
     @Operation(summary = "Create a new LLM provider configuration")
@@ -299,24 +312,33 @@ public class OrchestratorController {
     @PutMapping("/provider-config/{id}")
     public ResponseEntity<Map<String, Object>> updateProviderConfig(
             @PathVariable UUID id, @RequestBody LlmProviderConfig update) {
-        LlmProviderConfig existing =
-                providerConfigRepository
-                        .findById(id)
+        // "***" is what a list response shows for a key that is set; the edit form sends it back
+        // unchanged when the operator did not retype one. Null here means "keep what is stored".
+        String newApiKey =
+                update.getApiKey() != null
+                                && !update.getApiKey().isBlank()
+                                && !"***".equals(update.getApiKey())
+                        ? update.getApiKey()
+                        : null;
+
+        LlmProviderConfigRepository.Summary saved =
+                providerConfigService
+                        .updateProvider(
+                                id,
+                                update.getName(),
+                                update.getBaseUrl(),
+                                update.getActive(),
+                                newApiKey)
                         .orElseThrow(
                                 () ->
                                         new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND,
                                                 "Provider config not found: " + id));
-        existing.setName(update.getName());
-        existing.setBaseUrl(update.getBaseUrl());
-        if (update.getApiKey() != null
-                && !update.getApiKey().isBlank()
-                && !"***".equals(update.getApiKey())) {
-            existing.setApiKey(update.getApiKey());
-        }
-        existing.setActive(update.getActive());
-        LlmProviderConfig saved = providerConfigService.saveProvider(existing);
-        log.info("Updated provider config: id={}, active={}", id, saved.getActive());
+        log.info(
+                "Updated provider config: id={}, active={}, keyReplaced={}",
+                id,
+                saved.getActive(),
+                newApiKey != null);
         return ResponseEntity.ok(maskConfig(saved));
     }
 

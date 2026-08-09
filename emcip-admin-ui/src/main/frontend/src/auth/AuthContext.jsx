@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { makeRefreshableRequest } from '../api/client'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -30,16 +30,22 @@ export function AuthProvider({ children }) {
   })
   const [currentTenant, setCurrentTenantState] = useState(() => storedTenant())
 
-  const setCurrentTenant = (tenant) => {
+  // Everything this provider hands out is memoized, and it has to stay that way.
+  // Consumers build their api client with useMemo([request]) and their loaders with
+  // useCallback([api]); a value that changes identity on every render silently turns
+  // those "run once on mount" effects into a request loop that only stops when the
+  // fetched state stops changing. Deps are the setState functions and sessionStorage,
+  // both stable, so an empty dep list is correct rather than merely convenient.
+  const setCurrentTenant = useCallback((tenant) => {
     if (tenant) {
       sessionStorage.setItem('emcip-current-tenant', JSON.stringify(tenant))
     } else {
       sessionStorage.removeItem('emcip-current-tenant')
     }
     setCurrentTenantState(tenant)
-  }
+  }, [])
 
-  const login = async (username, password) => {
+  const login = useCallback(async (username, password) => {
     const res = await fetch(`${API_BASE}/api/auth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -64,9 +70,9 @@ export function AuthProvider({ children }) {
     } else {
       setCurrentTenant(null)
     }
-  }
+  }, [setCurrentTenant])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     const rt = sessionStorage.getItem('emcip-refresh-token')
     if (rt) {
       fetch(`${API_BASE}/api/auth/logout`, {
@@ -82,9 +88,9 @@ export function AuthProvider({ children }) {
     setRole(null)
     setTenantId(null)
     setCurrentTenantState(null)
-  }
+  }, [])
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const rt = sessionStorage.getItem('emcip-refresh-token')
     if (!rt) throw new Error('No refresh token')
     const res = await fetch(`${API_BASE}/api/auth/refresh`, {
@@ -101,15 +107,14 @@ export function AuthProvider({ children }) {
     setRole(payload?.role ?? null)
     setTenantId(payload?.tenantId ?? null)
     return data.token
-  }
+  }, [])
 
-  return (
-    <AuthContext.Provider
-      value={{ token, role, tenantId, currentTenant, setCurrentTenant, login, logout, refresh }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ token, role, tenantId, currentTenant, setCurrentTenant, login, logout, refresh }),
+    [token, role, tenantId, currentTenant, setCurrentTenant, login, logout, refresh],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
@@ -118,8 +123,18 @@ export function useAuth() {
   return context
 }
 
-/** Returns a fetch function that auto-refreshes on 401 and logs out on refresh failure. */
+/**
+ * Returns a fetch function that auto-refreshes on 401 and logs out on refresh failure.
+ *
+ * The returned function is stable: it changes identity only when something that changes
+ * what the request actually sends changes. Callers memoize api clients and effects on it,
+ * so handing back a new function per render re-arms those effects and produces a fetch
+ * loop rather than a single load.
+ */
 export function useAuthRequest() {
   const { token, role, currentTenant, refresh, logout } = useAuth()
-  return makeRefreshableRequest(token ?? '', role, currentTenant, refresh, logout)
+  return useMemo(
+    () => makeRefreshableRequest(token ?? '', role, currentTenant, refresh, logout),
+    [token, role, currentTenant, refresh, logout],
+  )
 }
