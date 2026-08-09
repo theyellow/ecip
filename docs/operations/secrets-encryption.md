@@ -123,8 +123,30 @@ loudly.
 plugin pointed at the cluster database, migrate the values, then deploy — at the cost of applying
 schema changes outside the normal service-startup path.
 
-**Fallback without the CLI:** set the columns to NULL and re-enter the secrets through the Admin UI
-after deploy, which writes them encrypted.
+**Fallback without the CLI:** re-enter the secrets through the Admin UI after deploy, which writes
+them encrypted. Setting the columns to NULL first is not required.
+
+### Repairing a legacy value through the Admin UI
+
+Re-entering the secret is the supported repair, and it works while the value is still plaintext:
+
+| Secret | Where |
+|---|---|
+| `telegram_accounts.api_hash` | Telegram → the account → re-enter the API hash |
+| `llm_provider_configs.api_key` | AI Config → Provider Configs → Edit → retype the key |
+
+Reads of these values fail closed until then, so the affected feature stays broken while the rest of
+the UI works normally. The failure is reported as `409` with `code: SECRET_NOT_ENCRYPTED` and a
+message naming the field to re-enter — it never names the table, column, or this runbook, because
+that response reaches a browser.
+
+> **Why the edit screens do not need the old value.** A JPA attribute converter decrypts eagerly, so
+> merely *loading* a row with a legacy key throws and fails the whole query. Listing provider
+> configs and saving an edit therefore both went through paths that read the key they were trying to
+> replace, which made the repair impossible — the fix was to route those paths through projections
+> and explicit updates that never decrypt (see `LlmProviderConfigRepository`). Keep that property in
+> mind when adding admin screens over an encrypted column: **an administrative read must not decrypt
+> a secret it does not use.**
 
 ## Key rotation
 
