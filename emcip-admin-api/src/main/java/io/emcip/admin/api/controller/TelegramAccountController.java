@@ -3,6 +3,7 @@ package io.emcip.admin.api.controller;
 import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.service.TelegramAccountService;
+import io.emcip.common.crypto.PlaintextSecretException;
 import io.emcip.common.tenant.ReactorTenantContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -113,8 +114,34 @@ public class TelegramAccountController {
                 .thenReturn(Map.<String, Object>of("accepted", true))
                 .onErrorResume(
                         e -> {
-                            log.warn("reconnect failed for {}: {}", id, e.getMessage());
-                            return Mono.just(Map.of("accepted", false, "reason", e.getMessage()));
+                            // One handler, not two chained ones. A preceding
+                            // onErrorResume(PlaintextSecretException.class, Mono::error) rethrows
+                            // only for this operator to catch it again, silently turning the 409
+                            // back into a 202 — which is exactly what happened, and what the test
+                            // below caught.
+                            //
+                            // An unencrypted stored secret propagates so GlobalExceptionHandler
+                            // maps it centrally (409 + SECRET_NOT_ENCRYPTED), the same way every
+                            // other endpoint reading an encrypted column reports it.
+                            if (e instanceof PlaintextSecretException) {
+                                return Mono.error(e);
+                            }
+                            // Everything else: the full exception goes to the log, never to the
+                            // client. Echoing e.getMessage() leaked database schema and internal
+                            // file paths, and would equally have leaked internal hostnames from a
+                            // WebClient failure. It also bypassed the policy
+                            // GlobalExceptionHandler applies everywhere else, where unexpected
+                            // exceptions become "An unexpected error occurred".
+                            log.warn("reconnect failed for {}", id, e);
+                            return Mono.just(
+                                    Map.of(
+                                            "accepted",
+                                            false,
+                                            "reason",
+                                            "Reconnect failed. Check the admin-api logs for"
+                                                    + " details.",
+                                            "code",
+                                            "RECONNECT_FAILED"));
                         });
     }
 

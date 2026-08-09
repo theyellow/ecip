@@ -19,7 +19,7 @@ first match wins.
 |-------|---------|----------|-------|
 | `auth` | `/api/auth/**`, `/auth/**` | **Client IP** | 10 / 60s |
 | `llm-trigger` | `POST /api/flags/*/analyse`, `POST /api/flags/*/chat`, `POST /api/simulate/message` | JWT subject | 20 / 60s |
-| `admin-crud` | everything else under `/api/**` (catch-all) | JWT subject | 100 / 60s |
+| `admin-crud` | everything else under `/api/**` (catch-all) | JWT subject | 600 / 60s |
 
 Exempt (never limited): `/actuator/**` and `/api/internal/**`.
 
@@ -27,6 +27,23 @@ The numbers live in `emcip-admin-api/src/main/resources/application.yml` under
 `resilience4j.ratelimiter.instances`. Only the *config* is read from there — the
 registry instance is a template, and the filter creates one limiter **per key**
 from it.
+
+### Why `admin-crud` is 600 and not 100
+
+Because 100 was measured to be wrong, in production, by breaking the Admin UI.
+
+The UI consumes roughly **50 requests/minute per operator while merely sitting open** (component
+polling), and an active navigation burst goes well past 100. With the limit at 100 every page
+returned 429 within about 30 seconds of browsing.
+
+The number was not originally chosen for this job: it was calibrated when `admin-crud` was attached
+by hand to a handful of controller methods. P3.6 turned it into the `/api/**` catch-all covering
+*every* endpoint — the right change — but the budget was not re-derived for the new scope. Widening
+what a limit covers without revisiting its value is the trap; the limit looks unchanged in the diff
+while what it governs grows by an order of magnitude.
+
+It is per-JWT-subject, so 600/min is one operator's ceiling, not the platform's. If you add polling
+to the UI, re-check this number against a real session rather than assuming headroom.
 
 ### Why auth is keyed by IP and the rest by user
 
@@ -64,19 +81,28 @@ lets an attacker mint a fresh bucket per request simply by varying the header.
 Entries an attacker prepends land to the *left* of the trusted position and are
 ignored, however many they add.
 
-The assumed chain is:
+The real chain, as deployed, is:
 
 ```
-client -> nginx ingress -> admin-ui BFF -> admin-api
+client -> nginx ingress -> admin-api
 ```
 
-The BFF appends its own hop (it rewrites `X-Forwarded-For` rather than passing
-the client's copy through), which makes hop **2** the real client under either
-nginx `use-forwarded-headers` mode. Current value: `trusted-proxy-hops: 2`.
+**The admin-ui BFF is not a hop for API traffic.** The ingress routes `/api/**`
+straight to `emcip-admin-api:9087`; only the SPA itself (`/`) is served through
+`emcip-admin-ui`. The count is therefore **1**, set as
+`EMCIP_SECURITY_TRUSTED_PROXY_HOPS` in `helm/emcip/values.yaml`.
 
-> ⚠️ **Status: NOT YET VERIFIED against a live request.** The value is derived
-> from the topology above, not observed. Run the procedure below and record the
-> result here before treating it as proven.
+> ✅ **Verified 2026-08-09 against the live cluster** — see the log below.
+
+This was originally configured as `2`, assuming a BFF hop that does not exist for
+`/api/**`. The symptom was not an error: every request quietly fell back to the
+socket address (the ingress pod), so **all callers shared a single bucket** and
+per-IP limiting did nothing. Only `emcip.ratelimit.untrusted_ip` revealed it.
+
+A consequence worth knowing: because `/api/**` bypasses the BFF, the BFF's
+`X-Forwarded-For` rewriting is **inert in Kubernetes**. It matters only where API
+calls actually traverse the BFF — local dev and `docker-compose`. If `/api/**` is
+ever routed through the BFF, the count becomes 2 and must be re-verified.
 
 If the header carries fewer entries than the hop count, `ClientIp` does **not**
 guess. It falls back to the socket address and increments
@@ -119,7 +145,7 @@ any of those change.
 
    ```bash
    microk8s.kubectl -n emcip exec deploy/emcip-admin-api -- \
-     curl -s localhost:8080/actuator/metrics/emcip.ratelimit.untrusted_ip
+     curl -s localhost:9087/actuator/metrics/emcip.ratelimit.untrusted_ip
    ```
 
    A non-zero and rising count means resolution is falling back to the socket —
@@ -132,7 +158,19 @@ any of those change.
 
 | Date | Value verified | Observed | Verified by |
 |------|----------------|----------|-------------|
-| _pending_ | `2` (assumed) | — | — |
+| 2026-08-09 | **1** (corrected from 2) | With `2`: `untrusted_ip{too_few_hops}` incremented on every ordinary request — all callers collapsed into one socket-derived bucket. With `1`: counter never registers, and 12 requests carrying 12 *different* spoofed `X-Forwarded-For` values all shared one bucket (429 after the limit), proving the spoofed value is not used as the key. `rejected{group=auth}` incremented as expected. | Ben + Claude, dev cluster via `http://emcip.local` |
+
+**How the failure looked**, for the next person: nothing errored. Requests
+succeeded, the limiter "worked", and the only signal was a counter nobody was
+watching. That is the argument for checking `untrusted_ip` first — it is the
+cheapest possible test and needs no crafted request.
+
+Note that nginx here **replaces** `X-Forwarded-For` rather than appending
+(`use-forwarded-headers` is off), so a spoofed header never reaches admin-api at
+all. That is a second line of defence we rely on but do not configure or assert
+anywhere — do not treat it as guaranteed. The hop count must be right on its own
+merits, because turning `use-forwarded-headers` on would make nginx append and
+change what admin-api sees.
 
 ---
 

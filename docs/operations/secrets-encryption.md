@@ -14,13 +14,42 @@ no automatic backfill.
 
 ## Generating the key
 
+`emcip-secret-key` is a **key inside the existing `emcip-secrets` Secret**, not a Secret of its own.
+The chart wires it as `secretKeyRef: {name: emcip-secrets, key: emcip-secret-key}`, and the ref is
+**not** `optional` — if the key is absent, admin-api, knowledge-engine and llm-orchestrator fail to
+start. No other service needs it.
+
+Use the helper, which generates the key, adds it, and verifies it decodes to 32 bytes:
+
 ```bash
-openssl rand -base64 32
+./scripts/add-secret-key.sh
 ```
 
-Store it as the `emcip-secret-key` Kubernetes Secret. **Never commit it.** admin-api,
-knowledge-engine and llm-orchestrator all read it as `EMCIP_SECRET_KEY` and will not start without it.
-No other service needs it.
+Or by hand:
+
+```bash
+KEY=$(openssl rand -base64 32)
+echo "$KEY"   # back this up before continuing — there is no recovery
+microk8s.kubectl patch secret emcip-secrets -n emcip --type=json \
+  -p="[{\"op\":\"add\",\"path\":\"/data/emcip-secret-key\",\"value\":\"$(printf %s "$KEY" | base64 -w0)\"}]"
+```
+
+Note the double encoding: Kubernetes Secret values are base64, and the key itself is already a
+base64 string, so the stored value is base64-of-base64. Verify rather than assume — a truncated
+paste fails later in a confusing way:
+
+```bash
+microk8s.kubectl get secret emcip-secrets -n emcip \
+  -o jsonpath='{.data.emcip-secret-key}' | base64 -d | base64 -d | wc -c   # must print 32
+```
+
+**Never commit the key.**
+
+> **Existing clusters:** a release created before this key existed will not have the env var wired
+> at all, because the `secretKeyRef` came with a later chart revision. Adding the Secret key is not
+> enough — run `helm upgrade` as well, or the pods keep starting without `EMCIP_SECRET_KEY` and
+> crash. Add the key **first**; the ref is not optional, so upgrading first gives you
+> `CreateContainerConfigError` instead.
 
 ## Key loss
 

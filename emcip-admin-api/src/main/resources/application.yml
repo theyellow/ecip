@@ -42,14 +42,21 @@ management:
 emcip:
   security:
     # Position from the RIGHT of X-Forwarded-For that holds the real client IP.
-    # Chain is: client -> nginx ingress -> admin-ui BFF -> admin-api, and the BFF appends its own
-    # hop, so hop 2 is the client under either nginx use-forwarded-headers mode.
     #
-    # NOT YET VERIFIED against a live request. The value above is derived from the documented
-    # topology, and every unit test passes with a wrong value, so it stays unproven until the
-    # procedure in docs/operations/rate-limiting.md ("Verifying the hop count") has been run
-    # against the real ingress and its result recorded there with a date.
-    trusted-proxy-hops: 2
+    # THIS VALUE DESCRIBES A DEPLOYMENT TOPOLOGY, NOT A PREFERENCE. It is only correct for the
+    # proxy chain actually in front of admin-api, every unit test passes with a wrong value, and
+    # both directions of being wrong are harmful:
+    #   too high -> a client can prepend entries and mint a fresh rate-limit bucket per request
+    #   too low  -> a proxy's own address is used and every client collapses into one bucket
+    # Override it per environment (Helm: services.adminApi.env.EMCIP_SECURITY_TRUSTED_PROXY_HOPS)
+    # and re-run the verification in docs/operations/rate-limiting.md whenever the ingress, the
+    # BFF's forwarding, or anything else in the chain changes.
+    #
+    # Default 1 = a single proxy in front of admin-api. Verified 2026-08-09 against the dev
+    # cluster, where nginx routes /api/** straight to admin-api (the BFF is NOT in that path).
+    # It was 2 until then, which assumed a BFF hop that does not exist for /api/**; that made
+    # every request fall back to the socket address, collapsing all callers into one bucket.
+    trusted-proxy-hops: 1
 
 admin:
   jwt:
@@ -105,7 +112,15 @@ resilience4j:
         limit-refresh-period: 60s
         timeout-duration: 0s
       admin-crud:
-        limit-for-period: 100
+        # 600/min per user. NOT a round-number guess: the Admin UI consumes ~50 req/min per
+        # operator while merely sitting open (component polling), and an active navigation burst
+        # goes well past 100 — the previous value, which made the UI 429 on every page.
+        #
+        # 100 was calibrated when this limiter was attached by hand to a few controller methods.
+        # P3.6 made it the /api/** catch-all covering EVERY endpoint without re-deriving the
+        # budget, so the scope grew by an order of magnitude while the number stayed put.
+        # It is per-JWT-subject, so this is one operator's ceiling, not the platform's.
+        limit-for-period: 600
         limit-refresh-period: 60s
         timeout-duration: 0s
   circuitbreaker:

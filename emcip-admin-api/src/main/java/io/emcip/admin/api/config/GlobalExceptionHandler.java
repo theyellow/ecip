@@ -1,6 +1,7 @@
 package io.emcip.admin.api.config;
 
 import io.emcip.admin.api.audit.AdminAuditPublisher;
+import io.emcip.common.crypto.PlaintextSecretException;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import java.security.Principal;
@@ -103,11 +104,79 @@ public class GlobalExceptionHandler {
         return Mono.just(ResponseEntity.status(ex.getStatusCode()).body(problem));
     }
 
+    /**
+     * A stored secret predating encryption. Mapped centrally so every endpoint reading any of the
+     * encrypted columns behaves the same, rather than each controller inventing its own wording.
+     *
+     * <p>409 rather than 500: the request was well-formed and the server is healthy — the stored
+     * state is what conflicts, and the operator can resolve it by re-entering the value.
+     *
+     * <p>The exception message names a table, a column and a repo path; none of that reaches the
+     * client. Only a stable {@code code} and a logical field label are exposed, with the detail
+     * logged. Registered above {@link #handleIllegalArgument} because {@code
+     * PlaintextSecretException} extends {@code IllegalStateException}, not {@code
+     * IllegalArgumentException} — but ordering is stated explicitly here so a future reshuffle does
+     * not silently drop it into the catch-all and start returning 500s.
+     */
+    @ExceptionHandler(PlaintextSecretException.class)
+    public Mono<ResponseEntity<ProblemDetail>> handlePlaintextSecret(PlaintextSecretException ex) {
+        log.error("Unencrypted secret encountered at {}", ex.getLocation(), ex);
+        ProblemDetail problem =
+                ProblemDetail.forStatusAndDetail(
+                        HttpStatus.CONFLICT,
+                        "This value was stored before secrets encryption was enabled. Re-enter "
+                                + safeFieldLabel(ex.getLocation())
+                                + " to secure it.");
+        problem.setTitle("Secret not encrypted");
+        problem.setProperty("code", "SECRET_NOT_ENCRYPTED");
+        problem.setProperty("field", safeFieldLabel(ex.getLocation()));
+        return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(problem));
+    }
+
+    /**
+     * Maps {@code table.column} to wording an operator recognises from the UI. Unknown locations
+     * fall back to a generic phrase rather than passing the schema name through — a column added
+     * later must not start leaking just because nobody updated this switch.
+     */
+    private static String safeFieldLabel(String location) {
+        return switch (location) {
+            case "telegram_accounts.api_hash" -> "the Telegram API hash";
+            case "telegram_accounts.session_string" -> "the Telegram session";
+            case "ke_vendor_api_keys.api_key" -> "the vendor API key";
+            case "llm_provider_configs.api_key" -> "the LLM provider API key";
+            default -> "this secret";
+        };
+    }
+
+    /**
+     * 400 without echoing the exception text.
+     *
+     * <p>No admin-api code throws {@code IllegalArgumentException} to carry a user-facing message —
+     * the only explicit throws are startup config validation. So everything arriving here at
+     * request time comes from library code, whose messages describe internals:
+     *
+     * <ul>
+     *   <li>{@code Enum.valueOf} → "No enum constant io.emcip.admin.api.entity.Xxx.BAD", disclosing
+     *       package and class names. Reachable via {@code TelegramAccountStatus.valueOf} on a
+     *       response from tdlib-adapter.
+     *   <li>{@code UUID.fromString} → "Invalid UUID string: …", reachable from a malformed {@code
+     *       X-Tenant-Id} header.
+     * </ul>
+     *
+     * <p>Intentional user-facing messages have two supported routes that are unaffected: bean
+     * validation ({@code @Valid} → {@link #handleValidation}, which returns per-field errors) and
+     * {@code ResponseStatusException(status, reason)}, whose reason is author-written. If you want
+     * a client to read a specific sentence, throw one of those — not a bare {@code
+     * IllegalArgumentException}.
+     *
+     * <p>Logged at WARN with the stack trace rather than DEBUG: the detail has to survive
+     * somewhere, and this is now the only place it exists.
+     */
     @ExceptionHandler(IllegalArgumentException.class)
     public Mono<ResponseEntity<ProblemDetail>> handleIllegalArgument(IllegalArgumentException ex) {
-        log.debug("Bad request: {}", ex.getMessage());
+        log.warn("Bad request", ex);
         ProblemDetail problem =
-                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+                ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid request");
         return Mono.just(ResponseEntity.badRequest().body(problem));
     }
 

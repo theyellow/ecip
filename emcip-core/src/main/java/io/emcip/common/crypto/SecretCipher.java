@@ -91,11 +91,7 @@ public class SecretCipher {
             return null;
         }
         if (!isEncrypted(stored)) {
-            throw new IllegalStateException(
-                    "Plaintext secret in "
-                            + location
-                            + " — this value was never encrypted. Run the migration runbook in"
-                            + " docs/operations/secrets-encryption.md");
+            throw new PlaintextSecretException(location);
         }
         try {
             byte[] combined = Base64.getDecoder().decode(stored.substring(PREFIX.length()));

@@ -30,6 +30,21 @@ async function parseResponse(res) {
     } catch {
       /* no JSON body */
     }
+    // Prefer the server's ProblemDetail `detail` over "409 Conflict", which tells an operator
+    // nothing. Pages render e.message directly, so without this the actionable sentence the API
+    // took care to produce never reaches the screen.
+    //
+    // Safe to surface because admin-api does not put internal detail in this field: unexpected
+    // exceptions become "An unexpected error occurred" in GlobalExceptionHandler. Anything that
+    // does reach `detail` was written to be read by an operator.
+    if (typeof err.body?.detail === 'string' && err.body.detail.trim()) {
+      err.message = err.body.detail
+    }
+    // Stable classification (e.g. SECRET_NOT_ENCRYPTED) for callers that need to branch on the
+    // kind of failure rather than match on wording.
+    if (err.body?.code) {
+      err.code = err.body.code
+    }
     throw err
   }
   if (res.status === 204 || res.headers?.get('content-length') === '0') return null

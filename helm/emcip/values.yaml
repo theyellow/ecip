@@ -252,6 +252,13 @@ services:
       INTENT_CLASSIFIER_URL: "http://emcip-intent-classifier:9082"
       SPRING_AUTOCONFIGURE_EXCLUDE: "org.springframework.boot.security.autoconfigure.ReactiveUserDetailsServiceAutoConfiguration"
       JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:InitialRAMPercentage=25.0 -XX:+UseG1GC"
+      # How many proxies sit in front of admin-api, counted from the RIGHT of X-Forwarded-For.
+      # Declared here rather than left to the application default because it describes THIS
+      # cluster's topology: the ingress routes /api/** straight to admin-api, so the admin-ui
+      # BFF is not a hop for API traffic and the count is 1, not 2.
+      # Verified 2026-08-09 — see docs/operations/rate-limiting.md. Re-verify after any ingress
+      # change; a wrong value silently breaks per-IP rate limiting in one direction or the other.
+      EMCIP_SECURITY_TRUSTED_PROXY_HOPS: "1"
     secrets:
       ADMIN_JWT_SECRET: admin-jwt-secret
       ADMIN_SERVICE_TOKEN: admin-service-token

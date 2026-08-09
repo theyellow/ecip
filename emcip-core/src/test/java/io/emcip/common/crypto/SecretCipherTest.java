@@ -37,10 +37,36 @@ class SecretCipherTest {
     @Test
     void decrypt_plaintextValue_throwsNamingTheColumnButNotTheValue() {
         assertThatThrownBy(() -> cipher.decrypt("sk-legacy-plaintext", LOCATION))
+                .isInstanceOf(PlaintextSecretException.class)
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("ke_vendor_api_keys.api_key")
                 .hasMessageNotContaining("sk-legacy-plaintext")
                 .hasMessageNotContaining("sk-legacy");
+    }
+
+    @Test
+    void decrypt_plaintextValue_exposesLocationProgrammaticallyForSafeReporting() {
+        // Callers must be able to classify this case and render their own wording without
+        // scraping the message, which names schema and a repo path and must not reach a client.
+        assertThatThrownBy(() -> cipher.decrypt("sk-legacy-plaintext", LOCATION))
+                .asInstanceOf(
+                        org.assertj.core.api.InstanceOfAssertFactories.type(
+                                PlaintextSecretException.class))
+                .extracting(PlaintextSecretException::getLocation)
+                .isEqualTo(LOCATION);
+    }
+
+    @Test
+    void decrypt_unreadableCiphertext_isNotThePlaintextSubtype() {
+        // Both are IllegalStateException, but only the plaintext case is fixed by re-entering the
+        // value. Conflating them would tell an operator to overwrite data that is merely
+        // unreadable with the current key.
+        String malformed =
+                "v1:" + java.util.Base64.getEncoder().encodeToString(new byte[] {1, 2, 3, 4});
+
+        assertThatThrownBy(() -> cipher.decrypt(malformed, LOCATION))
+                .isInstanceOf(IllegalStateException.class)
+                .isNotInstanceOf(PlaintextSecretException.class);
     }
 
     @Test

@@ -13,6 +13,7 @@ import io.emcip.admin.api.entity.GroupProfile;
 import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.entity.TelegramAccountStatus;
 import io.emcip.admin.api.service.TelegramAccountService;
+import io.emcip.common.crypto.PlaintextSecretException;
 import io.emcip.common.tenant.ReactorTenantContext;
 import java.time.Instant;
 import java.util.List;
@@ -258,5 +259,94 @@ class TelegramAccountControllerTest {
                 .exchange()
                 .expectStatus()
                 .isBadRequest();
+    }
+
+    @Test
+    void reconnect_plaintextSecret_doesNotLeakSchemaOrPathsButStaysActionable() {
+        UUID id = UUID.randomUUID();
+        // The real exception SecretCipher throws fail-closed. Its message deliberately names the
+        // table, the column and a repo file path — none of which may reach an HTTP client.
+        when(telegramAccountService.reconnect(id))
+                .thenReturn(Mono.error(new PlaintextSecretException("telegram_accounts.api_hash")));
+
+        String body =
+                new String(
+                        webTestClient
+                                .post()
+                                .uri("/api/telegram/accounts/{id}/reconnect", id)
+                                .exchange()
+                                .expectStatus()
+                                .isEqualTo(409)
+                                .expectBody()
+                                .jsonPath("$.code")
+                                .isEqualTo("SECRET_NOT_ENCRYPTED")
+                                .returnResult()
+                                .getResponseBody());
+
+        assertThat(body)
+                .as("response must not disclose database schema or internal file paths")
+                .doesNotContain("telegram_accounts")
+                .doesNotContain("api_hash")
+                .doesNotContain("docs/operations")
+                .doesNotContain(".md");
+        assertThat(body)
+                .as("but must still tell the operator what to do")
+                .contains("Re-enter the Telegram API hash");
+    }
+
+    @Test
+    void reconnect_unexpectedFailure_reportsNothingAboutItsCause() {
+        UUID id = UUID.randomUUID();
+        // A downstream failure whose message carries an internal hostname.
+        when(telegramAccountService.reconnect(id))
+                .thenReturn(
+                        Mono.error(
+                                new RuntimeException(
+                                        "Connection refused: emcip-tdlib-adapter.emcip.svc:9080")));
+
+        String body =
+                new String(
+                        webTestClient
+                                .post()
+                                .uri("/api/telegram/accounts/{id}/reconnect", id)
+                                .exchange()
+                                .expectStatus()
+                                .isAccepted()
+                                .expectBody()
+                                .jsonPath("$.code")
+                                .isEqualTo("RECONNECT_FAILED")
+                                .returnResult()
+                                .getResponseBody());
+
+        assertThat(body).doesNotContain("emcip-tdlib-adapter").doesNotContain("9080");
+    }
+
+    @Test
+    void reconnect_decryptFailure_isNotMisreportedAsReenterTheValue() {
+        UUID id = UUID.randomUUID();
+        // Same exception type as the plaintext case, different meaning: the value IS encrypted but
+        // cannot be read with the current key. Telling an operator to "re-enter the API hash" here
+        // would talk them into overwriting recoverable data.
+        when(telegramAccountService.reconnect(id))
+                .thenReturn(
+                        Mono.error(
+                                new IllegalStateException(
+                                        "Failed to decrypt secret in telegram_accounts.api_hash")));
+
+        String body =
+                new String(
+                        webTestClient
+                                .post()
+                                .uri("/api/telegram/accounts/{id}/reconnect", id)
+                                .exchange()
+                                .expectStatus()
+                                .isAccepted()
+                                .expectBody()
+                                .jsonPath("$.code")
+                                .isEqualTo("RECONNECT_FAILED")
+                                .returnResult()
+                                .getResponseBody());
+
+        assertThat(body).doesNotContain("Re-enter").doesNotContain("telegram_accounts");
     }
 }

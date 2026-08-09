@@ -30,7 +30,7 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleIllegalArgument_returns400WithDetail() {
+    void handleIllegalArgument_returns400WithoutEchoingTheExceptionText() {
         IllegalArgumentException ex = new IllegalArgumentException("invalid input value");
 
         ResponseEntity<ProblemDetail> result = handler.handleIllegalArgument(ex).block();
@@ -38,7 +38,34 @@ class GlobalExceptionHandlerTest {
         assertThat(result).isNotNull();
         assertThat(result.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(result.getBody()).isNotNull();
-        assertThat(result.getBody().getDetail()).isEqualTo("invalid input value");
+        assertThat(result.getBody().getDetail()).isEqualTo("Invalid request");
+    }
+
+    @Test
+    void handleIllegalArgument_doesNotDiscloseInternalClassNames() {
+        // The real message Enum.valueOf produces. Reachable at request time via
+        // TelegramAccountStatus.valueOf on a status returned by tdlib-adapter.
+        IllegalArgumentException ex =
+                new IllegalArgumentException(
+                        "No enum constant io.emcip.admin.api.entity.TelegramAccountStatus.WEIRD");
+
+        ResponseEntity<ProblemDetail> result = handler.handleIllegalArgument(ex).block();
+
+        assertThat(result.getBody().getDetail())
+                .doesNotContain("io.emcip")
+                .doesNotContain("TelegramAccountStatus")
+                .doesNotContain("enum");
+    }
+
+    @Test
+    void handleIllegalArgument_doesNotEchoBackHeaderValues() {
+        // The real message UUID.fromString produces, reachable from a malformed X-Tenant-Id.
+        IllegalArgumentException ex =
+                new IllegalArgumentException("Invalid UUID string: not-a-tenant-id");
+
+        ResponseEntity<ProblemDetail> result = handler.handleIllegalArgument(ex).block();
+
+        assertThat(result.getBody().getDetail()).doesNotContain("not-a-tenant-id");
     }
 
     @Test
