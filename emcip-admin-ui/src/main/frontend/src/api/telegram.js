@@ -5,6 +5,12 @@ export function telegramApi(request) {
       request('/api/telegram/accounts', { method: 'POST', body: JSON.stringify(body) }),
     deleteAccount: id =>
       request(`/api/telegram/accounts/${id}`, { method: 'DELETE' }),
+    /** Replaces the stored API credentials. The repair path for a pre-encryption api_hash. */
+    updateCredentials: (id, body) =>
+      request(`/api/telegram/accounts/${id}/credentials`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
     getStatus: id => request(`/api/telegram/accounts/${id}/status`),
     reconnect: id =>
       request(`/api/telegram/accounts/${id}/reconnect`, { method: 'POST' }),

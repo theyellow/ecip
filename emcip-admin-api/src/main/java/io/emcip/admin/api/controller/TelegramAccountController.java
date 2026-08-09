@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -78,6 +79,21 @@ public class TelegramAccountController {
                                     req.apiHash())
                             .map(TelegramAccountController::toSafeMap);
                 });
+    }
+
+    @Operation(
+            summary = "Replace the Telegram API credentials of an existing account",
+            description =
+                    "Repair path for a value stored before secrets encryption. The stored hash is"
+                            + " never read, only overwritten, because reading it is what fails on"
+                            + " the accounts this exists to fix.")
+    @PutMapping("/{id}/credentials")
+    @PreAuthorize("hasAuthority('TELEGRAM_WRITE')")
+    public Mono<Map<String, Object>> updateCredentials(
+            @PathVariable UUID id, @Valid @RequestBody UpdateCredentialsRequest req) {
+        return telegramAccountService
+                .updateCredentials(id, req.apiId(), req.apiHash())
+                .map(TelegramAccountController::toSafeMap);
     }
 
     @Operation(summary = "Delete a Telegram account")
@@ -253,6 +269,13 @@ public class TelegramAccountController {
                     String displayName,
             @Schema(description = "Optional Telegram API ID (from my.telegram.org)") Integer apiId,
             @Schema(description = "Optional Telegram API Hash (from my.telegram.org)")
+                    String apiHash) {}
+
+    @Schema(description = "Replacement Telegram API credentials for an existing account")
+    public record UpdateCredentialsRequest(
+            @Schema(description = "New Telegram API ID; omit to keep the stored one") Integer apiId,
+            @NotBlank(message = "apiHash is required")
+                    @Schema(description = "New Telegram API Hash (from my.telegram.org)")
                     String apiHash) {}
 
     @Schema(description = "Telegram authentication code sent to the phone")

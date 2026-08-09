@@ -79,6 +79,76 @@ class TelegramAccountServiceTest {
     }
 
     @Test
+    void updateCredentials_storesTheNewHashEncrypted() {
+        UUID id = UUID.randomUUID();
+        TelegramAccount stored = account(id);
+        // The row this repair exists for: a hash written before encryption, with no v1: prefix.
+        stored.setApiHash("legacy-plaintext-hash");
+        when(repository.findById(id)).thenReturn(Mono.just(stored));
+        AtomicReference<TelegramAccount> saved = new AtomicReference<>();
+        when(repository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            saved.set(inv.getArgument(0));
+                            return Mono.just(inv.getArgument(0));
+                        });
+
+        StepVerifier.create(
+                        service.updateCredentials(id, 999, "the-new-hash")
+                                .contextWrite(ReactorTenantContext::withAdminMode))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        assertThat(saved.get().getApiHash()).startsWith("v1:");
+        assertThat(saved.get().getApiHash()).doesNotContain("the-new-hash");
+        assertThat(CIPHER.decrypt(saved.get().getApiHash(), "telegram_accounts.api_hash"))
+                .isEqualTo("the-new-hash");
+        assertThat(saved.get().getApiId()).isEqualTo(999);
+    }
+
+    @Test
+    void updateCredentials_neverReadsTheStoredHash() {
+        // The whole point: decrypting the current value is what fails on a legacy row, so a repair
+        // that reads it first cannot repair anything. A plaintext value here would throw if the
+        // implementation ever started decrypting it.
+        UUID id = UUID.randomUUID();
+        TelegramAccount stored = account(id);
+        stored.setApiHash("legacy-plaintext-hash");
+        when(repository.findById(id)).thenReturn(Mono.just(stored));
+        when(repository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
+
+        StepVerifier.create(
+                        service.updateCredentials(id, null, "replacement")
+                                .contextWrite(ReactorTenantContext::withAdminMode))
+                .expectNextCount(1)
+                .verifyComplete();
+    }
+
+    @Test
+    void updateCredentials_keepsTheStoredApiIdWhenNoneGiven() {
+        UUID id = UUID.randomUUID();
+        TelegramAccount stored = account(id);
+        stored.setApiId(4242);
+        stored.setApiHash("legacy-plaintext-hash");
+        when(repository.findById(id)).thenReturn(Mono.just(stored));
+        AtomicReference<TelegramAccount> saved = new AtomicReference<>();
+        when(repository.save(any()))
+                .thenAnswer(
+                        inv -> {
+                            saved.set(inv.getArgument(0));
+                            return Mono.just(inv.getArgument(0));
+                        });
+
+        StepVerifier.create(
+                        service.updateCredentials(id, null, "replacement")
+                                .contextWrite(ReactorTenantContext::withAdminMode))
+                .expectNextCount(1)
+                .verifyComplete();
+
+        assertThat(saved.get().getApiId()).isEqualTo(4242);
+    }
+
+    @Test
     void findAll_adminMode_returnsAll() {
         UUID id = UUID.randomUUID();
         when(repository.findAll()).thenReturn(Flux.just(account(id)));

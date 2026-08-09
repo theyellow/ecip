@@ -36,6 +36,9 @@ export function Telegram() {
   const [showDiscover, setShowDiscover] = useState(null)
   const [discoveredChats, setDiscoveredChats] = useState([])
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [credentialsFor, setCredentialsFor] = useState(null)
+  const [credentialsForm, setCredentialsForm] = useState({ apiId: '', apiHash: '' })
+  const [credentialsError, setCredentialsError] = useState('')
   const [discoverLoading, setDiscoverLoading] = useState(false)
   const [discoverError, setDiscoverError] = useState('')
 
@@ -166,8 +169,42 @@ export function Telegram() {
         setError(res.reason)
       }
     } catch (e) {
+      // A secret stored before encryption fails closed, and the only repair is to replace it.
+      // Open that dialog rather than making the operator find it: the message says "re-enter the
+      // Telegram API hash", so the next click should be the field to type it into.
+      if (e.code === 'SECRET_NOT_ENCRYPTED') {
+        setCredentialsFor({ accountId: id, reason: e.message })
+        return
+      }
       setError(e.message)
     }
+  }
+
+  const handleSaveCredentials = async () => {
+    setCredentialsError('')
+    if (!credentialsForm.apiHash.trim()) {
+      setCredentialsError('API Hash is required.')
+      return
+    }
+    try {
+      const body = { apiHash: credentialsForm.apiHash.trim() }
+      if (credentialsForm.apiId.trim()) body.apiId = Number(credentialsForm.apiId)
+      const accountId = credentialsFor.accountId
+      await api.updateCredentials(accountId, body)
+      closeCredentials()
+      addToast('success', 'Credentials stored. Authenticating.')
+      loadAccounts()
+      // The reason the operator opened this dialog was to authenticate, so carry on to it.
+      handleReconnect(accountId)
+    } catch (e) {
+      setCredentialsError(e.message)
+    }
+  }
+
+  const closeCredentials = () => {
+    setCredentialsFor(null)
+    setCredentialsForm({ apiId: '', apiHash: '' })
+    setCredentialsError('')
   }
 
   const handleSubmitCode = async () => {
@@ -247,6 +284,10 @@ export function Telegram() {
                   <Button variant="secondary" onClick={() => openGroupsPanel(a.id)}>Groups</Button>
                   <Button variant="secondary" onClick={() => handleReconnect(a.id)}>Auth</Button>
                   <Button variant="secondary" onClick={() => handleLogout(a.id)}>Logout</Button>
+                  <Button variant="secondary"
+                    onClick={() => setCredentialsFor({ accountId: a.id, reason: null })}>
+                    Credentials
+                  </Button>
                   <Button variant="danger" onClick={() => setPendingDelete(a)}>Delete</Button>
                 </td>
               </tr>
@@ -405,6 +446,31 @@ export function Telegram() {
           </div>
         </Modal>
       )}
+      {credentialsFor && (
+        <Modal title="Telegram API Credentials" onClose={closeCredentials}
+          onSubmit={handleSaveCredentials}>
+          {credentialsFor.reason && (
+            <p className={styles.advancedHint}>{credentialsFor.reason}</p>
+          )}
+          <p className={styles.advancedHint}>
+            The stored hash is replaced, never shown. Leave API ID blank to keep the stored one.
+          </p>
+          <div className={styles.field}>
+            <label htmlFor="cred-api-id">API ID</label>
+            <input id="cred-api-id" type="number" className={styles.input} placeholder="Keep current"
+              value={credentialsForm.apiId}
+              onChange={e => setCredentialsForm(f => ({ ...f, apiId: e.target.value }))} />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="cred-api-hash">API Hash</label>
+            <input id="cred-api-hash" type="text" className={styles.input} placeholder="abc123def456..."
+              value={credentialsForm.apiHash}
+              onChange={e => setCredentialsForm(f => ({ ...f, apiHash: e.target.value }))} />
+          </div>
+          {credentialsError && <p className={styles.error} role="alert">{credentialsError}</p>}
+        </Modal>
+      )}
+
       {pendingDelete && (
         <ConfirmDialog
           title="Delete account"

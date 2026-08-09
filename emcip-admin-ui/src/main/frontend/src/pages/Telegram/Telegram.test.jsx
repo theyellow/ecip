@@ -27,6 +27,7 @@ const mockApi = {
   listWatched: vi.fn(),
   watchGroup: vi.fn(),
   unwatchGroup: vi.fn(),
+  updateCredentials: vi.fn(),
 }
 
 vi.mock('../../api/telegram', () => ({
@@ -119,5 +120,56 @@ describe('Telegram page', () => {
     await userEvent.click(screen.getByRole('button', { name: /save/i }))
 
     await waitFor(() => expect(screen.getByText('Bot 2')).toBeInTheDocument())
+  })
+
+  it('opens the credentials dialog when auth fails on an unencrypted secret', async () => {
+    // The 409 tells the operator to re-enter the Telegram API hash. Until there was somewhere to
+    // type it, that instruction named something the product could not do — reconnect fails before
+    // tdlib is ever contacted, so no dialog appeared and no login code was sent.
+    const account = { id: 'acct-1', phoneNumber: '+49123456789', status: 'DISCONNECTED' }
+    mockApi.listAccounts.mockResolvedValue([account])
+    const err = new Error('This value was stored before secrets encryption was enabled.')
+    err.code = 'SECRET_NOT_ENCRYPTED'
+    mockApi.reconnect.mockRejectedValue(err)
+
+    renderTelegram()
+    await screen.findByText('+49123456789')
+    await userEvent.click(screen.getByRole('button', { name: 'Auth' }))
+
+    expect(await screen.findByText('Telegram API Credentials')).toBeInTheDocument()
+    expect(screen.getByText(err.message)).toBeInTheDocument()
+  })
+
+  it('stores a replacement hash and retries authentication', async () => {
+    const account = { id: 'acct-1', phoneNumber: '+49123456789', status: 'DISCONNECTED' }
+    mockApi.listAccounts.mockResolvedValue([account])
+    mockApi.updateCredentials.mockResolvedValue({})
+    mockApi.reconnect.mockResolvedValue({ accepted: true })
+
+    renderTelegram()
+    await screen.findByText('+49123456789')
+    await userEvent.click(screen.getByRole('button', { name: 'Credentials' }))
+    await userEvent.type(screen.getByLabelText('API Hash'), 'new-hash-value')
+    await userEvent.click(screen.getByRole('button', { name: /save|submit/i }))
+
+    await waitFor(() =>
+      expect(mockApi.updateCredentials).toHaveBeenCalledWith('acct-1', { apiHash: 'new-hash-value' }),
+    )
+    // Storing the hash is not the goal; authenticating is. The operator should not have to click
+    // Auth again after doing what the error asked.
+    await waitFor(() => expect(mockApi.reconnect).toHaveBeenCalledWith('acct-1'))
+  })
+
+  it('does not send an empty hash', async () => {
+    const account = { id: 'acct-1', phoneNumber: '+49123456789', status: 'DISCONNECTED' }
+    mockApi.listAccounts.mockResolvedValue([account])
+
+    renderTelegram()
+    await screen.findByText('+49123456789')
+    await userEvent.click(screen.getByRole('button', { name: 'Credentials' }))
+    await userEvent.click(screen.getByRole('button', { name: /save|submit/i }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('API Hash is required.')
+    expect(mockApi.updateCredentials).not.toHaveBeenCalled()
   })
 })

@@ -135,12 +135,12 @@ is still plaintext:
 |---|---|
 | `llm_provider_configs.api_key` | AI Config → Provider Configs → Edit → retype the key |
 | `ke_vendor_api_keys.api_key` | Integrations → Global Keys |
-| `telegram_accounts.api_hash` | **No UI path** — see below |
+| `telegram_accounts.api_hash` | Telegram → the account → Credentials |
 
-> **`telegram_accounts.api_hash` has no re-entry path.** `apiHash` is accepted only when an account
-> is *created*; there is no update endpoint and no edit form. The 409 tells the operator to re-enter
-> it anyway, which is a bug tracked as `TG-REENTER`. Until that is fixed, repair the row with
-> `scripts/encrypt-legacy-secrets.sh` (below) rather than through the product.
+> Attempting to authenticate an account whose hash is legacy plaintext now opens the Credentials
+> dialog directly, carrying the reason, and authentication resumes once the replacement is stored.
+> Before `TG-REENTER` the hash was accepted only at account *creation*, so the 409 instructed
+> operators to do something the product could not do.
 
 ### Repairing legacy values with the script
 

@@ -129,6 +129,8 @@ fi
 
 echo "OK: encrypted $total_changed value(s); no unencrypted secrets remain."
 echo
-echo "Next: restart the services that read them so nothing holds a stale failure —"
-echo "  $KUBECTL rollout restart deploy/emcip-admin-api deploy/emcip-llm-orchestrator -n $NS"
+echo "No restart is needed for admin-api or llm-orchestrator: both decrypt per request, against"
+echo "the row as read, so the next call already sees the repaired value."
+echo
+echo "Restart tdlib-adapter only if it is holding a session it established before the repair:"
 echo "  $KUBECTL rollout restart statefulset/emcip-tdlib-adapter -n $NS"
