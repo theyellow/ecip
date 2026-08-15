@@ -1,6 +1,7 @@
 package io.emcip.common.crypto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -128,5 +129,25 @@ class SecretColumnScannerTest {
 
         assertThat(result.outcome()).isEqualTo(Outcome.UNVERIFIED);
         assertThat(result.isProblem()).isTrue();
+    }
+
+    /**
+     * A bug unrelated to key mismatch (e.g. an NPE from a future refactor of {@code decrypt}) must
+     * propagate as a startup failure, not be silently reclassified as KEY_MISMATCH — that would
+     * send an operator hunting for a wrong encryption key that is actually fine.
+     */
+    @Test
+    void propagatesUnrelatedRuntimeExceptionsFromDecryptRatherThanReportingKeyMismatch()
+            throws Exception {
+        String encrypted = new SecretCipher(KEY_A).encrypt("some-api-key");
+        stubQueries(0, encrypted, 3);
+
+        SecretCipher brokenCipher = mock(SecretCipher.class);
+        when(brokenCipher.decrypt(anyString(), anyString()))
+                .thenThrow(new IllegalArgumentException("boom"));
+
+        SecretColumnScanner scanner = new SecretColumnScanner(dataSource, brokenCipher);
+
+        assertThatThrownBy(() -> scanner.scan(COLUMN)).isInstanceOf(IllegalArgumentException.class);
     }
 }

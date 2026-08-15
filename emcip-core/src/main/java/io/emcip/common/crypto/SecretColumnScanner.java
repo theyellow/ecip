@@ -123,7 +123,15 @@ public class SecretColumnScanner {
                     // Result deliberately discarded: we need only the fact that it decrypted.
                     cipher.decrypt(sample, column.location());
                     return true;
-                } catch (RuntimeException e) {
+                } catch (IllegalStateException e) {
+                    // SecretCipher.decrypt's only documented failure modes:
+                    // PlaintextSecretException
+                    // (a subtype) for a missing v1: prefix, or IllegalStateException for a corrupt
+                    // or
+                    // undecryptable value under the mounted key. Anything else (e.g. an NPE from a
+                    // future refactor) is a real defect and must propagate as a startup failure,
+                    // not
+                    // be silently reclassified as KEY_MISMATCH.
                     return false;
                 }
             }
