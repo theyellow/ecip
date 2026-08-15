@@ -135,6 +135,33 @@ class SecretsSelfCheckTest {
     }
 
     @Test
+    void warnModeSurvivesAScanThatCannotRunAndStartsAnyway() {
+        SecretColumnScanner scanner = mock(SecretColumnScanner.class);
+        when(scanner.scan(any())).thenThrow(new IllegalStateException("database is down"));
+        SecretsSelfCheck check =
+                new SecretsSelfCheck(
+                        scanner,
+                        List.of(COLUMN),
+                        new SecretsSelfCheckProperties(SelfCheckMode.WARN));
+
+        assertThatCode(() -> check.run(null)).doesNotThrowAnyException();
+        assertThat(check.lastResults()).isEmpty();
+    }
+
+    @Test
+    void failModeRefusesToStartWhenTheScanCannotRun() {
+        SecretColumnScanner scanner = mock(SecretColumnScanner.class);
+        when(scanner.scan(any())).thenThrow(new IllegalStateException("database is down"));
+        SecretsSelfCheck check =
+                new SecretsSelfCheck(
+                        scanner,
+                        List.of(COLUMN),
+                        new SecretsSelfCheckProperties(SelfCheckMode.FAIL));
+
+        assertThatThrownBy(() -> check.run(null)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     void lastResultsIsEmptyBeforeTheFirstScan() {
         assertThat(selfCheck(SelfCheckMode.WARN, Outcome.OK, 0).lastResults()).isEmpty();
     }

@@ -40,9 +40,35 @@ public class SecretsSelfCheck implements ApplicationRunner {
         this.properties = properties;
     }
 
+    /**
+     * Runs the self-check at boot.
+     *
+     * <p>In {@link SelfCheckMode#WARN} a scan that cannot even run — e.g. the database is
+     * unreachable during a rollout — is logged at {@code ERROR} and swallowed so the application
+     * still starts; {@link #lastResults()} stays empty, which {@link SecretsMetrics} already
+     * reports as {@code NaN} rather than a false "clean" {@code 0}. WARN exists specifically to
+     * avoid a self-inflicted startup failure, and a transient DB outage at boot is not evidence
+     * that secrets are misconfigured — it says nothing about them either way, so it must not block
+     * startup here. In {@link SelfCheckMode#FAIL} the same failure is allowed to propagate: a scan
+     * that could not run has not proven the secrets are clean, which is the entire point of opting
+     * into {@code FAIL}.
+     */
     @Override
     public void run(ApplicationArguments args) {
-        List<ColumnResult> results = scanAndLog();
+        List<ColumnResult> results;
+        try {
+            results = scanAndLog();
+        } catch (RuntimeException e) {
+            if (properties.selfCheck() == SelfCheckMode.FAIL) {
+                throw new IllegalStateException(
+                        "Secret self-check could not run, and emcip.secrets.self-check=fail"
+                                + " requires a clean scan before startup. See"
+                                + " docs/operations/secrets-encryption.md",
+                        e);
+            }
+            log.error("Secret self-check could not run; continuing startup (mode={})", mode(), e);
+            return;
+        }
         if (properties.selfCheck() == SelfCheckMode.FAIL) {
             List<ColumnResult> problems = results.stream().filter(ColumnResult::isProblem).toList();
             if (!problems.isEmpty()) {
