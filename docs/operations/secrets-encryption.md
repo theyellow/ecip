@@ -173,3 +173,72 @@ that response reaches a browser.
 
 Not supported yet. The `v1:` prefix is the version marker that will let a second key be introduced
 without touching stored data. Tracked for P6 alongside the secrets-management ADR.
+
+## Startup self-check (P3.7)
+
+Reads have always been fail-closed (a plaintext value throws rather than being silently returned) —
+what P3.7 adds is **discovery**. Before this, a plaintext or wrong-key row was found lazily, the first
+time an operator touched the feature that reads it. Now every affected service scans its columns at
+boot, and hourly after that, so the state is known before anyone hits it.
+
+Wired into admin-api (`telegram_accounts.api_hash`, `telegram_accounts.session_string`),
+knowledge-engine (`ke_vendor_api_keys.api_key`) and llm-orchestrator (`llm_provider_configs.api_key`).
+Config key `emcip.secrets.self-check` (env `EMCIP_SECRETS_SELF_CHECK`), default **`warn`** — logs and
+boots normally. `off` skips the check entirely (local dev). `fail` refuses to start; see promotion
+procedure below. **`warn` is the shipping default in every environment today** — no environment has
+been promoted to `fail`.
+
+### The four outcomes
+
+| Outcome | Meaning | Operator action |
+|---|---|---|
+| `OK` | Zero plaintext rows, and one encrypted row decrypted successfully with the mounted key. | None. |
+| `PLAINTEXT` | One or more rows lack the `v1:` prefix. | Repair via the Admin UI: **Credentials** on the affected Telegram account, **Integrations → Global Keys**, or **AI Config → Provider Configs → Edit**, per the table under [Repairing a legacy value through the Admin UI](#repairing-a-legacy-value-through-the-admin-ui) above (PR #241 / #243). Re-entering overwrites the plaintext with a freshly encrypted value — safe, because the old value was already readable in the clear. |
+| `KEY_MISMATCH` | A `v1:`-prefixed row exists but the mounted `EMCIP_SECRET_KEY` cannot decrypt it — the wrong key is mounted. | **Do not** re-enter the secret through the Admin UI. The stored value is not plaintext; it is ciphertext under a *different* key, and may still be recoverable if the correct key is found and re-mounted. Re-entering would silently discard that possibility by overwriting it with a new value under the current (wrong) key. Instead: find the correct `EMCIP_SECRET_KEY` (see [Key loss](#key-loss) if it is genuinely gone) and fix the mounted Secret. |
+| `UNVERIFIED` | No `v1:` rows exist at all for that column, so the key could not be proven against real data. | None — expected on a fresh install or an all-NULL column (e.g. `session_string` today). Not the same as `OK`: an empty column has not actually demonstrated that the key works. |
+
+`KEY_MISMATCH` exists because a naive prefix-only scan cannot see it: under the wrong key every row
+still starts with `v1:` and would report clean while nothing is actually readable. The self-check
+proves the key against one real row per column rather than trusting the prefix alone.
+
+### Metrics
+
+- `emcip.secrets.plaintext_count{column="<table>.<column>"}` — gauge, count of un-prefixed rows, `0`
+  when clean.
+- `emcip.secrets.key_status{column="<table>.<column>"}` — gauge: `0` = OK, `1` = `KEY_MISMATCH`,
+  `2` = `UNVERIFIED`. `NaN` if the column has never been scanned (before the first run, or always,
+  under `self-check: off`) — deliberately not `0`, because `0` also means "checked and clean" and a
+  disabled check must not look identical to a passing one.
+
+### Reading the state
+
+```bash
+curl -s localhost:<port>/actuator/health | jq .components.secrets
+```
+
+`SecretsHealthIndicator` is **always `UP`, by design** — it never reports `DOWN`, however bad the
+findings underneath. This indicator feeds the Kubernetes readiness probe; a `DOWN` here would pull the
+pod out of rotation, which would make the Admin UI repair path (the previous section) unreachable —
+exactly the outage this feature exists to avoid. Treat `/actuator/health`'s `secrets` block as a
+report to read, not a signal to alert on; the **metrics** above are the alertable surface.
+
+### Re-scan
+
+The check re-runs hourly at `17m 23s` past the hour (offset per the project's cron-timing rule, never
+a round `:00.000`), in addition to at startup. This is what lets the gauges clear after a repair
+without waiting for the next pod restart — and, in `fail` mode, the scheduled re-scan never fails a
+running pod even if it finds new plaintext; only the startup check can refuse to boot. A repair made
+through the Admin UI is therefore reflected in the metrics within the hour, not immediately.
+
+### Promoting an environment to `fail`
+
+Ships as `warn` everywhere. Promoting a specific environment to hard-fail-on-plaintext is a manual,
+per-environment operator decision, taken only after that environment has demonstrated it is clean:
+
+1. Confirm `plaintext_count == 0` and `key_status == 0` for every one of the four columns.
+2. Confirm this across **at least one full hourly re-scan cycle**, not just the boot-time reading —
+   a value that looks clean once could still be stale from before a change.
+3. Only then set `EMCIP_SECRETS_SELF_CHECK=fail` for that environment.
+
+No environment has been promoted yet; live per-column state has not been read off the cluster as of
+this writing (that is a separate, pending step — see the plan's live-verification task).
