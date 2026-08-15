@@ -6,6 +6,13 @@
 **Modules:** `emcip-core`, `emcip-admin-api`, `emcip-knowledge-engine`, `emcip-llm-orchestrator`
 **Delivery:** one PR
 
+> **Follow-up delivered:** the "planned hardening" referenced throughout this spec (flipping from
+> lenient reads to a stricter startup check) is delivered by
+> `2026-08-15-secrets-startup-self-check-design.md` (ROADMAP P3.7, BACKLOG P2.0-F1). That later spec
+> also corrects a premise error in how this hardening was described: reads were never lenient —
+> `SecretCipher.decrypt()` has thrown on any unprefixed value since this spec shipped — the actual gap
+> was *when* plaintext is discovered (lazily, on first read) rather than how strictly it was handled.
+
 ---
 
 ## Why these two roadmap items are one spec
