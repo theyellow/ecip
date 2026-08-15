@@ -98,6 +98,16 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- Spring Boot health contributor API (optional - for SecretsHealthIndicator).
+         provided+optional so services that do not run the secrets self-check are unaffected
+         and no actuator dependency leaks onto their classpath. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-health</artifactId>
+      <scope>provided</scope>
+      <optional>true</optional>
+    </dependency>
+
     <!-- Reactor Core (optional - for ReactorTenantContext in WebFlux services) -->
     <dependency>
       <groupId>io.projectreactor</groupId>
