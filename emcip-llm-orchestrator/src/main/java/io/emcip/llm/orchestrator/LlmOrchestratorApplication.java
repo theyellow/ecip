@@ -7,9 +7,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableJpaRepositories
+@EnableScheduling
 @ImportRuntimeHints(LlmOrchestratorRuntimeHints.class)
 @EnableConfigurationProperties(KnowledgeEnrichmentProperties.class)
 public class LlmOrchestratorApplication {

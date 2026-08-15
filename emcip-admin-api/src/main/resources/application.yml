@@ -57,6 +57,11 @@ emcip:
     # It was 2 until then, which assumed a BFF hop that does not exist for /api/**; that made
     # every request fall back to the socket address, collapsing all callers into one bucket.
     trusted-proxy-hops: 1
+  secrets:
+    # warn | fail | off. Ships as warn everywhere: a hard failure would make the
+    # Admin UI credentials-repair path unreachable. Promote an environment to fail
+    # only after it has reported clean - see docs/operations/secrets-encryption.md
+    self-check: ${EMCIP_SECRETS_SELF_CHECK:warn}
 
 admin:
   jwt:
