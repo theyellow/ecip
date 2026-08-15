@@ -38,6 +38,16 @@ public class SecretsMetrics {
         }
     }
 
+    /**
+     * Resolves this column's gauge value from the latest scan.
+     *
+     * <p>Returns {@link Double#NaN} when this column has no matching {@link ColumnResult} - before
+     * the first scan completes, or permanently when {@link
+     * SecretsSelfCheckProperties.SelfCheckMode#OFF} keeps {@link SecretsSelfCheck#lastResults()}
+     * empty. NaN means "not scanned" and must stay distinct from a measured zero: Prometheus stores
+     * it, a {@code == 0} alert will not fire on it, and it will not render as a false-confidence
+     * "clean" reading for a column nobody looked at.
+     */
     private static double value(
             SecretsSelfCheck selfCheck,
             SecretColumn column,
@@ -46,7 +56,7 @@ public class SecretsMetrics {
                 .filter(r -> r.column().equals(column))
                 .findFirst()
                 .map(extractor::applyAsDouble)
-                .orElse(0.0);
+                .orElse(Double.NaN);
     }
 
     private static double keyStatus(ColumnResult result) {
