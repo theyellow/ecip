@@ -21,7 +21,9 @@ class SecretsMetricsTest {
         SecretsSelfCheck check = mock(SecretsSelfCheck.class);
         when(check.lastResults())
                 .thenReturn(
-                        List.of(new ColumnResult(COLUMN, Outcome.PLAINTEXT, 2, 1, List.of("a"))));
+                        List.of(
+                                new ColumnResult(
+                                        COLUMN, Outcome.PLAINTEXT, 2, 1, List.of("a"), true)));
 
         MeterRegistry registry = new SimpleMeterRegistry();
         new SecretsMetrics(registry, check, List.of(COLUMN));
@@ -35,7 +37,7 @@ class SecretsMetricsTest {
 
         // The repair case: the gauge must be able to go back to zero without a restart.
         when(check.lastResults())
-                .thenReturn(List.of(new ColumnResult(COLUMN, Outcome.OK, 3, 0, List.of())));
+                .thenReturn(List.of(new ColumnResult(COLUMN, Outcome.OK, 3, 0, List.of(), true)));
 
         assertThat(
                         registry.get("emcip.secrets.plaintext_count")
@@ -52,16 +54,43 @@ class SecretsMetricsTest {
         new SecretsMetrics(registry, check, List.of(COLUMN));
 
         when(check.lastResults())
-                .thenReturn(List.of(new ColumnResult(COLUMN, Outcome.OK, 3, 0, List.of())));
+                .thenReturn(List.of(new ColumnResult(COLUMN, Outcome.OK, 3, 0, List.of(), true)));
         assertThat(keyStatus(registry)).isZero();
 
         when(check.lastResults())
                 .thenReturn(
-                        List.of(new ColumnResult(COLUMN, Outcome.KEY_MISMATCH, 3, 0, List.of())));
+                        List.of(
+                                new ColumnResult(
+                                        COLUMN, Outcome.KEY_MISMATCH, 3, 0, List.of(), false)));
         assertThat(keyStatus(registry)).isEqualTo(1.0);
 
         when(check.lastResults())
-                .thenReturn(List.of(new ColumnResult(COLUMN, Outcome.UNVERIFIED, 0, 0, List.of())));
+                .thenReturn(
+                        List.of(
+                                new ColumnResult(
+                                        COLUMN, Outcome.UNVERIFIED, 0, 0, List.of(), null)));
+        assertThat(keyStatus(registry)).isEqualTo(2.0);
+    }
+
+    /**
+     * A column with plaintext rows and zero encrypted rows has never had its key tested against
+     * anything - {@code keyProven} is {@code null} even though {@code outcome} reports {@code
+     * PLAINTEXT} (which outranks {@code UNVERIFIED} in the outcome precedence). The gauge must
+     * still read "unverified" (2), not "key OK" (0): nothing decrypted anything, so 0 would be a
+     * false-clean reading for a key that was never proven.
+     */
+    @Test
+    void keyStatusIsUnverifiedNotOkWhenPlaintextRowsExistButNothingWasEverDecrypted() {
+        SecretsSelfCheck check = mock(SecretsSelfCheck.class);
+        MeterRegistry registry = new SimpleMeterRegistry();
+        new SecretsMetrics(registry, check, List.of(COLUMN));
+
+        when(check.lastResults())
+                .thenReturn(
+                        List.of(
+                                new ColumnResult(
+                                        COLUMN, Outcome.PLAINTEXT, 0, 1, List.of("a"), null)));
+
         assertThat(keyStatus(registry)).isEqualTo(2.0);
     }
 

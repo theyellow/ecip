@@ -4,6 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import io.emcip.common.crypto.ColumnResult;
 import io.emcip.common.crypto.ColumnResult.Outcome;
 import io.emcip.common.crypto.SecretCipher;
@@ -19,8 +22,10 @@ import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import javax.sql.DataSource;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -48,9 +53,25 @@ class SecretsSelfCheckIT {
     @Autowired DataSource dataSource;
     @Autowired JdbcTemplate jdbc;
 
+    private ListAppender<ILoggingEvent> logAppender;
+    private Logger logger;
+
     @BeforeEach
     void clean() {
         jdbc.update("delete from llm_provider_configs");
+    }
+
+    @BeforeEach
+    void attachAppender() {
+        logger = (Logger) LoggerFactory.getLogger(SecretsSelfCheck.class);
+        logAppender = new ListAppender<>();
+        logAppender.start();
+        logger.addAppender(logAppender);
+    }
+
+    @AfterEach
+    void detachAppender() {
+        logger.detachAppender(logAppender);
     }
 
     /**
@@ -175,5 +196,36 @@ class SecretsSelfCheckIT {
         check.rescan();
         assertThat(check.lastResults().get(0).outcome()).isEqualTo(Outcome.OK);
         assertThat(check.lastResults().get(0).plaintextCount()).isZero();
+    }
+
+    /**
+     * The unit-level "no secret leaked" assertions (in emcip-core's {@code SecretsSelfCheckTest})
+     * only ever had a UUID in their fixture - no ciphertext or plaintext secret was present, so
+     * {@code doesNotContain("v1:")} could not fail no matter what the code did. This test uses a
+     * fixture that genuinely contains both a plaintext sentinel and real {@code v1:} ciphertext,
+     * over a real logger, so the assertion can actually fail if the log report is ever changed to
+     * include a value.
+     */
+    @Test
+    void logReportNeverContainsThePlaintextSecretOrTheCiphertextOrTheVersionPrefix() {
+        UUID legacyId = UUID.randomUUID();
+        String plaintextSentinel = "sk-live-legacy-plaintext";
+        String ciphertext = new SecretCipher(KEY).encrypt("sk-live-ok");
+        insert(legacyId, plaintextSentinel);
+        insert(UUID.randomUUID(), ciphertext);
+
+        SecretsSelfCheck check = selfCheck(KEY, SelfCheckMode.WARN);
+        check.run(null);
+
+        assertThat(logAppender.list).isNotEmpty();
+        String allMessages =
+                logAppender.list.stream()
+                        .map(ILoggingEvent::getFormattedMessage)
+                        .reduce("", (a, b) -> a + System.lineSeparator() + b);
+        assertThat(allMessages).doesNotContain(plaintextSentinel);
+        assertThat(allMessages).doesNotContain(ciphertext);
+        assertThat(allMessages).doesNotContain("v1:");
+        // The primary key is the one identifier the report IS allowed to carry.
+        assertThat(allMessages).contains(legacyId.toString());
     }
 }

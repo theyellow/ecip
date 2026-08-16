@@ -35,4 +35,15 @@ class SecretColumnTest {
         assertThatThrownBy(() -> new SecretColumn("users", "bad name", "id"))
                 .hasMessageContaining("column");
     }
+
+    /**
+     * A self-referential pkColumn would make the self-check log the secret values themselves under
+     * the "offending primary keys" line - the one place plaintext IDs are logged.
+     */
+    @Test
+    void rejectsAPkColumnThatIsTheSameAsTheEncryptedColumn() {
+        assertThatThrownBy(() -> new SecretColumn("t", "api_key", "api_key"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("pkColumn");
+    }
 }

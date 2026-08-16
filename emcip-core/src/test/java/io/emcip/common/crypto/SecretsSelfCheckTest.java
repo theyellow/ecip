@@ -50,7 +50,8 @@ class SecretsSelfCheckTest {
                                 plaintextCount,
                                 plaintextCount > 0
                                         ? List.of("11111111-1111-1111-1111-111111111111")
-                                        : List.of()));
+                                        : List.of(),
+                                true));
         return scanner;
     }
 
@@ -185,7 +186,12 @@ class SecretsSelfCheckTest {
         assertThat(message.lines().count()).isGreaterThan(1);
         assertThat(message).contains("llm_provider_configs.api_key");
         assertThat(message).contains("offending id: [11111111-1111-1111-1111-111111111111]");
-        // The single most important constraint: no secret value or ciphertext, ever.
+        // NOTE: this fixture's only content is a UUID - no ciphertext or plaintext secret is ever
+        // present here, so this assertion cannot fail no matter what the code does. It pins the
+        // %n-vs-format defect above, not leak-freedom. The real leak-freedom proof, against a
+        // fixture that genuinely contains a plaintext sentinel and v1: ciphertext, lives in
+        // llm-orchestrator's SecretsSelfCheckIT
+        // (logReportNeverContainsThePlaintextSecretOrTheCiphertextOrTheVersionPrefix).
         assertThat(message).doesNotContain("v1:");
     }
 }

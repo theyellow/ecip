@@ -39,9 +39,4 @@ public class SecretsSelfCheckConfig {
             MeterRegistry registry, SecretsSelfCheck selfCheck, List<SecretColumn> columns) {
         return new SecretsMetrics(registry, selfCheck, columns);
     }
-
-    @Bean
-    public SecretsHealthIndicator secretsHealthIndicator(SecretsSelfCheck selfCheck) {
-        return new SecretsHealthIndicator(selfCheck);
-    }
 }
