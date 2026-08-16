@@ -13,13 +13,20 @@ import java.util.List;
  * @param encryptedRows rows carrying the {@code v1:} prefix
  * @param plaintextCount non-null rows lacking the prefix
  * @param plaintextIds primary keys of offending rows, capped; never contains a secret value
+ * @param keyProven whether the mounted key was actually tested against a sample: {@code true} if a
+ *     sample decrypted, {@code false} if a sample would not decrypt, {@code null} if there was no
+ *     encrypted row to try it against. Independent of {@code outcome} — a column can be {@code
+ *     PLAINTEXT} (rows exist without the prefix) while {@code keyProven} is still {@code null},
+ *     because {@code outcome}'s precedence reports the worse finding without claiming the key was
+ *     verified.
  */
 public record ColumnResult(
         SecretColumn column,
         Outcome outcome,
         long encryptedRows,
         long plaintextCount,
-        List<String> plaintextIds) {
+        List<String> plaintextIds,
+        Boolean keyProven) {
 
     /** Maximum primary keys reported per column, so a mass finding cannot flood the log. */
     public static final int MAX_REPORTED_IDS = 20;

@@ -91,7 +91,8 @@ public class SecretColumnScanner {
                 outcome = Outcome.OK;
             }
 
-            return new ColumnResult(column, outcome, encryptedRows, plaintextCount, plaintextIds);
+            return new ColumnResult(
+                    column, outcome, encryptedRows, plaintextCount, plaintextIds, keyWorks);
         } catch (SQLException e) {
             throw new IllegalStateException(
                     "Secret self-check could not read " + column.location(), e);

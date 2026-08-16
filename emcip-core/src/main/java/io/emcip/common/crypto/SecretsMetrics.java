@@ -32,7 +32,10 @@ public class SecretsMetrics {
                             "emcip.secrets.key_status",
                             selfCheck,
                             check -> value(check, column, SecretsMetrics::keyStatus))
-                    .description("0 = key decrypts stored data, 1 = mismatch, 2 = unverified")
+                    .description(
+                            "0 = a sample decrypted (key proven), 1 = a sample would not decrypt"
+                                    + " (mismatch), 2 = no encrypted row existed to prove the key"
+                                    + " against (unverified)")
                     .tag("column", column.location())
                     .register(registry);
         }
@@ -59,11 +62,17 @@ public class SecretsMetrics {
                 .orElse(Double.NaN);
     }
 
+    /**
+     * Derived from {@link ColumnResult#keyProven()}, not {@link ColumnResult#outcome()}. A column
+     * can be {@code PLAINTEXT} (rows exist without the {@code v1:} prefix) with no encrypted row at
+     * all to test the key against — {@code outcome}'s precedence reports {@code PLAINTEXT} as the
+     * worse finding, but that must not be read back as "key OK": nothing decrypted anything.
+     */
     private static double keyStatus(ColumnResult result) {
-        return switch (result.outcome()) {
-            case KEY_MISMATCH -> KEY_MISMATCH;
-            case UNVERIFIED -> KEY_UNVERIFIED;
-            case OK, PLAINTEXT -> KEY_OK;
-        };
+        Boolean keyProven = result.keyProven();
+        if (keyProven == null) {
+            return KEY_UNVERIFIED;
+        }
+        return keyProven ? KEY_OK : KEY_MISMATCH;
     }
 }

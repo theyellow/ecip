@@ -129,6 +129,24 @@ class SecretColumnScannerTest {
 
         assertThat(result.outcome()).isEqualTo(Outcome.UNVERIFIED);
         assertThat(result.isProblem()).isTrue();
+        assertThat(result.keyProven()).isNull();
+    }
+
+    /**
+     * The finding a single-valued {@code outcome} cannot express on its own: plaintext rows exist,
+     * but there is also no encrypted row anywhere to test the mounted key against. {@code outcome}
+     * correctly reports {@code PLAINTEXT} (it outranks {@code UNVERIFIED}), but {@code keyProven}
+     * must stay {@code null} — the key was never exercised, so nothing has "proven" it works.
+     */
+    @Test
+    void plaintextWithNoEncryptedRowsLeavesTheKeyUnproven() throws Exception {
+        stubQueries(1, null, 0);
+
+        ColumnResult result =
+                new SecretColumnScanner(dataSource, new SecretCipher(KEY_A)).scan(COLUMN);
+
+        assertThat(result.outcome()).isEqualTo(Outcome.PLAINTEXT);
+        assertThat(result.keyProven()).isNull();
     }
 
     /**

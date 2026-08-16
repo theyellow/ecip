@@ -23,6 +23,12 @@ public record SecretColumn(String table, String column, String pkColumn) {
         validate(table, "table");
         validate(column, "column");
         validate(pkColumn, "pkColumn");
+        if (pkColumn.equals(column)) {
+            // The self-check logs offending primary keys as operational breadcrumbs. If pkColumn
+            // were the secret column itself, that log line would print the secret values.
+            throw new IllegalArgumentException(
+                    "SecretColumn pkColumn must not be the same as the encrypted column");
+        }
     }
 
     private static void validate(String value, String field) {

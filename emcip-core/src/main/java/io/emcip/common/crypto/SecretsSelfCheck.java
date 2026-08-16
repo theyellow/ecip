@@ -91,7 +91,7 @@ public class SecretsSelfCheck implements ApplicationRunner {
         try {
             scanAndLog();
         } catch (RuntimeException e) {
-            log.warn("Secret self-check re-scan failed; keeping previous results", e);
+            log.error("Secret self-check re-scan failed; keeping previous results", e);
         }
     }
 

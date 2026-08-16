@@ -142,11 +142,12 @@ the discipline `PlaintextSecretException` already enforces.
 
 ```
 ERROR  SECRET SELF-CHECK  mode=warn
-  telegram_accounts.api_hash         12 rows,  1 plaintext, key OK      [PLAINTEXT]
-  telegram_accounts.session_string   12 rows,  0 plaintext, key OK      [OK]
-  ke_vendor_api_keys.api_key          4 rows,  0 plaintext, key OK      [OK]
-  llm_provider_configs.api_key        3 rows,  0 plaintext, no v1: rows [UNVERIFIED]
-  1 plaintext secret found — repair via Admin UI → Credentials
+  telegram_accounts.api_hash          12 encrypted,    1 plaintext  [PLAINTEXT]
+    offending id: [...]
+  telegram_accounts.session_string    12 encrypted,    0 plaintext  [OK]
+  ke_vendor_api_keys.api_key           4 encrypted,    0 plaintext  [OK]
+  llm_provider_configs.api_key         0 encrypted,    3 plaintext  [PLAINTEXT]
+  Repair plaintext values via Admin UI -> Credentials. See docs/operations/secrets-encryption.md
 ```
 
 **Metrics** — the alertable surface, consumed by P3.22:
@@ -154,27 +155,15 @@ ERROR  SECRET SELF-CHECK  mode=warn
 - `emcip.secrets.plaintext_count{column="<table>.<column>"}` — gauge, 0 when clean
 - `emcip.secrets.key_status{column="<table>.<column>"}` — gauge, `0` OK / `1` mismatch / `2` unverified
 
-**Health** — `SecretsHealthIndicator` reports **`UP` always**, carrying `mode`, per-column outcome
-and counts in `details`. It never reports `DOWN`.
-
-This is deliberate: health indicators in this project feed the Kubernetes readiness probe, so a
-`DOWN` here would pull the pod out of rotation and recreate exactly the deadlock §1 exists to
-prevent. The indicator is a *reporting* surface for an operator looking at `/actuator/health`; the
-**metric** is the thing that alerts.
-
-```json
-"secrets": {
-  "status": "UP",
-  "details": {
-    "mode": "warn",
-    "plaintextCount": 1,
-    "columns": {
-      "telegram_accounts.api_hash": { "outcome": "PLAINTEXT", "plaintext": 1, "rows": 12 },
-      "telegram_accounts.session_string": { "outcome": "OK", "plaintext": 0, "rows": 12 }
-    }
-  }
-}
-```
+**Health** — dropped before merge. The original design here had `SecretsHealthIndicator` report
+`UP` always, carrying `mode`, per-column outcome and counts in `details`. That indicator was deleted
+during the pre-merge review: every one of the three wiring services sets
+`management.endpoint.health.show-details: never` (a deliberate P1.4 hardening decision, unrelated to
+this change and not being revisited here), so Spring renders only `{"status":"UP"}` at
+`/actuator/health` and omits the `details`/`components` block entirely. Every `withDetail(...)` the
+indicator built was therefore unreachable — it was a no-op from the day it shipped. The metrics above
+are the only surface that was ever actually going to alert; see
+`docs/operations/secrets-encryption.md` for how to read them.
 
 ### Re-scan
 

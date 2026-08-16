@@ -205,22 +205,38 @@ proves the key against one real row per column rather than trusting the prefix a
 
 - `emcip.secrets.plaintext_count{column="<table>.<column>"}` — gauge, count of un-prefixed rows, `0`
   when clean.
-- `emcip.secrets.key_status{column="<table>.<column>"}` — gauge: `0` = OK, `1` = `KEY_MISMATCH`,
-  `2` = `UNVERIFIED`. `NaN` if the column has never been scanned (before the first run, or always,
-  under `self-check: off`) — deliberately not `0`, because `0` also means "checked and clean" and a
-  disabled check must not look identical to a passing one.
+- `emcip.secrets.key_status{column="<table>.<column>"}` — gauge: `0` = a sample decrypted (key
+  proven against real data), `1` = a sample would not decrypt (mismatch), `2` = no encrypted row
+  existed to test the key against (unverified — this includes the case where plaintext rows exist
+  but nothing encrypted does, so the key was never exercised at all, even though the column's
+  `PLAINTEXT` outcome is reported).
+
+**`NaN` is a distinct, deliberate reading**, not a bug: it means "not scanned" — either before the
+first scan completes, or permanently while `emcip.secrets.self-check=off`. It is intentionally
+different from a measured `0`, so a disabled check cannot render as a false-confidence "clean"
+dashboard for a column nobody looked at, and a `== 0` alert will not fire on it.
 
 ### Reading the state
 
+There is no health-endpoint view of this. All three wiring services set
+`management.endpoint.health.show-details: never` (a deliberate P1.4 hardening decision, unrelated to
+this feature), so `/actuator/health` renders only `{"status":"UP"}` — Spring omits the
+`components`/`details` block entirely. A `SecretsHealthIndicator` was built in the initial P3.7
+delivery and carried these findings into `details`, but every one of its `withDetail(...)` calls was
+unreachable under that setting, so it was deleted before merge as dead code. The **metrics above are
+the surface** — read them directly:
+
 ```bash
-curl -s localhost:<port>/actuator/health | jq .components.secrets
+curl -s localhost:<port>/actuator/prometheus | grep 'emcip_secrets_'
 ```
 
-`SecretsHealthIndicator` is **always `UP`, by design** — it never reports `DOWN`, however bad the
-findings underneath. This indicator feeds the Kubernetes readiness probe; a `DOWN` here would pull the
-pod out of rotation, which would make the Admin UI repair path (the previous section) unreachable —
-exactly the outage this feature exists to avoid. Treat `/actuator/health`'s `secrets` block as a
-report to read, not a signal to alert on; the **metrics** above are the alertable surface.
+(Prometheus scrape names use underscores — `emcip_secrets_plaintext_count`,
+`emcip_secrets_key_status` — for the same gauges named with dots above.)
+
+The `SECRET SELF-CHECK` block in the service's boot log is the other place to look — it lists every
+column, its `encrypted`/`plaintext` counts, and its outcome, at `ERROR` when any column has a finding
+and `INFO` when all are clean. It never contains a secret value, a ciphertext, or any prefix of
+either — only counts and primary keys.
 
 ### Re-scan
 
