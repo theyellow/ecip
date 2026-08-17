@@ -65,6 +65,28 @@ class SecretColumnScannerTest {
         when(connection.prepareStatement(anyString())).thenReturn(countStmt, idStmt, sampleStmt);
     }
 
+    /**
+     * An aggregate SELECT always returns a row, so this cannot happen against a real driver — but
+     * the scanner must not read past an empty result set. Discarding {@code next()}'s result would
+     * surface a driver returning nothing as an opaque "no current row" SQLException from {@code
+     * getLong()}, naming neither the column nor the query.
+     */
+    @Test
+    void failsWithANamedColumnWhenTheCountQueryReturnsNoRow() throws Exception {
+        PreparedStatement countStmt = mock(PreparedStatement.class);
+        ResultSet countRs = mock(ResultSet.class);
+        when(countRs.next()).thenReturn(false);
+        when(countStmt.executeQuery()).thenReturn(countRs);
+        when(connection.prepareStatement(anyString())).thenReturn(countStmt);
+
+        assertThatThrownBy(
+                        () ->
+                                new SecretColumnScanner(dataSource, new SecretCipher(KEY_A))
+                                        .scan(COLUMN))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("llm_provider_configs.api_key");
+    }
+
     @Test
     void reportsOkWhenNoPlaintextAndKeyDecryptsTheSample() throws Exception {
         String encrypted = new SecretCipher(KEY_A).encrypt("some-api-key");
