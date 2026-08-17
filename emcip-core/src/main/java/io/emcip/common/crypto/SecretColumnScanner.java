@@ -49,7 +49,15 @@ public class SecretColumnScanner {
                 statement.setString(1, prefixPattern);
                 statement.setString(2, prefixPattern);
                 try (ResultSet rs = statement.executeQuery()) {
-                    rs.next();
+                    // An aggregate SELECT always returns exactly one row, so this cannot fail in
+                    // practice - but discarding next()'s result would mean a driver that somehow
+                    // returned nothing surfaced as a confusing "no current row" SQLException from
+                    // getLong() instead of naming the column that could not be read.
+                    if (!rs.next()) {
+                        throw new IllegalStateException(
+                                "Secret self-check count query returned no row for "
+                                        + column.location());
+                    }
                     plaintextCount = rs.getLong(1);
                     encryptedRows = rs.getLong(2);
                 }
