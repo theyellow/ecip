@@ -1,5 +1,6 @@
 package io.emcip.admin.api.config;
 
+import javax.sql.DataSource;
 import liquibase.integration.spring.SpringLiquibase;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -18,16 +19,28 @@ public class LiquibaseConfig {
     @Value("${spring.datasource.password}")
     private String password;
 
+    /**
+     * DataSource bean for Liquibase migrations and any other components that require traditional
+     * JDBC (e.g., SecretsSelfCheckConfig's secret column scanning).
+     *
+     * <p>admin-api uses R2DBC for reactive CRUD operations, but certain operations (schema
+     * migrations, secret scanning) require blocking JDBC. This bean is intentionally minimal and
+     * not used for application data access.
+     */
     @Bean
-    public SpringLiquibase liquibase() {
+    public DataSource dataSource() {
         DriverManagerDataSource ds = new DriverManagerDataSource();
         ds.setDriverClassName("org.postgresql.Driver");
         ds.setUrl(url);
         ds.setUsername(username);
         ds.setPassword(password);
+        return ds;
+    }
 
+    @Bean
+    public SpringLiquibase liquibase() {
         SpringLiquibase liquibase = new SpringLiquibase();
-        liquibase.setDataSource(ds);
+        liquibase.setDataSource(dataSource());
         liquibase.setChangeLog("classpath:db/changelog/db.changelog-master.xml");
         return liquibase;
     }
