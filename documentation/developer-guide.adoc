@@ -236,7 +236,9 @@ Expected output: `0 were changed to be clean` (the zero is the important number 
 
 If files were changed: `git add -A && git commit --amend --no-edit`.
 
-CI enforces `mvn spotless:check` in the `verify` phase. A failing Spotless check blocks the build.
+CI enforces `mvn -B spotless:check` as a dedicated workflow step (not via the `verify` phase). A failing Spotless check blocks the build.
+
+The same is true of PMD — `mvn -B pmd:check`, also its own step, also blocking. Neither is reached by running `mvn verify` alone; see the pre-commit checklist near the end of this guide.
 
 === Coverage gate
 
@@ -814,11 +816,21 @@ One commit minimum per user story. Squash WIP commits before opening a PR.
 [source,bash]
 ----
 mvn spotless:apply          # Format code
-mvn verify                  # Unit + integration + frontend tests pass (needs Docker)
-mvn spotless:check          # Verify formatting (CI will check this)
+mvn -B verify               # Unit + integration + frontend tests pass (needs Docker)
+mvn -B spotless:check       # Verify formatting
+mvn -B pmd:check            # Static analysis — NOT covered by verify, see below
 ----
 
-CI runs `mvn -B verify` on every PR. A Spotless violation, PMD violation, or any failing unit, integration, or vitest test blocks merge.
+CI runs these as *three separate steps*, not one. A Spotless violation, a PMD violation, or any failing unit, integration, or vitest test blocks merge.
+
+[WARNING]
+====
+**`mvn verify` does not run PMD.** `maven-pmd-plugin` is not bound to the `verify` lifecycle — CI invokes `mvn -B pmd:check` as its own workflow step, and it has been *blocking* since P1.4.
+
+This is not hypothetical: P3.7 (PR #245) ran `mvn verify` in every one of its eight implementation tasks, plus a full green local reactor build, and still failed CI on a single PMD `CheckResultSet` violation. A blocking gate ran zero times across the whole feature because the checklist above used to omit it.
+
+Run all three commands before opening a PR. If you only have time for one extra, make it `pmd:check` — Spotless failures are usually already caught by `spotless:apply`.
+====
 
 == Image Publishing
 

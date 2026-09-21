@@ -256,5 +256,19 @@ per-environment operator decision, taken only after that environment has demonst
    a value that looks clean once could still be stale from before a change.
 3. Only then set `EMCIP_SECRETS_SELF_CHECK=fail` for that environment.
 
-No environment has been promoted yet; live per-column state has not been read off the cluster as of
-this writing (that is a separate, pending step — see the plan's live-verification task).
+No environment has been promoted yet.
+
+> **⛔ The live per-column state has never been read off a cluster.** As of 2026-08-18 no cluster is
+> available to verify against, so this step is **deferred, not done** — tracked as **SELFCHECK-F3**
+> in `docs/superpowers/BACKLOG.md` §0b, which carries the full checklist.
+>
+> Two consequences worth stating plainly:
+>
+> - **Do not promote any environment to `fail`** until SELFCHECK-F3 is closed. Promoting on the
+>   strength of a green test suite would be exactly the mistake this check exists to prevent — the
+>   suite cannot observe live data.
+> - **"Clean" is not the safe assumption.** PR #243 fixed a legacy plaintext `telegram_accounts.api_hash`
+>   lockout on 2026-08-10. Whatever the first real scan reports is the finding.
+>
+> Also note `EMCIP_SECRETS_SELF_CHECK` is not yet plumbed into Helm (**SELFCHECK-F5**), so setting it
+> currently requires a chart edit rather than a values change.

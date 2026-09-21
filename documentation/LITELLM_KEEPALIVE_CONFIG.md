@@ -1,13 +1,30 @@
 # Keepalive Configuration Summary
 
 **Created:** June 18, 2026  
-**Purpose:** Document keepalive configuration for LiteLLM + Ollama setup
+**Updated:** 2026-09-20  
+**Purpose:** Document keepalive configuration for LiteLLM + Ollama setup  
+**⚠️ STATUS:** **OBSOLETE** - See [LITELLM-CONFIG-GUIDE.md](./LITELLM-CONFIG-GUIDE.md) for current config
 
 ---
 
-## ✅ Changes Made
+## 📋 Current Configuration (Summary)
 
-### 1. LiteLLM Server (192.168.23.232)
+**Strategy:** Single active model (M2 Ultra memory constraints)
+
+| Model | Keepalive | Purpose |
+|-------|-----------|---------|
+| `qwen3.5-122b` | `"-1"` (never unload) | Primary model - all complex work |
+| `qwen3.8-27b-mtp` | `"45m"` (auto-unload) | Backup - simple tasks, on-demand |
+
+**See full documentation:** [LITELLM-CONFIG-GUIDE.md](./LITELLM-CONFIG-GUIDE.md)
+
+---
+
+## 📜 Historical Notes (For Reference)
+
+### Original Changes (June 2026)
+
+**1. LiteLLM Server (192.168.23.232)**
 Added `keep_alive: "-1"` to all models in config.yaml to prevent model unloading.
 
 **Valid keepalive formats:**
@@ -16,13 +33,13 @@ Added `keep_alive: "-1"` to all models in config.yaml to prevent model unloading
 - `"2h"` = 2 hours
 - `"0"` = Immediately unload after request (BAD - causes shutdowns)
 
-### 2. opencode.json (Local)
+**2. opencode.json (Local)**
 Added top-level `model` field to prevent fallback to gpt-5.2-codex:
 ```json
 "model": "litellm/frontier-qwen3.5-moe",
 ```
 
-### 3. micode.json (NEW - Local)
+**3. micode.json (NEW - Local)**
 Created with agent-specific model overrides:
 - **Reasoning/Planning agents** → `frontier-qwen3.5-moe` (119B)
 - **Implementation agents** → `worker-qwen3-coder` (32B)
@@ -40,7 +57,7 @@ Created with agent-specific model overrides:
 
 ---
 
-## 🧪 Testing Keepalive
+## 🧪 Testing Keepalive (Historical)
 
 ### Test 1: Quick Health Check
 ```bash
@@ -86,7 +103,7 @@ litellm --config /path/to/config.yaml --detailed_debug
 
 ---
 
-## 📊 Model Selection Priority
+## 📊 Model Selection Priority (Historical)
 
 1. **micode.json agent override** (highest)
 2. **opencode.json top-level `model` field** ← **Added in this config**
@@ -95,7 +112,7 @@ litellm --config /path/to/config.yaml --detailed_debug
 
 ---
 
-## 🐛 Troubleshooting
+## 🐛 Troubleshooting (Historical)
 
 ### Models still shutting down
 1. Check LiteLLM logs for `keep_alive` errors
@@ -114,7 +131,7 @@ litellm --config /path/to/config.yaml --detailed_debug
 
 ---
 
-## 📝 Notes
+## 📝 Notes (Historical)
 
 - **Keepalive applies per-model** - each model in config.yaml needs its own setting
 - **-1 is safe for development** - won't cause memory issues unless you have 50+ models loaded
@@ -123,4 +140,34 @@ litellm --config /path/to/config.yaml --detailed_debug
 ---
 
 **Last Updated:** June 18, 2026  
-**Status:** ✅ Configured and tested
+**Status:** ⚠️ **OBSOLETE** - See [LITELLM-CONFIG-GUIDE.md](./LITELLM-CONFIG-GUIDE.md)
+
+---
+
+## 🔄 Migration to Current Config
+
+### What Changed
+
+| Old (June 2026) | New (Sep 2026) | Reason |
+|-----------------|----------------|--------|
+| Multiple models loaded | Single model (122B) | Memory efficiency |
+| `frontier-qwen3.5-moe` | `qwen3.5-122b` | Model naming convention |
+| `worker-qwen3-coder` | `qwen3.8-27b-mtp` | Better model selection |
+| `micode.json` overrides | Single model strategy | Simplify configuration |
+| All models `keep_alive: "-1"` | Primary: `-1`, Backup: `45m` | Memory management |
+
+### Migration Steps
+
+1. **Update opencode.json:**
+   - Remove `micode.json` references
+   - Set default model to `litellm/qwen3.5-122b`
+   - All agents use 122B when loaded
+
+2. **Update LiteLLM config.yaml:**
+   - Keep only 2 models in active config
+   - Set `keep_alive: "-1"` for 122B
+   - Set `keep_alive: "45m"` for 27B-MTP
+
+3. **Update documentation:**
+   - Point to this new guide
+   - Remove references to non-existent models
