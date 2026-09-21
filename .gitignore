@@ -51,4 +51,3 @@ replay_pid*
 
 # Opencode agent tooling (local configuration, not committed)
 .opencode/
-openspec/
