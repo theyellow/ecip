@@ -48,3 +48,7 @@ replay_pid*
 # Git worktrees
 .worktrees/
 .superpowers/
+
+# Opencode agent tooling (local configuration, not committed)
+.opencode/
+openspec/
