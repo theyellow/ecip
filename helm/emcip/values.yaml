@@ -239,6 +239,8 @@ services:
     env:
       SPRING_R2DBC_URL: "r2dbc:postgresql://emcip-postgres:5432/emcip"
       SPRING_LIQUIBASE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://emcip-postgres:5432/emcip"
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.postgresql.Driver"
       DB_SSL_MODE: "disable"
       KAFKA_BOOTSTRAP_SERVERS: "emcip-kafka-bootstrap:9092"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://emcip-tempo:4318"
