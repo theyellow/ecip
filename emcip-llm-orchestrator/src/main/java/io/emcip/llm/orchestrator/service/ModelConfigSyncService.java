@@ -40,7 +40,6 @@ public class ModelConfigSyncService implements ApplicationRunner {
 
     private final ModelConfigRepository modelConfigRepository;
     private final LlmProviderConfigRepository providerConfigRepository;
-    private final ObjectMapper objectMapper;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -94,6 +93,7 @@ public class ModelConfigSyncService implements ApplicationRunner {
 
     private List<String> fetchAvailableModels(String endpoint, String apiKey) {
         RestTemplate restTemplate = new RestTemplate();
+        ObjectMapper objectMapper = new ObjectMapper();
 
         try {
             HttpHeaders headers = new HttpHeaders();
