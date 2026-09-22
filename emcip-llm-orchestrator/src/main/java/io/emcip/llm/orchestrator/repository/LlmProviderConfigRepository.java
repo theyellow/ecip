@@ -46,6 +46,9 @@ public interface LlmProviderConfigRepository extends JpaRepository<LlmProviderCo
     /** Returns the most-recently-updated active provider config. Decrypts the key. */
     Optional<LlmProviderConfig> findFirstByActiveTrueOrderByUpdatedAtDesc();
 
+    /** Returns a provider config by name. Decrypts the key. */
+    Optional<LlmProviderConfig> findByName(String name);
+
     /**
      * Lists configs without decrypting any key.
      *
