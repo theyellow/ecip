@@ -11,12 +11,12 @@ Without EMBED, only graph search works. Without EXTRACT, no graph data is built.
 
 ```
 Knowledge Engine → LLM Orchestrator → LiteLLM Proxy → Ollama
-                   (taskType: EMBED)    (192.168.23.232:4000)
+                   (taskType: EMBED)    (<litellm-host>:4000)
 ```
 
 ## Step 1: Pull an embedding model in Ollama
 
-On the machine running Ollama (`192.168.23.232`):
+On the machine running Ollama (`<litellm-host>`):
 
 ```bash
 # Recommended: nomic-embed-text (137M params, 768 dimensions, good quality/speed)
@@ -56,7 +56,7 @@ model_list:
 Restart LiteLLM or reload config. Verify:
 
 ```bash
-curl http://192.168.23.232:4000/v1/embeddings \
+curl http://<litellm-host>:4000/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{
     "model": "nomic-embed-text",
@@ -123,7 +123,7 @@ After the embedding model is configured:
 |---------|-------|-----|
 | `No model configured for task: EMBED` | No active model_config with task_type='EMBED' | Add the DB row (Step 3) |
 | `vector must have at least 1 dimension` | Embedding call failed, empty vector passed to pgvector | Fix the EMBED model config first |
-| `Connection refused` to LiteLLM | LiteLLM proxy not reachable from k8s | Check network/firewall between cluster and 192.168.23.232:4000 |
+| `Connection refused` to LiteLLM | LiteLLM proxy not reachable from k8s | Check network/firewall between cluster and <litellm-host>:4000 |
 | Graph search returns 0 results | No entities extracted yet | Run backfill; extraction happens during ingestion |
 
 ## Dimension Consistency

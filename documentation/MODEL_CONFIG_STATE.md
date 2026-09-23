@@ -21,26 +21,39 @@ Instead of hardcoding model names in migrations, we now **auto-sync from LiteLLM
 
 `ModelConfigSyncService` runs at application startup (order 100):
 
-1. **Fetches available models** from LiteLLM proxy (`/models` endpoint)
-2. **Creates missing model_configs** entries for each available model
-3. **Updates existing entries** if model names changed
-4. **Deactivates dead models** no longer available on proxy
-5. **Preserves manual task assignments** (task_type, priority, etc.)
+1. **Locates the `local-litellm` provider row** in `llm_provider_configs`
+   (reads `base_url` + `api_key`). If the row is missing or incomplete, sync
+   is skipped with a warning and the app starts with the existing DB state.
+2. **Fetches available models** from LiteLLM proxy (`/models` endpoint)
+3. **Creates missing model_configs** entries — but only for served models that
+   no existing `local-litellm` row already references (matched on `model_name`).
+   Existing manual routing keys are preserved, never duplicated.
+4. **Deactivates stale models**: only active `local-litellm` rows whose
+   `model_name` is no longer available on the proxy.
+5. **Never touches**: rows of other providers (e.g. `anthropic`) or any manual
+   task_type / priority / routing-key assignment.
 
 ### Configuration
 
-Environment variables (optional - has sensible defaults):
-```bash
-LITELLM_PROXY_URL=http://192.168.23.232:4000
-LITELLM_PROXY_API_KEY=sk-local-dev
-```
+The sync reads its connection details from the database — the
+`llm_provider_configs` row with `name = 'local-litellm'`:
+
+| Column     | Example (placeholder)                   |
+|------------|-----------------------------------------|
+| `name`     | `local-litellm`                         |
+| `base_url` | `http://<litellm-host>:4000`            |
+| `api_key`  | `<your-proxy-api-key>` (encrypted at rest) |
+
+No environment variables or `application.yml` settings are involved.
 
 ### What Gets Created
 
-For each model on proxy, creates a `model_configs` entry:
-- `model_key`: Generated from model_name (e.g., `qwen3.8-27b-mtp`)
+For each served model no existing `local-litellm` row references yet, creates
+a `model_configs` entry:
+- `model_key`: same as model_name (e.g., `qwen3.8-27b-mtp`). If that routing
+  key is already in use by another row, the create is skipped with a warning.
 - `model_name`: From proxy (e.g., `qwen3.8-27b-mtp`)
-- `provider`: `litellm`
+- `provider`: The provider config row's name (i.e., `local-litellm`)
 - `task_type`: `GENERAL` (default, can be changed manually)
 - `active`: `true`
 - Default specs: 128k context, 8192 max output, streaming enabled
@@ -56,36 +69,28 @@ For each model on proxy, creates a `model_configs` entry:
 ### Logs Example
 
 ```
+INFO  ModelConfigSyncService - Using LiteLLM proxy configuration from database (local-litellm)
 INFO  ModelConfigSyncService -   Created: qwen3.5-122b (qwen3.5-122b)
-INFO  ModelConfigSyncService -   Created: qwen3.8-27b-mtp (qwen3.8-27b-mtp)
 INFO  ModelConfigSyncService -   Deactivated: standard-qwen3.6-moe (no longer on proxy)
-INFO  ModelConfigSyncService - Sync summary: 2 created, 0 updated, 5 unchanged, 7 deactivated
+INFO  ModelConfigSyncService - Sync summary: 11 served models, 7 created, 4 already configured, 1 deactivated
 INFO  ModelConfigSyncService - ✓ Model sync complete: 11 models available on proxy
 ```
 
 ## Current Database State (After Sync)
 
-Will contain only models available on LiteLLM proxy:
-- qwen3.5-122b
-- qwen3.6-35b
-- qwen3.8-27b-mtp
-- qwen3.8-27b
-- qwen3.8-27b-free
-- qwen3-4b-classify
-- qwen3-4b-extract
-- bge-m3
-- frontier-deepseek-r1
-- frontier-llama3.3-instruct
-- mistral-truther
-
-Dead models (standard-qwen3.6-moe*, claude-*) will be deactivated.
+- One row per served model — either created by the sync or an existing row
+  (possibly with a custom routing key) already referencing it.
+- `local-litellm` rows referencing models that are no longer served
+  (e.g., `standard-qwen3.6-moe*`) are marked inactive, not deleted.
+- Rows of other providers (e.g., `anthropic` claude-*) are never touched by
+  the sync.
 
 ## Future Model Changes
 
 When LiteLLM proxy model names change:
 1. Restart llm-orchestrator
 2. Sync runs automatically
-3. Old models deactivated, new models created
+3. Stale `local-litellm` rows deactivated, new models created
 4. No manual intervention needed
 
 ## Related

@@ -42,6 +42,14 @@ Use Testcontainers for integration tests.
 Prefer focused module builds.
 Spotless via maven check/apply required before commit.
 
+### Documentation Rules
+The repository documents EMCIP itself (guides, ADRs, roadmaps) under `documentation/` and `docs/`.
+AI/tool-specific and session content (opencode config notes, session learnings, personal environment
+setup, tool-specific how-tos) belongs in `.opencode/` (see `.opencode/learnings/`) and must NOT be
+committed - the root `.gitignore` already ignores `**/.opencode/**`.
+Never write internal details into tracked files: no internal IPs, hostnames of private machines, or
+API keys. Use placeholders (e.g. `<litellm-host>`, `<your-api-key>`).
+
 ### Safety Rules
 Do not modify unrelated modules.
 Do not rename public APIs later without migration plans. (Currently no existing public API, it's ours)
