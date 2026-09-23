@@ -55,7 +55,7 @@ component "audit-service\n:9086"        as audit #EAD1DC
 component "policy-engine\n:9083"        as pe
 component "llm-orchestrator\n:9084"     as llm
 component "knowledge-engine\n:9088"  as ke
-component "LiteLLM Proxy\n192.168.23.40:4000" as litellm #FFF2CC
+component "LiteLLM Proxy\n:4000" as litellm #FFF2CC
 
 ' ── Pipeline Topics (active — have at least one consumer) ────────────────────
 queue "telegram.raw.messages"  as t_raw

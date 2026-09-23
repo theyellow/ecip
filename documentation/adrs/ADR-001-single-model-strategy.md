@@ -9,7 +9,7 @@
 
 ## Context
 
-We operate a local LLM infrastructure using LiteLLM proxy with Ollama backends on an M2 Ultra machine (192.168.23.232). The system serves the opencode client for development tasks including architecture, planning, implementation, and review.
+We operate a local LLM infrastructure using LiteLLM proxy with Ollama backends on an M2 Ultra machine (<litellm-host>). The system serves the opencode client for development tasks including architecture, planning, implementation, and review.
 
 ### Constraints
 
@@ -123,8 +123,8 @@ model_list:
   "provider": {
     "litellm": {
       "options": {
-        "baseURL": "http://192.168.23.232:4000/v1",
-        "apiKey": "sk-local-dev"
+        "baseURL": "http://<litellm-host>:4000/v1",
+        "apiKey": "<your-proxy-api-key>"
       }
     }
   },
@@ -151,8 +151,8 @@ model_list:
 curl http://localhost:11434/api/ps
 
 # Make request
-curl -X POST http://192.168.23.232:4000/v1/chat/completions \
-  -H "Authorization: Bearer sk-local-dev" \
+curl -X POST http://<litellm-host>:4000/v1/chat/completions \
+  -H "Authorization: Bearer <your-proxy-api-key>" \
   -d '{"model": "qwen3.5-122b", "messages": [{"role": "user", "content": "test"}]}'
 
 # Wait 10 minutes, make another request
@@ -227,7 +227,7 @@ Automatically load/unload models based on agent/request type
 
 - [LITELLM-CONFIG-GUIDE.md](../../documentation/LITELLM-CONFIG-GUIDE.md) - Full configuration guide
 - `LITELLM_KEEPALIVE_CONFIG.md` - Historical keepalive documentation (obsolete)
-- `/home/ben/Development/config.yaml` - Deprecated config file
+- `config.yaml (on the proxy machine)` - deprecated config file
 - `~/.config/opencode/micode.json.backup` - Archived old configuration (obsolete)
 
 ---

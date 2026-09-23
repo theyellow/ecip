@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-09-20  
 **Status:** ✅ Working Configuration  
-**Server:** 192.168.23.232:4000 (LiteLLM proxy)  
+**Server:** <litellm-host>:4000 (LiteLLM proxy)  
 **Strategy:** Single active model (memory constrained)
 
 ---
@@ -12,8 +12,8 @@
 ### 1. Verify LiteLLM is Running
 
 ```bash
-curl -s "http://192.168.23.232:4000/models" \
-  -H "Authorization: Bearer sk-local-dev" | jq '.'
+curl -s "http://<litellm-host>:4000/models" \
+  -H "Authorization: Bearer <your-proxy-api-key>" | jq '.'
 ```
 
 Expected: List of available models
@@ -39,8 +39,8 @@ Due to M2 Ultra memory constraints, **only one model is loaded at a time**. Mode
 
 ### 3. Authentication
 
-- **API Key:** `sk-local-dev`
-- **Authorization Header:** `Bearer sk-local-dev`
+- **API Key:** `<your-proxy-api-key>`
+- **Authorization Header:** `Bearer <your-proxy-api-key>`
 - **No key required for Ollama direct** (localhost only)
 
 ---
@@ -94,8 +94,8 @@ The old `micode.json` file has been archived because:
       "npm": "@ai-sdk/openai-compatible",
       "name": "LiteLLM (local)",
       "options": {
-        "baseURL": "http://192.168.23.232:4000/v1",
-        "apiKey": "sk-local-dev"
+        "baseURL": "http://<litellm-host>:4000/v1",
+        "apiKey": "<your-proxy-api-key>"
       },
       "models": {
         "qwen3.5-122b": {
@@ -149,7 +149,7 @@ The old `micode.json` file has been archived because:
 
 ### LiteLLM config.yaml (Server)
 
-**Location:** `/path/to/litellm/config.yaml` (on 192.168.23.232)
+**Location:** `/path/to/litellm/config.yaml` (on <litellm-host>)
 
 **Single-Model Strategy:**
 - **122B:** `keep_alive: "-1"` (always loaded, primary model)
@@ -180,7 +180,7 @@ litellm_settings:
   set_verbose: false
 
 general_settings:
-  master_key: sk-local-dev
+  master_key: <your-proxy-api-key>
 ```
 
 **Note:** Only 2 models in active config. Other models (35b, 27b, deepseek, etc.) can be added temporarily by editing config.yaml and restarting LiteLLM when needed.
@@ -278,7 +278,7 @@ If model returns thinking blocks:
 ### Connection Refused
 
 ```
-ECONNREFUSED 192.168.23.232:4000
+ECONNREFUSED <litellm-host>:4000
 ```
 
 **Fix:**
@@ -345,8 +345,8 @@ The eCIP system stores LiteLLM configuration in the database:
 @Entity
 public class LlmProviderConfig {
     private String name;           // "local-litellm"
-    private String baseUrl;        // "http://192.168.23.232:4000"
-    private String apiKey;         // "sk-local-dev"
+    private String baseUrl;        // "http://<litellm-host>:4000"
+    private String apiKey;         // "<your-proxy-api-key>"
     private Boolean active;        // true/false
 }
 ```
@@ -356,8 +356,8 @@ public class LlmProviderConfig {
 1. Navigate to **AI Config** → **LLM Provider** tab
 2. Add new provider:
    - Name: `local-litellm`
-   - Base URL: `http://192.168.23.232:4000`
-   - API Key: `sk-local-dev`
+   - Base URL: `http://<litellm-host>:4000`
+   - API Key: `<your-proxy-api-key>`
    - Active: ✓
 3. Click **Test** → Should show model list
 4. Save and activate
@@ -380,7 +380,7 @@ WHERE task_type = 'RESPONSE';
 
 ### Old Files (Deprecated)
 
-- `/home/ben/Development/config.yaml` - Old LiteLLM config
+- `config.yaml (on the proxy machine)` - old LiteLLM config
 - `docs/superpowers/plans/2026-05-16-llm-local-litellm.md` - Old plan
 
 ### Migration Steps
@@ -388,15 +388,15 @@ WHERE task_type = 'RESPONSE';
 1. **Update opencode.json:**
    ```bash
    # Change from:
-   "baseURL": "http://192.168.23.23:11434/v1"
+   "baseURL": "http://<old-ollama-host>:11434/v1"
    # To:
-   "baseURL": "http://192.168.23.232:4000/v1"
+   "baseURL": "http://<litellm-host>:4000/v1"
    ```
 
 2. **Update LiteLLM config.yaml:**
    - Add all models from the "Available Models" table
    - Set `keep_alive` appropriately
-   - Set `master_key: sk-local-dev`
+   - Set `master_key: <your-proxy-api-key>`
 
 3. **Update eCIP database:**
    ```sql
@@ -407,7 +407,7 @@ WHERE task_type = 'RESPONSE';
    INSERT INTO llm_provider_configs 
    (name, base_url, api_key, active, created_at, updated_at)
    VALUES 
-   ('local-litellm', 'http://192.168.23.232:4000', 'sk-local-dev', true, now(), now());
+   ('local-litellm', 'http://<litellm-host>:4000', '<your-proxy-api-key>', true, now(), now());
    ```
 
 ---
@@ -442,8 +442,8 @@ WHERE task_type = 'RESPONSE';
 For embedding large documents:
 ```bash
 # Pre-warm model
-curl -X POST http://192.168.23.232:4000/v1/chat/completions \
-  -H "Authorization: Bearer sk-local-dev" \
+curl -X POST http://<litellm-host>:4000/v1/chat/completions \
+  -H "Authorization: Bearer <your-proxy-api-key>" \
   -d '{"model": "bge-m3", "messages": [{"role": "user", "content": "warmup"}]}'
 ```
 
@@ -451,9 +451,9 @@ curl -X POST http://192.168.23.232:4000/v1/chat/completions \
 
 ## Related Documentation
 
-- `/home/ben/Development/ecip/documentation/LITELLM_KEEPALIVE_CONFIG.md` - Keepalive guide
-- `/home/ben/Development/ecip/docs/superpowers/plans/2026-05-16-llm-local-litellm.md` - Original plan (deprecated)
-- `/home/ben/Development/ecip/docs/superpowers/specs/2026-05-16-llm-local-litellm-design.md` - Design spec
+- `LITELLM_KEEPALIVE_CONFIG.md` - historical keepalive documentation (obsolete)
+- `docs/superpowers/plans/2026-05-16-llm-local-litellm.md` - Original plan (deprecated)
+- `docs/superpowers/specs/2026-05-16-llm-local-litellm-design.md` - Design spec
 
 ---
 
