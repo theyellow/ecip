@@ -77,7 +77,7 @@ services and the hourly re-scan are still unread.
 | Item | Status |
 |------|--------|
 | `AdminApiBootIT`: boots the real context on Testcontainers PostgreSQL and asserts both columns were scanned; forced red with #246 reverted | ✅ PR #251 (closes SELFCHECK-F2) |
-| SELFCHECK-F3: read the live gauges in all three services | ⏳ unblocked, cluster available again |
+| SELFCHECK-F3: read the live gauges in all three services | ✅ 2026-09-24 — all columns clean or empty; re-scan proven |
 | SELFCHECK-F1: admin-api scans as the Liquibase role, not the runtime R2DBC role | ⏳ P4 |
 
 ## Lesson

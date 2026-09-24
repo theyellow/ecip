@@ -258,17 +258,18 @@ per-environment operator decision, taken only after that environment has demonst
 
 No environment has been promoted yet.
 
-> **⛔ The live per-column state has never been read off a cluster.** As of 2026-08-18 no cluster is
-> available to verify against, so this step is **deferred, not done** — tracked as **SELFCHECK-F3**
-> in `docs/superpowers/BACKLOG.md` §0b, which carries the full checklist.
+> **✅ Live per-column state, first read 2026-09-24 (SELFCHECK-F3):**
 >
-> Two consequences worth stating plainly:
+> | Service | Column | Encrypted | Plaintext | Outcome |
+> |---|---|---|---|---|
+> | llm-orchestrator | `llm_provider_configs.api_key` | 1 | 0 | OK |
+> | admin-api | `telegram_accounts.api_hash` | 1 | 0 | OK |
+> | admin-api | `telegram_accounts.session_string` | 0 | 0 | UNVERIFIED (empty) |
+> | knowledge-engine | `ke_vendor_api_keys.api_key` | 0 | 0 | UNVERIFIED (empty) |
 >
-> - **Do not promote any environment to `fail`** until SELFCHECK-F3 is closed. Promoting on the
->   strength of a green test suite would be exactly the mistake this check exists to prevent — the
->   suite cannot observe live data.
-> - **"Clean" is not the safe assumption.** PR #243 fixed a legacy plaintext `telegram_accounts.api_hash`
->   lockout on 2026-08-10. Whatever the first real scan reports is the finding.
->
-> Also note `EMCIP_SECRETS_SELF_CHECK` is not yet plumbed into Helm (**SELFCHECK-F5**), so setting it
-> currently requires a chart edit rather than a values change.
+> Identical at boot and at the `:17:23` hourly re-scan, so the promotion criteria above are met
+> for the dev cluster. Promotion is still a deliberate decision, not a default — and note
+> `EMCIP_SECRETS_SELF_CHECK` is not yet plumbed into Helm (**SELFCHECK-F5**), so setting it
+> currently requires a chart edit rather than a values change. Re-read this table on any new
+> environment: "clean" is never the safe assumption (PR #243 fixed a legacy plaintext
+> `api_hash` on 2026-08-10).
