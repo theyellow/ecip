@@ -20,6 +20,13 @@ public class LiquibaseConfig {
     private String password;
 
     /**
+     * Honoured explicitly because this bean replaces Boot's Liquibase autoconfiguration, which
+     * would otherwise read it. Empty = no context filter (all changesets run), as before.
+     */
+    @Value("${spring.liquibase.contexts:}")
+    private String contexts;
+
+    /**
      * DataSource bean for Liquibase migrations and any other components that require traditional
      * JDBC (e.g., SecretsSelfCheckConfig's secret column scanning).
      *
@@ -42,6 +49,9 @@ public class LiquibaseConfig {
         SpringLiquibase liquibase = new SpringLiquibase();
         liquibase.setDataSource(dataSource());
         liquibase.setChangeLog("classpath:db/changelog/db.changelog-master.xml");
+        if (!contexts.isBlank()) {
+            liquibase.setContexts(contexts);
+        }
         return liquibase;
     }
 }
