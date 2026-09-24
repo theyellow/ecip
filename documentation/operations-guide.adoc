@@ -832,11 +832,12 @@ Add the following to your `values.yaml` overrides:
 
 [source,yaml]
 ----
-llmOrchestrator:
-  env:
-    KNOWLEDGE_ENRICHMENT_ENABLED: "true"
-    KNOWLEDGE_ENGINE_URL: "http://emcip-knowledge-engine:9088"
-    KNOWLEDGE_RELEVANCE_THRESHOLD: "0.75"
+services:
+  llmOrchestrator:
+    env:
+      KNOWLEDGE_ENRICHMENT_ENABLED: "true"
+      KNOWLEDGE_ENGINE_URL: "http://emcip-knowledge-engine:9088"
+      KNOWLEDGE_RELEVANCE_THRESHOLD: "0.75"
 ----
 
 ==== Enabling in Docker Compose
@@ -859,6 +860,31 @@ Knowledge engine unreachable — skipping enrichment: <error message>
 ----
 
 Monitor for this log line (Loki query: `{app="emcip-llm-orchestrator"} |= "skipping enrichment"`) to detect misconfiguration.
+
+=== Automated LLM Responses
+
+Policy decisions `RESPOND`, `ESCALATE` and `EXECUTE` (topic `policies.decisions`) can trigger an LLM call in `emcip-llm-orchestrator` whose output is published to `responses.generated` — and from there reaches **live Telegram groups**. This is **disabled by default**; enabling it is a deliberate product decision, not an operational toggle.
+
+[cols="2,1,3"]
+|===
+|Variable |Default |Description
+
+|`EMCIP_LLM_AUTOMATED_RESPONSES_ENABLED`
+|`false`
+|Set to `true` to let policy decisions trigger LLM calls. When `false`, each such decision logs `automated responses disabled … skipping LLM call` at `INFO` and nothing is called or published. `BLOCK`, `REVIEW` and `ALLOW` are unaffected either way.
+|===
+
+Enable in Kubernetes via `values.yaml` overrides:
+
+[source,yaml]
+----
+services:
+  llmOrchestrator:
+    env:
+      EMCIP_LLM_AUTOMATED_RESPONSES_ENABLED: "true"
+----
+
+NOTE: Before 2026-09-24 these paths never ran in any deployment, switch or not: the system prompt templates (`auto_response`, `escalation_summary`) were invisible to tenant-scoped lookups (PROMPT-TENANT). System templates (`prompt_templates.system = true`) are now global — visible to every tenant regardless of `tenant_id`. There is still no `command_validation` template, so `EXECUTE` decisions log "No prompt template" and skip even when enabled. Each call is recorded in `model_cost_logs` under the tenant of the triggering event.
 
 === Document Ingestion (SSRF Protection)
 

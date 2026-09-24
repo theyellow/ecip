@@ -102,8 +102,8 @@ Five tiers, each internally coherent: **① Test & CI safety net → ② Securit
 > | ~~SELFCHECK-F3 (3.7 follow-up)~~ | — | ✅ Done 2026-09-24. |
 >
 > **Recommended sequencing:** SELFCHECK-F3 is done (2026-09-24). Next the gate rows **3.8a** and
-> **3.14**, then the polish tier — with **COST-LOG** (BACKLOG, HIGH) triaged first, since its
-> suspected impact on every LLM call decides whether it jumps the queue. Keep the Tier ⑤ sprint (3.16–3.19) together in one stretch
+> **3.14**, then the polish tier. (COST-LOG and PROMPT-TENANT, both found by the F3 deploy, were fixed
+> on 2026-09-24; automated LLM responses now ship behind a switch that is off by default.) Keep the Tier ⑤ sprint (3.16–3.19) together in one stretch
 > rather than half-landing it — splitting it across a cluster gap is how drift like the current
 > hand-wired cluster happened in the first place.
 
