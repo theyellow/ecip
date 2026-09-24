@@ -24,6 +24,7 @@ data:
               - 'emcip-moderation-service:9085'
               - 'emcip-audit-service:9086'
               - 'emcip-admin-api:9087'
+              - 'emcip-knowledge-engine:9088'
         relabel_configs:
           - source_labels: [__address__]
             regex: '([^:]+):\d+'
