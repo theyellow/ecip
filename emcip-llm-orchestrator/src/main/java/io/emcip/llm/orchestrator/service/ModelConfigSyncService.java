@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
@@ -199,7 +198,6 @@ public class ModelConfigSyncService implements ApplicationRunner {
     private static ModelConfig newRow(String modelName, String providerName) {
         Instant now = Instant.now();
         ModelConfig row = new ModelConfig();
-        row.setId(UUID.randomUUID());
         row.setModelKey(modelName);
         row.setProvider(providerName);
         row.setModelName(modelName);
@@ -215,7 +213,10 @@ public class ModelConfigSyncService implements ApplicationRunner {
         row.setPriority(100);
         row.setCreatedAt(now);
         row.setUpdatedAt(now);
-        row.setVersionLock(0L);
+        // id and versionLock stay null on purpose: the id is @GeneratedValue, and a non-null
+        // @Version makes Spring Data treat the entity as existing and merge it - Hibernate
+        // rejects both for a new row. Every create failed that way until 2026-09-24 (see
+        // ModelConfigSyncServiceIT).
         return row;
     }
 }
