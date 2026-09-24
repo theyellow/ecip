@@ -30,8 +30,26 @@ Instead of hardcoding model names in migrations, we now **auto-sync from LiteLLM
    Existing manual routing keys are preserved, never duplicated.
 4. **Deactivates stale models**: only active `local-litellm` rows whose
    `model_name` is no longer available on the proxy.
-5. **Never touches**: rows of other providers (e.g. `anthropic`) or any manual
+5. **Reactivates returning models**: inactive `local-litellm` rows whose
+   `model_name` is served again are set active. The proxy's model list is the
+   source of truth for `local-litellm` rows: this **also reactivates a row an
+   operator switched off by hand** in the Admin UI, on the next restart. To keep
+   a model off permanently, remove it from the LiteLLM proxy instead.
+6. **Never touches**: rows of other providers (e.g. `anthropic`) or any manual
    task_type / priority / routing-key assignment.
+
+### Failure behaviour
+
+The sync is best-effort and **never fails startup**. Any failure — proxy
+unreachable or slower than the timeout, the `local-litellm` row's `api_key`
+not decryptable (legacy plaintext or a wrong `EMCIP_SECRET_KEY`), a database
+error — is logged as a single WARN and the service boots with the existing
+`model_configs` state. This matters because the in-product credential repair
+paths (PRs #241/#243) need the service running to fix exactly those cases.
+
+If the proxy answers with an empty model list, the sync is skipped entirely
+rather than deactivating every row (an empty list almost always means the proxy
+is still loading).
 
 ### Configuration
 
@@ -44,7 +62,8 @@ The sync reads its connection details from the database — the
 | `base_url` | `http://<litellm-host>:4000`            |
 | `api_key`  | `<your-proxy-api-key>` (encrypted at rest) |
 
-No environment variables or `application.yml` settings are involved.
+The HTTP call to the proxy uses one connect/read timeout, `emcip.llm.model-sync.timeout`
+(default `10s`; env var `EMCIP_LLM_MODELSYNC_TIMEOUT` — Spring drops the dash). There are no other settings.
 
 ### What Gets Created
 
@@ -62,18 +81,19 @@ a `model_configs` entry:
 
 ✅ **No more drift:** Database always matches proxy  
 ✅ **No manual migrations:** New models auto-created  
-✅ **Safe deactivation:** Dead models marked inactive (not deleted)  
+✅ **Safe deactivation:** Dead models marked inactive (not deleted), reactivated when they return  
 ✅ **Preserves config:** Manual task assignments kept  
 ✅ **Startup validation:** Logs summary of changes
 
 ### Logs Example
 
 ```
-INFO  ModelConfigSyncService - Using LiteLLM proxy configuration from database (local-litellm)
-INFO  ModelConfigSyncService -   Created: qwen3.5-122b (qwen3.5-122b)
-INFO  ModelConfigSyncService -   Deactivated: standard-qwen3.6-moe (no longer on proxy)
-INFO  ModelConfigSyncService - Sync summary: 11 served models, 7 created, 4 already configured, 1 deactivated
-INFO  ModelConfigSyncService - ✓ Model sync complete: 11 models available on proxy
+INFO  ModelConfigSyncService - Model sync: create qwen3.5-122b (qwen3.5-122b)
+INFO  ModelConfigSyncService - Model sync: deactivate standard-qwen3.6-moe (standard-qwen3.6-moe)
+INFO  ModelConfigSyncService - Model sync: 11 served, 7 created, 0 reactivated, 1 deactivated
+
+# proxy down / key undecryptable / timeout - startup continues:
+WARN  ModelConfigSyncService - Model sync from LiteLLM proxy skipped, keeping existing configuration: <cause>
 ```
 
 ## Current Database State (After Sync)
@@ -90,7 +110,7 @@ INFO  ModelConfigSyncService - ✓ Model sync complete: 11 models available on p
 When LiteLLM proxy model names change:
 1. Restart llm-orchestrator
 2. Sync runs automatically
-3. Stale `local-litellm` rows deactivated, new models created
+3. Stale `local-litellm` rows deactivated, returning ones reactivated, new models created
 4. No manual intervention needed
 
 ## Related

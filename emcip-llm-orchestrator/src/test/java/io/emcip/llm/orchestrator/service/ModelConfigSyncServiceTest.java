@@ -1,19 +1,24 @@
 package io.emcip.llm.orchestrator.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import io.emcip.common.crypto.PlaintextSecretException;
 import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.repository.LlmProviderConfigRepository;
 import io.emcip.llm.orchestrator.repository.ModelConfigRepository;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +28,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Unit tests for {@link ModelConfigSyncService}.
@@ -54,7 +60,7 @@ class ModelConfigSyncServiceTest {
     void setUp() throws Exception {
         server = new MockWebServer();
         server.start();
-        service = new ModelConfigSyncService(modelConfigRepository, providerConfigRepository);
+        service = newService(Duration.ofSeconds(5));
     }
 
     @AfterEach
@@ -135,7 +141,54 @@ class ModelConfigSyncServiceTest {
         verify(modelConfigRepository, never()).save(any());
     }
 
+    @Test
+    void run_reactivatesOwnedRowWhenItsModelIsServedAgain() {
+        // Deactivated by an earlier sync while the proxy was not serving it.
+        ModelConfig returning = ownedRow("model-a", "model-a", false);
+        when(modelConfigRepository.findAll()).thenReturn(List.of(returning));
+        stubProvider(provider());
+        serveModels("model-a");
+
+        service.run(null);
+
+        ArgumentCaptor<ModelConfig> saved = ArgumentCaptor.forClass(ModelConfig.class);
+        verify(modelConfigRepository, times(1)).save(saved.capture());
+        assertThat(saved.getValue()).isSameAs(returning);
+        assertThat(returning.getActive()).isTrue();
+    }
+
+    @Test
+    void run_doesNotFailStartupWhenProviderRowCannotBeDecrypted() {
+        // Loading the row decrypts api_key; a legacy plaintext value (or a wrong mounted key)
+        // throws here. The #241/#243 repair paths need the service up to fix exactly this.
+        when(providerConfigRepository.findByName(PROVIDER))
+                .thenThrow(new PlaintextSecretException("llm_provider_configs.api_key"));
+
+        assertThatCode(() -> service.run(null)).doesNotThrowAnyException();
+        verify(modelConfigRepository, never()).save(any());
+    }
+
+    @Test
+    void run_givesUpOnAHangingProxyInsteadOfBlockingStartup() {
+        service = newService(Duration.ofMillis(200));
+        stubProvider(provider());
+        // Accepts the connection, then never answers within any reasonable time.
+        server.enqueue(
+                new MockResponse.Builder()
+                        .body("{\"data\":[]}")
+                        .headersDelay(30, TimeUnit.SECONDS)
+                        .build());
+
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> service.run(null));
+        verify(modelConfigRepository, never()).save(any());
+    }
+
     // ------------------------------------------------------------------ helpers
+
+    private ModelConfigSyncService newService(Duration timeout) {
+        return new ModelConfigSyncService(
+                modelConfigRepository, providerConfigRepository, new ObjectMapper(), timeout);
+    }
 
     private LlmProviderConfig provider() {
         String baseUrl = server.url("").toString().replaceAll("/$", "");
