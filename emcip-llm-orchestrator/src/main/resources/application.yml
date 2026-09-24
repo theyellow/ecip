@@ -33,6 +33,12 @@ spring:
       enable-auto-commit: false
 
 emcip:
+  llm:
+    automated-responses:
+      # Policy decisions (RESPOND/ESCALATE/EXECUTE) may trigger LLM calls whose output is published
+      # to live Telegram groups. OFF by default - turning it on is a product decision. See
+      # AutomatedResponseProperties.
+      enabled: ${EMCIP_LLM_AUTOMATED_RESPONSES_ENABLED:false}
   secrets:
     # warn | fail | off. Ships as warn everywhere: a hard failure would make the
     # Admin UI credentials-repair path unreachable. Promote an environment to fail

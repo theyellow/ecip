@@ -1,5 +1,6 @@
 package io.emcip.llm.orchestrator;
 
+import io.emcip.llm.orchestrator.config.AutomatedResponseProperties;
 import io.emcip.llm.orchestrator.config.KnowledgeEnrichmentProperties;
 import io.emcip.llm.orchestrator.config.LlmOrchestratorRuntimeHints;
 import org.springframework.boot.SpringApplication;
@@ -13,7 +14,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableJpaRepositories
 @EnableScheduling
 @ImportRuntimeHints(LlmOrchestratorRuntimeHints.class)
-@EnableConfigurationProperties(KnowledgeEnrichmentProperties.class)
+@EnableConfigurationProperties({
+    KnowledgeEnrichmentProperties.class,
+    AutomatedResponseProperties.class
+})
 public class LlmOrchestratorApplication {
 
     public static void main(String[] args) {

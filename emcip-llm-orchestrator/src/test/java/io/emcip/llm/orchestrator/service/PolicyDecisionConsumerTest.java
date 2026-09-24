@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import io.emcip.common.tenant.TenantContext;
+import io.emcip.llm.orchestrator.config.AutomatedResponseProperties;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,11 +32,16 @@ class PolicyDecisionConsumerTest {
 
     @BeforeEach
     void setUp() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        LlmResponseValidator responseValidator = new LlmResponseValidator(2000);
-        consumer =
-                new PolicyDecisionConsumer(
-                        objectMapper, llmCallService, kafkaTemplate, responseValidator);
+        consumer = consumerWith(true);
+    }
+
+    private PolicyDecisionConsumer consumerWith(boolean automatedResponsesEnabled) {
+        return new PolicyDecisionConsumer(
+                new ObjectMapper(),
+                llmCallService,
+                kafkaTemplate,
+                new LlmResponseValidator(2000),
+                new AutomatedResponseProperties(automatedResponsesEnabled));
     }
 
     @AfterEach
@@ -80,6 +86,23 @@ class PolicyDecisionConsumerTest {
         consumer.consume(record);
 
         verifyNoInteractions(llmCallService);
+    }
+
+    @Test
+    void doesNotCallTheLlmWhenAutomatedResponsesAreDisabled() {
+        consumer = consumerWith(false);
+        ConsumerRecord<String, String> record =
+                new ConsumerRecord<>("policies.decisions", 0, 0L, "key", validDecisionJson());
+        record.headers()
+                .add(
+                        TenantContext.KAFKA_HEADER,
+                        UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
+
+        consumer.consume(record);
+
+        verifyNoInteractions(llmCallService);
+        verifyNoInteractions(kafkaTemplate);
+        assertThat(TenantContext.getTenantId()).isNull();
     }
 
     private String validDecisionJson() {

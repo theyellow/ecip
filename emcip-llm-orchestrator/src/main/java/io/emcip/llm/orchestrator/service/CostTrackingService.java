@@ -1,5 +1,7 @@
 package io.emcip.llm.orchestrator.service;
 
+import io.emcip.common.tenant.TenantAwareKafkaSupport;
+import io.emcip.common.tenant.TenantContext;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.entity.ModelCostLog;
 import io.emcip.llm.orchestrator.repository.ModelCostLogRepository;
@@ -61,7 +63,7 @@ public class CostTrackingService {
         double totalCost = inputCost + outputCost;
 
         ModelCostLog costLog = new ModelCostLog();
-        costLog.setId(UUID.randomUUID());
+        costLog.setTenantId(currentTenant());
         costLog.setRequestId(requestId);
         costLog.setModelProvider(modelConfig.getProvider());
         costLog.setModelName(modelConfig.getModelName());
@@ -112,7 +114,7 @@ public class CostTrackingService {
             String conversationId) {
 
         ModelCostLog costLog = new ModelCostLog();
-        costLog.setId(UUID.randomUUID());
+        costLog.setTenantId(currentTenant());
         costLog.setRequestId(requestId);
         costLog.setModelProvider(modelConfig.getProvider());
         costLog.setModelName(modelConfig.getModelName());
@@ -238,5 +240,17 @@ public class CostTrackingService {
                             return m;
                         })
                 .toList();
+    }
+
+    /**
+     * The tenant the triggering Kafka record bound ({@code PolicyDecisionConsumer}), or the global
+     * sentinel when none is bound - {@code tenant_id} is {@code NOT NULL}, and the sentinel is the
+     * platform's existing "no tenant" value ({@link TenantAwareKafkaSupport}).
+     */
+    private static UUID currentTenant() {
+        String tenantId = TenantContext.getTenantId();
+        return tenantId != null
+                ? UUID.fromString(tenantId)
+                : TenantAwareKafkaSupport.GLOBAL_TENANT_SENTINEL;
     }
 }

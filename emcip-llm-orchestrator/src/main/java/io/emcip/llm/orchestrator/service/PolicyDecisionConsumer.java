@@ -4,6 +4,7 @@ import io.emcip.common.events.EventSchemas;
 import io.emcip.common.tenant.TenantAwareKafkaSupport;
 import io.emcip.common.tenant.TenantContext;
 import io.emcip.llm.orchestrator.client.LlmCallResult;
+import io.emcip.llm.orchestrator.config.AutomatedResponseProperties;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +35,7 @@ public class PolicyDecisionConsumer {
     private final LlmCallService llmCallService;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final LlmResponseValidator responseValidator;
+    private final AutomatedResponseProperties automatedResponses;
 
     @KafkaListener(
             topics = TOPIC,
@@ -65,6 +67,21 @@ public class PolicyDecisionConsumer {
                     "Processing policy decision for event {}: decision={}",
                     sourceEventId,
                     decision);
+
+            boolean triggersLlm =
+                    switch (decision) {
+                        case "RESPOND", "ESCALATE", "EXECUTE" -> true;
+                        default -> false;
+                    };
+            if (triggersLlm && !automatedResponses.enabled()) {
+                log.info(
+                        "Policy decision {} for event {} - automated responses disabled"
+                                + " (emcip.llm.automated-responses.enabled=false), skipping LLM"
+                                + " call",
+                        decision,
+                        sourceEventId);
+                return;
+            }
 
             switch (decision) {
                 case "RESPOND" -> handleRespondDecision(decisionEvent);

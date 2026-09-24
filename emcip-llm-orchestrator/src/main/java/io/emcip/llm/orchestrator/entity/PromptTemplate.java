@@ -29,7 +29,8 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Schema(description = "Versioned prompt template for LLM interactions")
 @FilterDef(name = "tenantFilter", parameters = @ParamDef(name = "tenantId", type = UUID.class))
-@Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
+// System templates are global: visible to every tenant regardless of tenant_id (PROMPT-TENANT).
+@Filter(name = "tenantFilter", condition = "(tenant_id = :tenantId OR system = true)")
 @Entity
 @Table(name = "prompt_templates")
 @Getter
