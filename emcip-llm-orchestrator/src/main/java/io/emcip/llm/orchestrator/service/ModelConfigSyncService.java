@@ -1,236 +1,221 @@
 package io.emcip.llm.orchestrator.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
 import io.emcip.llm.orchestrator.entity.ModelConfig;
 import io.emcip.llm.orchestrator.repository.LlmProviderConfigRepository;
 import io.emcip.llm.orchestrator.repository.ModelConfigRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
+import java.util.stream.StreamSupport;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * Synchronizes model configurations from LiteLLM proxy at startup. Auto-creates model_configs
- * entries for available models, preserving manual task assignments.
+ * Reconciles {@code model_configs} with the models the LiteLLM proxy serves, once at startup.
  *
- * <p>Configuration: - Reads LiteLLM proxy URL and API key from llm_provider_configs table
- * (provider_name = 'local-litellm') - Consistent with existing database-driven configuration
- * approach
+ * <p>The proxy URL and API key come from the {@code local-litellm} row of {@code
+ * llm_provider_configs}. Only rows tagged with that provider ("owned" rows) are ever touched:
+ *
+ * <ul>
+ *   <li>a served model no owned row references gets a default row;
+ *   <li>an owned row whose model is not served is deactivated;
+ *   <li>an owned, inactive row whose model is served again is reactivated. This deliberately also
+ *       reactivates a row an operator switched off by hand — the proxy's model list is treated as
+ *       the source of truth for owned rows.
+ * </ul>
+ *
+ * <p>The sync is best-effort: any failure (proxy unreachable or slow, provider row undecryptable,
+ * database error) is logged and startup continues with the existing configuration. It must never
+ * fail boot — the in-product credential repair paths need this service running.
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
-@Order(100) // Run early in startup
+@Order(100)
 public class ModelConfigSyncService implements ApplicationRunner {
+
+    static final String PROVIDER_NAME = "local-litellm";
 
     private final ModelConfigRepository modelConfigRepository;
     private final LlmProviderConfigRepository providerConfigRepository;
+    private final ObjectMapper objectMapper;
+    private final Duration timeout;
+
+    public ModelConfigSyncService(
+            ModelConfigRepository modelConfigRepository,
+            LlmProviderConfigRepository providerConfigRepository,
+            ObjectMapper objectMapper,
+            @Value("${emcip.llm.model-sync.timeout:10s}") Duration timeout) {
+        this.modelConfigRepository = modelConfigRepository;
+        this.providerConfigRepository = providerConfigRepository;
+        this.objectMapper = objectMapper;
+        this.timeout = timeout;
+    }
 
     @Override
     public void run(ApplicationArguments args) {
-        // Try database config first (preferred - consistent with existing approach)
-        var dbConfig = providerConfigRepository.findByName("local-litellm");
-
-        String proxyUrl;
-        String apiKey;
-        String providerName;
-
-        if (dbConfig.isPresent()) {
-            proxyUrl = dbConfig.get().getBaseUrl();
-            apiKey = dbConfig.get().getApiKey();
-            // The provider tag written to model_configs comes from the DB config row, so
-            // auto-created rows stay consistent with existing rows (both 'local-litellm').
-            providerName = dbConfig.get().getName();
-
-            if (proxyUrl == null || proxyUrl.isBlank() || apiKey == null || apiKey.isBlank()) {
-                log.warn("⚠️  local-litellm provider configured but missing URL or API key");
-                log.warn("   Check llm_provider_configs table for 'local-litellm' entry");
-                log.warn("   Skipping model sync - using existing database configuration.");
-                return;
-            }
-
-            log.info("Using LiteLLM proxy configuration from database (local-litellm)");
-        } else {
-            log.warn("⚠️  No 'local-litellm' provider found in llm_provider_configs table");
+        try {
+            sync();
+        } catch (Exception e) {
             log.warn(
-                    "   Please add a provider entry with name='local-litellm' and set base_url and"
-                            + " api_key");
-            log.warn("   Skipping model sync - using existing database configuration.");
+                    "Model sync from LiteLLM proxy skipped, keeping existing configuration: {}",
+                    e.getMessage());
+            log.debug("Model sync failure", e);
+        }
+    }
+
+    private void sync() {
+        Optional<LlmProviderConfig> config = providerConfigRepository.findByName(PROVIDER_NAME);
+        if (config.isEmpty()) {
+            log.info("No '{}' provider configured; model sync skipped", PROVIDER_NAME);
+            return;
+        }
+        String baseUrl = config.get().getBaseUrl();
+        String apiKey = config.get().getApiKey();
+        if (baseUrl == null || baseUrl.isBlank() || apiKey == null || apiKey.isBlank()) {
+            log.warn("'{}' provider has no base URL or API key; model sync skipped", PROVIDER_NAME);
             return;
         }
 
-        String modelsEndpoint = proxyUrl + "/models";
+        List<String> served = fetchServedModels(baseUrl + "/models", apiKey);
+        if (served.isEmpty()) {
+            // An empty list is far more likely a proxy still loading than a real "no models";
+            // reconciling against it would deactivate every owned row.
+            log.warn("LiteLLM proxy reported no models; model sync skipped");
+            return;
+        }
+        reconcile(served, config.get().getName());
+    }
 
-        try {
-            List<String> availableModels = fetchAvailableModels(modelsEndpoint, apiKey);
+    private List<String> fetchServedModels(String endpoint, String apiKey) {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(timeout);
+        requestFactory.setReadTimeout(timeout);
 
-            if (availableModels.isEmpty()) {
-                log.warn("⚠️  No models found on LiteLLM proxy at {}", modelsEndpoint);
-                log.warn("   Check proxy connectivity and configuration.");
-                return;
+        String body =
+                RestClient.builder()
+                        .requestFactory(requestFactory)
+                        .build()
+                        .get()
+                        .uri(endpoint)
+                        .headers(h -> h.setBearerAuth(apiKey))
+                        .accept(MediaType.APPLICATION_JSON)
+                        .retrieve()
+                        .body(String.class);
+
+        JsonNode data = objectMapper.readTree(body).path("data");
+        return StreamSupport.stream(data.spliterator(), false)
+                .map(node -> node.path("id"))
+                .filter(JsonNode::isString)
+                .map(JsonNode::asString)
+                .toList();
+    }
+
+    private void reconcile(List<String> served, String providerName) {
+        List<ModelConfig> existing = modelConfigRepository.findAll();
+        Set<String> servedSet = Set.copyOf(served);
+
+        // Scoped to rows this sync owns: other providers are never touched, even when a model
+        // name happens to overlap the proxy's list.
+        List<ModelConfig> owned =
+                existing.stream().filter(m -> providerName.equals(m.getProvider())).toList();
+
+        // Matched on model_name (the served model), not model_key (the routing key the UI
+        // manages, which may differ, and may wrap the same served model several times).
+        Set<String> configured =
+                owned.stream().map(ModelConfig::getModelName).collect(Collectors.toSet());
+        // Every routing key in use, so a create cannot collide with the unique constraint.
+        Set<String> usedKeys =
+                existing.stream().map(ModelConfig::getModelKey).collect(Collectors.toSet());
+
+        int created = 0;
+        for (String modelName : served) {
+            if (configured.contains(modelName)) {
+                continue;
             }
+            if (usedKeys.contains(modelName)) {
+                log.warn("Model sync: not creating {}, routing key already in use", modelName);
+                continue;
+            }
+            if (save(newRow(modelName, providerName), "create")) {
+                created++;
+            }
+        }
 
-            syncModelConfigs(availableModels, providerName);
+        int deactivated = 0;
+        int reactivated = 0;
+        for (ModelConfig row : owned) {
+            boolean active = Boolean.TRUE.equals(row.getActive());
+            boolean isServed = servedSet.contains(row.getModelName());
+            if (active == isServed) {
+                continue;
+            }
+            row.setActive(isServed);
+            row.setUpdatedAt(Instant.now());
+            if (save(row, isServed ? "reactivate" : "deactivate")) {
+                if (isServed) {
+                    reactivated++;
+                } else {
+                    deactivated++;
+                }
+            }
+        }
 
-            log.info("✓ Model sync complete: {} models available on proxy", availableModels.size());
-        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
-            log.warn("Optimistic locking conflict during model sync: {}", e.getMessage());
-            log.debug("Sync error details", e);
-            log.warn("   Starting with existing database configuration");
+        log.info(
+                "Model sync: {} served, {} created, {} reactivated, {} deactivated",
+                served.size(),
+                created,
+                reactivated,
+                deactivated);
+    }
+
+    /**
+     * One row failing (e.g. a concurrent replica won the optimistic lock) must not stop the rest.
+     */
+    private boolean save(ModelConfig row, String action) {
+        try {
+            modelConfigRepository.save(row);
+            log.info("Model sync: {} {} ({})", action, row.getModelKey(), row.getModelName());
+            return true;
         } catch (Exception e) {
-            log.warn("Could not sync models from LiteLLM proxy: {}", e.getMessage());
-            log.debug("Sync error details", e);
-            log.warn("   Starting with existing database configuration");
+            log.warn("Model sync: could not {} {}: {}", action, row.getModelKey(), e.getMessage());
+            return false;
         }
     }
 
-    private List<String> fetchAvailableModels(String endpoint, String apiKey) {
-        RestTemplate restTemplate = new RestTemplate();
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + apiKey);
-            headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<String> response =
-                    restTemplate.exchange(endpoint, HttpMethod.GET, entity, String.class);
-
-            JsonNode root = objectMapper.readTree(response.getBody());
-            JsonNode data = root.get("data");
-
-            if (data != null && data.isArray()) {
-                return java.util.stream.StreamSupport.stream(data.spliterator(), false)
-                        .map(node -> node.get("id"))
-                        .filter(JsonNode::isTextual)
-                        .map(JsonNode::asText)
-                        .collect(Collectors.toList());
-            }
-
-            return List.of();
-        } catch (Exception e) {
-            log.error("Failed to fetch models from proxy: {}", e.getMessage());
-            throw new RuntimeException("Could not fetch models from LiteLLM proxy", e);
-        }
-    }
-
-    private void syncModelConfigs(List<String> availableModels, String providerName) {
-        try {
-            List<ModelConfig> existingModels = modelConfigRepository.findAll();
-
-            // Rows this sync owns share the source config's provider tag. Matching and
-            // deactivation stay scoped to these - we must never touch other providers
-            // (e.g. anthropic) even if a name happens to overlap the proxy model set.
-            List<ModelConfig> ownedModels =
-                    existingModels.stream()
-                            .filter(m -> providerName.equals(m.getProvider()))
-                            .collect(Collectors.toList());
-
-            // Served model names already configured by an owned row. Matched on model_name
-            // (the link to the served model), deliberately NOT model_key (the app-level
-            // routing key the UI manages, which may differ - or wrap the same model - so the
-            // same served model can appear under several routing keys).
-            Set<String> alreadyConfigured =
-                    ownedModels.stream().map(ModelConfig::getModelName).collect(Collectors.toSet());
-
-            // Every routing key in use, so a create can't collide with the unique constraint.
-            Set<String> existingKeys =
-                    existingModels.stream()
-                            .map(ModelConfig::getModelKey)
-                            .collect(Collectors.toSet());
-
-            Set<String> availableSet = availableModels.stream().collect(Collectors.toSet());
-
-            int created = 0;
-
-            // Create a default row only for served models no owned row references yet,
-            // preserving any existing manual routing for models that are already configured.
-            for (String modelName : availableModels) {
-                if (alreadyConfigured.contains(modelName)) {
-                    continue; // already configured (possibly under a custom routing key) - leave it
-                }
-
-                String modelKey = modelName;
-                if (existingKeys.contains(modelKey)) {
-                    log.warn("  Skipped create for {}: routing key already in use", modelKey);
-                    continue;
-                }
-
-                ModelConfig newModel = new ModelConfig();
-                newModel.setId(UUID.randomUUID());
-                newModel.setModelKey(modelKey);
-                newModel.setProvider(providerName);
-                newModel.setModelName(modelName);
-                newModel.setDescription("Auto-synced from LiteLLM proxy");
-                newModel.setTaskType("GENERAL"); // Default task type
-                newModel.setInputCostPer1kTokens(0.0);
-                newModel.setOutputCostPer1kTokens(0.0);
-                newModel.setContextWindow(128000);
-                newModel.setMaxOutputTokens(8192);
-                newModel.setAvgLatencyMs(500.0);
-                newModel.setSupportsStreaming(true);
-                newModel.setActive(true);
-                newModel.setPriority(100);
-                newModel.setCreatedAt(Instant.now());
-                newModel.setUpdatedAt(Instant.now());
-                newModel.setVersionLock(0L);
-
-                try {
-                    modelConfigRepository.save(newModel);
-                    created++;
-                    log.info("  Created: {} ({})", modelKey, modelName);
-                } catch (Exception e) {
-                    log.debug("Version conflict while creating {}: {}", modelKey, e.getMessage());
-                }
-            }
-
-            // Deactivate owned rows whose served model is no longer on the proxy.
-            int deactivated = 0;
-            for (ModelConfig existing : ownedModels) {
-                if (Boolean.TRUE.equals(existing.getActive())
-                        && !availableSet.contains(existing.getModelName())) {
-                    existing.setActive(false);
-                    existing.setUpdatedAt(Instant.now());
-                    try {
-                        modelConfigRepository.save(existing);
-                        deactivated++;
-                        log.info("  Deactivated: {} (no longer on proxy)", existing.getModelKey());
-                    } catch (Exception e) {
-                        log.debug(
-                                "Version conflict while deactivating {}: {}",
-                                existing.getModelKey(),
-                                e.getMessage());
-                    }
-                }
-            }
-
-            log.info(
-                    "Sync summary: {} served models, {} created, {} already configured, {}"
-                            + " deactivated",
-                    availableModels.size(),
-                    created,
-                    availableModels.size() - created,
-                    deactivated);
-        } catch (Exception e) {
-            // If sync fails completely, log and continue with existing config
-            log.warn("Model sync failed: {}", e.getMessage());
-            log.debug("Full sync error", e);
-        }
+    private static ModelConfig newRow(String modelName, String providerName) {
+        Instant now = Instant.now();
+        ModelConfig row = new ModelConfig();
+        row.setId(UUID.randomUUID());
+        row.setModelKey(modelName);
+        row.setProvider(providerName);
+        row.setModelName(modelName);
+        row.setDescription("Auto-synced from LiteLLM proxy");
+        row.setTaskType("GENERAL");
+        row.setInputCostPer1kTokens(0.0);
+        row.setOutputCostPer1kTokens(0.0);
+        row.setContextWindow(128000);
+        row.setMaxOutputTokens(8192);
+        row.setAvgLatencyMs(500.0);
+        row.setSupportsStreaming(true);
+        row.setActive(true);
+        row.setPriority(100);
+        row.setCreatedAt(now);
+        row.setUpdatedAt(now);
+        row.setVersionLock(0L);
+        return row;
     }
 }
