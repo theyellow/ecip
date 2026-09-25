@@ -12,8 +12,8 @@
             <column name="model_name" value="qwen3-30b-a3b"/>
             <column name="description" value="Qwen3-30B-A3B via LiteLLM for automated response generation"/>
             <column name="updated_at" valueComputed="now()"/>
+            <where>model_key = 'claude-haiku-response'</where>
         </update>
-        <where>model_key = 'claude-haiku-response'</where>
     </changeSet>
 
     <!-- Update summary model: Qwen3-30B-A3B for quality tasks -->
@@ -23,8 +23,8 @@
             <column name="model_name" value="qwen3-30b-a3b"/>
             <column name="description" value="Qwen3-30B-A3B via LiteLLM for escalation summaries"/>
             <column name="updated_at" valueComputed="now()"/>
+            <where>model_key = 'claude-haiku-summary'</where>
         </update>
-        <where>model_key = 'claude-haiku-summary'</where>
     </changeSet>
 
     <!-- Update command_validation model: Qwen3-14B for speed tasks -->
@@ -34,8 +34,8 @@
             <column name="model_name" value="qwen3-14b"/>
             <column name="description" value="Qwen3-14B via LiteLLM for command validation"/>
             <column name="updated_at" valueComputed="now()"/>
+            <where>model_key = 'claude-haiku-command'</where>
         </update>
-        <where>model_key = 'claude-haiku-command'</where>
     </changeSet>
 
     <!-- Add new MODERATION task type entry -->

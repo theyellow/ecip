@@ -309,6 +309,8 @@ helm rollback emcip 2 -n emcip      # roll back to specific revision
 [[image-rollout]]
 === Rolling Out New Images
 
+IMPORTANT: *One-time, existing environments:* before the first llm-orchestrator image that contains `LiquibaseConfig` (LO-LIQUIBASE, 2026-09-25), run `scripts/db/reconcile-llm-liquibase.sh --apply` — otherwise the service fails Liquibase validation on hand-recorded changesets and crash-loops. Details: `docs/operations/rollout.md`, section "One-time: first llm-orchestrator deploy with Liquibase".
+
 After CI builds and pushes new images to `ghcr.io/theyellow/ecip` (on every
 merge to `main`), restart the pods to pick them up. All images use
 `pullPolicy: Always`.

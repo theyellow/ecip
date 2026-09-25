@@ -39,7 +39,13 @@ class ModelConfigSyncServiceIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        modelConfigRepository.deleteAll();
+        // The schema now comes from Liquibase, seeds included: seeded model configs (providers
+        // 'litellm'/'anthropic') are referenced by seeded prompt templates, so only the rows this
+        // sync owns are cleared, and only those are asserted on.
+        modelConfigRepository.deleteAll(
+                modelConfigRepository.findAll().stream()
+                        .filter(m -> ModelConfigSyncService.PROVIDER_NAME.equals(m.getProvider()))
+                        .toList());
         providerConfigRepository.deleteAll();
         proxy = new MockWebServer();
         proxy.start();
@@ -72,7 +78,13 @@ class ModelConfigSyncServiceIT {
                         Duration.ofSeconds(5))
                 .run(null);
 
-        assertThat(modelConfigRepository.findAll())
+        assertThat(
+                        modelConfigRepository.findAll().stream()
+                                .filter(
+                                        m ->
+                                                ModelConfigSyncService.PROVIDER_NAME.equals(
+                                                        m.getProvider()))
+                                .toList())
                 .extracting(ModelConfig::getModelName, ModelConfig::getProvider)
                 .containsExactlyInAnyOrder(
                         org.assertj.core.groups.Tuple.tuple(
