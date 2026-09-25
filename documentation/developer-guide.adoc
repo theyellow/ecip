@@ -502,6 +502,39 @@ Enforcement lives in `RateLimitWebFilter`, not in the controllers, and it writes
 |`GET /api/v1/admin/integrations/sources/{id}/runs/{runId}`
 |Single enrichment run detail
 |Bearer token (INTEGRATIONS_GLOBAL_MANAGE)
+
+|`POST /api/admin/knowledge/search`
+|Knowledge search. Tenant: own + global; no tenant (ADMIN in admin mode) = global only. A tenant-bound caller's `tenantId` is replaced by its own.
+|Bearer token (KNOWLEDGE_READ)
+
+|`GET /api/admin/knowledge/graph/topics`, `/graph/persons`
+|Graph nodes by type, same tenant rule as search.
+|Bearer token (KNOWLEDGE_READ)
+
+|`GET /api/admin/knowledge/graph/node/{id}/neighbors`
+|Neighbours of a node. With a tenant: the node must be own or global (else 404); only own/global neighbours returned.
+|Bearer token (KNOWLEDGE_READ)
+
+|`POST /api/admin/knowledge/research`, `GET /api/admin/knowledge/research`
+|Start / list research sessions — always as the caller's tenant (sessions are never global).
+|Bearer token (KNOWLEDGE_WRITE / KNOWLEDGE_READ)
+
+|`GET /api/admin/knowledge/research/{id}` (+ `/report`, `/report/markdown`); `POST …/{id}/pause`, `…/{id}/resume`
+|Own sessions only; another tenant's session answers 404.
+|Bearer token (KNOWLEDGE_READ / KNOWLEDGE_WRITE)
+
+|`POST /api/admin/knowledge/ingest/url`, `/upload`; `GET /api/admin/knowledge/ingest`
+|Ingest into the caller's tenant (ADMIN may choose, or global); list = own + global.
+|Bearer token (KNOWLEDGE_WRITE / KNOWLEDGE_READ)
+
+|`GET /api/admin/knowledge/ingest/{jobId}` (+ `/details`); `DELETE …/{jobId}`; `POST …/{jobId}/reingest`
+|Read: own or global job. Delete / re-ingest: own job only. Otherwise (and when missing) 404.
+|Bearer token (KNOWLEDGE_READ / KNOWLEDGE_WRITE)
+
+|`GET /api/resolution-review`; `PATCH /api/resolution-review/{id}/merge`, `/dismiss`
+|List = own + global flags. Merge / dismiss: own flags only (global only for ADMIN), else 404.
+|Bearer token (RESOLUTION_REVIEW_READ / RESOLUTION_REVIEW_WRITE)
+
 |===
 
 == Testing

@@ -390,6 +390,30 @@ The *LLM Provider* tab configures the proxy endpoint that all model configs use.
 
 *Pick from proxy* — the model name input in the *Add/Edit Model* form has a *Pick from proxy* button. It fetches the model list from the active provider and lets you select a model name directly, avoiding typos.
 
+=== Knowledge, Research and Resolution Review
+
+These pages work on the knowledge base. What you see and may change depends on your role (ADR-009):
+
+* *Global items* belong to no tenant — shared knowledge, ingestion jobs and resolution flags created by a platform `ADMIN`. Everyone can *see* them; only a platform `ADMIN` can *change* them. Where you are not allowed to, the actions (delete, re-ingest, merge, dismiss) are replaced by the label *Global*, with the tooltip "Global — managed by a platform admin".
+* *Your tenant's items* are visible to everyone in your tenant and can be changed by roles with the matching permission (`KNOWLEDGE_WRITE`, `RESOLUTION_REVIEW_WRITE`).
+* *Other tenants' items* are never shown to you. Opening one by its id behaves exactly like a missing item.
+
+==== Knowledge search and graph
+
+Search results and graph views show your tenant's knowledge plus global knowledge. A platform `ADMIN` without a selected tenant sees global knowledge only; selecting a tenant (tenant picker or header) shows that tenant's view.
+
+==== Ingesting documents
+
+Documents you ingest (URL or upload) always go into your own tenant — the modal says so. Only a platform `ADMIN` gets a tenant picker, including *Global (all tenants)*.
+
+==== Research
+
+Research sessions always belong to a tenant. You can see, pause, resume and read the reports of your own tenant's sessions only.
+
+==== Resolution Review
+
+The queue lists your tenant's flags plus global flags. You can merge or dismiss your own tenant's flags; global flags are reviewed by a platform `ADMIN`.
+
 === Telegram Account Management
 
 EMCIP connects to Telegram as a full user-bot client (not a bot API). Each Telegram account

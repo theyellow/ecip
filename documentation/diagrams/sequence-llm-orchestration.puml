@@ -28,28 +28,31 @@ queue "responses.\ngenerated" as OutTopic
 == Event Ingestion ==
 InTopic -> Consumer: PolicyDecisionEvent
 activate Consumer
-Consumer -> Consumer: Check decision == RESPOND
+Consumer -> Consumer: Check decision (RESPOND / ESCALATE / EXECUTE call the LLM)
 
-alt decision != RESPOND
-    Consumer -> Consumer: Skip (not a response task)
-else decision == RESPOND
+alt decision is BLOCK / REVIEW / ALLOW
+    Consumer -> Consumer: Skip (no AI interaction)
+else automated responses disabled (emcip.llm.automated-responses.enabled = false, default)
+    Consumer -> Consumer: Log "automated responses disabled", skip LLM call
+else RESPOND / ESCALATE / EXECUTE and enabled
 
-    == Model Config + Template ==
+    == Template + Model Config ==
     Consumer -> LlmCall: callForTask(taskType, templateName, userContent)
     activate LlmCall
 
-    LlmCall -> OrchestratorSvc: selectModelForTask(taskType)
-    activate OrchestratorSvc
-    OrchestratorSvc -> DB: SELECT model_configs WHERE task_type = ?
-    DB --> OrchestratorSvc: ModelConfig (model, maxTokens, temperature)
-    OrchestratorSvc --> LlmCall: ModelConfig
-    deactivate OrchestratorSvc
-
     LlmCall -> OrchestratorSvc: getPromptTemplate(templateName)
     activate OrchestratorSvc
-    OrchestratorSvc -> DB: SELECT prompt_templates WHERE name = ?
-    DB --> OrchestratorSvc: PromptTemplate
+    OrchestratorSvc -> DB: SELECT prompt_templates WHERE name = ? AND active\n[tenantFilter: tenant_id = :tenant OR system = true]
+    note right: System templates are global (ADR-009) -\nvisible to every tenant.
+    DB --> OrchestratorSvc: PromptTemplate (or none -> skip LLM call)
     OrchestratorSvc --> LlmCall: PromptTemplate
+    deactivate OrchestratorSvc
+
+    LlmCall -> OrchestratorSvc: template.modelConfig, else selectModelForTask(taskType)
+    activate OrchestratorSvc
+    OrchestratorSvc -> DB: SELECT model_configs WHERE task_type = ?
+    DB --> OrchestratorSvc: ModelConfig
+    OrchestratorSvc --> LlmCall: ModelConfig
     deactivate OrchestratorSvc
 
     LlmCall -> OrchestratorSvc: renderPromptTemplate(template, vars)
@@ -99,7 +102,7 @@ else decision == RESPOND
     == Cost Logging ==
     LlmCall -> CostTracker: logSuccessfulCall(correlationId, taskType, model, inputTokens, outputTokens)
     activate CostTracker
-    CostTracker -> DB: INSERT model_cost_logs
+    CostTracker -> DB: INSERT model_cost_logs\n(tenant_id = event tenant, else global sentinel)
     CostTracker --> LlmCall: logged
     deactivate CostTracker
 

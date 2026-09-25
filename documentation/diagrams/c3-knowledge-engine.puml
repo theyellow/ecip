@@ -25,8 +25,18 @@ Container_Boundary(ke, "Knowledge Engine (emcip-knowledge-engine) — Port 9088"
     Component(vector_repo, "PgVectorSearchRepository", "VectorSearchRepository impl", "pgvector extension\nKnowledgeDocument + embedding\nCosine similarity search")
 
     ' Query Layer
-    Component(query, "KnowledgeQueryService", "Spring Service", "GRAPH / VECTOR / HYBRID search\nMerge + rank results\nTenant isolation")
-    Component(controller, "KnowledgeController", "REST Controller", "Search, ontology, ingest,\nbackfill, graph exploration\nendpoints")
+    Component(query, "KnowledgeQueryService", "Spring Service", "GRAPH / VECTOR / HYBRID search\nMerge + rank results\nTenant rule: own + global;\nno tenant = global only (P3.8a)")
+    Component(research_svc, "ResearchAgentService", "Spring Service", "Deep research sessions\n(always tenant-owned)")
+    Component(review_svc, "ResolutionReviewService", "Spring Service", "Merge / dismiss\nresolution flags")
+
+    ' REST Layer
+    Component(search_ctrl, "KnowledgeSearchController", "REST Controller", "Search, graph topics/persons,\ngraph neighbours")
+    Component(research_ctrl, "ResearchController", "REST Controller", "Research sessions + reports")
+    Component(ingest_ctrl, "DocumentIngestionController", "REST Controller", "Ingest URL/file, jobs")
+    Component(review_ctrl, "ResolutionReviewController", "REST Controller", "Resolution flag queue")
+    Component(ontology_ctrl, "OntologyController", "REST Controller", "Concept/relationship types\n(in-cluster only)")
+    Component(backfill_ctrl, "BackfillController", "REST Controller", "Chat history backfill")
+    Component(tenant_access, "TenantAccess", "Policy (ADR-009)", "Asserted tenant: read own + global,\nwrite own only, else 404.\nNo tenant = trusted caller")
     Component(events, "KnowledgeEventPublisher", "Kafka Producer", "Publishes to knowledge.events\nExtraction results\nEnrichment responses")
 }
 
@@ -39,9 +49,15 @@ Container(tdlib, "TDLib Adapter", "Port 9080", "getChatHistory for backfill")
 
 ' Ingestion flow
 Rel(kafka, consumer, "knowledge.raw.messages", "Async/JSON")
-Rel(admin_api, controller, "Ingest URL/file, search, backfill", "REST")
-Rel(controller, ingest, "Document ingestion")
-Rel(controller, backfill, "Trigger backfill")
+Rel(admin_api, search_ctrl, "Search, neighbours (tenantId asserted)", "REST")
+Rel(admin_api, research_ctrl, "Research (tenantId asserted)", "REST")
+Rel(admin_api, ingest_ctrl, "Ingestion (tenantId asserted)", "REST")
+Rel(admin_api, review_ctrl, "Resolution review (tenantId asserted)", "REST")
+Rel(admin_api, backfill_ctrl, "Backfill", "REST")
+Rel(ingest_ctrl, ingest, "Document ingestion")
+Rel(backfill_ctrl, backfill, "Trigger backfill")
+Rel(research_ctrl, research_svc, "Start / pause / resume")
+Rel(review_ctrl, review_svc, "Merge / dismiss")
 Rel(backfill, tdlib, "getChatHistory", "REST")
 
 ' Extraction flow
@@ -58,11 +74,15 @@ Rel(vector_repo, llm_orch, "EMBED task", "REST")
 Rel(resolution, llm_orch, "RESOLVE task", "REST")
 
 ' Query flow
-Rel(controller, query, "Search requests")
+Rel(search_ctrl, query, "Search requests")
+Rel(search_ctrl, tenant_access, "Neighbours ownership")
+Rel(research_ctrl, tenant_access, "Session ownership")
+Rel(ingest_ctrl, tenant_access, "Job ownership")
+Rel(review_svc, tenant_access, "Flag ownership")
 Rel(query, graph_repo, "Graph traversal")
 Rel(query, vector_repo, "Semantic search")
 Rel(ontology, extraction, "Drives prompts")
-Rel(controller, ontology, "CRUD")
+Rel(ontology_ctrl, ontology, "CRUD")
 
 ' Output
 Rel(events, kafka, "knowledge.events", "Async/JSON")
