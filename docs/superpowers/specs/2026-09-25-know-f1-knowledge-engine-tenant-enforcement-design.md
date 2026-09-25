@@ -66,6 +66,10 @@ any caller value (non-object body → 400); `tenantId` query parameter / multipa
 upload, replaced the same way; **a new `tenantId` query parameter on every id-addressed call**, omitted
 when no tenant is asserted.
 
+**404 must reach the user as 404.** Today every one of these proxies turns *any* knowledge-engine error
+into 503 (`onErrorResume` → `SERVICE_UNAVAILABLE`), and the resolution proxy maps none at all. A
+knowledge-engine 404 is passed through as 404; other errors keep their current mapping.
+
 ## 3. knowledge-engine: enforce when a tenant is asserted
 
 One policy class, `TenantAccess`, used everywhere below:
@@ -86,6 +90,8 @@ One policy class, `TenantAccess`, used everywhere below:
   (a 500 — knowledge-engine has no controller advice); missing and denied both become **404**.
 - **Global items** (`tenant_id IS NULL`): readable by every tenant, changeable only with no tenant
   asserted. A tenant must not delete, re-ingest, merge or dismiss shared knowledge.
+- **Research sessions cannot be global** — `ke_research_sessions.tenant_id` is `NOT NULL` — so for
+  research "own + global" is simply "own", and its list query stays as it is.
 - **Search expansion (KNOW-F2):** `KnowledgeQueryService` expands each hit with `findConnected`; the
   returned neighbors are filtered by the P3.8a search rule (tenant → own + global; null → global only).
 
