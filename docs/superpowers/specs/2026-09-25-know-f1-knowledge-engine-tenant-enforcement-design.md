@@ -136,6 +136,7 @@ ADR-009 rule 9).
 - ROADMAP 3.14: ADR-009 delivered; ADR-010 gains "internal service authentication (knowledge-engine,
   Kafka / RT-005)". ROADMAP 3.20: add "NetworkPolicy — knowledge-engine ingress limited to admin-api and
   llm-orchestrator".
+- BACKLOG: file **TENANT-AUDIT** and **DOCS-FAILIF** (see §10).
 
 ## 8. Documentation and diagrams (final task)
 
@@ -185,3 +186,19 @@ Change, following `IntegrationsPage`'s existing `isAdmin` pattern (`hasPermissio
   `ADMIN` does; `IngestionModal` shows the picker only to `ADMIN`. Each observed red first.
 
 The backend rules (§3) remain the enforcement; the UI change only stops offering what will be refused.
+
+## 10. Out of scope
+
+Each item is tracked where named; none is silently dropped.
+
+| Item | Why not here | Tracked in |
+|---|---|---|
+| Authentication of in-cluster callers to knowledge-engine (and other internal services) | an architecture decision — "no tenant = trusted" stays valid only while the caller set is controlled | **ADR-010** (3.14), together with RT-005 (unauthenticated Kafka) |
+| NetworkPolicy limiting knowledge-engine ingress to admin-api and llm-orchestrator | the 1.0 mitigation for the item above; infra, not code | **3.20** (K8s pod hardening) |
+| Tenant audit of admin-api's **other** proxies and clients — AI config, costs, audit, intent classifier, moderation, policy engine, Telegram accounts | ADR-009 states platform-wide rules, but this PR audits only the knowledge-engine path | **TENANT-AUDIT** (new, P3): check each against ADR-009 |
+| Backfill `GET /status?backfillId=` | returns progress counters only, no content | — (audited, accepted) |
+| `OntologyController` | not proxied by admin-api; reachable only in-cluster | ADR-010 / 3.20 |
+| Diagram and Asciidoctor errors do not fail the build | CI build configuration, independent of tenancy | **DOCS-FAILIF** (new) |
+| Data-poisoning / retrieval trust of knowledge content | about *what* knowledge says, not *who* may see it | **KE-TRUST** |
+| Data migration | nothing to migrate: 0 research sessions, 2 global ingestion jobs, all knowledge global (2026-09-25) | — |
+| ADR-010 (auth/authz) and ADR-011 (API versioning) | the other two ADRs of 3.14 | **3.14** |
