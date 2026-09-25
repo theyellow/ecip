@@ -141,7 +141,8 @@ public class DocumentIngestionService {
 
     public Page<IngestionJob> listJobs(UUID tenantId, Pageable pageable) {
         if (tenantId != null) {
-            return jobRepository.findAllByTenantIdOrderByCreatedAtDesc(tenantId, pageable);
+            return jobRepository.findAllByTenantIdOrTenantIdIsNullOrderByCreatedAtDesc(
+                    tenantId, pageable);
         }
         return jobRepository.findAllByOrderByCreatedAtDesc(pageable);
     }

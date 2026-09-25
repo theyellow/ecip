@@ -15,6 +15,10 @@ public interface IngestionJobRepository extends JpaRepository<IngestionJob, UUID
 
     Page<IngestionJob> findAllByTenantIdOrderByCreatedAtDesc(UUID tenantId, Pageable pageable);
 
+    /** KNOW-F1: a tenant sees its own jobs plus global ones. */
+    Page<IngestionJob> findAllByTenantIdOrTenantIdIsNullOrderByCreatedAtDesc(
+            UUID tenantId, Pageable pageable);
+
     Page<IngestionJob> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     List<IngestionJob> findAllByStatus(IngestionJob.IngestionStatus status);

@@ -5,6 +5,7 @@ import io.emcip.knowledge.engine.model.DuplicateSourceException;
 import io.emcip.knowledge.engine.model.IngestionJobDetailDto;
 import io.emcip.knowledge.engine.model.IngestionJobDto;
 import io.emcip.knowledge.engine.service.DocumentIngestionService;
+import io.emcip.knowledge.engine.tenant.TenantAccess;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.io.IOException;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @Tag(name = "Document Ingestion", description = "Ingest documents into the knowledge base")
 @RestController
@@ -80,8 +82,9 @@ public class DocumentIngestionController {
 
     @Operation(summary = "Get ingestion job status")
     @GetMapping("/{jobId}")
-    public IngestionJobDto getJob(@PathVariable UUID jobId) {
-        return IngestionJobDto.from(ingestionService.getJob(jobId));
+    public IngestionJobDto getJob(
+            @PathVariable UUID jobId, @RequestParam(required = false) UUID tenantId) {
+        return IngestionJobDto.from(requireJob(jobId, tenantId, false));
     }
 
     @Operation(summary = "List ingestion jobs")
@@ -95,20 +98,25 @@ public class DocumentIngestionController {
 
     @Operation(summary = "Get ingestion job details with chunks and entities")
     @GetMapping("/{jobId}/details")
-    public IngestionJobDetailDto getJobDetails(@PathVariable UUID jobId) {
+    public IngestionJobDetailDto getJobDetails(
+            @PathVariable UUID jobId, @RequestParam(required = false) UUID tenantId) {
+        requireJob(jobId, tenantId, false);
         return ingestionService.getJobDetails(jobId);
     }
 
     @Operation(summary = "Delete an ingestion job and its chunks")
     @DeleteMapping("/{jobId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteJob(@PathVariable UUID jobId) {
+    public void deleteJob(@PathVariable UUID jobId, @RequestParam(required = false) UUID tenantId) {
+        requireJob(jobId, tenantId, true);
         ingestionService.deleteJob(jobId);
     }
 
     @Operation(summary = "Re-ingest a URL job (re-fetches content, replaces old chunks)")
     @PostMapping("/{jobId}/reingest")
-    public ResponseEntity<Map<String, Object>> reingestJob(@PathVariable UUID jobId) {
+    public ResponseEntity<Map<String, Object>> reingestJob(
+            @PathVariable UUID jobId, @RequestParam(required = false) UUID tenantId) {
+        requireJob(jobId, tenantId, true);
         try {
             String newJobId = ingestionService.reingestJob(jobId);
             return ResponseEntity.accepted().body(Map.of("jobId", newJobId));
@@ -125,6 +133,27 @@ public class DocumentIngestionController {
             }
             throw e;
         }
+    }
+
+    /**
+     * KNOW-F1: loads a job the caller may access. Missing and not-yours are the same 404, so ids
+     * reveal nothing (a missing job was a 500 before).
+     */
+    private IngestionJob requireJob(UUID jobId, UUID tenantId, boolean write) {
+        IngestionJob job;
+        try {
+            job = ingestionService.getJob(jobId);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Ingestion job not found");
+        }
+        boolean allowed =
+                write
+                        ? TenantAccess.canWrite(job.getTenantId(), tenantId)
+                        : TenantAccess.canRead(job.getTenantId(), tenantId);
+        if (!allowed) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Ingestion job not found");
+        }
+        return job;
     }
 
     @ExceptionHandler(DuplicateSourceException.class)
