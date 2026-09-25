@@ -15,10 +15,12 @@ import io.emcip.knowledge.engine.repository.GraphNodeEmbeddingRepository;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.IngestionJobRepository;
 import io.emcip.knowledge.engine.repository.VectorSearchRepository;
+import io.emcip.knowledge.engine.tenant.TenantAccess;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -75,7 +77,7 @@ public class KnowledgeQueryService {
                                     conceptType, request.tenantId(), request.limit());
                     for (GraphNode node : nodes) {
                         List<GraphNode> connections =
-                                graphRepository.findConnected(node.id(), null, 1);
+                                connectionsVisibleTo(node.id(), request.tenantId());
                         graphResults.add(new GraphNodeResult(node, connections, 0.5));
                     }
                 }
@@ -89,7 +91,7 @@ public class KnowledgeQueryService {
                     if (nodeOpt.isPresent()) {
                         GraphNode node = nodeOpt.get();
                         List<GraphNode> connections =
-                                graphRepository.findConnected(node.id(), null, 1);
+                                connectionsVisibleTo(node.id(), request.tenantId());
                         graphResults.add(new GraphNodeResult(node, connections, nsr.score()));
                     }
                 }
@@ -104,6 +106,13 @@ public class KnowledgeQueryService {
                 documentResults.size());
 
         return new SearchResponse(graphResults, documentResults);
+    }
+
+    /** KNOW-F2: a hit's connections, filtered by the search tenant rule (P3.8a). */
+    List<GraphNode> connectionsVisibleTo(UUID nodeId, UUID searchTenant) {
+        return graphRepository.findConnected(nodeId, null, 1).stream()
+                .filter(n -> TenantAccess.visibleInSearch(n.tenantId(), searchTenant))
+                .toList();
     }
 
     /**
