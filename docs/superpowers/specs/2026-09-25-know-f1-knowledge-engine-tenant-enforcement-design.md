@@ -22,6 +22,10 @@ and with write permissions pause, delete, re-ingest, merge or dismiss — anothe
 `BackfillProxyController` already applies the right rule inline (bound tenant wins, `ADMIN` may choose);
 it is switched to the shared resolver.
 
+Audited and deliberately left alone: backfill `GET /status?backfillId=` (progress counters only, no
+content); `OntologyController` (not proxied by admin-api — reachable only in-cluster, covered by the
+NetworkPolicy in 3.20 and ADR-010).
+
 Live data (2026-09-25): 0 research sessions, 2 ingestion jobs (global); knowledge is all global.
 
 **Cross-check against the backlog.** The trust model below is a multi-tenancy decision, so this PR also
