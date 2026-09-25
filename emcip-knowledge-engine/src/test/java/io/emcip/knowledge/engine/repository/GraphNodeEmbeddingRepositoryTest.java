@@ -199,7 +199,7 @@ class GraphNodeEmbeddingRepositoryTest {
     }
 
     @Test
-    void findSimilarNodes_nullTenant_omitsTenantIdFromBoundArgs() {
+    void findSimilarNodes_nullTenant_restrictsToGlobalNodes() {
         when(jdbcTemplate.query(anyString(), any(RowMapper.class), any(Object[].class)))
                 .thenReturn(List.of());
 
@@ -208,7 +208,7 @@ class GraphNodeEmbeddingRepositoryTest {
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
         verify(jdbcTemplate).query(sql.capture(), any(RowMapper.class), args.capture());
-        assertThat(sql.getValue()).doesNotContain("tenant_id");
-        assertThat(args.getValue()).doesNotContain((Object) tenantId).hasSize(3);
+        assertThat(sql.getValue()).contains("tenant_id IS NULL");
+        assertThat(args.getValue()).hasSize(3);
     }
 }
