@@ -14,8 +14,8 @@
             <column name="model_name" value="qwen3-30b-a3b"/>
             <column name="description" value="Entity/relationship extraction for knowledge engine"/>
             <column name="task_type" value="EXTRACT"/>
-            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
-            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="input_cost_per1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per1k_tokens" valueNumeric="0.0"/>
             <column name="context_window" valueNumeric="40000"/>
             <column name="max_output_tokens" valueNumeric="4096"/>
             <column name="avg_latency_ms" valueNumeric="1200.0"/>
@@ -37,8 +37,8 @@
             <column name="model_name" value="qwen3-14b"/>
             <column name="description" value="Text embedding for knowledge engine vector search"/>
             <column name="task_type" value="EMBED"/>
-            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
-            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="input_cost_per1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per1k_tokens" valueNumeric="0.0"/>
             <column name="context_window" valueNumeric="40000"/>
             <column name="max_output_tokens" valueNumeric="2048"/>
             <column name="avg_latency_ms" valueNumeric="500.0"/>
@@ -60,8 +60,8 @@
             <column name="model_name" value="qwen3-14b"/>
             <column name="description" value="Entity resolution disambiguation for knowledge engine"/>
             <column name="task_type" value="RESOLVE"/>
-            <column name="input_cost_per_1k_tokens" valueNumeric="0.0"/>
-            <column name="output_cost_per_1k_tokens" valueNumeric="0.0"/>
+            <column name="input_cost_per1k_tokens" valueNumeric="0.0"/>
+            <column name="output_cost_per1k_tokens" valueNumeric="0.0"/>
             <column name="context_window" valueNumeric="40000"/>
             <column name="max_output_tokens" valueNumeric="256"/>
             <column name="avg_latency_ms" valueNumeric="400.0"/>

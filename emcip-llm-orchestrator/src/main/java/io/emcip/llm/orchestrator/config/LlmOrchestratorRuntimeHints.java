@@ -13,8 +13,9 @@ import org.springframework.core.type.classreading.MetadataReaderFactory;
  * GraalVM native image hints for emcip-llm-orchestrator.
  *
  * <p>Spring Boot AOT handles entity reflection, JPA repository proxies, and Kafka listener wiring.
- * We only need to register resources that Spring Boot's auto-configuration would normally register
- * but cannot because spring.liquibase.enabled=false (our custom LiquibaseConfig is used instead).
+ * We only need to register the Liquibase changelog resources: Spring Boot 4 has no Liquibase
+ * auto-configuration (whose runtime hints would register them), so {@link LiquibaseConfig} runs the
+ * changelog and the native image must still contain db/changelog/**.
  *
  * <p>Hibernate 7 uses Class.forName() and reflective instantiation extensively at runtime for
  * dialect types, JBoss Logging implementations, and strategy classes. We register all org.hibernate

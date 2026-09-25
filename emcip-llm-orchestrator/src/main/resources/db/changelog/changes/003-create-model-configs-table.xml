@@ -27,10 +27,10 @@
             <column name="task_type" type="VARCHAR(50)">
                 <constraints nullable="false"/>
             </column>
-            <column name="input_cost_per_1k_tokens" type="DOUBLE PRECISION">
+            <column name="input_cost_per1k_tokens" type="DOUBLE PRECISION">
                 <constraints nullable="false"/>
             </column>
-            <column name="output_cost_per_1k_tokens" type="DOUBLE PRECISION">
+            <column name="output_cost_per1k_tokens" type="DOUBLE PRECISION">
                 <constraints nullable="false"/>
             </column>
             <column name="context_window" type="INTEGER">

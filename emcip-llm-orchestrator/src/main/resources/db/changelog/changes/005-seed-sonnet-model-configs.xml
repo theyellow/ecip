@@ -21,8 +21,8 @@
             <column name="model_name" value="claude-sonnet-4-6"/>
             <column name="description" value="Anthropic claude-sonnet-4-6 for high-quality response generation"/>
             <column name="task_type" value="response"/>
-            <column name="input_cost_per_1k_tokens" valueNumeric="0.003"/>
-            <column name="output_cost_per_1k_tokens" valueNumeric="0.015"/>
+            <column name="input_cost_per1k_tokens" valueNumeric="0.003"/>
+            <column name="output_cost_per1k_tokens" valueNumeric="0.015"/>
             <column name="context_window" valueNumeric="200000"/>
             <column name="max_output_tokens" valueNumeric="8192"/>
             <column name="avg_latency_ms" valueNumeric="2000.0"/>
@@ -43,8 +43,8 @@
             <column name="model_name" value="claude-sonnet-4-6"/>
             <column name="description" value="Anthropic claude-sonnet-4-6 for high-quality escalation summaries"/>
             <column name="task_type" value="summary"/>
-            <column name="input_cost_per_1k_tokens" valueNumeric="0.003"/>
-            <column name="output_cost_per_1k_tokens" valueNumeric="0.015"/>
+            <column name="input_cost_per1k_tokens" valueNumeric="0.003"/>
+            <column name="output_cost_per1k_tokens" valueNumeric="0.015"/>
             <column name="context_window" valueNumeric="200000"/>
             <column name="max_output_tokens" valueNumeric="2048"/>
             <column name="avg_latency_ms" valueNumeric="1500.0"/>
@@ -65,8 +65,8 @@
             <column name="model_name" value="claude-sonnet-4-6"/>
             <column name="description" value="Anthropic claude-sonnet-4-6 for precise command validation"/>
             <column name="task_type" value="command_validation"/>
-            <column name="input_cost_per_1k_tokens" valueNumeric="0.003"/>
-            <column name="output_cost_per_1k_tokens" valueNumeric="0.015"/>
+            <column name="input_cost_per1k_tokens" valueNumeric="0.003"/>
+            <column name="output_cost_per1k_tokens" valueNumeric="0.015"/>
             <column name="context_window" valueNumeric="200000"/>
             <column name="max_output_tokens" valueNumeric="1024"/>
             <column name="avg_latency_ms" valueNumeric="1200.0"/>
