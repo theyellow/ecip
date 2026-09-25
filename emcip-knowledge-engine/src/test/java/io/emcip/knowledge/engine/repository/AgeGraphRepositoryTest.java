@@ -56,4 +56,34 @@ class AgeGraphRepositoryTest {
         var connected = graphRepository.findConnected(person.id(), "DISCUSSES", 1);
         assertThat(connected).hasSize(2);
     }
+
+    @Test
+    void findNodesByType_withTenant_returnsOwnAndGlobalButNeverAnotherTenants() {
+        UUID tenantA = UUID.randomUUID();
+        GraphNode own = graphRepository.createNode("ScopeProbeA", "own", Map.of(), tenantA);
+        GraphNode global = graphRepository.createNode("ScopeProbeA", "global", Map.of(), null);
+        GraphNode other =
+                graphRepository.createNode("ScopeProbeA", "other", Map.of(), UUID.randomUUID());
+
+        var ids =
+                graphRepository.findNodesByType("ScopeProbeA", tenantA, 50).stream()
+                        .map(GraphNode::id)
+                        .toList();
+
+        assertThat(ids).contains(own.id(), global.id()).doesNotContain(other.id());
+    }
+
+    @Test
+    void findNodesByType_withNullTenant_returnsGlobalOnly() {
+        GraphNode owned =
+                graphRepository.createNode("ScopeProbeB", "owned", Map.of(), UUID.randomUUID());
+        GraphNode global = graphRepository.createNode("ScopeProbeB", "global", Map.of(), null);
+
+        var ids =
+                graphRepository.findNodesByType("ScopeProbeB", null, 50).stream()
+                        .map(GraphNode::id)
+                        .toList();
+
+        assertThat(ids).contains(global.id()).doesNotContain(owned.id());
+    }
 }
