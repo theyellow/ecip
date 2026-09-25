@@ -529,3 +529,13 @@ NOTE: For deployment configuration and port assignments, see the _Operations Gui
 *Context:* Knowledge management (#26, #27) requires graph and vector capabilities. Adding dedicated servers would increase operational overhead on the single-node microk8s cluster. PostgreSQL extensions provide both capabilities within the existing instance. Apache AGE uses the same openCypher query language as Neo4j, making future migration straightforward.
 
 *Alternatives rejected:* Neo4j + Qdrant (ops overhead), Neo4j only (no vector search), Qdrant only (no graph traversal).
+
+== ADR-009: Multi-Tenancy
+
+*Status:* Accepted (2026-09-25). Full text: `documentation/adrs/ADR-009-multi-tenancy.md`.
+
+*Decision:* Tenant-bound roles act as the tenant in their JWT; platform `ADMIN` via `X-Tenant-Id` or an explicit choice; Kafka events via the `tenant_id` header — never a tenant-bound caller's request. Global data is `tenant_id IS NULL`. A tenant sees its own rows plus global rows and changes only its own. Knowledge search without a tenant returns global data only; operational admin views without a tenant treat the caller as trusted. System prompt templates are global. admin-api asserts the caller's tenant on every knowledge call; knowledge-engine enforces it with `TenantAccess`; a denied item answers 404 like a missing one.
+
+*Context:* Three defects in two days (P3.8a cross-tenant search, PROMPT-TENANT hidden templates, KNOW-F1 id-addressed reads and deletes of other tenants' items) came from rules that were never written down and a Hibernate filter that does not cover id lookups.
+
+*Alternatives rejected:* rejecting requests without a tenant (breaks trusted callers), "no tenant = all tenants" in search (fail-open), ownership checks only at the admin-api edge (rule far from the data), relying on the Hibernate filter for id lookups (it does not apply to `findById`).
