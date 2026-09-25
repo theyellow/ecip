@@ -57,7 +57,7 @@ class ResolutionReviewServiceTest {
         when(flagRepository.findById(flagId)).thenReturn(Optional.of(flag));
         when(flagRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.merge(flagId);
+        service.merge(flagId, null);
 
         verify(graphRepository).mergeNodes(candidateId, similarId);
         verify(flagRepository).save(flag);
@@ -72,7 +72,7 @@ class ResolutionReviewServiceTest {
 
         when(flagRepository.findById(flagId)).thenReturn(Optional.of(flag));
 
-        assertThatThrownBy(() -> service.merge(flagId))
+        assertThatThrownBy(() -> service.merge(flagId, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("PENDING");
 
@@ -91,7 +91,7 @@ class ResolutionReviewServiceTest {
                 .when(graphRepository)
                 .mergeNodes(candidateId, similarId);
 
-        assertThatThrownBy(() -> service.merge(flagId)).isInstanceOf(RuntimeException.class);
+        assertThatThrownBy(() -> service.merge(flagId, null)).isInstanceOf(RuntimeException.class);
 
         // Flag save must NOT have been called — transaction rolled back
         verify(flagRepository, never()).save(any());
@@ -106,7 +106,7 @@ class ResolutionReviewServiceTest {
         when(flagRepository.findById(flagId)).thenReturn(Optional.of(flag));
         when(flagRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        service.dismiss(flagId);
+        service.dismiss(flagId, null);
 
         verify(flagRepository).save(flag);
         assertThat(flag.getStatus()).isEqualTo("DISMISSED");
@@ -121,7 +121,7 @@ class ResolutionReviewServiceTest {
 
         when(flagRepository.findById(flagId)).thenReturn(Optional.of(flag));
 
-        assertThatThrownBy(() -> service.dismiss(flagId))
+        assertThatThrownBy(() -> service.dismiss(flagId, null))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("PENDING");
     }

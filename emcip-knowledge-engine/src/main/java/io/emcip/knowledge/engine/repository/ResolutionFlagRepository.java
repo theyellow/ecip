@@ -17,7 +17,7 @@ public interface ResolutionFlagRepository extends JpaRepository<ResolutionFlag, 
             SELECT f FROM ResolutionFlag f
             WHERE (:status IS NULL OR f.status = :status)
               AND (:conceptType IS NULL OR f.conceptType = :conceptType)
-              AND (:tenantId IS NULL OR f.tenantId = :tenantId)
+              AND (:tenantId IS NULL OR f.tenantId = :tenantId OR f.tenantId IS NULL)
             ORDER BY f.createdAt DESC
             """)
     Page<ResolutionFlag> findFiltered(
