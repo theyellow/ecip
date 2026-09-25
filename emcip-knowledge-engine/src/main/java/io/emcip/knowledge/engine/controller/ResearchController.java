@@ -10,10 +10,12 @@ import io.emcip.knowledge.engine.repository.ResearchEvidenceRepository;
 import io.emcip.knowledge.engine.repository.ResearchReportRepository;
 import io.emcip.knowledge.engine.repository.ResearchSessionRepository;
 import io.emcip.knowledge.engine.service.ResearchAgentService;
+import io.emcip.knowledge.engine.tenant.TenantAccess;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -54,9 +56,9 @@ public class ResearchController {
 
     @Operation(summary = "Get a research session by ID")
     @GetMapping("/{id}")
-    public ResponseEntity<ResearchSessionDto> getSession(@PathVariable UUID id) {
-        return sessionRepository
-                .findById(id)
+    public ResponseEntity<ResearchSessionDto> getSession(
+            @PathVariable UUID id, @RequestParam(required = false) UUID tenantId) {
+        return readable(id, tenantId)
                 .map(s -> ResponseEntity.ok(toDto(s)))
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -74,7 +76,11 @@ public class ResearchController {
 
     @Operation(summary = "Pause a running research session")
     @PostMapping("/{id}/pause")
-    public ResponseEntity<ResearchSessionDto> pauseSession(@PathVariable UUID id) {
+    public ResponseEntity<ResearchSessionDto> pauseSession(
+            @PathVariable UUID id, @RequestParam(required = false) UUID tenantId) {
+        if (writable(id, tenantId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         return agentService
                 .pauseSession(id)
                 .map(s -> ResponseEntity.ok(toDto(s)))
@@ -83,7 +89,11 @@ public class ResearchController {
 
     @Operation(summary = "Resume a paused research session")
     @PostMapping("/{id}/resume")
-    public ResponseEntity<ResearchSessionDto> resumeSession(@PathVariable UUID id) {
+    public ResponseEntity<ResearchSessionDto> resumeSession(
+            @PathVariable UUID id, @RequestParam(required = false) UUID tenantId) {
+        if (writable(id, tenantId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         return agentService
                 .resumeSession(id)
                 .map(s -> ResponseEntity.ok(toDto(s)))
@@ -92,7 +102,11 @@ public class ResearchController {
 
     @Operation(summary = "Get the research report for a session")
     @GetMapping("/{id}/report")
-    public ResponseEntity<ResearchReportDto> getReport(@PathVariable UUID id) {
+    public ResponseEntity<ResearchReportDto> getReport(
+            @PathVariable UUID id, @RequestParam(required = false) UUID tenantId) {
+        if (readable(id, tenantId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         return reportRepository
                 .findBySessionId(id)
                 .map(r -> ResponseEntity.ok(ResearchReportDto.from(r)))
@@ -101,7 +115,11 @@ public class ResearchController {
 
     @Operation(summary = "Download the research report as Markdown")
     @GetMapping("/{id}/report/markdown")
-    public ResponseEntity<String> getReportMarkdown(@PathVariable UUID id) {
+    public ResponseEntity<String> getReportMarkdown(
+            @PathVariable UUID id, @RequestParam(required = false) UUID tenantId) {
+        if (readable(id, tenantId).isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
         return reportRepository
                 .findBySessionId(id)
                 .map(
@@ -115,6 +133,19 @@ public class ResearchController {
                                                 "attachment; filename=\"report-" + id + ".md\"")
                                         .body(r.getContent()))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /** KNOW-F1: an asserted tenant may read its own sessions only (sessions are never global). */
+    private Optional<ResearchSession> readable(UUID id, UUID tenantId) {
+        return sessionRepository
+                .findById(id)
+                .filter(s -> TenantAccess.canRead(s.getTenantId(), tenantId));
+    }
+
+    private Optional<ResearchSession> writable(UUID id, UUID tenantId) {
+        return sessionRepository
+                .findById(id)
+                .filter(s -> TenantAccess.canWrite(s.getTenantId(), tenantId));
     }
 
     private ResearchSessionDto toDto(ResearchSession session) {
