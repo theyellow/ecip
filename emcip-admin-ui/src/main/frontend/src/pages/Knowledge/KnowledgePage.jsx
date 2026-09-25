@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth, useAuthRequest } from '../../auth/AuthContext'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
+import { canChangeKnowledgeItem } from '../../auth/permissions'
+import { JobActions } from './JobActions'
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog'
 import { DataTable } from '../../components/DataTable/DataTable'
 import { useToast } from '../../components/Toast/useToast'
@@ -38,7 +40,7 @@ const JOB_COLUMNS = [
 const SEARCH_TYPES = ['VECTOR', 'GRAPH', 'HYBRID']
 
 export function Knowledge() {
-  const { token } = useAuth()
+  const { token, role } = useAuth()
   const request = useAuthRequest()
   const { addToast } = useToast()
   const [activeTab, setActiveTab] = useState('search')
@@ -242,30 +244,16 @@ export function Knowledge() {
         label: '',
         width: '80px',
         render: (_, row) => (
-          <span className={styles.actionBtns} onClick={e => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.actionBtn}
-              title="Delete"
-              onClick={() => setConfirmDelete(row)}
-            >
-              {'\u2715'}
-            </button>
-            {(row.rawStatus === 'COMPLETED' || row.rawStatus === 'FAILED') && (
-              <button
-                type="button"
-                className={styles.actionBtn}
-                title="Re-ingest"
-                onClick={() => setReingestJob(row)}
-              >
-                {'\u21bb'}
-              </button>
-            )}
-          </span>
+          <JobActions
+            row={row}
+            canChange={canChangeKnowledgeItem(role, row.rawTenantId)}
+            onDelete={setConfirmDelete}
+            onReingest={setReingestJob}
+          />
         ),
       },
     ],
-    []
+    [role]
   )
 
   const graphResults = results?.graphResults ?? []

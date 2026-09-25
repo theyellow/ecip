@@ -61,3 +61,11 @@ export const ROLE_PERMISSIONS = {
 export function hasPermission(role, permission) {
   return ROLE_PERMISSIONS[role]?.includes(permission) ?? false
 }
+
+/**
+ * KNOW-F1 / ADR-009: global knowledge items (no tenant) may be changed only by a platform ADMIN.
+ * The backend enforces this; the UI just stops offering what would be refused.
+ */
+export function canChangeKnowledgeItem(role, itemTenantId) {
+  return role === 'ADMIN' || itemTenantId != null
+}
