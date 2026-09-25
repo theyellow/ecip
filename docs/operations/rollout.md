@@ -99,6 +99,29 @@ file changes.
 
 ---
 
+## One-time: first llm-orchestrator deploy with Liquibase (LO-LIQUIBASE)
+
+Until 2026-09-25 llm-orchestrator's Liquibase never ran (Spring Boot 4 has no Liquibase
+auto-configuration and the service had no `LiquibaseConfig`); its `DATABASECHANGELOG` rows were
+written by hand, 27 of them with a fake `9:manual` checksum. The first image that contains
+`LiquibaseConfig` would fail validation against such a database and crash-loop.
+
+On every **existing** environment, before rolling that image out:
+
+```bash
+scripts/db/reconcile-llm-liquibase.sh             # dry run: shows what it would change
+scripts/db/reconcile-llm-liquibase.sh --rehearse  # runs the writes, shows the result, rolls back
+scripts/db/reconcile-llm-liquibase.sh --apply     # writes; self-verifies; idempotent
+```
+
+It clears the stored checksums of llm-orchestrator's changesets (Liquibase recomputes them — nothing
+re-runs), marks 9 superseded seed changesets as `MARK_RAN`, and leaves only `llm-16` for Liquibase
+to apply at the next boot. Then roll out llm-orchestrator and check its log for Liquibase lines and
+`llm_provider_configs.api_key` now being `text`. Fresh databases need none of this.
+
+conversation-context had the same defect but its rows are consistent (all recorded, NULL
+checksums): no reconciliation, it only starts logging Liquibase lines.
+
 ## Liquibase checksum errors
 
 If a JPA service (policy-engine, conversation-context, llm-orchestrator,
