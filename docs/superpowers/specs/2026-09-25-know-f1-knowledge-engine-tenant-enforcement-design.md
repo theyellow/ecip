@@ -101,7 +101,10 @@ One policy class, `TenantAccess`, used everywhere below:
 8. **Enforcement:** JPA services use the Hibernate `tenantFilter` for tenant-bound reads; id-addressed
    lookups (which Hibernate filters do not cover) check ownership explicitly (`TenantAccess`); the
    admin-api edge binds the tenant (`KnowledgeTenantResolver`).
-9. **Open, deferred to ADR-010:** whether knowledge-engine and other internal services authenticate
+9. **`TenantContextFilter` (emcip-core, servlet) is removed:** no service ever registered it, and its
+   behaviour (400 without a tenant header) contradicts rule 5. HTTP tenant binding happens at the
+   admin-api edge (`AdminTenantContextFilter`, WebFlux) and is passed on explicitly.
+10. **Open, deferred to ADR-010:** whether knowledge-engine and other internal services authenticate
    in-cluster callers; until then NetworkPolicy (3.20) limits who can reach them.
 
 ## 5. Testing
@@ -118,9 +121,37 @@ Every new assertion is observed failing once before it counts.
   arrives on every endpoint type (create body, list query, upload part, id-addressed query); an `ADMIN` in
   admin mode sends none unless it names one; `BackfillProxyController` behaviour unchanged.
 
-## 6. Tracking changes
+## 6. Code removed
+
+`emcip-core` `TenantContextFilter` and `TenantContextFilterTest` (dead: registered by no service; see
+ADR-009 rule 9).
+
+## 7. Tracking changes
 
 - BACKLOG: KNOW-F1 delivered (scope as §0); KNOW-F2 closed into it; resolution review noted.
 - ROADMAP 3.14: ADR-009 delivered; ADR-010 gains "internal service authentication (knowledge-engine,
   Kafka / RT-005)". ROADMAP 3.20: add "NetworkPolicy — knowledge-engine ingress limited to admin-api and
   llm-orchestrator".
+
+## 8. Documentation and diagrams (final task)
+
+This PR brings every document that describes tenancy in line with ADR-009 — including drift left by
+PR #255 (automated responses switch, global system templates, cost-log tenant) and PR #256 (search tenant
+rule), whose diagrams were not updated.
+
+| File | Change |
+|---|---|
+| `documentation/adrs/ADR-009-multi-tenancy.md` | new (§4) |
+| `documentation/diagrams/sequence-tenant-propagation.puml` | redraw the real paths: admin-api `AdminTenantContextFilter` → Reactor context → proxies assert `tenantId` → knowledge-engine `TenantAccess`; Kafka `tenant_id` header → `TenantContext` → Hibernate `tenantFilter`. Remove the servlet `TenantContextFilter` path (never registered). |
+| `documentation/diagrams/c3-knowledge-engine.puml` | real controllers (search, research, ingestion, resolution review, ontology, backfill) instead of one `KnowledgeController`; `TenantAccess`; correct the "tenant isolation" claim to the P3.8a / ADR-009 rules |
+| `documentation/diagrams/c3-admin-api.puml` | knowledge proxies (search, research, ingestion, resolution review, backfill) and `KnowledgeTenantResolver` |
+| `documentation/diagrams/c3-llm-orchestrator.puml` | catch-up #255: `PolicyDecisionConsumer` gated by `emcip.llm.automated-responses.enabled`; system templates global; cost logs per tenant |
+| `documentation/diagrams/sequence-llm-orchestration.puml` | catch-up #255: switch check before `callForTask`; template lookup under the tenant filter with `system = true` visible |
+| `documentation/architecture-guide.adoc` | knowledge-engine: enforcement model (§3) next to the P3.8a paragraph; admin-api: knowledge proxies bind the tenant; ADR list: ADR-009 |
+| `documentation/developer-guide.adoc` | §5 Service APIs: `tenantId` on knowledge-engine research / ingestion / resolution / neighbors endpoints and what it means |
+| `documentation/user-guide.adoc` | Knowledge, Research, Ingestion and Resolution pages: tenant users see their own + global items and cannot change global ones |
+
+Every file in the table is checked against the code it describes, not against this spec. PlantUML
+verification: the local PlantUML (1.2020) predates `!theme` and cannot load the C4 includes, so a syntax
+check strips `!theme` where possible and the C4 diagrams are verified by the CI docs build — stated as
+such in the PR, not claimed as locally verified.
