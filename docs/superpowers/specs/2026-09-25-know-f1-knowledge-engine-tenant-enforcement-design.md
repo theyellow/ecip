@@ -149,7 +149,7 @@ rule), whose diagrams were not updated.
 | `documentation/diagrams/sequence-llm-orchestration.puml` | catch-up #255: switch check before `callForTask`; template lookup under the tenant filter with `system = true` visible |
 | `documentation/architecture-guide.adoc` | knowledge-engine: enforcement model (§3) next to the P3.8a paragraph; admin-api: knowledge proxies bind the tenant; ADR list: ADR-009 |
 | `documentation/developer-guide.adoc` | §5 Service APIs: `tenantId` on knowledge-engine research / ingestion / resolution / neighbors endpoints and what it means |
-| `documentation/user-guide.adoc` | Knowledge, Research, Ingestion and Resolution pages: tenant users see their own + global items and cannot change global ones |
+| `documentation/user-guide.adoc` | Knowledge, Research, Ingestion and Resolution pages: tenant users see their own + global items, cannot change global ones (actions hidden, §9), and ingest into their own tenant |
 
 Every file in the table is checked against the code it describes, not against this spec.
 
@@ -159,3 +159,25 @@ bundled modern PlantUML — unaffected by the outdated local `plantuml` 1.2020).
 `mvn -N generate-resources` and **read the log** for PlantUML errors: the plugin has no `failIf`, so a
 broken diagram does not fail the build (CI included). Filed as **DOCS-FAILIF**: make diagram and
 Asciidoctor errors fail the build.
+
+## 9. Admin UI
+
+The UI has no role awareness for these actions today; without changes it would offer tenant users
+choices that the backend now overrides or refuses:
+
+- `IngestionModal` offers everyone a tenant picker including "Global (all tenants)" — admin-api would
+  silently replace a tenant user's choice with their own tenant.
+- Delete / re-ingest (`KnowledgePage`), pause / resume (`Research/SessionDetailPage`) and merge / dismiss
+  (`ResolutionQueue`) are shown on **global** items to everyone — a tenant user would get a 404 error.
+
+Change, following `IntegrationsPage`'s existing `isAdmin` pattern (`hasPermission(role, …)` from
+`auth/permissions`):
+
+- `IngestionModal`: the tenant picker is shown to `ADMIN` only; everyone else ingests into their own
+  tenant, and the modal says so.
+- Change actions on an item whose `tenantId` is null are hidden for non-`ADMIN` users, with a short
+  "Global — managed by a platform admin" label in their place.
+- vitest: one test per page asserting a non-`ADMIN` user sees no change action on a global item and an
+  `ADMIN` does; `IngestionModal` shows the picker only to `ADMIN`. Each observed red first.
+
+The backend rules (§3) remain the enforcement; the UI change only stops offering what will be refused.
