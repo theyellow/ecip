@@ -151,7 +151,11 @@ rule), whose diagrams were not updated.
 | `documentation/developer-guide.adoc` | §5 Service APIs: `tenantId` on knowledge-engine research / ingestion / resolution / neighbors endpoints and what it means |
 | `documentation/user-guide.adoc` | Knowledge, Research, Ingestion and Resolution pages: tenant users see their own + global items and cannot change global ones |
 
-Every file in the table is checked against the code it describes, not against this spec. PlantUML
-verification: the local PlantUML (1.2020) predates `!theme` and cannot load the C4 includes, so a syntax
-check strips `!theme` where possible and the C4 diagrams are verified by the CI docs build — stated as
-such in the PR, not claimed as locally verified.
+Every file in the table is checked against the code it describes, not against this spec.
+
+Diagram verification: all five diagrams are included from `architecture-guide.adoc` /
+`developer-guide.adoc` and rendered by the root `asciidoctor-maven-plugin` (`asciidoctorj-diagram`,
+bundled modern PlantUML — unaffected by the outdated local `plantuml` 1.2020). Render with
+`mvn -N generate-resources` and **read the log** for PlantUML errors: the plugin has no `failIf`, so a
+broken diagram does not fail the build (CI included). Filed as **DOCS-FAILIF**: make diagram and
+Asciidoctor errors fail the build.
