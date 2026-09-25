@@ -1,6 +1,5 @@
 package io.emcip.admin.api.controller;
 
-import io.emcip.common.tenant.ReactorTenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
@@ -51,12 +50,14 @@ public class BackfillProxyController {
             @PathVariable long chatId, @RequestBody BackfillTriggerRequest request) {
         return Mono.deferContextual(
                         ctx -> {
-                            String tenantIdStr = ReactorTenantContext.getTenantId(ctx);
-                            // For ADMIN users the Reactor context carries no tenant; fall back to
-                            // the tenantId supplied by the UI from the group profile.
-                            if (tenantIdStr == null && request.tenantId() != null) {
-                                tenantIdStr = request.tenantId().toString();
-                            }
+                            // Bound tenant wins; an ADMIN in admin mode may name one (the UI sends
+                            // the group profile's tenant) - the shared rule, KNOW-F1.
+                            String tenantIdStr =
+                                    KnowledgeTenantResolver.resolve(
+                                            ctx,
+                                            request.tenantId() == null
+                                                    ? null
+                                                    : request.tenantId().toString());
 
                             long fromEpoch = Instant.parse(request.fromDate()).getEpochSecond();
 

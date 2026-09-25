@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
@@ -128,20 +129,34 @@ public class KnowledgeSearchProxyController {
             @PathVariable UUID id,
             @RequestParam(required = false) String relationshipType,
             @RequestParam(defaultValue = "1") int depth) {
-        return knowledgeWebClient
-                .get()
-                .uri(
-                        uriBuilder -> {
-                            uriBuilder
-                                    .path("/api/knowledge/graph/node/{id}/neighbors")
-                                    .queryParam("depth", depth);
-                            if (relationshipType != null)
-                                uriBuilder.queryParam("relationshipType", relationshipType);
-                            return uriBuilder.build(id);
+        return Mono.deferContextual(
+                        ctx -> {
+                            // KNOW-F1: neighbours are read as the caller's tenant.
+                            String tenant = KnowledgeTenantResolver.resolve(ctx, null);
+                            return knowledgeWebClient
+                                    .get()
+                                    .uri(
+                                            uriBuilder -> {
+                                                uriBuilder.queryParam("depth", depth);
+                                                if (relationshipType != null)
+                                                    uriBuilder.queryParam(
+                                                            "relationshipType", relationshipType);
+                                                return KnowledgeTenantResolver.path(
+                                                        uriBuilder,
+                                                        "/api/knowledge/graph/node/{id}/neighbors",
+                                                        tenant,
+                                                        id);
+                                            })
+                                    .retrieve()
+                                    .bodyToMono(String.class)
+                                    .map(ResponseEntity::ok)
+                                    .onErrorResume(
+                                            WebClientResponseException.NotFound.class,
+                                            e ->
+                                                    Mono.just(
+                                                            ResponseEntity.notFound()
+                                                                    .<String>build()));
                         })
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
                 .onErrorResume(
                         e -> {
                             log.error(
