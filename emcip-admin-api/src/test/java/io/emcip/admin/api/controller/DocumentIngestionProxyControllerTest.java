@@ -13,6 +13,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.util.context.Context;
 import tools.jackson.databind.ObjectMapper;
@@ -78,17 +79,30 @@ class DocumentIngestionProxyControllerTest {
 
     @Test
     void deleteCarriesTheBoundTenant() throws Exception {
-        String id = UUID.randomUUID().toString();
+        UUID id = UUID.randomUUID();
         respond(204, "");
         controller.deleteJob(id).contextWrite(BOUND_A).block();
-        assertThat(taken().getTarget()).contains(id).contains("tenantId=" + TENANT_A);
+        assertThat(taken().getTarget()).contains(id.toString()).contains("tenantId=" + TENANT_A);
     }
 
     @Test
     void knowledgeEngine404StaysA404() {
         respond(404, "");
-        var response =
-                controller.getJobStatus(UUID.randomUUID().toString()).contextWrite(BOUND_A).block();
+        var response = controller.getJobStatus(UUID.randomUUID()).contextWrite(BOUND_A).block();
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void aNonUuidJobIdIsRejectedBeforeReachingKnowledgeEngineOrTheLog() {
+        // The job id is bound as a UUID, so a path segment carrying CR/LF (log injection) or any
+        // other non-UUID is a 400 at admin-api and is never forwarded or logged.
+        WebTestClient.bindToController(controller)
+                .build()
+                .get()
+                .uri("/api/admin/knowledge/ingest/not-a-uuid%0D%0Aforged-log-line")
+                .exchange()
+                .expectStatus()
+                .isBadRequest();
+        assertThat(ke.getRequestCount()).isZero();
     }
 }

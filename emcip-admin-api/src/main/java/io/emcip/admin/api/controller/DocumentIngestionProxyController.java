@@ -151,21 +151,21 @@ public class DocumentIngestionProxyController {
     @Operation(summary = "Get ingestion job status")
     @GetMapping("/{jobId}")
     @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
-    public Mono<ResponseEntity<String>> getJobStatus(@PathVariable String jobId) {
+    public Mono<ResponseEntity<String>> getJobStatus(@PathVariable UUID jobId) {
         return get("/api/knowledge/ingest/{jobId}", "Ingest status", jobId);
     }
 
     @Operation(summary = "Get ingestion job details")
     @GetMapping("/{jobId}/details")
     @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
-    public Mono<ResponseEntity<String>> getJobDetails(@PathVariable String jobId) {
+    public Mono<ResponseEntity<String>> getJobDetails(@PathVariable UUID jobId) {
         return get("/api/knowledge/ingest/{jobId}/details", "Job details", jobId);
     }
 
     @Operation(summary = "Delete an ingestion job and its chunks")
     @DeleteMapping("/{jobId}")
     @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
-    public Mono<ResponseEntity<Void>> deleteJob(@PathVariable String jobId) {
+    public Mono<ResponseEntity<Void>> deleteJob(@PathVariable UUID jobId) {
         return Mono.deferContextual(
                         ctx ->
                                 knowledgeWebClient
@@ -205,7 +205,7 @@ public class DocumentIngestionProxyController {
     @Operation(summary = "Re-ingest a job (re-fetch URL or request file re-upload)")
     @PostMapping("/{jobId}/reingest")
     @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
-    public Mono<ResponseEntity<String>> reingestJob(@PathVariable String jobId) {
+    public Mono<ResponseEntity<String>> reingestJob(@PathVariable UUID jobId) {
         return Mono.deferContextual(
                         ctx ->
                                 knowledgeWebClient
@@ -287,7 +287,7 @@ public class DocumentIngestionProxyController {
     }
 
     /** GET on an id-addressed ingestion resource, as the caller's tenant (KNOW-F1). */
-    private Mono<ResponseEntity<String>> get(String path, String action, String jobId) {
+    private Mono<ResponseEntity<String>> get(String path, String action, UUID jobId) {
         return Mono.deferContextual(
                         ctx ->
                                 knowledgeWebClient
