@@ -57,7 +57,7 @@ public class KnowledgeEngineClient {
      *
      * @param query natural-language query
      * @param searchType one of "VECTOR", "GRAPH", "HYBRID"
-     * @param tenantId optional tenant scope (null = cross-tenant)
+     * @param tenantId optional tenant scope (null = global knowledge only)
      * @param limit max results to return
      * @return search results, or {@link SearchResponse#empty()} on any failure
      */

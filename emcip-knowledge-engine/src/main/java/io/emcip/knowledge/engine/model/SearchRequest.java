@@ -4,6 +4,11 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Knowledge search request. {@code tenantId}: with a tenant, results are that tenant's rows plus
+ * global ({@code tenant_id IS NULL}) rows; {@code null} means global rows only — never another
+ * tenant's (P3.8a).
+ */
 public record SearchRequest(
         @NotBlank String query,
         SearchType searchType,

@@ -106,21 +106,28 @@ public class AgeGraphRepository implements GraphRepository {
         return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
     }
 
+    /**
+     * Nodes of one concept type. Tenant rule (P3.8a): with a tenant, that tenant's nodes plus
+     * global ones (no {@code tenant_id} property); with a null tenant, global nodes only.
+     */
     @Override
     public List<GraphNode> findNodesByType(String conceptType, UUID tenantId, int limit) {
         String cypher;
         if (tenantId != null) {
+            // tenantId is a UUID, so its string form cannot inject Cypher.
             cypher =
                     String.format(
                             """
-                            MATCH (n:%s {tenant_id: '%s'})
+                            MATCH (n:%s)
+                            WHERE n.tenant_id = '%s' OR n.tenant_id IS NULL
                             RETURN n LIMIT %d
                             """,
                             sanitizeLabel(conceptType), tenantId, limit);
         } else {
             cypher =
                     String.format(
-                            "MATCH (n:%s) RETURN n LIMIT %d", sanitizeLabel(conceptType), limit);
+                            "MATCH (n:%s) WHERE n.tenant_id IS NULL RETURN n LIMIT %d",
+                            sanitizeLabel(conceptType), limit);
         }
         return queryNodes(cypher);
     }

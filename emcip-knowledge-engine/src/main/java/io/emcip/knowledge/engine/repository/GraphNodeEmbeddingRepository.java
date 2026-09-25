@@ -183,8 +183,9 @@ ON CONFLICT (label, concept_type, tenant_id)
     }
 
     /**
-     * Find the top-N most similar graph node embeddings to the given query embedding, optionally
-     * filtered by tenant. Returns node IDs, labels, concept types, and scores.
+     * Top-N graph node embeddings most similar to {@code embedding}. Tenant rule (P3.8a): with a
+     * tenant, that tenant's nodes plus global ({@code tenant_id IS NULL}) ones; with a null tenant,
+     * global nodes only — never another tenant's.
      */
     public List<NodeSimilarityResult> findSimilarNodes(
             float[] embedding, UUID tenantId, int limit) {
@@ -196,7 +197,7 @@ ON CONFLICT (label, concept_type, tenant_id)
                         SELECT node_id, label, concept_type,
                                1 - (embedding <=> ?::vector) AS score
                         FROM ke_graph_node_embeddings
-                        WHERE tenant_id = ? AND embedding IS NOT NULL
+                        WHERE (tenant_id = ? OR tenant_id IS NULL) AND embedding IS NOT NULL
                         ORDER BY embedding <=> ?::vector
                         LIMIT ?
                         """,
@@ -215,7 +216,7 @@ ON CONFLICT (label, concept_type, tenant_id)
                         SELECT node_id, label, concept_type,
                                1 - (embedding <=> ?::vector) AS score
                         FROM ke_graph_node_embeddings
-                        WHERE embedding IS NOT NULL
+                        WHERE tenant_id IS NULL AND embedding IS NOT NULL
                         ORDER BY embedding <=> ?::vector
                         LIMIT ?
                         """,

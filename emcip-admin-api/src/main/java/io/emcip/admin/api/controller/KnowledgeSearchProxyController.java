@@ -20,6 +20,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 /**
  * Proxies knowledge search and graph requests to the knowledge-engine service. Admin-UI → admin-api
@@ -35,34 +39,68 @@ public class KnowledgeSearchProxyController {
 
     private final WebClient knowledgeWebClient;
     private final CircuitBreaker circuitBreaker;
+    private final ObjectMapper objectMapper;
 
     public KnowledgeSearchProxyController(
             @Qualifier("knowledgeWebClient") WebClient knowledgeWebClient,
-            CircuitBreakerRegistry registry) {
+            CircuitBreakerRegistry registry,
+            ObjectMapper objectMapper) {
         this.knowledgeWebClient = knowledgeWebClient;
         this.circuitBreaker = registry.circuitBreaker("knowledge-search");
+        this.objectMapper = objectMapper;
     }
 
     @Operation(summary = "Search the knowledge base")
     @PostMapping("/search")
     @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> search(@RequestBody String body) {
-        return knowledgeWebClient
-                .post()
-                .uri("/api/knowledge/search")
-                .bodyValue(body)
-                .header("Content-Type", "application/json")
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error("Knowledge search proxy error: {}", e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        ObjectNode request;
+        try {
+            if (!(objectMapper.readTree(body) instanceof ObjectNode node)) {
+                return Mono.just(ResponseEntity.badRequest().<String>build());
+            }
+            request = node;
+        } catch (JacksonException e) {
+            return Mono.just(ResponseEntity.badRequest().<String>build());
+        }
+        return Mono.deferContextual(
+                ctx -> {
+                    String tenant;
+                    try {
+                        JsonNode requested = request.get("tenantId");
+                        tenant =
+                                KnowledgeTenantResolver.resolve(
+                                        ctx,
+                                        requested == null || requested.isNull()
+                                                ? null
+                                                : requested.asString());
+                    } catch (IllegalArgumentException e) {
+                        return Mono.just(ResponseEntity.badRequest().<String>build());
+                    }
+                    if (tenant == null) {
+                        request.putNull("tenantId");
+                    } else {
+                        request.put("tenantId", tenant);
+                    }
+                    return knowledgeWebClient
+                            .post()
+                            .uri("/api/knowledge/search")
+                            .bodyValue(objectMapper.writeValueAsString(request))
+                            .header("Content-Type", "application/json")
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .map(ResponseEntity::ok)
+                            .onErrorResume(
+                                    e -> {
+                                        log.error(
+                                                "Knowledge search proxy error: {}", e.getMessage());
+                                        return Mono.just(
+                                                ResponseEntity.status(
+                                                                HttpStatus.SERVICE_UNAVAILABLE)
+                                                        .<String>build());
+                                    })
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                });
     }
 
     @Operation(summary = "List graph topic nodes")
@@ -71,27 +109,7 @@ public class KnowledgeSearchProxyController {
     public Mono<ResponseEntity<String>> getTopics(
             @RequestParam(required = false) UUID tenantId,
             @RequestParam(defaultValue = "50") int limit) {
-        return knowledgeWebClient
-                .get()
-                .uri(
-                        uriBuilder -> {
-                            uriBuilder
-                                    .path("/api/knowledge/graph/topics")
-                                    .queryParam("limit", limit);
-                            if (tenantId != null) uriBuilder.queryParam("tenantId", tenantId);
-                            return uriBuilder.build();
-                        })
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error("Knowledge graph/topics proxy error: {}", e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return nodesByType("/api/knowledge/graph/topics", "topics", tenantId, limit);
     }
 
     @Operation(summary = "List graph person nodes")
@@ -100,27 +118,7 @@ public class KnowledgeSearchProxyController {
     public Mono<ResponseEntity<String>> getPersons(
             @RequestParam(required = false) UUID tenantId,
             @RequestParam(defaultValue = "50") int limit) {
-        return knowledgeWebClient
-                .get()
-                .uri(
-                        uriBuilder -> {
-                            uriBuilder
-                                    .path("/api/knowledge/graph/persons")
-                                    .queryParam("limit", limit);
-                            if (tenantId != null) uriBuilder.queryParam("tenantId", tenantId);
-                            return uriBuilder.build();
-                        })
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error("Knowledge graph/persons proxy error: {}", e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return nodesByType("/api/knowledge/graph/persons", "persons", tenantId, limit);
     }
 
     @Operation(summary = "Get neighbors of a graph node")
@@ -155,5 +153,52 @@ public class KnowledgeSearchProxyController {
                                             .<String>build());
                         })
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    /**
+     * Graph node listings (topics, persons) run as the caller's tenant (P3.8a); a tenant-bound
+     * caller's {@code tenantId} parameter is ignored.
+     */
+    private Mono<ResponseEntity<String>> nodesByType(
+            String path, String label, UUID requestedTenant, int limit) {
+        return Mono.deferContextual(
+                ctx -> {
+                    String tenant;
+                    try {
+                        tenant =
+                                KnowledgeTenantResolver.resolve(
+                                        ctx,
+                                        requestedTenant == null
+                                                ? null
+                                                : requestedTenant.toString());
+                    } catch (IllegalArgumentException e) {
+                        return Mono.just(ResponseEntity.badRequest().<String>build());
+                    }
+                    return knowledgeWebClient
+                            .get()
+                            .uri(
+                                    uriBuilder -> {
+                                        uriBuilder.path(path).queryParam("limit", limit);
+                                        if (tenant != null) {
+                                            uriBuilder.queryParam("tenantId", tenant);
+                                        }
+                                        return uriBuilder.build();
+                                    })
+                            .retrieve()
+                            .bodyToMono(String.class)
+                            .map(ResponseEntity::ok)
+                            .onErrorResume(
+                                    e -> {
+                                        log.error(
+                                                "Knowledge graph/{} proxy error: {}",
+                                                label,
+                                                e.getMessage());
+                                        return Mono.just(
+                                                ResponseEntity.status(
+                                                                HttpStatus.SERVICE_UNAVAILABLE)
+                                                        .<String>build());
+                                    })
+                            .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                });
     }
 }

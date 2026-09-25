@@ -31,6 +31,10 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
         log.debug("Stored embedding for document {}", documentId);
     }
 
+    /**
+     * Tenant rule (P3.8a): with a tenant, that tenant's documents plus global ({@code tenant_id IS
+     * NULL}) ones; with a null tenant, global documents only — never another tenant's.
+     */
     @Override
     public List<SearchResult<KnowledgeDocument>> search(
             float[] queryEmbedding, int topK, UUID tenantId) {
@@ -57,7 +61,7 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
                            metadata, created_at,
                            1 - (embedding <=> ?::vector) AS score
                     FROM ke_knowledge_documents
-                    WHERE embedding IS NOT NULL
+                    WHERE embedding IS NOT NULL AND tenant_id IS NULL
                     ORDER BY embedding <=> ?::vector ASC
                     LIMIT ?
                     """;
@@ -67,6 +71,10 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
         return jdbcTemplate.query(sql, this::mapRowWithScore, params);
     }
 
+    /**
+     * Tenant rule (P3.8a): with a tenant, that tenant's documents plus global ({@code tenant_id IS
+     * NULL}) ones; with a null tenant, global documents only — never another tenant's.
+     */
     @Override
     public List<KnowledgeDocument> hybridSearch(
             String textQuery, float[] queryEmbedding, int topK, UUID tenantId) {
@@ -93,7 +101,8 @@ public class PgVectorSearchRepository implements VectorSearchRepository {
                     SELECT id, tenant_id, source_type, source_ref, content, chunk_index,
                            metadata, created_at, embedding <=> ?::vector AS distance
                     FROM ke_knowledge_documents
-                    WHERE embedding IS NOT NULL AND content ILIKE '%' || ? || '%'
+                    WHERE embedding IS NOT NULL AND tenant_id IS NULL
+                      AND content ILIKE '%' || ? || '%'
                     ORDER BY distance ASC
                     LIMIT ?
                     """;
