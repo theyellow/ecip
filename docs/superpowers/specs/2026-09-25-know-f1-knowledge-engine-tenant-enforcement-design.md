@@ -178,8 +178,9 @@ choices that the backend now overrides or refuses:
 
 - `IngestionModal` offers everyone a tenant picker including "Global (all tenants)" — admin-api would
   silently replace a tenant user's choice with their own tenant.
-- Delete / re-ingest (`KnowledgePage`), pause / resume (`Research/SessionDetailPage`) and merge / dismiss
-  (`ResolutionQueue`) are shown on **global** items to everyone — a tenant user would get a 404 error.
+- Delete / re-ingest (`KnowledgePage`) and merge / dismiss (`ResolutionQueue`) are shown on **global**
+  items to everyone — a tenant user would get a 404 error. (Pause / resume in
+  `Research/SessionDetailPage` needs no change: research sessions are never global.)
 
 Change, following `IntegrationsPage`'s existing `isAdmin` pattern (`hasPermission(role, …)` from
 `auth/permissions`):
