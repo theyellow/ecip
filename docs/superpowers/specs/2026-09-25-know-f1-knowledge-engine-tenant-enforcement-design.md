@@ -1,0 +1,126 @@
+# KNOW-F1 — Knowledge-engine tenant enforcement (+ ADR-009)
+
+**Date:** 2026-09-25 · **Backlog:** KNOW-F1, absorbs KNOW-F2 · **Roadmap:** delivers ADR-009 of 3.14 ·
+**Status:** approved design (revised after a backlog cross-check)
+
+## 0. Premise correction and scope
+
+KNOW-F1 was filed as "the research and ingestion proxies take a caller-supplied tenant". Auditing every
+admin-api proxy to knowledge-engine found the same two defects in **four** areas:
+
+| Area | Caller-chosen tenant (create / list) | Id-addressed calls with no ownership check (IDOR) |
+|---|---|---|
+| Research | `POST /` (body), `GET /?tenantId` | `GET /{id}`, `POST /{id}/pause`, `/resume`, `GET /{id}/report`, `/report/markdown` |
+| Ingestion | `POST /url` (body), `POST /upload?tenantId`, `GET /?tenantId` | `GET /{jobId}`, `/details`, **`DELETE /{jobId}`**, `POST /{jobId}/reingest` |
+| Resolution review (not filed before) | `GET /?tenantId` | `PATCH /{id}/merge`, `PATCH /{id}/dismiss` |
+| Graph neighbors (was KNOW-F2) | — | `GET /graph/node/{id}/neighbors`, and search's internal `findConnected` expansion |
+
+knowledge-engine looks items up by id and never compares tenants; lists with a null tenant return every
+tenant's items; knowledge-engine never registers `TenantContextFilter`. Anyone holding an id can read —
+and with write permissions pause, delete, re-ingest, merge or dismiss — another tenant's item.
+
+`BackfillProxyController` already applies the right rule inline (bound tenant wins, `ADMIN` may choose);
+it is switched to the shared resolver.
+
+Live data (2026-09-25): 0 research sessions, 2 ingestion jobs (global); knowledge is all global.
+
+**Cross-check against the backlog.** The trust model below is a multi-tenancy decision, so this PR also
+writes **ADR-009 (multi-tenancy)** — the first of 3.14's ADRs — recording it together with the P3.8a
+search rule and "system prompt templates are global". **No new "knowledge-engine authentication" item:**
+the 1.0 mitigation for "no tenant = trusted" is a NetworkPolicy, added to **3.20** (no NetworkPolicy exists
+today); whether knowledge-engine should also verify a service token goes to **ADR-010** (auth/authz, 3.14),
+together with RT-005 (unauthenticated Kafka) — the same "any pod in the namespace" threat.
+
+## 1. Trust model
+
+knowledge-engine has no authentication of its own; admin-api is the security boundary.
+
+- **A tenant asserted** in the call → knowledge-engine enforces it.
+- **No tenant asserted** → the caller is trusted (platform `ADMIN` in admin mode, or an in-cluster
+  service) — today's behaviour for every such caller.
+
+The hole closes because admin-api always asserts a tenant-bound caller's tenant (§2).
+
+Deliberate difference from P3.8a search, where "no tenant" means global knowledge only: search results
+feed users and LLM prompts, so its default is the narrow one; the areas here are operational admin views
+that only a platform `ADMIN` reaches without a tenant.
+
+## 2. admin-api: always assert the caller's tenant
+
+`ResearchProxyController`, `DocumentIngestionProxyController`, `ResolutionReviewProxyController`,
+`KnowledgeSearchProxyController.getNeighbors` and `BackfillProxyController` resolve the tenant with
+`KnowledgeTenantResolver` (from P3.8a):
+
+| Caller | Asserted tenant |
+|---|---|
+| Tenant-bound role (JWT tenant) | the JWT tenant — any tenant in the request is overwritten |
+| `ADMIN` with `X-Tenant-Id` | the header tenant |
+| `ADMIN` in admin mode | the tenant the request names, else none |
+
+Transport: `tenantId` in the JSON body for creates (research `POST /`, ingestion `POST /url`), replacing
+any caller value (non-object body → 400); `tenantId` query parameter / multipart part for lists and
+upload, replaced the same way; **a new `tenantId` query parameter on every id-addressed call**, omitted
+when no tenant is asserted.
+
+## 3. knowledge-engine: enforce when a tenant is asserted
+
+One policy class, `TenantAccess`, used everywhere below:
+
+- `canRead(UUID itemTenant, UUID asserted)` → `asserted == null || itemTenant == null || itemTenant.equals(asserted)`
+- `canWrite(UUID itemTenant, UUID asserted)` → `asserted == null || Objects.equals(itemTenant, asserted)`
+
+| Operation | tenant `t` asserted | no tenant |
+|---|---|---|
+| create | item belongs to `t` | as sent (global if none) |
+| list (research, ingestion, resolution flags) | `t`'s items **plus global** | all (unchanged) |
+| read by id (session, report, markdown, job, job details) | `canRead`, else **404** | unchanged |
+| change by id (pause, resume, delete, reingest, merge, dismiss) | `canWrite`, else **404** | unchanged |
+| graph neighbors of node `n` | `n` must pass `canRead` (else 404); returned neighbors filtered by `canRead` | unchanged |
+
+- **404, not 403**, so another tenant's ids reveal nothing; a denied item is indistinguishable from a
+  missing one. Ingestion by-id endpoints currently turn a missing job into an `IllegalArgumentException`
+  (a 500 — knowledge-engine has no controller advice); missing and denied both become **404**.
+- **Global items** (`tenant_id IS NULL`): readable by every tenant, changeable only with no tenant
+  asserted. A tenant must not delete, re-ingest, merge or dismiss shared knowledge.
+- **Search expansion (KNOW-F2):** `KnowledgeQueryService` expands each hit with `findConnected`; the
+  returned neighbors are filtered by the P3.8a search rule (tenant → own + global; null → global only).
+
+## 4. ADR-009 — Multi-tenancy (written in this PR)
+
+`documentation/adrs/ADR-009-multi-tenancy.md`, in the style of ADR-001…008. Records, as decided:
+
+1. **Where a tenant comes from:** JWT tenant for tenant-bound roles; `X-Tenant-Id` for `ADMIN`; the
+   `tenant_id` Kafka header for events (fail-closed, global sentinel for "none"); never a
+   tenant-bound caller's request body.
+2. **Global** = `tenant_id IS NULL` (sentinel `00000000-…` on Kafka and where a column is `NOT NULL`).
+3. **Visibility:** a tenant sees its own rows plus global rows; it never sees another tenant's.
+4. **Knowledge search** (P3.8a): no tenant → global only.
+5. **Operational admin views** (this spec): no tenant asserted → trusted caller, unrestricted.
+6. **Writes to global rows** only in global scope (platform `ADMIN`).
+7. **System prompt templates are global** (PROMPT-TENANT).
+8. **Enforcement:** JPA services use the Hibernate `tenantFilter` for tenant-bound reads; id-addressed
+   lookups (which Hibernate filters do not cover) check ownership explicitly (`TenantAccess`); the
+   admin-api edge binds the tenant (`KnowledgeTenantResolver`).
+9. **Open, deferred to ADR-010:** whether knowledge-engine and other internal services authenticate
+   in-cluster callers; until then NetworkPolicy (3.20) limits who can reach them.
+
+## 5. Testing
+
+Every new assertion is observed failing once before it counts.
+
+- **knowledge-engine, real Postgres/AGE (`IntegrationTest` harness):** seed sessions, jobs, resolution
+  flags and graph nodes for tenant A, tenant B and global. With A asserted: A's and global items readable,
+  B's → 404; pause/delete/merge/dismiss of a global item → 404; lists = A + global, never B; neighbors of
+  B's node → 404, neighbors of A's node never include B's. With no tenant: unchanged. Missing job → 404
+  (was 500). Search expansion never returns B's neighbors for A.
+- **`TenantAccess` unit test** covering the full truth table.
+- **admin-api (MockWebServer at the knowledge-engine boundary):** for a tenant-bound caller the JWT tenant
+  arrives on every endpoint type (create body, list query, upload part, id-addressed query); an `ADMIN` in
+  admin mode sends none unless it names one; `BackfillProxyController` behaviour unchanged.
+
+## 6. Tracking changes
+
+- BACKLOG: KNOW-F1 delivered (scope as §0); KNOW-F2 closed into it; resolution review noted.
+- ROADMAP 3.14: ADR-009 delivered; ADR-010 gains "internal service authentication (knowledge-engine,
+  Kafka / RT-005)". ROADMAP 3.20: add "NetworkPolicy — knowledge-engine ingress limited to admin-api and
+  llm-orchestrator".
