@@ -1,4 +1,4 @@
-# TENANT-AUDIT PR 1 — Servlet tenant binding, policy/flag/cost tenant enforcement
+# TENANT-AUDIT PR 1 — HTTP tenant binding, policy/flag/cost tenant enforcement
 
 **Date:** 2026-09-26 · **Backlog:** TENANT-AUDIT (findings F-1, P-1, F-2, C-1) · **Status:** approved design
 **Context:** static pre-step for Round 3 session 3 (T-04 held until this and PR 2 are merged).
@@ -20,38 +20,43 @@ admin-api's `X-Tenant-Id` is ignored and every REST query runs unscoped. (Removi
 changed nothing at runtime — it was registered nowhere; re-verified: no annotation, no component scan,
 no auto-configuration, no `@Import`.)
 
-## 1. Servlet tenant binding (emcip-core)
+## 1. Tenant binding on the HTTP path — revised during planning
 
-New `io.emcip.common.tenant.TenantHeaderFilter` (`OncePerRequestFilter`), ADR-009-conformant:
+**Correction (2026-09-26, found while planning):** the approved design put a servlet
+`TenantHeaderFilter` in emcip-core and wired it into policy-engine and llm-orchestrator. That cannot
+work: **policy-engine is WebFlux** (`spring-boot-starter-webflux`) — a servlet filter is never
+registered there — and its controllers run the blocking JPA calls on `Schedulers.boundedElastic()`,
+another thread, so a ThreadLocal `TenantContext` (which the Hibernate `tenantFilter` aspect reads) would
+be invisible anyway. Revised design — **explicit tenant, no ThreadLocal on the HTTP path**, the style
+KNOW-F1 already uses:
 
-- `X-Tenant-Id` present and a valid UUID → `TenantContext.setTenantId(...)`, cleared in `finally`.
-- Header **absent** → no tenant, request continues (trusted caller, ADR-009 rule 5) — **no 400**.
-- Header present but **not a UUID** → **400** (an asserted tenant must be meaningful; today a malformed
-  value would reach `UUID.fromString` in `TenantFilterAspect` and 500).
-- Not a `@Component`: each service registers it explicitly (`FilterRegistrationBean`), so wiring is a
-  visible per-service decision.
+- **policy-engine:** a reactive `TenantWebFilter` (same shape as audit-service's and
+  moderation-service's) puts a valid `X-Tenant-Id` into the Reactor context; header absent → no tenant
+  (trusted caller, ADR-009 rule 5); header present but not a UUID → **400**. Controllers read the tenant
+  from the Reactor context and pass it **explicitly** into tenant-scoped queries and ownership checks.
+- **llm-orchestrator** (Spring MVC, synchronous): the cost endpoints take the header explicitly —
+  `@RequestHeader(value = "X-Tenant-Id", required = false) UUID tenantId` (malformed → 400 via type
+  conversion) — and pass it into the queries (§4).
+- **No emcip-core filter.** knowledge-engine, conversation-context and intent-classifier are unchanged
+  (reasons as before: explicit params, not proxied, already handled). Consolidating the three reactive
+  `TenantWebFilter` copies into emcip-core is a follow-up (TENANT-WEBFILTER).
+- The Hibernate `tenantFilter` + `TenantFilterAspect` remain the **Kafka-path** mechanism only.
 
-### Where it is wired — and where deliberately not
+## 2. policy-engine: explicit tenant on every query
 
-| Service | Wire? | Why |
-|---|---|---|
-| **policy-engine** | **yes** | Rules + decisions carry `tenantFilter`; admin-api's PolicyEngineClient is the caller. Fixes P-1/F-2 lists. |
-| **llm-orchestrator** | **yes** | Cost logs carry `tenantFilter` (templates: `OR system = true`, already correct). Fixes C-1 together with §4. |
-| knowledge-engine | no | KNOW-F1 enforces explicit `tenantId` params; its `KnowledgeDocument` filter is own-only (no global) and would contradict the search rule if any caller ever sent the header. |
-| conversation-context | no | Not proxied by admin-api; in-cluster only — Round 3 T-09 / ADR-010. |
-| intent-classifier | no | Already reads the header per controller; no Hibernate filter. |
+With a tenant in the Reactor context:
 
-## 2. policy-engine: explicit ownership on id-addressed calls
-
-Hibernate filters do not apply to `findById` (ADR-009 rule 8), so binding alone does not fix writes.
-With a tenant bound (`TenantContext.getTenantId() != null`):
-
-- `GET /api/policy-decisions/{id}`, `PUT /api/policy-decisions/{id}`, `PUT /api/policy-rules/{id}`,
-  `DELETE /api/policy-rules/{id}`, `GET /api/policy-rules/{id}/history`: the item must belong to the
-  bound tenant, else **404** (identical to missing). Policy rules are never global
-  (`tenant_id NOT NULL`); a decision with `tenant_id NULL` is readable, not changeable (ADR-009 rule 6).
-- Lists are scoped by the (now active) Hibernate filter.
-- No tenant bound → unchanged (trusted caller).
+- `GET /api/policy-rules` → only the tenant's active rules (new repository method
+  `findByActiveTrueAndTenantIdOrderByPriorityAsc`).
+- `PUT` / `DELETE /api/policy-rules/{id}`, `GET /api/policy-rules/{id}/history` → the rule must belong
+  to the tenant, else **404** (identical to missing). Policy rules are never global (`tenant_id NOT NULL`).
+- `GET /api/policy-decisions` → `findByFilters(tenant, …)`, tenant taken from the Reactor context
+  (today it reads the ThreadLocal, which is always null on this path).
+- `GET` / `PUT /api/policy-decisions/{id}` → the decision must belong to the tenant; a decision with
+  `tenant_id NULL` is readable, not changeable (ADR-009 rule 6); else **404**.
+- `POST /api/policy-rules` and dry-run are unchanged (create takes the tenant from the body, which
+  admin-api sets from the bound tenant; dry-run evaluates a rule supplied in the request, not stored rules).
+- No tenant → unchanged (trusted caller).
 
 ## 3. admin-api: send the tenant on every policy call; F-1 defence in depth
 
@@ -67,19 +72,19 @@ With a tenant bound (`TenantContext.getTenantId() != null`):
 
 - `CostsProxyController` sends `X-Tenant-Id` (bound tenant) on totals/by-model/by-day; ADMIN admin mode
   sends none (all tenants, unchanged).
-- llm-orchestrator cost aggregates take an optional tenant: the JPQL queries get the Hibernate filter
-  via §1; the **native** query gets an explicit `(:tenantId IS NULL OR tenant_id = :tenantId)` predicate
-  (a native query is never filtered).
+- llm-orchestrator's cost endpoints (summary, totals, by-model, by-day) pass the header's tenant into
+  the aggregates, each with an explicit `(:tenantId IS NULL OR tenant_id = :tenantId)` predicate — the
+  native by-day query included (`CAST(:tenantId AS uuid)` so a null binds).
 
 ## 5. Testing
 
 Every new assertion observed red first (or forced red with a deliberately broken implementation).
 
-- **emcip-core** `TenantHeaderFilterTest`: header → bound during the chain and cleared after; absent →
-  unbound, chain runs; malformed → 400, chain not run.
-- **policy-engine** ITs (real Postgres): with header for tenant A — list excludes B's rules/decisions;
-  `PUT`/`DELETE` of B's rule → 404 and unchanged; `GET`/`PUT` of B's decision → 404. No header →
-  unchanged. Test goes through MockMvc so the registered filter is exercised (not direct method calls).
+- **policy-engine** `TenantWebFilterTest`: valid header → tenant in the Reactor context; absent →
+  none, chain runs; malformed → 400, chain not run.
+- **policy-engine** IT (real Postgres, `WebTestClient` bound to the real controllers **plus the real
+  `TenantWebFilter`**): with header for tenant A — list excludes B's rules/decisions; `PUT`/`DELETE`/history
+  of B's rule → 404 and B's rule unchanged; `GET`/`PUT` of B's decision → 404. No header → unchanged.
 - **llm-orchestrator** IT: cost totals/by-model/by-day with header for A exclude B's cost logs, including
   the native query.
 - **admin-api**: PolicyEngineClient sends the header on every method (MockWebServer); `FlagService.reply`
@@ -88,15 +93,18 @@ Every new assertion observed red first (or forced red with a deliberately broken
 
 ## 6. Documentation
 
-- ADR-009 amendment (in this PR, since it corrects the enforcement model): rule 8 gains "servlet
-  services bind `X-Tenant-Id` via `TenantHeaderFilter` where wired (policy-engine, llm-orchestrator); the
-  reactive audit/moderation services via their `TenantWebFilter`"; rule 9 notes the replacement.
-- `sequence-tenant-propagation.puml`: add the servlet HTTP path (admin-api → policy-engine →
-  `TenantHeaderFilter` → Hibernate filter). Architecture guide: policy-engine/llm-orchestrator tenant
+- ADR-009 amendment (in this PR, since it corrects the enforcement model): rule 8 states that on the
+  HTTP path downstream services take the tenant **explicitly** — reactive services (audit, moderation,
+  policy-engine) via their `TenantWebFilter` → Reactor context, servlet endpoints via an explicit header
+  parameter (llm-orchestrator costs) — while the Hibernate `tenantFilter` is the Kafka-path mechanism.
+- `sequence-tenant-propagation.puml`: add the policy-engine HTTP path (admin-api → `TenantWebFilter` →
+  explicit tenant query). Architecture guide: policy-engine/llm-orchestrator tenant
   binding. BACKLOG: TENANT-AUDIT findings table, PR 1 rows closed.
 - Rendered via the project's asciidoctor build, log and images checked.
 
 ## 7. Out of scope (PR 2 or elsewhere)
+
+TENANT-WEBFILTER (new, P4): move the three reactive `TenantWebFilter` copies into emcip-core.
 
 T-1 (Telegram create tenant), S-1 (simulation chatId), M-1 (moderation global rules), A-1 (audit
 correlation lookup), U-1 (UI permission mismatch) → PR 2. knowledge-engine / conversation-context /
