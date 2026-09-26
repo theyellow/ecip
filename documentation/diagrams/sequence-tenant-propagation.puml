@@ -1,59 +1,56 @@
 @startuml Sequence_Tenant_Propagation
-' Purpose: X-Tenant-Id propagation through HTTP and Kafka paths
+' Purpose: how the tenant travels on the HTTP (admin-api -> knowledge-engine) and Kafka paths,
+'          and where it is enforced — see ADR-009 (multi-tenancy)
 ' Used in: architecture-guide.adoc - Security Architecture section
 
 !theme plain
 skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 
-title X-Tenant-Id Propagation — HTTP and Kafka Paths
+title Tenant Propagation and Enforcement (ADR-009)
 
-== HTTP Path (Servlet Services) ==
+== HTTP Path — Admin UI -> admin-api (WebFlux) -> knowledge-engine ==
 
-participant "HTTP Client" as Client
-participant "TenantContextFilter\n(OncePerRequestFilter)" as TCF
-participant "TenantContext\n(ThreadLocal)" as TC
-participant "TenantFilterAspect\n(Spring AOP @Before)" as TFA
-participant "JPA Repository\n(@Repository)" as Repo
-database "PostgreSQL\n(Hibernate @Filter)" as DB
-
-Client -> TCF : HTTP request\nX-Tenant-Id: <uuid>
-activate TCF
-TCF -> TC : setTenantId(uuid)
-TCF -> TFA : (request continues)
-TFA -> TFA : enableFilter("tenantFilter")\nsetParameter("tenantId", uuid)
-TFA -> Repo : findAll()
-Repo -> DB : SELECT * FROM ...\nWHERE tenant_id = ?
-DB --> Repo : rows for this tenant only
-Repo --> TFA : result
-TFA --> TCF : response
-TCF -> TC : clear()
-TCF --> Client : HTTP response
-deactivate TCF
-
-== HTTP Path (Admin API — Reactive) ==
-
-participant "HTTP Client" as AdminClient
+participant "Admin UI" as Client
 participant "AdminTenantContextFilter\n(WebFilter)" as ATCF
-participant "TenantContext\n(ThreadLocal)" as TC2
-participant "Controller" as Ctrl
-participant "Repository\n(R2DBC, scoped methods)" as R2Repo
+participant "Reactor Context\n(ReactorTenantContext)" as RC
+participant "Knowledge proxy\n(search / research / ingest /\nresolution / neighbours)" as Proxy
+participant "KnowledgeTenantResolver" as KTR
+participant "knowledge-engine\nController" as KE
+participant "TenantAccess" as TA
+database "PostgreSQL / AGE" as KDB
 
-AdminClient -> ATCF : HTTP request\nX-Tenant-Id: <uuid>\n[or ROLE_ADMIN JWT]
+Client -> ATCF : HTTP request + JWT\n[ADMIN: optional X-Tenant-Id]
 activate ATCF
-alt Normal tenant call
-    ATCF -> TC2 : setTenantId(uuid)
-    ATCF -> Ctrl : request
-    Ctrl -> R2Repo : findByIdAndTenantId(id, uuid)
-else ROLE_ADMIN JWT
-    ATCF -> TC2 : setAdminMode(true)
-    ATCF -> Ctrl : request
-    Ctrl -> R2Repo : findById(id) [unscoped]
+alt tenant-bound role (JWT has a tenant)
+    ATCF -> RC : withTenant(jwtTenant)
+else ADMIN with X-Tenant-Id
+    ATCF -> RC : withTenant(headerTenant)
+else ADMIN without header
+    ATCF -> RC : withAdminMode()
+else tenant-bound role without tenant
+    ATCF --> Client : 403
 end
-R2Repo --> Ctrl : result
-Ctrl --> ATCF : response
-ATCF -> TC2 : clear()
-ATCF --> AdminClient : HTTP response
+ATCF -> Proxy : request
+Proxy -> KTR : resolve(ctx, requestedTenant)
+note right of KTR
+  bound tenant always wins;
+  a tenant-bound caller's
+  request value is ignored;
+  admin mode: the request's
+  choice, else none
+end note
+KTR --> Proxy : tenant | none
+Proxy -> KE : REST call, tenantId=<tenant>\n(body / query / id-addressed query)
+KE -> KDB : load item(s)
+KE -> TA : canRead / canWrite(itemTenant, tenant)
+alt allowed (own, or global for reads) — or no tenant asserted (trusted caller)
+    KE --> Proxy : 200 / 204
+else another tenant's item, or a global item on a write
+    KE --> Proxy : 404 (same as missing)
+end
+Proxy --> ATCF : status passed through (404 stays 404)
+ATCF --> Client : HTTP response
 deactivate ATCF
 
 == Kafka Path ==
@@ -63,19 +60,23 @@ participant "TenantAwareKafkaSupport" as TAKS
 queue "Kafka Topic" as Topic
 participant "Kafka Consumer" as Cons
 participant "TenantContext\n(ThreadLocal)" as TC3
-participant "Service Method\n(+ TenantFilterAspect)" as DSvc
+participant "Repository call\n(+ TenantFilterAspect)" as DSvc
 database "PostgreSQL" as DB2
 
-Prod -> TAKS : addTenantHeader(record)
-TAKS -> TAKS : read tenantId\nfrom TenantContext
-TAKS -> Topic : ProducerRecord with\nheader tenant_id=<uuid>
+Prod -> TAKS : addTenantHeader(record, tenantId)
+TAKS -> Topic : header tenant_id=<uuid>\n(global sentinel 0000…0000 if none)
 
 Topic -> Cons : ConsumerRecord
-Cons -> TAKS : bindTenantFromRecord(record)
-TAKS -> TC3 : setTenantId(uuid)
-Cons -> DSvc : invoke service method
-DSvc -> DB2 : filtered query\nWHERE tenant_id = ?
-DSvc --> Cons : result
-Cons -> TC3 : clear() [finally]
+Cons -> TAKS : validateTenantHeader(record)
+alt header missing or invalid
+    TAKS --> Cons : IllegalStateException -> record rejected (fail-closed)
+else valid
+    TAKS --> Cons : tenant UUID
+    Cons -> TC3 : setTenantId(uuid)
+    Cons -> DSvc : invoke
+    DSvc -> DB2 : Hibernate tenantFilter\nWHERE tenant_id = ?\n(prompt_templates: OR system = true)
+    DSvc --> Cons : result
+    Cons -> TC3 : clear() [finally]
+end
 
 @enduml

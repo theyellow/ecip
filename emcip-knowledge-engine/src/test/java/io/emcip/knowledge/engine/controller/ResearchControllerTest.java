@@ -87,7 +87,7 @@ class ResearchControllerTest {
                 .thenReturn(List.of());
         when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.empty());
 
-        ResponseEntity<ResearchSessionDto> response = controller.getSession(sessionId);
+        ResponseEntity<ResearchSessionDto> response = controller.getSession(sessionId, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -99,7 +99,7 @@ class ResearchControllerTest {
         UUID sessionId = UUID.randomUUID();
         when(sessionRepository.findById(sessionId)).thenReturn(Optional.empty());
 
-        ResponseEntity<ResearchSessionDto> response = controller.getSession(sessionId);
+        ResponseEntity<ResearchSessionDto> response = controller.getSession(sessionId, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -126,7 +126,13 @@ class ResearchControllerTest {
         UUID sessionId = UUID.randomUUID();
         when(agentService.pauseSession(sessionId)).thenReturn(Optional.empty());
 
-        ResponseEntity<ResearchSessionDto> response = controller.pauseSession(sessionId);
+        // KNOW-F1: endpoints look the session up first (ownership); no tenant asserted here.
+        when(sessionRepository.findById(sessionId))
+                .thenReturn(
+                        Optional.of(
+                                buildSession(
+                                        sessionId, UUID.randomUUID(), ResearchStatus.RUNNING)));
+        ResponseEntity<ResearchSessionDto> response = controller.pauseSession(sessionId, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -136,7 +142,13 @@ class ResearchControllerTest {
         UUID sessionId = UUID.randomUUID();
         when(agentService.resumeSession(sessionId)).thenReturn(Optional.empty());
 
-        ResponseEntity<ResearchSessionDto> response = controller.resumeSession(sessionId);
+        // KNOW-F1: endpoints look the session up first (ownership); no tenant asserted here.
+        when(sessionRepository.findById(sessionId))
+                .thenReturn(
+                        Optional.of(
+                                buildSession(
+                                        sessionId, UUID.randomUUID(), ResearchStatus.RUNNING)));
+        ResponseEntity<ResearchSessionDto> response = controller.resumeSession(sessionId, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -158,7 +170,13 @@ class ResearchControllerTest {
 
         when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.of(report));
 
-        ResponseEntity<ResearchReportDto> response = controller.getReport(sessionId);
+        // KNOW-F1: endpoints look the session up first (ownership); no tenant asserted here.
+        when(sessionRepository.findById(sessionId))
+                .thenReturn(
+                        Optional.of(
+                                buildSession(
+                                        sessionId, UUID.randomUUID(), ResearchStatus.RUNNING)));
+        ResponseEntity<ResearchReportDto> response = controller.getReport(sessionId, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -171,7 +189,13 @@ class ResearchControllerTest {
         UUID sessionId = UUID.randomUUID();
         when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.empty());
 
-        ResponseEntity<ResearchReportDto> response = controller.getReport(sessionId);
+        // KNOW-F1: endpoints look the session up first (ownership); no tenant asserted here.
+        when(sessionRepository.findById(sessionId))
+                .thenReturn(
+                        Optional.of(
+                                buildSession(
+                                        sessionId, UUID.randomUUID(), ResearchStatus.RUNNING)));
+        ResponseEntity<ResearchReportDto> response = controller.getReport(sessionId, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
@@ -193,7 +217,13 @@ class ResearchControllerTest {
 
         when(reportRepository.findBySessionId(sessionId)).thenReturn(Optional.of(report));
 
-        ResponseEntity<String> response = controller.getReportMarkdown(sessionId);
+        // KNOW-F1: endpoints look the session up first (ownership); no tenant asserted here.
+        when(sessionRepository.findById(sessionId))
+                .thenReturn(
+                        Optional.of(
+                                buildSession(
+                                        sessionId, UUID.randomUUID(), ResearchStatus.RUNNING)));
+        ResponseEntity<String> response = controller.getReportMarkdown(sessionId, null);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("Executive Summary");

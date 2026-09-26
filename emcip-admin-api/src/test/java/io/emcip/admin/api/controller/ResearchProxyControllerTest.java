@@ -32,7 +32,9 @@ class ResearchProxyControllerTest {
                 WebClient.builder().exchangeFunction(exchangeFunction).build();
         ResearchProxyController controller =
                 new ResearchProxyController(
-                        knowledgeWebClient, CircuitBreakerRegistry.ofDefaults());
+                        knowledgeWebClient,
+                        CircuitBreakerRegistry.ofDefaults(),
+                        new tools.jackson.databind.ObjectMapper());
         webTestClient =
                 WebTestClient.bindToController(controller)
                         .controllerAdvice(

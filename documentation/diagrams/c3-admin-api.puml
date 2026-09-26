@@ -15,7 +15,7 @@ Container_Boundary(admin_api, "Admin API - Port 9087") {
 
     Component(security_config, "SecurityConfig", "Java / Spring Security", "WebFlux security chain<br/>Route-level access rules<br/>CORS configuration")
 
-    Component(tenant_filter, "AdminTenantContextFilter", "Java / Spring WebFlux WebFilter", "Extracts X-Tenant-Id header<br/>Binds to TenantContext (ThreadLocal)<br/>ROLE_ADMIN JWT activates admin mode<br/>Clears after request")
+    Component(tenant_filter, "AdminTenantContextFilter", "Java / Spring WebFlux WebFilter", "Tenant-bound roles: JWT tenant<br/>ADMIN: X-Tenant-Id header, else admin mode<br/>Binds to the Reactor Context (ReactorTenantContext)<br/>403 for a tenant-bound user without a tenant")
 
     Component(rate_limit_filter, "RateLimitWebFilter", "Java / Spring WebFlux WebFilter", "Per-caller rate limits<br/>auth by client IP, rest by JWT subject<br/>Writes 429 directly (advice cannot see filters)<br/>Bounded Caffeine cache per group")
 
@@ -32,6 +32,11 @@ Container_Boundary(admin_api, "Admin API - Port 9087") {
 
     Component(ai_proxy_ctrl, "AIProxyController", "Java / Spring REST", "GET/POST/PUT/DELETE /api/ai/provider-config<br/>GET /api/ai/provider-config/models<br/>Proxies requests to LLM Orchestrator via WebClient")
 
+    ' Knowledge proxies (KNOW-F1 / ADR-009)
+    Component(knowledge_proxies, "Knowledge proxies", "Java / Spring REST", "KnowledgeSearch, Research, DocumentIngestion,<br/>ResolutionReview, Backfill proxy controllers<br/>Assert the caller's tenant on every call<br/>knowledge-engine 404 passed through as 404")
+
+    Component(tenant_resolver, "KnowledgeTenantResolver", "Java", "Bound tenant always wins<br/>ADMIN in admin mode may name one<br/>Otherwise none (global / trusted)")
+
     ' Repositories (R2DBC)
     Component(admin_user_repo, "AdminUserRepository", "Spring Data R2DBC", "Loads admin users<br/>bcrypt password column<br/>Role assignment")
 
@@ -44,6 +49,7 @@ Container_Boundary(admin_api, "Admin API - Port 9087") {
 
 ContainerDb(postgres, "PostgreSQL", "Database", "admin_users, tenants, policy_rules, audit_events")
 Container(llm_orchestrator, "LLM Orchestrator", "Java / Port 9084", "Provider config CRUD + models endpoint")
+Container(knowledge_engine, "Knowledge Engine", "Java / Port 9088", "Enforces an asserted tenant (TenantAccess)")
 
 ' Request path
 Rel(jwt_filter, security_config, "Feeds authentication", "SecurityContext")
@@ -53,10 +59,13 @@ Rel(rate_limit_filter, client_ip, "Resolves key for auth group", "X-Forwarded-Fo
 Rel(rate_limit_filter, auth_ctrl, "Forwards if within limit", "429 otherwise")
 Rel(rate_limit_filter, tenant_ctrl, "Forwards if within limit", "429 otherwise")
 
-Rel(tenant_filter, auth_ctrl, "Provides tenant context", "TenantContext")
-Rel(tenant_filter, tenant_ctrl, "Provides tenant context", "TenantContext")
-Rel(tenant_filter, policy_ctrl, "Provides tenant context", "TenantContext")
-Rel(tenant_filter, audit_ctrl, "Provides tenant context", "TenantContext")
+Rel(tenant_filter, auth_ctrl, "Provides tenant context", "Reactor Context")
+Rel(tenant_filter, tenant_ctrl, "Provides tenant context", "Reactor Context")
+Rel(tenant_filter, policy_ctrl, "Provides tenant context", "Reactor Context")
+Rel(tenant_filter, audit_ctrl, "Provides tenant context", "Reactor Context")
+Rel(tenant_filter, knowledge_proxies, "Provides tenant context", "Reactor Context")
+Rel(knowledge_proxies, tenant_resolver, "Resolve tenant to assert")
+Rel(knowledge_proxies, knowledge_engine, "tenantId asserted (body / query)", "REST/WebClient")
 
 Rel(auth_ctrl, admin_user_repo, "Load user + verify bcrypt", "R2DBC")
 Rel(tenant_ctrl, tenant_repo, "CRUD", "R2DBC")
@@ -68,7 +77,7 @@ Rel(tenant_repo, postgres, "Queries", "R2DBC")
 Rel(policy_repo, postgres, "Queries", "R2DBC")
 Rel(audit_repo, postgres, "Queries", "R2DBC")
 
-Rel(tenant_filter, ai_proxy_ctrl, "Provides tenant context", "TenantContext")
+Rel(tenant_filter, ai_proxy_ctrl, "Provides tenant context", "Reactor Context")
 Rel(ai_proxy_ctrl, llm_orchestrator, "Proxy: provider-config CRUD + models", "REST/WebClient")
 
 SHOW_LEGEND()

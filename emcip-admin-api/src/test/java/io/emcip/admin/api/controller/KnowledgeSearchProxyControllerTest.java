@@ -136,4 +136,18 @@ class KnowledgeSearchProxyControllerTest {
         RecordedRequest recorded = knowledgeEngine.takeRequest(5, TimeUnit.SECONDS);
         assertThat(recorded.getTarget()).contains("tenantId=" + TENANT_A).doesNotContain(TENANT_B);
     }
+
+    @Test
+    void neighborsCarryTheBoundTenant() throws Exception {
+        UUID id = UUID.randomUUID();
+        controller
+                .getNeighbors(id, null, 1)
+                .contextWrite(ReactorTenantContext.withTenant(Context.empty(), TENANT_A))
+                .block();
+
+        RecordedRequest recorded = knowledgeEngine.takeRequest(5, TimeUnit.SECONDS);
+        assertThat(recorded.getTarget())
+                .contains(id + "/neighbors")
+                .contains("tenantId=" + TENANT_A);
+    }
 }

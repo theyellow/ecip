@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useAuthRequest } from '../../auth/AuthContext'
+import { useAuth, useAuthRequest } from '../../auth/AuthContext'
+import { canChangeKnowledgeItem } from '../../auth/permissions'
 import { resolutionReviewApi } from '../../api/resolutionReview'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
@@ -18,6 +19,7 @@ function scoreClass(score, styles) {
 
 export function ResolutionQueue() {
   const api = resolutionReviewApi(useAuthRequest())
+  const { role } = useAuth()
 
   const [flags, setFlags] = useState([])
   const [total, setTotal] = useState(0)
@@ -137,32 +139,39 @@ export function ResolutionQueue() {
                   </Badge>
                 </td>
                 <td>
-                  <div className={styles.actions}>
-                    <Button
-                      variant="primary"
-                      disabled={!canAct}
-                      onClick={() => setPendingAction({
-                        id: flag.id,
-                        action: 'merge',
-                        candidateLabel: flag.candidateLabel,
-                        similarLabel: flag.similarLabel,
-                      })}
-                    >
-                      Merge
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      disabled={!canAct}
-                      onClick={() => setPendingAction({
-                        id: flag.id,
-                        action: 'dismiss',
-                        candidateLabel: flag.candidateLabel,
-                        similarLabel: flag.similarLabel,
-                      })}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
+                  {canChangeKnowledgeItem(role, flag.tenantId) ? (
+                    <div className={styles.actions}>
+                      <Button
+                        variant="primary"
+                        disabled={!canAct}
+                        onClick={() => setPendingAction({
+                          id: flag.id,
+                          action: 'merge',
+                          candidateLabel: flag.candidateLabel,
+                          similarLabel: flag.similarLabel,
+                        })}
+                      >
+                        Merge
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        disabled={!canAct}
+                        onClick={() => setPendingAction({
+                          id: flag.id,
+                          action: 'dismiss',
+                          candidateLabel: flag.candidateLabel,
+                          similarLabel: flag.similarLabel,
+                        })}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
+                  ) : (
+                    // KNOW-F1: global flags are reviewed by a platform admin only.
+                    <div className={styles.actions} title="Global — managed by a platform admin">
+                      Global
+                    </div>
+                  )}
                 </td>
               </tr>
             )

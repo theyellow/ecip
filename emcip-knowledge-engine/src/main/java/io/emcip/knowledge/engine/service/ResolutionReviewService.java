@@ -3,6 +3,7 @@ package io.emcip.knowledge.engine.service;
 import io.emcip.knowledge.engine.entity.ResolutionFlag;
 import io.emcip.knowledge.engine.repository.GraphRepository;
 import io.emcip.knowledge.engine.repository.ResolutionFlagRepository;
+import io.emcip.knowledge.engine.tenant.TenantAccess;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +29,7 @@ public class ResolutionReviewService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void merge(UUID flagId) {
+    public void merge(UUID flagId, UUID tenantId) {
         ResolutionFlag flag =
                 flagRepository
                         .findById(flagId)
@@ -36,6 +37,10 @@ public class ResolutionReviewService {
                                 () ->
                                         new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND, "Flag not found: " + flagId));
+        if (!TenantAccess.canWrite(flag.getTenantId(), tenantId)) {
+            // Same 404 as a missing flag: another tenant's ids reveal nothing (KNOW-F1).
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Flag not found: " + flagId);
+        }
         if (!"PENDING".equals(flag.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "Flag is not PENDING: " + flag.getStatus());
@@ -52,7 +57,7 @@ public class ResolutionReviewService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public void dismiss(UUID flagId) {
+    public void dismiss(UUID flagId, UUID tenantId) {
         ResolutionFlag flag =
                 flagRepository
                         .findById(flagId)
@@ -60,6 +65,10 @@ public class ResolutionReviewService {
                                 () ->
                                         new ResponseStatusException(
                                                 HttpStatus.NOT_FOUND, "Flag not found: " + flagId));
+        if (!TenantAccess.canWrite(flag.getTenantId(), tenantId)) {
+            // Same 404 as a missing flag: another tenant's ids reveal nothing (KNOW-F1).
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Flag not found: " + flagId);
+        }
         if (!"PENDING".equals(flag.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "Flag is not PENDING: " + flag.getStatus());

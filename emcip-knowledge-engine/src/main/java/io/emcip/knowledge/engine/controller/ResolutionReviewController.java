@@ -46,14 +46,14 @@ public class ResolutionReviewController {
     @Operation(summary = "Merge candidate node into similar node and mark flag MERGED")
     @PatchMapping("/{id}/merge")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void merge(@PathVariable UUID id) {
-        service.merge(id);
+    public void merge(@PathVariable UUID id, @RequestParam(required = false) UUID tenantId) {
+        service.merge(id, tenantId);
     }
 
     @Operation(summary = "Dismiss flag without graph changes, mark flag DISMISSED")
     @PatchMapping("/{id}/dismiss")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void dismiss(@PathVariable UUID id) {
-        service.dismiss(id);
+    public void dismiss(@PathVariable UUID id, @RequestParam(required = false) UUID tenantId) {
+        service.dismiss(id, tenantId);
     }
 }

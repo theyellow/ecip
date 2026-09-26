@@ -3,6 +3,7 @@ import { Modal } from '../../components/Modal/Modal'
 import { Button } from '../../components/Button/Button'
 import { SegmentedControl } from '../../components/SegmentedControl/SegmentedControl'
 import { useToast } from '../../components/Toast/useToast'
+import { useAuth } from '../../auth/AuthContext'
 import styles from './IngestionModal.module.css'
 
 const WARM_UP_TIMEOUT_MS = 15000
@@ -24,6 +25,7 @@ export function IngestionModal({
   const [warmUpState, setWarmUpState] = useState('loading') // loading | ready | failed
   const [warmUpLatency, setWarmUpLatency] = useState(null)
   const { addToast } = useToast()
+  const { role } = useAuth()
 
   // Warm up models on mount
   useEffect(() => {
@@ -132,18 +134,23 @@ export function IngestionModal({
           />
         )}
 
-        <select
-          className={styles.input}
-          value={tenantId}
-          onChange={e => setTenantId(e.target.value)}
-        >
-          <option value="">Global (all tenants)</option>
-          {(tenants ?? []).map(t => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        {role === 'ADMIN' ? (
+          <select
+            className={styles.input}
+            value={tenantId}
+            onChange={e => setTenantId(e.target.value)}
+          >
+            <option value="">Global (all tenants)</option>
+            {(tenants ?? []).map(t => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          // KNOW-F1: admin-api ingests into the caller's own tenant; only ADMIN may choose.
+          <p className={styles.warmUpStatus}>Documents are ingested into your tenant.</p>
+        )}
 
         <div className={styles.warmUpStatus}>
           {warmUpState === 'loading' && (

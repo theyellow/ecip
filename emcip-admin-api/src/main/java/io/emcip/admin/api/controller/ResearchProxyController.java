@@ -20,7 +20,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Proxies deep research session requests to the knowledge-engine service. Admin-UI → admin-api →
@@ -36,12 +38,15 @@ public class ResearchProxyController {
 
     private final WebClient knowledgeWebClient;
     private final CircuitBreaker circuitBreaker;
+    private final ObjectMapper objectMapper;
 
     public ResearchProxyController(
             @Qualifier("knowledgeWebClient") WebClient knowledgeWebClient,
-            CircuitBreakerRegistry registry) {
+            CircuitBreakerRegistry registry,
+            ObjectMapper objectMapper) {
         this.knowledgeWebClient = knowledgeWebClient;
         this.circuitBreaker = registry.circuitBreaker("knowledge");
+        this.objectMapper = objectMapper;
     }
 
     @Operation(summary = "Start a new deep research session")
@@ -49,20 +54,38 @@ public class ResearchProxyController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> startResearch(@RequestBody String body) {
-        return knowledgeWebClient
-                .post()
-                .uri("/api/knowledge/research")
-                .bodyValue(body)
-                .header("Content-Type", "application/json")
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(resp -> ResponseEntity.status(HttpStatus.CREATED).body(resp))
-                .onErrorResume(
-                        e -> {
-                            log.error("Research start proxy error: {}", e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
+        return Mono.deferContextual(
+                        ctx -> {
+                            String forwarded;
+                            try {
+                                forwarded =
+                                        KnowledgeTenantResolver.rewriteBody(
+                                                objectMapper, body, ctx);
+                            } catch (IllegalArgumentException e) {
+                                return Mono.just(ResponseEntity.badRequest().<String>build());
+                            }
+                            return knowledgeWebClient
+                                    .post()
+                                    .uri("/api/knowledge/research")
+                                    .bodyValue(forwarded)
+                                    .header("Content-Type", "application/json")
+                                    .retrieve()
+                                    .bodyToMono(String.class)
+                                    .map(
+                                            resp ->
+                                                    ResponseEntity.status(HttpStatus.CREATED)
+                                                            .body(resp))
+                                    .onErrorResume(
+                                            e -> {
+                                                log.error(
+                                                        "Research start proxy error: {}",
+                                                        e.getMessage());
+                                                return Mono.just(
+                                                        ResponseEntity.status(
+                                                                        HttpStatus
+                                                                                .SERVICE_UNAVAILABLE)
+                                                                .<String>build());
+                                            });
                         })
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
@@ -71,23 +94,7 @@ public class ResearchProxyController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getSession(@PathVariable UUID id) {
-        return knowledgeWebClient
-                .get()
-                .uri("/api/knowledge/research/{id}", id)
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error(
-                                    "Research getSession proxy error sessionId={}: {}",
-                                    id,
-                                    e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return get("/api/knowledge/research/{id}", "getSession", id);
     }
 
     @Operation(summary = "List research sessions for a tenant")
@@ -95,23 +102,36 @@ public class ResearchProxyController {
     @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> listSessions(
             @RequestParam(required = false) UUID tenantId) {
-        return knowledgeWebClient
-                .get()
-                .uri(
-                        uriBuilder -> {
-                            uriBuilder.path("/api/knowledge/research");
-                            if (tenantId != null) uriBuilder.queryParam("tenantId", tenantId);
-                            return uriBuilder.build();
-                        })
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error("Research listSessions proxy error: {}", e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
+        return Mono.deferContextual(
+                        ctx -> {
+                            String tenant;
+                            try {
+                                tenant =
+                                        KnowledgeTenantResolver.resolve(
+                                                ctx, tenantId == null ? null : tenantId.toString());
+                            } catch (IllegalArgumentException e) {
+                                return Mono.just(ResponseEntity.badRequest().<String>build());
+                            }
+                            return knowledgeWebClient
+                                    .get()
+                                    .uri(
+                                            b ->
+                                                    KnowledgeTenantResolver.path(
+                                                            b, "/api/knowledge/research", tenant))
+                                    .retrieve()
+                                    .bodyToMono(String.class)
+                                    .map(ResponseEntity::ok)
+                                    .onErrorResume(
+                                            e -> {
+                                                log.error(
+                                                        "Research listSessions proxy error: {}",
+                                                        e.getMessage());
+                                                return Mono.just(
+                                                        ResponseEntity.status(
+                                                                        HttpStatus
+                                                                                .SERVICE_UNAVAILABLE)
+                                                                .<String>build());
+                                            });
                         })
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
@@ -120,81 +140,45 @@ public class ResearchProxyController {
     @PostMapping("/{id}/pause")
     @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> pauseSession(@PathVariable UUID id) {
-        return knowledgeWebClient
-                .post()
-                .uri("/api/knowledge/research/{id}/pause", id)
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error(
-                                    "Research pause proxy error sessionId={}: {}",
-                                    id,
-                                    e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return post("/api/knowledge/research/{id}/pause", "pause", id);
     }
 
     @Operation(summary = "Resume a paused research session")
     @PostMapping("/{id}/resume")
     @PreAuthorize("hasAuthority('KNOWLEDGE_WRITE')")
     public Mono<ResponseEntity<String>> resumeSession(@PathVariable UUID id) {
-        return knowledgeWebClient
-                .post()
-                .uri("/api/knowledge/research/{id}/resume", id)
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error(
-                                    "Research resume proxy error sessionId={}: {}",
-                                    id,
-                                    e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return post("/api/knowledge/research/{id}/resume", "resume", id);
     }
 
     @Operation(summary = "Get the research report for a session")
     @GetMapping("/{id}/report")
     @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getReport(@PathVariable UUID id) {
-        return knowledgeWebClient
-                .get()
-                .uri("/api/knowledge/research/{id}/report", id)
-                .retrieve()
-                .bodyToMono(String.class)
-                .map(ResponseEntity::ok)
-                .onErrorResume(
-                        e -> {
-                            log.error(
-                                    "Research getReport proxy error sessionId={}: {}",
-                                    id,
-                                    e.getMessage());
-                            return Mono.just(
-                                    ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                                            .<String>build());
-                        })
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+        return get("/api/knowledge/research/{id}/report", "getReport", id);
     }
 
     @Operation(summary = "Download the research report as Markdown")
     @GetMapping("/{id}/report/markdown")
     @PreAuthorize("hasAuthority('KNOWLEDGE_READ')")
     public Mono<ResponseEntity<String>> getReportMarkdown(@PathVariable UUID id) {
-        return knowledgeWebClient
-                .get()
-                .uri("/api/knowledge/research/{id}/report/markdown", id)
-                .retrieve()
-                .toEntity(String.class)
+        return Mono.deferContextual(
+                        ctx ->
+                                knowledgeWebClient
+                                        .get()
+                                        .uri(
+                                                b ->
+                                                        KnowledgeTenantResolver.path(
+                                                                b,
+                                                                "/api/knowledge/research/{id}/report/markdown",
+                                                                KnowledgeTenantResolver.resolve(
+                                                                        ctx, null),
+                                                                id))
+                                        .retrieve()
+                                        .toEntity(String.class))
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorResume(
+                        WebClientResponseException.NotFound.class,
+                        e -> Mono.just(ResponseEntity.notFound().<String>build()))
                 .onErrorResume(
                         e -> {
                             log.warn(
@@ -205,5 +189,64 @@ public class ResearchProxyController {
                                     ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                                             .<String>build());
                         });
+    }
+
+    /** GET on an id-addressed research resource, as the caller's tenant (KNOW-F1). */
+    private Mono<ResponseEntity<String>> get(String path, String action, UUID id) {
+        return Mono.deferContextual(
+                        ctx ->
+                                knowledgeWebClient
+                                        .get()
+                                        .uri(
+                                                b ->
+                                                        KnowledgeTenantResolver.path(
+                                                                b,
+                                                                path,
+                                                                KnowledgeTenantResolver.resolve(
+                                                                        ctx, null),
+                                                                id))
+                                        .retrieve()
+                                        .bodyToMono(String.class)
+                                        .map(ResponseEntity::ok)
+                                        .onErrorResume(
+                                                WebClientResponseException.NotFound.class,
+                                                e ->
+                                                        Mono.just(
+                                                                ResponseEntity.notFound()
+                                                                        .<String>build()))
+                                        .onErrorResume(e -> unavailable(action, id, e)))
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    /** POST on an id-addressed research resource, as the caller's tenant (KNOW-F1). */
+    private Mono<ResponseEntity<String>> post(String path, String action, UUID id) {
+        return Mono.deferContextual(
+                        ctx ->
+                                knowledgeWebClient
+                                        .post()
+                                        .uri(
+                                                b ->
+                                                        KnowledgeTenantResolver.path(
+                                                                b,
+                                                                path,
+                                                                KnowledgeTenantResolver.resolve(
+                                                                        ctx, null),
+                                                                id))
+                                        .retrieve()
+                                        .bodyToMono(String.class)
+                                        .map(ResponseEntity::ok)
+                                        .onErrorResume(
+                                                WebClientResponseException.NotFound.class,
+                                                e ->
+                                                        Mono.just(
+                                                                ResponseEntity.notFound()
+                                                                        .<String>build()))
+                                        .onErrorResume(e -> unavailable(action, id, e)))
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+    }
+
+    private Mono<ResponseEntity<String>> unavailable(String action, UUID id, Throwable e) {
+        log.error("Research {} proxy error sessionId={}: {}", action, id, e.getMessage());
+        return Mono.just(ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).<String>build());
     }
 }
