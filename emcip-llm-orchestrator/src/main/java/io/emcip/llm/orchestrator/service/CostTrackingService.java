@@ -147,11 +147,12 @@ public class CostTrackingService {
      *
      * @param start Start of period
      * @param end End of period
+     * @param tenantId the caller's tenant, or null for all tenants (ADR-009 rule 5)
      * @return Total cost in USD
      */
     @Transactional(readOnly = true)
-    public Double getTotalCostForPeriod(Instant start, Instant end) {
-        Double totalCost = costLogRepository.calculateTotalCostForPeriod(start, end);
+    public Double getTotalCostForPeriod(Instant start, Instant end, UUID tenantId) {
+        Double totalCost = costLogRepository.calculateTotalCostForPeriod(start, end, tenantId);
         return totalCost != null ? totalCost : 0.0;
     }
 
@@ -191,10 +192,10 @@ public class CostTrackingService {
         return inputCost + outputCost;
     }
 
-    /** Get aggregated totals for a time period. */
+    /** Get aggregated totals for a time period; {@code tenantId} null = all tenants. */
     @Transactional(readOnly = true)
-    public Map<String, Object> getTotals(Instant start, Instant end) {
-        List<Object[]> rows = costLogRepository.calculateTotals(start, end);
+    public Map<String, Object> getTotals(Instant start, Instant end, UUID tenantId) {
+        List<Object[]> rows = costLogRepository.calculateTotals(start, end, tenantId);
         Object[] row = rows.isEmpty() ? new Object[] {0.0, 0L, 0L, 0.0, 0L, 0L} : rows.get(0);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("totalCostUsd", row[0] != null ? ((Number) row[0]).doubleValue() : 0.0);
@@ -206,10 +207,10 @@ public class CostTrackingService {
         return result;
     }
 
-    /** Get per-model aggregation for a time period. */
+    /** Get per-model aggregation for a time period; {@code tenantId} null = all tenants. */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getByModel(Instant start, Instant end) {
-        return costLogRepository.aggregateByModel(start, end).stream()
+    public List<Map<String, Object>> getByModel(Instant start, Instant end, UUID tenantId) {
+        return costLogRepository.aggregateByModel(start, end, tenantId).stream()
                 .map(
                         row -> {
                             Map<String, Object> m = new LinkedHashMap<>();
@@ -225,10 +226,10 @@ public class CostTrackingService {
                 .toList();
     }
 
-    /** Get per-day aggregation for a time period. */
+    /** Get per-day aggregation for a time period; {@code tenantId} null = all tenants. */
     @Transactional(readOnly = true)
-    public List<Map<String, Object>> getByDay(Instant start, Instant end) {
-        return costLogRepository.aggregateByDay(start, end).stream()
+    public List<Map<String, Object>> getByDay(Instant start, Instant end, UUID tenantId) {
+        return costLogRepository.aggregateByDay(start, end, tenantId).stream()
                 .map(
                         row -> {
                             Map<String, Object> m = new LinkedHashMap<>();
