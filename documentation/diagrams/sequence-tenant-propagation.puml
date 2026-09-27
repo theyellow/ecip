@@ -1,6 +1,6 @@
 @startuml Sequence_Tenant_Propagation
-' Purpose: how the tenant travels on the HTTP (admin-api -> knowledge-engine) and Kafka paths,
-'          and where it is enforced — see ADR-009 (multi-tenancy)
+' Purpose: how the tenant travels on the HTTP (admin-api -> knowledge-engine, policy-engine,
+'          llm-orchestrator) and Kafka paths, and where it is enforced — see ADR-009 (multi-tenancy)
 ' Used in: architecture-guide.adoc - Security Architecture section
 
 !theme plain
@@ -52,6 +52,34 @@ end
 Proxy --> ATCF : status passed through (404 stays 404)
 ATCF --> Client : HTTP response
 deactivate ATCF
+
+== HTTP Path — admin-api -> policy-engine / llm-orchestrator (TENANT-AUDIT) ==
+
+participant "PolicyEngineClient /\nCostsProxyController\n(admin-api)" as PEC
+participant "TenantWebFilter\n(policy-engine)" as PTWF
+participant "Rule / decision\ncontrollers" as PCtl
+participant "OrchestratorController\ncost endpoints" as OCtl
+database "PostgreSQL" as PDB
+
+PEC -> PTWF : X-Tenant-Id: <bound tenant>\n(none in ADMIN admin mode)
+alt header malformed
+    PTWF --> PEC : 400
+else valid or absent
+    PTWF -> PCtl : Reactor context: tenant | none
+    PCtl -> PDB : tenant-scoped query /\nfindById + ownership check
+    alt another tenant's rule or decision\n(or a global decision on a write)
+        PCtl --> PEC : 404 (same as missing)
+    else own, or global decision read, or no tenant (trusted caller)
+        PCtl --> PEC : 200 / 204
+    end
+end
+PEC -> OCtl : GET /api/costs/* + X-Tenant-Id
+OCtl -> PDB : aggregate WHERE tenant_id = :tenantId\n(no header = all tenants)
+note over PEC
+  FlagService.reply also checks the flag's
+  tenant itself and looks the Telegram group
+  up within the caller's tenant (F-1)
+end note
 
 == Kafka Path ==
 

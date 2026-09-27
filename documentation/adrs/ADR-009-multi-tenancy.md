@@ -55,9 +55,20 @@ registered it.
    - **Edge:** admin-api binds the tenant (`AdminTenantContextFilter` → Reactor context) and every
      knowledge proxy asserts it via `KnowledgeTenantResolver`; a knowledge-engine 404 reaches the client
      as 404.
-   - **Tenant-bound reads in JPA services:** the Hibernate `tenantFilter`.
+   - **Downstream services on the HTTP path take the tenant explicitly** (TENANT-AUDIT): admin-api
+     sends the bound tenant as `X-Tenant-Id` on every call to policy-engine and on the cost queries
+     to llm-orchestrator (none in `ADMIN` admin mode). Reactive services (audit, moderation,
+     policy-engine) put it into the Reactor context with their `TenantWebFilter` (policy-engine's
+     rejects a malformed header with 400) and pass it into queries and ownership checks; servlet endpoints take it as an explicit header
+     parameter (llm-orchestrator costs). No header = trusted caller (rule 5).
+   - **Kafka path in JPA services:** the Hibernate `tenantFilter`, enabled from the `TenantContext`
+     ThreadLocal the consumer binds. It never sees an HTTP request's tenant (policy-engine runs its
+     blocking calls on other threads, and no servlet filter binds it), so the HTTP path must not
+     rely on it.
    - **Id-addressed lookups** (which Hibernate filters do not cover): explicit ownership checks —
-     knowledge-engine's `TenantAccess` (read: own or global; write: own only).
+     knowledge-engine's `TenantAccess`, policy-engine's rule and decision controllers (read: own or
+     global; write: own only). admin-api's flag reply checks the decision's tenant itself before
+     touching a Telegram group, so the most damaging path never rests on one layer.
    - **Denied = missing:** a denied item answers 404, exactly like a missing one, so ids reveal nothing.
 9. **`TenantContextFilter` (emcip-core, servlet) is removed.** No service registered it, and its
    behaviour (400 without a tenant header) contradicts rule 5.
@@ -83,8 +94,11 @@ registered it.
   endpoint accepts an optional tenant.
 - Rule 5 trusts any caller that reaches knowledge-engine without a tenant — acceptable only with the
   NetworkPolicy in 3.20 and pending ADR-010.
-- admin-api's non-knowledge proxies (AI config, costs, audit, intent, moderation, policy, Telegram
-  accounts) have not yet been checked against these rules (TENANT-AUDIT).
+- Three copies of the reactive `TenantWebFilter` (audit, moderation, policy-engine); consolidation
+  into emcip-core is tracked as TENANT-WEBFILTER.
+- TENANT-AUDIT checked admin-api's other proxies against these rules (2026-09-26). PR 1 closed
+  flags, flag reply, policy rules and costs; PR 2 (Telegram account creation, simulation, moderation
+  global rules, audit correlation lookup, a UI permission mismatch) is still open.
 
 ---
 
@@ -109,3 +123,4 @@ registered it.
 
 - `docs/superpowers/specs/2026-09-25-p3.8a-knowledge-search-tenant-scoping-design.md`
 - `docs/superpowers/specs/2026-09-25-know-f1-knowledge-engine-tenant-enforcement-design.md`
+- `docs/superpowers/specs/2026-09-26-tenant-audit-pr1-design.md`
