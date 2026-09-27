@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.emcip.common.tenant.TenantContext;
 import io.emcip.policy.engine.IntegrationTest;
 import io.emcip.policy.engine.config.TenantWebFilter;
+import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
 import io.emcip.policy.engine.entity.PolicyRuleHistory;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
@@ -158,6 +159,127 @@ class PolicyTenantScopingIT {
                 .isOk()
                 .expectBodyList(PolicyRuleHistory.class)
                 .hasSize(1);
+    }
+
+    @Test
+    void decisionListShowsOnlyTheCallersDecisions() {
+        String own = saveDecision(a).getId();
+        saveDecision(b);
+
+        client.get()
+                .uri("/api/policy-decisions")
+                .header(TenantContext.HEADER_NAME, a.toString())
+                .exchange()
+                .expectStatus()
+                .isOk()
+                .expectBody()
+                .jsonPath("$.total")
+                .isEqualTo(1)
+                .jsonPath("$.items[0].id")
+                .isEqualTo(own);
+    }
+
+    @Test
+    void readingAnotherTenantsDecisionIs404() {
+        String other = saveDecision(b).getId();
+
+        client.get()
+                .uri("/api/policy-decisions/{id}", other)
+                .header(TenantContext.HEADER_NAME, a.toString())
+                .exchange()
+                .expectStatus()
+                .isNotFound();
+    }
+
+    @Test
+    void readingOwnDecisionWorks() {
+        String own = saveDecision(a).getId();
+
+        client.get()
+                .uri("/api/policy-decisions/{id}", own)
+                .header(TenantContext.HEADER_NAME, a.toString())
+                .exchange()
+                .expectStatus()
+                .isOk();
+    }
+
+    @Test
+    void readingAGlobalDecisionIsAllowed() {
+        String global = saveDecision(null).getId();
+
+        client.get()
+                .uri("/api/policy-decisions/{id}", global)
+                .header(TenantContext.HEADER_NAME, a.toString())
+                .exchange()
+                .expectStatus()
+                .isOk();
+    }
+
+    @Test
+    void updatingAnotherTenantsDecisionIs404AndLeavesItUnchanged() {
+        String other = saveDecision(b).getId();
+
+        client.put()
+                .uri("/api/policy-decisions/{id}", other)
+                .header(TenantContext.HEADER_NAME, a.toString())
+                .bodyValue(Map.of("signalStatus", "RESOLVED"))
+                .exchange()
+                .expectStatus()
+                .isNotFound();
+
+        assertThat(decisionRepository.findById(other))
+                .get()
+                .extracting(PolicyDecision::getSignalStatus)
+                .isEqualTo("NEW");
+    }
+
+    @Test
+    void updatingAGlobalDecisionIs404ForATenant() {
+        String global = saveDecision(null).getId();
+
+        client.put()
+                .uri("/api/policy-decisions/{id}", global)
+                .header(TenantContext.HEADER_NAME, a.toString())
+                .bodyValue(Map.of("signalStatus", "RESOLVED"))
+                .exchange()
+                .expectStatus()
+                .isNotFound();
+
+        assertThat(decisionRepository.findById(global))
+                .get()
+                .extracting(PolicyDecision::getSignalStatus)
+                .isEqualTo("NEW");
+    }
+
+    @Test
+    void updatingOwnDecisionWorks() {
+        String own = saveDecision(a).getId();
+
+        client.put()
+                .uri("/api/policy-decisions/{id}", own)
+                .header(TenantContext.HEADER_NAME, a.toString())
+                .bodyValue(Map.of("signalStatus", "RESOLVED"))
+                .exchange()
+                .expectStatus()
+                .isNoContent();
+
+        assertThat(decisionRepository.findById(own))
+                .get()
+                .extracting(PolicyDecision::getSignalStatus)
+                .isEqualTo("RESOLVED");
+    }
+
+    private PolicyDecision saveDecision(UUID tenant) {
+        PolicyDecision d = new PolicyDecision();
+        d.setTenantId(tenant);
+        d.setEventId(UUID.randomUUID().toString());
+        d.setSourceEventId(UUID.randomUUID().toString());
+        d.setPolicyId("rule-x");
+        d.setDecision("FLAG");
+        d.setOriginalIntent("SPAM");
+        d.setConfidence(0.9);
+        d.setMetadata(Map.of("chatId", -100123L));
+        return decisionRepository.save(d);
     }
 
     private PolicyRuleConfig saveRule(UUID tenant, String name) {
