@@ -1,6 +1,7 @@
 package io.emcip.admin.api.client;
 
 import io.emcip.common.tenant.ReactorTenantContext;
+import io.emcip.common.tenant.TenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
@@ -12,13 +13,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.context.ContextView;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.JsonNodeFactory;
 import tools.jackson.databind.node.ObjectNode;
 
+/**
+ * Client for policy-engine. Every call sends the caller's bound tenant as {@code X-Tenant-Id} so
+ * policy-engine can enforce it (ADR-009 rule 8, TENANT-AUDIT); ADMIN admin mode sends none.
+ */
 @Component
 @Slf4j
 public class PolicyEngineClient {
@@ -42,11 +49,11 @@ public class PolicyEngineClient {
     }
 
     public Flux<JsonNode> listRules() {
-        return webClient
-                .get()
-                .uri("/api/policy-rules")
-                .retrieve()
-                .bodyToFlux(JsonNode.class)
+        return Flux.deferContextual(
+                        ctx ->
+                                withTenant(webClient.get().uri("/api/policy-rules"), ctx)
+                                        .retrieve()
+                                        .bodyToFlux(JsonNode.class))
                 .transformDeferred(RetryOperator.of(retry))
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .onErrorResume(
@@ -72,10 +79,12 @@ public class PolicyEngineClient {
                             }
                             ObjectNode node = ((ObjectNode) body).deepCopy();
                             node.put("tenantId", tenantId);
-                            return webClient
-                                    .post()
-                                    .uri("/api/policy-rules")
-                                    .bodyValue(node)
+                            return withTenant(
+                                            webClient
+                                                    .post()
+                                                    .uri("/api/policy-rules")
+                                                    .bodyValue(node),
+                                            ctx)
                                     .retrieve()
                                     .bodyToMono(JsonNode.class);
                         })
@@ -84,44 +93,68 @@ public class PolicyEngineClient {
     }
 
     public Mono<JsonNode> updateRule(String id, JsonNode body, String editedBy) {
-        return webClient
-                .put()
-                .uri("/api/policy-rules/{id}", id)
-                .header("X-Edited-By", editedBy != null ? editedBy : "unknown")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
+        return Mono.deferContextual(
+                        ctx ->
+                                withTenant(
+                                                webClient
+                                                        .put()
+                                                        .uri("/api/policy-rules/{id}", id)
+                                                        .header(
+                                                                "X-Edited-By",
+                                                                editedBy != null
+                                                                        ? editedBy
+                                                                        : "unknown")
+                                                        .bodyValue(body),
+                                                ctx)
+                                        .retrieve()
+                                        .bodyToMono(JsonNode.class))
                 .transformDeferred(RetryOperator.of(retry))
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorMap(PolicyEngineClient::notFoundAsStatus);
     }
 
     public Mono<Void> deleteRule(String id) {
-        return webClient
-                .delete()
-                .uri("/api/policy-rules/{id}", id)
-                .retrieve()
-                .bodyToMono(Void.class)
+        return Mono.deferContextual(
+                        ctx ->
+                                withTenant(
+                                                webClient
+                                                        .delete()
+                                                        .uri("/api/policy-rules/{id}", id),
+                                                ctx)
+                                        .retrieve()
+                                        .bodyToMono(Void.class))
                 .transformDeferred(RetryOperator.of(retry))
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorMap(PolicyEngineClient::notFoundAsStatus);
     }
 
     public Mono<JsonNode> dryRun(JsonNode body) {
-        return webClient
-                .post()
-                .uri("/api/policy-rules/dry-run")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
+        return Mono.deferContextual(
+                        ctx ->
+                                withTenant(
+                                                webClient
+                                                        .post()
+                                                        .uri("/api/policy-rules/dry-run")
+                                                        .bodyValue(body),
+                                                ctx)
+                                        .retrieve()
+                                        .bodyToMono(JsonNode.class))
                 .transformDeferred(RetryOperator.of(retry))
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
     }
 
     public Flux<JsonNode> getRuleHistory(String ruleId) {
-        return webClient
-                .get()
-                .uri("/api/policy-rules/{id}/history", ruleId)
-                .retrieve()
-                .bodyToFlux(JsonNode.class)
+        return Flux.deferContextual(
+                        ctx ->
+                                withTenant(
+                                                webClient
+                                                        .get()
+                                                        .uri(
+                                                                "/api/policy-rules/{id}/history",
+                                                                ruleId),
+                                                ctx)
+                                        .retrieve()
+                                        .bodyToFlux(JsonNode.class))
                 .transformDeferred(RetryOperator.of(retry))
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
                 .onErrorResume(
@@ -134,13 +167,18 @@ public class PolicyEngineClient {
     }
 
     public Mono<JsonNode> getDecision(String id) {
-        return webClient
-                .get()
-                .uri("/api/policy-decisions/{id}", id)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
+        return Mono.deferContextual(
+                        ctx ->
+                                withTenant(
+                                                webClient
+                                                        .get()
+                                                        .uri("/api/policy-decisions/{id}", id),
+                                                ctx)
+                                        .retrieve()
+                                        .bodyToMono(JsonNode.class))
                 .transformDeferred(RetryOperator.of(retry))
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorMap(PolicyEngineClient::notFoundAsStatus);
     }
 
     public Mono<JsonNode> listDecisions(
@@ -153,7 +191,6 @@ public class PolicyEngineClient {
             Double minConfidence) {
         return Mono.deferContextual(
                         ctx -> {
-                            String tenantId = ReactorTenantContext.getTenantId(ctx);
                             var spec =
                                     webClient
                                             .get()
@@ -183,9 +220,7 @@ public class PolicyEngineClient {
                                                         }
                                                         return uriBuilder.build();
                                                     });
-                            return (tenantId != null ? spec.header("X-Tenant-Id", tenantId) : spec)
-                                    .retrieve()
-                                    .bodyToMono(JsonNode.class);
+                            return withTenant(spec, ctx).retrieve().bodyToMono(JsonNode.class);
                         })
                 .transformDeferred(RetryOperator.of(retry))
                 .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
@@ -200,25 +235,57 @@ public class PolicyEngineClient {
     }
 
     public Mono<Void> updateDecision(String id, JsonNode body) {
-        return webClient
-                .put()
-                .uri("/api/policy-decisions/{id}", id)
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(Void.class)
+        return Mono.deferContextual(
+                        ctx ->
+                                withTenant(
+                                                webClient
+                                                        .put()
+                                                        .uri("/api/policy-decisions/{id}", id)
+                                                        .bodyValue(body),
+                                                ctx)
+                                        .retrieve()
+                                        .bodyToMono(Void.class))
                 .transformDeferred(RetryOperator.of(retry))
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorMap(PolicyEngineClient::notFoundAsStatus);
     }
 
     public Mono<Void> updateDecisionStatus(String id, String status) {
-        return webClient
-                .put()
-                .uri("/api/policy-decisions/{id}", id)
-                .bodyValue(java.util.Map.of("signalStatus", status))
-                .retrieve()
-                .bodyToMono(Void.class)
+        return Mono.deferContextual(
+                        ctx ->
+                                withTenant(
+                                                webClient
+                                                        .put()
+                                                        .uri("/api/policy-decisions/{id}", id)
+                                                        .bodyValue(
+                                                                java.util.Map.of(
+                                                                        "signalStatus", status)),
+                                                ctx)
+                                        .retrieve()
+                                        .bodyToMono(Void.class))
                 .transformDeferred(RetryOperator.of(retry))
-                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker));
+                .transformDeferred(CircuitBreakerOperator.of(circuitBreaker))
+                .onErrorMap(PolicyEngineClient::notFoundAsStatus);
+    }
+
+    /** Sends the bound tenant so policy-engine can enforce it (ADR-009 rule 8). */
+    private static <S extends WebClient.RequestHeadersSpec<?>> S withTenant(
+            S spec, ContextView ctx) {
+        String tenantId = ReactorTenantContext.getTenantId(ctx);
+        if (tenantId != null) {
+            spec.header(TenantContext.HEADER_NAME, tenantId);
+        }
+        return spec;
+    }
+
+    /**
+     * A policy-engine 404 — missing, or another tenant's — is a 404 here too, not a 500 (denied =
+     * missing, ADR-009 rule 8).
+     */
+    private static Throwable notFoundAsStatus(Throwable e) {
+        return e instanceof WebClientResponseException.NotFound
+                ? new ResponseStatusException(HttpStatus.NOT_FOUND)
+                : e;
     }
 
     private Mono<JsonNode> emptyPage() {
