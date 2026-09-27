@@ -4,6 +4,7 @@ import io.emcip.policy.engine.entity.PolicyRuleConfig;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +18,9 @@ public interface PolicyRuleConfigRepository extends JpaRepository<PolicyRuleConf
 
     /** Find all active rules ordered by priority. */
     List<PolicyRuleConfig> findByActiveTrueOrderByPriorityAsc();
+
+    /** Find the active rules of one tenant ordered by priority (HTTP path, ADR-009 rule 8). */
+    List<PolicyRuleConfig> findByActiveTrueAndTenantIdOrderByPriorityAsc(UUID tenantId);
 
     /** Find rules that are active and temporally effective at the given instant. */
     @Query(

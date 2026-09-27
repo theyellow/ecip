@@ -153,9 +153,9 @@ class CostTrackingServiceTest {
     void getTotalCostForPeriod_repositoryReturnsValue_returnsValue() {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
         Instant end = Instant.parse("2026-01-31T23:59:59Z");
-        when(costLogRepository.calculateTotalCostForPeriod(start, end)).thenReturn(42.5);
+        when(costLogRepository.calculateTotalCostForPeriod(start, end, null)).thenReturn(42.5);
 
-        Double result = service.getTotalCostForPeriod(start, end);
+        Double result = service.getTotalCostForPeriod(start, end, null);
 
         assertThat(result).isEqualTo(42.5);
     }
@@ -164,9 +164,9 @@ class CostTrackingServiceTest {
     void getTotalCostForPeriod_repositoryReturnsNull_returnsZero() {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
         Instant end = Instant.parse("2026-01-31T23:59:59Z");
-        when(costLogRepository.calculateTotalCostForPeriod(start, end)).thenReturn(null);
+        when(costLogRepository.calculateTotalCostForPeriod(start, end, null)).thenReturn(null);
 
-        Double result = service.getTotalCostForPeriod(start, end);
+        Double result = service.getTotalCostForPeriod(start, end, null);
 
         assertThat(result).isEqualTo(0.0);
     }
@@ -189,10 +189,10 @@ class CostTrackingServiceTest {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
         Instant end = Instant.parse("2026-01-31T23:59:59Z");
         Object[] row = new Object[] {42.5, 120000L, 210L, 795.0, 205L, 5L};
-        when(costLogRepository.calculateTotals(start, end))
+        when(costLogRepository.calculateTotals(start, end, null))
                 .thenReturn(java.util.Collections.singletonList(row));
 
-        Map<String, Object> result = service.getTotals(start, end);
+        Map<String, Object> result = service.getTotals(start, end, null);
 
         assertThat(result.get("totalCostUsd")).isEqualTo(42.5);
         assertThat(result.get("totalTokens")).isEqualTo(120000L);
@@ -207,10 +207,10 @@ class CostTrackingServiceTest {
         Instant start = Instant.parse("2026-01-01T00:00:00Z");
         Instant end = Instant.parse("2026-01-31T23:59:59Z");
         Object[] row = new Object[] {null, null, 0L, null, 0L, 0L};
-        when(costLogRepository.calculateTotals(start, end))
+        when(costLogRepository.calculateTotals(start, end, null))
                 .thenReturn(java.util.Collections.singletonList(row));
 
-        Map<String, Object> result = service.getTotals(start, end);
+        Map<String, Object> result = service.getTotals(start, end, null);
 
         assertThat(result.get("totalCostUsd")).isEqualTo(0.0);
         assertThat(result.get("totalTokens")).isEqualTo(0L);
@@ -224,9 +224,9 @@ class CostTrackingServiceTest {
         Instant end = Instant.parse("2026-01-31T23:59:59Z");
         Object[] rowData = new Object[] {"qwen3-30b-a3b", 142L, 60000L, 25000L, 85000L, 0.0, 812.0};
         List<Object[]> rows = java.util.Collections.singletonList(rowData);
-        when(costLogRepository.aggregateByModel(start, end)).thenReturn(rows);
+        when(costLogRepository.aggregateByModel(start, end, null)).thenReturn(rows);
 
-        List<Map<String, Object>> result = service.getByModel(start, end);
+        List<Map<String, Object>> result = service.getByModel(start, end, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().get("modelName")).isEqualTo("qwen3-30b-a3b");
@@ -244,9 +244,9 @@ class CostTrackingServiceTest {
                 java.util.Arrays.asList(
                         new Object[] {java.time.LocalDate.of(2026, 6, 14), 0.0, 47L, 28000L},
                         new Object[] {java.time.LocalDate.of(2026, 6, 15), 0.0, 63L, 35000L});
-        when(costLogRepository.aggregateByDay(start, end)).thenReturn(rows);
+        when(costLogRepository.aggregateByDay(start, end, null)).thenReturn(rows);
 
-        List<Map<String, Object>> result = service.getByDay(start, end);
+        List<Map<String, Object>> result = service.getByDay(start, end, null);
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).get("date")).isEqualTo("2026-06-14");

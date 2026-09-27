@@ -23,11 +23,15 @@ public interface ModelCostLogRepository extends JpaRepository<ModelCostLog, UUID
     /** Find cost logs by conversation ID. */
     List<ModelCostLog> findByConversationIdOrderByCreatedAtDesc(String conversationId);
 
-    /** Calculate total cost for a time period. */
+    /** Calculate total cost for a time period; {@code tenantId} null = all tenants. */
     @Query(
             "SELECT SUM(m.totalCostUsd) FROM ModelCostLog m WHERE m.createdAt BETWEEN :start AND"
-                    + " :end AND m.status = 'SUCCESS'")
-    Double calculateTotalCostForPeriod(@Param("start") Instant start, @Param("end") Instant end);
+                    + " :end AND m.status = 'SUCCESS'"
+                    + " AND (:tenantId IS NULL OR m.tenantId = :tenantId)")
+    Double calculateTotalCostForPeriod(
+            @Param("start") Instant start,
+            @Param("end") Instant end,
+            @Param("tenantId") UUID tenantId);
 
     /** Calculate total tokens for a model in a time period. */
     @Query(
@@ -47,7 +51,10 @@ public interface ModelCostLogRepository extends JpaRepository<ModelCostLog, UUID
     /** Find recent cost logs for a prompt template. */
     List<ModelCostLog> findTop10ByPromptTemplateNameOrderByCreatedAtDesc(String promptTemplateName);
 
-    /** Aggregate totals for a time period (includes both SUCCESS and FAILED). */
+    /**
+     * Aggregate totals for a time period (includes both SUCCESS and FAILED); {@code tenantId} null
+     * = all tenants.
+     */
     @Query(
             "SELECT COALESCE(SUM(m.totalCostUsd), 0.0),"
                     + " COALESCE(SUM(m.totalTokens), 0),"
@@ -56,10 +63,14 @@ public interface ModelCostLogRepository extends JpaRepository<ModelCostLog, UUID
                     + " SUM(CASE WHEN m.status = 'SUCCESS' THEN 1 ELSE 0 END),"
                     + " SUM(CASE WHEN m.status = 'FAILED' THEN 1 ELSE 0 END)"
                     + " FROM ModelCostLog m"
-                    + " WHERE m.createdAt BETWEEN :start AND :end")
-    List<Object[]> calculateTotals(@Param("start") Instant start, @Param("end") Instant end);
+                    + " WHERE m.createdAt BETWEEN :start AND :end"
+                    + " AND (:tenantId IS NULL OR m.tenantId = :tenantId)")
+    List<Object[]> calculateTotals(
+            @Param("start") Instant start,
+            @Param("end") Instant end,
+            @Param("tenantId") UUID tenantId);
 
-    /** Aggregate by model for a time period (SUCCESS only). */
+    /** Aggregate by model for a time period (SUCCESS only); {@code tenantId} null = all tenants. */
     @Query(
             "SELECT m.modelName,"
                     + " COUNT(m),"
@@ -70,11 +81,18 @@ public interface ModelCostLogRepository extends JpaRepository<ModelCostLog, UUID
                     + " COALESCE(AVG(m.latencyMs), 0.0)"
                     + " FROM ModelCostLog m"
                     + " WHERE m.createdAt BETWEEN :start AND :end AND m.status = 'SUCCESS'"
+                    + " AND (:tenantId IS NULL OR m.tenantId = :tenantId)"
                     + " GROUP BY m.modelName"
                     + " ORDER BY COUNT(m) DESC")
-    List<Object[]> aggregateByModel(@Param("start") Instant start, @Param("end") Instant end);
+    List<Object[]> aggregateByModel(
+            @Param("start") Instant start,
+            @Param("end") Instant end,
+            @Param("tenantId") UUID tenantId);
 
-    /** Aggregate by day for a time period (SUCCESS only). */
+    /**
+     * Aggregate by day for a time period (SUCCESS only); {@code tenantId} null = all tenants. A
+     * native query: no Hibernate filter reaches it, so the tenant predicate is explicit.
+     */
     @Query(
             value =
                     "SELECT DATE(created_at) AS d,"
@@ -83,8 +101,13 @@ public interface ModelCostLogRepository extends JpaRepository<ModelCostLog, UUID
                             + " COALESCE(SUM(total_tokens), 0)"
                             + " FROM model_cost_logs"
                             + " WHERE created_at BETWEEN :start AND :end AND status = 'SUCCESS'"
+                            + " AND (CAST(:tenantId AS uuid) IS NULL"
+                            + " OR tenant_id = CAST(:tenantId AS uuid))"
                             + " GROUP BY DATE(created_at)"
                             + " ORDER BY d ASC",
             nativeQuery = true)
-    List<Object[]> aggregateByDay(@Param("start") Instant start, @Param("end") Instant end);
+    List<Object[]> aggregateByDay(
+            @Param("start") Instant start,
+            @Param("end") Instant end,
+            @Param("tenantId") UUID tenantId);
 }

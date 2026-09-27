@@ -399,6 +399,8 @@ Enforcement lives in `RateLimitWebFilter`, not in the controllers, and it writes
 
 === Admin API Endpoints Summary
 
+Tenant scoping (ADR-009): a tenant-bound caller acts only on its own tenant's data. When admin-api proxies to a downstream service it sends the bound tenant as `X-Tenant-Id` (policy-engine on every call, llm-orchestrator cost queries), and the downstream service filters on it; another tenant's item answers 404 like a missing one. A new downstream endpoint must take the tenant explicitly — the Hibernate `tenantFilter` only applies on the Kafka path.
+
 [cols="1,2,2"]
 |===
 |Method + Path |Description |Auth

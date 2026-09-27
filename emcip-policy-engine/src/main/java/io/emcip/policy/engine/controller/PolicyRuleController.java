@@ -1,5 +1,6 @@
 package io.emcip.policy.engine.controller;
 
+import io.emcip.policy.engine.config.RequestTenant;
 import io.emcip.policy.engine.entity.PolicyRuleConfig;
 import io.emcip.policy.engine.entity.PolicyRuleHistory;
 import io.emcip.policy.engine.repository.PolicyRuleConfigRepository;
@@ -32,9 +33,20 @@ public class PolicyRuleController {
     @Operation(summary = "List active policy rules")
     @GetMapping
     public Flux<PolicyRuleConfig> listActive() {
-        return Mono.fromCallable(repository::findByActiveTrueOrderByPriorityAsc)
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(Flux::fromIterable)
+        return Flux.deferContextual(
+                        ctx -> {
+                            UUID tenant = RequestTenant.of(ctx);
+                            return Mono.fromCallable(
+                                            () ->
+                                                    tenant != null
+                                                            ? repository
+                                                                    .findByActiveTrueAndTenantIdOrderByPriorityAsc(
+                                                                            tenant)
+                                                            : repository
+                                                                    .findByActiveTrueOrderByPriorityAsc())
+                                    .subscribeOn(Schedulers.boundedElastic())
+                                    .flatMapMany(Flux::fromIterable);
+                        })
                 .take(200);
     }
 
@@ -64,75 +76,106 @@ public class PolicyRuleController {
             @PathVariable String id,
             @RequestBody PolicyRuleConfig rule,
             @RequestHeader(value = "X-Edited-By", required = false) String editedBy) {
-        return Mono.fromCallable(
-                        () -> {
-                            PolicyRuleConfig existing =
-                                    repository
-                                            .findById(id)
-                                            .orElseThrow(
-                                                    () ->
-                                                            new ResponseStatusException(
-                                                                    HttpStatus.NOT_FOUND));
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenant = RequestTenant.of(ctx);
+                    return Mono.fromCallable(
+                                    () -> {
+                                        PolicyRuleConfig existing = findOwned(id, tenant);
 
-                            // Write snapshot before overwriting
-                            PolicyRuleHistory snap = new PolicyRuleHistory();
-                            snap.setId(UUID.randomUUID());
-                            snap.setRuleId(existing.getId());
-                            snap.setTenantId(existing.getTenantId());
-                            snap.setSnapshot(toMap(existing));
-                            snap.setEditedBy(editedBy);
-                            snap.setEditedAt(Instant.now());
-                            snap.setRuleVersion(
-                                    existing.getRuleVersion() != null
-                                            ? existing.getRuleVersion()
-                                            : 1);
-                            historyRepository.save(snap);
+                                        // Write snapshot before overwriting
+                                        PolicyRuleHistory snap = new PolicyRuleHistory();
+                                        snap.setId(UUID.randomUUID());
+                                        snap.setRuleId(existing.getId());
+                                        snap.setTenantId(existing.getTenantId());
+                                        snap.setSnapshot(toMap(existing));
+                                        snap.setEditedBy(editedBy);
+                                        snap.setEditedAt(Instant.now());
+                                        snap.setRuleVersion(
+                                                existing.getRuleVersion() != null
+                                                        ? existing.getRuleVersion()
+                                                        : 1);
+                                        historyRepository.save(snap);
 
-                            // Apply updates
-                            existing.setName(rule.getName());
-                            if (rule.getTargetIntent() != null) {
-                                existing.setTargetIntent(rule.getTargetIntent());
-                            }
-                            existing.setAction(rule.getAction());
-                            existing.setPriority(rule.getPriority());
-                            if (rule.getActive() != null) {
-                                existing.setActive(rule.getActive());
-                            }
-                            if (rule.getMinConfidence() != null) {
-                                existing.setMinConfidence(rule.getMinConfidence());
-                            }
-                            existing.setMaxConfidence(rule.getMaxConfidence());
-                            existing.setDescription(rule.getDescription());
-                            existing.setReason(rule.getReason());
-                            existing.setEffectiveFrom(rule.getEffectiveFrom());
-                            existing.setEffectiveTo(rule.getEffectiveTo());
-                            existing.setConditions(rule.getConditions());
-                            existing.setRuleVersion(
-                                    (existing.getRuleVersion() != null
-                                                    ? existing.getRuleVersion()
-                                                    : 1)
-                                            + 1);
+                                        // Apply updates
+                                        existing.setName(rule.getName());
+                                        if (rule.getTargetIntent() != null) {
+                                            existing.setTargetIntent(rule.getTargetIntent());
+                                        }
+                                        existing.setAction(rule.getAction());
+                                        existing.setPriority(rule.getPriority());
+                                        if (rule.getActive() != null) {
+                                            existing.setActive(rule.getActive());
+                                        }
+                                        if (rule.getMinConfidence() != null) {
+                                            existing.setMinConfidence(rule.getMinConfidence());
+                                        }
+                                        existing.setMaxConfidence(rule.getMaxConfidence());
+                                        existing.setDescription(rule.getDescription());
+                                        existing.setReason(rule.getReason());
+                                        existing.setEffectiveFrom(rule.getEffectiveFrom());
+                                        existing.setEffectiveTo(rule.getEffectiveTo());
+                                        existing.setConditions(rule.getConditions());
+                                        existing.setRuleVersion(
+                                                (existing.getRuleVersion() != null
+                                                                ? existing.getRuleVersion()
+                                                                : 1)
+                                                        + 1);
 
-                            return repository.save(existing);
-                        })
-                .subscribeOn(Schedulers.boundedElastic());
+                                        return repository.save(existing);
+                                    })
+                            .subscribeOn(Schedulers.boundedElastic());
+                });
     }
 
     @Operation(summary = "Delete a policy rule (no history snapshot written)")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> delete(@PathVariable String id) {
-        return Mono.fromRunnable(() -> repository.deleteById(id))
-                .subscribeOn(Schedulers.boundedElastic())
-                .then();
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenant = RequestTenant.of(ctx);
+                    return Mono.fromRunnable(
+                                    () -> {
+                                        if (tenant != null) {
+                                            findOwned(id, tenant);
+                                        }
+                                        repository.deleteById(id);
+                                    })
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .then();
+                });
     }
 
     @Operation(summary = "List version history snapshots for a rule")
     @GetMapping("/{id}/history")
     public Flux<PolicyRuleHistory> getHistory(@PathVariable String id) {
-        return Mono.fromCallable(() -> historyRepository.findByRuleIdOrderByEditedAtDesc(id))
-                .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(Flux::fromIterable);
+        return Flux.deferContextual(
+                ctx -> {
+                    UUID tenant = RequestTenant.of(ctx);
+                    return Mono.fromCallable(
+                                    () -> {
+                                        if (tenant != null) {
+                                            findOwned(id, tenant);
+                                        }
+                                        return historyRepository.findByRuleIdOrderByEditedAtDesc(
+                                                id);
+                                    })
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .flatMapMany(Flux::fromIterable);
+                });
+    }
+
+    /**
+     * The rule, if it exists and — when a tenant is asserted — belongs to it. Another tenant's rule
+     * answers 404 exactly like a missing one (ADR-009 rule 8). {@code findById} is not covered by
+     * the Hibernate tenant filter, so the check must be explicit.
+     */
+    private PolicyRuleConfig findOwned(String id, UUID tenant) {
+        return repository
+                .findById(id)
+                .filter(rule -> tenant == null || tenant.equals(rule.getTenantId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     private Map<String, Object> toMap(PolicyRuleConfig rule) {

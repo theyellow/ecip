@@ -174,7 +174,7 @@ Repository interfaces (`GraphRepository`, `VectorSearchRepository`) provide an a
 include::diagrams/c3-admin-api.puml[]
 ----
 
-The Admin API (`emcip-admin-api`) is the single management entry point for operators and the Admin UI. It uses Spring WebFlux with two filter chains: `JwtAuthenticationFilter` for human operators and `ServiceTokenAuthenticationFilter` for internal service calls. Controllers (`AuthController`, `TenantController`, `PolicyRuleController`, `AuditController`, and others) share `TenantWebFilter` which binds the `X-Tenant-Id` header to the Reactor subscriber context.
+The Admin API (`emcip-admin-api`) is the single management entry point for operators and the Admin UI. It uses Spring WebFlux with two filter chains: `JwtAuthenticationFilter` for human operators and `ServiceTokenAuthenticationFilter` for internal service calls. Controllers (`AuthController`, `TenantController`, `PolicyRuleController`, `AuditController`, and others) share `AdminTenantContextFilter`, which binds the caller's tenant (JWT tenant, or an `ADMIN`'s `X-Tenant-Id`; admin mode otherwise) to the Reactor subscriber context.
 
 *Rate limiting* is applied by `RateLimitWebFilter`, registered immediately after `SecurityWebFiltersOrder.AUTHENTICATION` so a principal is available when the key is chosen. Every request is sorted into one of three groups (`auth`, `llm-trigger`, `admin-crud`) by path and method; `auth` endpoints are keyed by the trusted client IP because they are unauthenticated, everything else by the JWT subject, so one caller can no longer exhaust the quota for all of them. Group resolution fails *closed* — `/api/**` paths with no explicit rule fall through to `admin-crud` rather than escaping limits, which makes coverage structural instead of something each new endpoint must remember. Limiters are held per key in a bounded Caffeine cache (10 000 keys per group, 2-minute idle TTL), so a flood from many source addresses cannot grow memory without limit.
 
@@ -190,7 +190,9 @@ All downstream REST calls are protected by a three-layer Resilience4j stack: *re
 
 The admin-api also provides an *AI Research chat* — a multi-turn conversation endpoint (`POST /api/flags/{id}/chat`) that prepends the flag context as a system prompt and forwards the messages array to the LLM Orchestrator's `POST /api/chat` endpoint. This lets operators interactively investigate flagged messages with LLM assistance before deciding on a response.
 
-The admin-api exposes *LLM cost analytics* via `CostsProxyController` — three read-only endpoints (`/api/costs/totals`, `/api/costs/by-model`, `/api/costs/by-day`) that proxy to the LLM Orchestrator's cost aggregation queries. The `COSTS_READ` permission is granted to both ADMIN and TENANT_ADMIN roles, giving operators visibility into LLM usage and spend.
+The admin-api exposes *LLM cost analytics* via `CostsProxyController` — three read-only endpoints (`/api/costs/totals`, `/api/costs/by-model`, `/api/costs/by-day`) that proxy to the LLM Orchestrator's cost aggregation queries. The `COSTS_READ` permission is granted to ADMIN, TENANT_ADMIN and ANALYST, giving operators visibility into LLM usage and spend. A tenant-bound caller sees its own tenant's costs only: the proxy sends the bound tenant as `X-Tenant-Id` and llm-orchestrator filters every aggregate on it; `ADMIN` in admin mode sends none and sees all tenants (TENANT-AUDIT C-1).
+
+*Policy and flag proxies (TENANT-AUDIT):* `PolicyEngineClient` sends the bound tenant as `X-Tenant-Id` on every policy-engine call (rules, history, dry-run, decisions), and a policy-engine 404 is returned as 404. `FlagService.reply` additionally requires the flag to belong to the caller's tenant and looks the Telegram group up within that tenant, before any account or Telegram call — a reply can never reach another tenant's group.
 
 The admin-api also supports *operator actions* — currently, operators can reply to flagged messages directly from the Flag Detail modal. The reply flow resolves the Telegram account watching the flagged chat (via `GroupProfile` → `AccountWatchedGroup` → `TelegramAccount`), sends the message through `emcip-tdlib-adapter`'s `POST /internal/send-message/{accountId}` endpoint (with Resilience4j circuit breaker + retry), and publishes an `OPERATOR_REPLY` audit event to the `audit.events` Kafka topic.
 
@@ -450,7 +452,9 @@ Tokens are signed with `ADMIN_JWT_SECRET` (HS256). Expiry is configurable via `a
 
 Every entity table contains a `tenant_id UUID NOT NULL` column. Isolation is enforced at the data-access layer across two execution models:
 
-*Servlet services* (policy-engine, moderation-service, conversation-context, llm-orchestrator): `TenantContextFilter` (`OncePerRequestFilter`) extracts the `X-Tenant-Id` HTTP header and stores it in `TenantContext` (ThreadLocal). `TenantFilterAspect` (Spring AOP `@Before` pointcut on `@Repository` beans) then enables the Hibernate named filter `tenantFilter` on the current session before every query. Hibernate automatically appends `AND tenant_id = :tenantId` to all annotated entity queries.
+*Kafka path in JPA services* (policy-engine, conversation-context, knowledge-engine, llm-orchestrator): the consumer validates the record's `tenant_id` header and stores it in `TenantContext` (ThreadLocal). `TenantFilterAspect` (Spring AOP `@Before` pointcut on `@Repository` beans) then enables the Hibernate named filter `tenantFilter` on the current session before every query, and Hibernate appends `AND tenant_id = :tenantId` to annotated entity queries. The filter does not cover `findById` or native queries.
+
+*HTTP path in downstream services* (ADR-009 rule 8): no service binds the ThreadLocal from an HTTP header, so the Hibernate filter never applies to REST calls — the tenant is passed explicitly. The reactive services (audit-service, moderation-service, policy-engine) each have a `TenantWebFilter` that puts `X-Tenant-Id` into the Reactor context (policy-engine's also rejects a malformed header with 400); policy-engine's controllers read it with `RequestTenant.of` and pass it into tenant-scoped queries and ownership checks (another tenant's rule or decision answers 404; global decisions are readable, not changeable). llm-orchestrator's cost endpoints take the header as an explicit parameter and filter every aggregate on it, the native by-day query included. No header means a trusted caller (platform `ADMIN` in admin mode, or an in-cluster service).
 
 *Admin API* (reactive / WebFlux): `AdminTenantContextFilter` (`WebFilter`) either binds the tenant ID for normal tenant callers or activates admin mode for `ROLE_ADMIN` JWT holders. Repositories use scoped Spring Data R2DBC methods (e.g. `findByIdAndTenantId`) — Hibernate filters are not available in the reactive stack.
 
@@ -459,7 +463,7 @@ Every entity table contains a `tenant_id UUID NOT NULL` column. Isolation is enf
 include::diagrams/sequence-tenant-propagation.puml[]
 ----
 
-Kafka messages carry `tenant_id` as a record header. Producers call `TenantAwareKafkaSupport.addTenantHeader(record)` to copy the current `TenantContext` value into the record header. Consumers call `TenantAwareKafkaSupport.bindTenantFromRecord(record)` to restore it, and call `TenantContext.clear()` in a `finally` block after processing.
+Kafka messages carry `tenant_id` as a record header. Producers call `TenantAwareKafkaSupport.addTenantHeader(record)` to copy the current `TenantContext` value into the record header. Consumers call `TenantAwareKafkaSupport.validateTenantHeader(record)` (fail-closed: a missing or invalid header rejects the record); JPA services bind the result into `TenantContext` and call `TenantContext.clear()` in a `finally` block after processing.
 
 === Secrets at Rest
 

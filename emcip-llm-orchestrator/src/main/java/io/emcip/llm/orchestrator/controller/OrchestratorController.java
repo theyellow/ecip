@@ -1,5 +1,6 @@
 package io.emcip.llm.orchestrator.controller;
 
+import io.emcip.common.tenant.TenantContext;
 import io.emcip.llm.orchestrator.client.LlmResponse;
 import io.emcip.llm.orchestrator.client.OpenAiCompatibleLlmClient;
 import io.emcip.llm.orchestrator.entity.LlmProviderConfig;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -228,14 +230,17 @@ public class OrchestratorController {
     }
 
     // --- Costs ---
+    // X-Tenant-Id: the caller's tenant (admin-api sends a tenant-bound user's tenant); absent =
+    // all tenants, a trusted caller (ADR-009 rules 5 and 8). Malformed -> 400 (UUID conversion).
 
     @Operation(summary = "Get LLM cost summary for a time range")
     @GetMapping("/costs/summary")
     public Map<String, Object> costSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestHeader(value = TenantContext.HEADER_NAME, required = false) UUID tenantId) {
 
-        double totalCost = costTrackingService.getTotalCostForPeriod(from, to);
+        double totalCost = costTrackingService.getTotalCostForPeriod(from, to, tenantId);
         return Map.of(
                 "from", from.toString(),
                 "to", to.toString(),
@@ -246,8 +251,9 @@ public class OrchestratorController {
     @GetMapping("/costs/totals")
     public Map<String, Object> costTotals(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        Map<String, Object> totals = costTrackingService.getTotals(from, to);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestHeader(value = TenantContext.HEADER_NAME, required = false) UUID tenantId) {
+        Map<String, Object> totals = costTrackingService.getTotals(from, to, tenantId);
         totals.put("from", from.toString());
         totals.put("to", to.toString());
         return totals;
@@ -257,16 +263,18 @@ public class OrchestratorController {
     @GetMapping("/costs/by-model")
     public List<Map<String, Object>> costByModel(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        return costTrackingService.getByModel(from, to);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestHeader(value = TenantContext.HEADER_NAME, required = false) UUID tenantId) {
+        return costTrackingService.getByModel(from, to, tenantId);
     }
 
     @Operation(summary = "Get LLM costs aggregated by day for a time range")
     @GetMapping("/costs/by-day")
     public List<Map<String, Object>> costByDay(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
-        return costTrackingService.getByDay(from, to);
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
+            @RequestHeader(value = TenantContext.HEADER_NAME, required = false) UUID tenantId) {
+        return costTrackingService.getByDay(from, to, tenantId);
     }
 
     // --- Provider Config ---

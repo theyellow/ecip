@@ -1,7 +1,7 @@
 package io.emcip.policy.engine.controller;
 
 import io.emcip.common.pagination.PageResponse;
-import io.emcip.common.tenant.TenantContext;
+import io.emcip.policy.engine.config.RequestTenant;
 import io.emcip.policy.engine.entity.PolicyDecision;
 import io.emcip.policy.engine.repository.PolicyDecisionRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,16 +38,17 @@ public class PolicyDecisionController {
     @Operation(summary = "Get a single policy decision by ID")
     @GetMapping("/{id}")
     public Mono<PolicyDecision> getById(@PathVariable String id) {
-        return Mono.fromCallable(
-                        () ->
-                                repository
-                                        .findById(id)
-                                        .orElseThrow(
-                                                () ->
-                                                        new ResponseStatusException(
-                                                                HttpStatus.NOT_FOUND,
-                                                                "Decision not found: " + id)))
-                .subscribeOn(Schedulers.boundedElastic());
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenant = RequestTenant.of(ctx);
+                    return Mono.fromCallable(
+                                    () ->
+                                            repository
+                                                    .findById(id)
+                                                    .filter(d -> readableBy(d, tenant))
+                                                    .orElseThrow(() -> notFound(id)))
+                            .subscribeOn(Schedulers.boundedElastic());
+                });
     }
 
     @Operation(summary = "List recent policy decisions")
@@ -67,29 +68,28 @@ public class PolicyDecisionController {
                 PageRequest.of(page, effectiveSize, Sort.by(Sort.Direction.DESC, "timestamp"));
         String effectiveDecision = (decision != null && !decision.isBlank()) ? decision : null;
         String effectiveIntent = (intent != null && !intent.isBlank()) ? intent : null;
-        String rawTenantId = TenantContext.getTenantId();
-        UUID tenantId =
-                (rawTenantId != null && !TenantContext.isAdminMode())
-                        ? UUID.fromString(rawTenantId)
-                        : null;
-        return Mono.fromCallable(
-                        () -> {
-                            Page<PolicyDecision> p =
-                                    repository.findByFilters(
-                                            tenantId,
-                                            effectiveDecision,
-                                            effectiveIntent,
-                                            from,
-                                            to,
-                                            minConfidence,
-                                            pageable);
-                            return new PageResponse<>(
-                                    p.getContent(),
-                                    p.getTotalElements(),
-                                    p.getNumber(),
-                                    p.getSize());
-                        })
-                .subscribeOn(Schedulers.boundedElastic());
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenantId = RequestTenant.of(ctx);
+                    return Mono.fromCallable(
+                                    () -> {
+                                        Page<PolicyDecision> p =
+                                                repository.findByFilters(
+                                                        tenantId,
+                                                        effectiveDecision,
+                                                        effectiveIntent,
+                                                        from,
+                                                        to,
+                                                        minConfidence,
+                                                        pageable);
+                                        return new PageResponse<>(
+                                                p.getContent(),
+                                                p.getTotalElements(),
+                                                p.getNumber(),
+                                                p.getSize());
+                                    })
+                            .subscribeOn(Schedulers.boundedElastic());
+                });
     }
 
     @Operation(summary = "Update decision signal status")
@@ -100,8 +100,39 @@ public class PolicyDecisionController {
         if (status == null || status.isBlank()) {
             return Mono.error(new IllegalArgumentException("status is required"));
         }
-        return Mono.fromRunnable(() -> repository.updateSignalStatus(id, status))
-                .subscribeOn(Schedulers.boundedElastic())
-                .then();
+        return Mono.deferContextual(
+                ctx -> {
+                    UUID tenant = RequestTenant.of(ctx);
+                    return Mono.fromRunnable(
+                                    () -> {
+                                        if (tenant != null
+                                                && repository
+                                                        .findById(id)
+                                                        .filter(d -> tenant.equals(d.getTenantId()))
+                                                        .isEmpty()) {
+                                            // Another tenant's or a global decision: tenants
+                                            // change only their own (ADR-009 rules 6 and 8).
+                                            throw notFound(id);
+                                        }
+                                        repository.updateSignalStatus(id, status);
+                                    })
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .then();
+                });
+    }
+
+    /**
+     * Own or global decisions are readable; no tenant asserted = trusted caller (ADR-009 rule 5).
+     * {@code findById} is not covered by the Hibernate tenant filter, so this check is explicit.
+     */
+    private static boolean readableBy(PolicyDecision decision, UUID tenant) {
+        return tenant == null
+                || decision.getTenantId() == null
+                || tenant.equals(decision.getTenantId());
+    }
+
+    /** Denied answers exactly like missing, so ids reveal nothing (ADR-009 rule 8). */
+    private static ResponseStatusException notFound(String id) {
+        return new ResponseStatusException(HttpStatus.NOT_FOUND, "Decision not found: " + id);
     }
 }

@@ -42,12 +42,12 @@ class OrchestratorControllerCostsTest {
         totals.put("avgLatencyMs", 795.0);
         totals.put("successCount", 205L);
         totals.put("failureCount", 5L);
-        when(costTrackingService.getTotals(any(), any())).thenReturn(totals);
+        when(costTrackingService.getTotals(any(), any(), any())).thenReturn(totals);
 
         Instant from = Instant.parse("2026-01-01T00:00:00Z");
         Instant to = Instant.parse("2026-01-31T23:59:59Z");
 
-        var response = controller.costTotals(from, to);
+        var response = controller.costTotals(from, to, null);
 
         assertThat(response.get("totalCostUsd")).isEqualTo(42.5);
         assertThat(response.get("callCount")).isEqualTo(210L);
@@ -60,12 +60,12 @@ class OrchestratorControllerCostsTest {
         Map<String, Object> model = new LinkedHashMap<>();
         model.put("modelName", "qwen3-30b-a3b");
         model.put("callCount", 142L);
-        when(costTrackingService.getByModel(any(), any())).thenReturn(List.of(model));
+        when(costTrackingService.getByModel(any(), any(), any())).thenReturn(List.of(model));
 
         Instant from = Instant.parse("2026-01-01T00:00:00Z");
         Instant to = Instant.parse("2026-01-31T23:59:59Z");
 
-        var response = controller.costByModel(from, to);
+        var response = controller.costByModel(from, to, null);
 
         assertThat(response).hasSize(1);
         assertThat(response.getFirst().get("modelName")).isEqualTo("qwen3-30b-a3b");
@@ -76,12 +76,12 @@ class OrchestratorControllerCostsTest {
         Map<String, Object> day = new LinkedHashMap<>();
         day.put("date", "2026-06-14");
         day.put("callCount", 47L);
-        when(costTrackingService.getByDay(any(), any())).thenReturn(List.of(day));
+        when(costTrackingService.getByDay(any(), any(), any())).thenReturn(List.of(day));
 
         Instant from = Instant.parse("2026-06-14T00:00:00Z");
         Instant to = Instant.parse("2026-06-15T23:59:59Z");
 
-        var response = controller.costByDay(from, to);
+        var response = controller.costByDay(from, to, null);
 
         assertThat(response).hasSize(1);
         assertThat(response.getFirst().get("date")).isEqualTo("2026-06-14");

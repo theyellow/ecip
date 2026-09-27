@@ -28,7 +28,7 @@ Container_Boundary(policy_engine, "Policy Engine - Port 9083") {
     Component(decision_cache, "Decision Cache", "Java / Caffeine", "Caches policy decisions<br/>TTL-based expiration<br/>Reduces DB load")
 
     ' Policy API
-    Component(policy_api, "Policy API Controller", "Java / Spring REST", "REST endpoints for rules<br/>Policy CRUD operations<br/>JWT-secured")
+    Component(policy_api, "Policy API Controllers", "Java / Spring WebFlux", "Rules, decisions, dry-run<br/>X-Service-Token (ServiceTokenFilter)<br/>X-Tenant-Id -> TenantWebFilter,<br/>tenant-scoped queries + ownership checks")
 
     Component(health_endpoint, "Health Endpoint", "Java / Spring Actuator", "/actuator/health<br/>Readiness & liveness<br/>Metrics export")
 }

@@ -8,6 +8,7 @@ import io.emcip.admin.api.entity.TelegramAccount;
 import io.emcip.admin.api.repository.AccountWatchedGroupRepository;
 import io.emcip.admin.api.repository.GroupProfileRepository;
 import io.emcip.admin.api.repository.TelegramAccountRepository;
+import io.emcip.common.tenant.ReactorTenantContext;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.reactor.circuitbreaker.operator.CircuitBreakerOperator;
@@ -16,8 +17,10 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ArrayNode;
@@ -80,55 +83,91 @@ public class FlagService {
             boolean prefixModerator,
             UUID accountId) {
 
-        return policyEngineClient
-                .getDecision(flagId)
-                .flatMap(
-                        flag -> {
-                            JsonNode meta = flag.get("metadata");
-                            if (meta == null || meta.isNull()) {
-                                return Mono.error(
-                                        new IllegalArgumentException("Flag has no metadata"));
-                            }
-                            long chatId = meta.get("chatId").asLong();
-
-                            if ("NOTE".equalsIgnoreCase(target)) {
-                                publishNoteAuditEvent(flagId, text, chatId);
-                                return Mono.<FlagController.ReplyResponse>just(
-                                        new FlagController.ReplyResponse(0L, "NOTE", false));
-                            }
-
-                            String senderId =
-                                    meta.has("senderId") ? meta.get("senderId").asText() : null;
-                            long telegramMessageId =
-                                    meta.has("telegramMessageId")
-                                            ? meta.get("telegramMessageId").asLong()
-                                            : 0L;
-
-                            return groupProfileRepository
-                                    .findByTelegramChatId(chatId)
-                                    .switchIfEmpty(
-                                            Mono.error(
+        return Mono.deferContextual(
+                ctx -> {
+                    String bound = ReactorTenantContext.getTenantId(ctx);
+                    return policyEngineClient
+                            .getDecision(flagId)
+                            .flatMap(
+                                    flag -> {
+                                        if (bound != null && !bound.equals(tenantOf(flag))) {
+                                            // F-1: never act on another tenant's (or a global) flag
+                                            // — its
+                                            // group, via its account. Answer like a missing flag
+                                            // (ADR-009
+                                            // rule 8); policy-engine enforces this too, this is the
+                                            // second
+                                            // layer.
+                                            return Mono.error(
+                                                    new ResponseStatusException(
+                                                            HttpStatus.NOT_FOUND));
+                                        }
+                                        JsonNode meta = flag.get("metadata");
+                                        if (meta == null || meta.isNull()) {
+                                            return Mono.error(
                                                     new IllegalArgumentException(
-                                                            "No group profile found for chatId "
-                                                                    + chatId)))
-                                    .flatMap(profile -> resolveAccount(accountId, profile, chatId))
-                                    .map(
-                                            account ->
-                                                    new AccountWithMeta(
-                                                            account,
-                                                            chatId,
-                                                            senderId,
-                                                            telegramMessageId))
-                                    .flatMap(
-                                            awm ->
-                                                    sendAndAudit(
-                                                            awm,
-                                                            flagId,
-                                                            text,
-                                                            target,
-                                                            replyToOriginal,
-                                                            prefixModerator));
-                        });
+                                                            "Flag has no metadata"));
+                                        }
+                                        long chatId = meta.get("chatId").asLong();
+
+                                        if ("NOTE".equalsIgnoreCase(target)) {
+                                            publishNoteAuditEvent(flagId, text, chatId);
+                                            return Mono.<FlagController.ReplyResponse>just(
+                                                    new FlagController.ReplyResponse(
+                                                            0L, "NOTE", false));
+                                        }
+
+                                        String senderId =
+                                                meta.has("senderId")
+                                                        ? meta.get("senderId").asText()
+                                                        : null;
+                                        long telegramMessageId =
+                                                meta.has("telegramMessageId")
+                                                        ? meta.get("telegramMessageId").asLong()
+                                                        : 0L;
+
+                                        Mono<GroupProfile> group =
+                                                bound != null
+                                                        ? groupProfileRepository
+                                                                .findByTelegramChatIdAndTenantId(
+                                                                        chatId,
+                                                                        UUID.fromString(bound))
+                                                        : groupProfileRepository
+                                                                .findByTelegramChatId(chatId);
+                                        return group.switchIfEmpty(
+                                                        Mono.error(
+                                                                new IllegalArgumentException(
+                                                                        "No group profile found for"
+                                                                                + " chatId "
+                                                                                + chatId)))
+                                                .flatMap(
+                                                        profile ->
+                                                                resolveAccount(
+                                                                        accountId, profile, chatId))
+                                                .map(
+                                                        account ->
+                                                                new AccountWithMeta(
+                                                                        account,
+                                                                        chatId,
+                                                                        senderId,
+                                                                        telegramMessageId))
+                                                .flatMap(
+                                                        awm ->
+                                                                sendAndAudit(
+                                                                        awm,
+                                                                        flagId,
+                                                                        text,
+                                                                        target,
+                                                                        replyToOriginal,
+                                                                        prefixModerator));
+                                    });
+                });
+    }
+
+    /** The decision's tenant as sent by policy-engine; {@code null} for a global decision. */
+    private static String tenantOf(JsonNode decision) {
+        JsonNode tenant = decision.get("tenantId");
+        return tenant == null || tenant.isNull() ? null : tenant.asText();
     }
 
     public Mono<FlagController.AnalyseResponse> analyse(String flagId) {
